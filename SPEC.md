@@ -505,6 +505,15 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     A fourth case is adjacent but different: a **spawned** head merging into a stack (§7) is not a move-merge, and resolution happens at the turn boundary rather than mid-turn. Reading: **it does not cost the stack its next turn's bonus.**
 
+21. **Are sentries dropped and picked up by moves?** Fixing the `Move` DTO forced this, and it exposed a contradiction the prose has been carrying:
+
+    - **§5** says a stack "may **pick them up** again" — *may*, i.e. optional.
+    - **§3** says merging is "free and **automatic**. Two of your heads ending a move on the same arrow merge. No action cost, no declaration."
+
+    Both cannot hold. A stack retracing its own trail either sweeps up every sentry it passes whether or not the player wants the trail left guarded, or sentry pickup is an exception to automatic merging. The second reads better — a sentry is a *placed* unit and un-placing it should be deliberate — but it is a real carve-out in a rule that currently has none, so it is a decision rather than a reading.
+
+    Dropping has the same shape and is unstated either way: §5's "as it goes" suggests shedding is part of a step, but a standalone drop-without-moving is equally plausible and is the only way a stationary stack can garrison the arrow it is already on. **This one is not a residual — neither branch is written down.** It touches the `Move` DTO, so it wants settling in P01's phase 1.
+
 ---
 
 ## Appendix A: Drafted Opening (deferred)
