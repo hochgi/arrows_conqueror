@@ -170,11 +170,14 @@ A territory is closed by **one** chain, and that chain advances at the speed of 
 
 ### A turn is a sequence of single steps
 
-> **A move is one unit taking one step. A turn is an ordered list of moves, ended explicitly.**
+> **A move takes a portion of one arrow's heads one step along an out-arrow. A turn is an ordered list of moves, ended explicitly.**
 
-- **The player chooses the order.** Which unit steps next is a player decision, not an engine rule. This is why the per-step model was chosen: it means there is no within-turn resolution order to invent, and the ordering the player picked is already carried by the move list a replay stores.
-- **A unit may move or skip.** Skipping is a first-class choice, not the absence of one.
-- **A unit may step more than once per turn** if its allowance permits, and those steps may be **interleaved** with other units' steps. A 3-stack at 1.83 does not have to spend its steps consecutively.
+A move names a **source arrow, a destination out-arrow, and a count** — nothing else. There are no unit identities to track; a stack is just the count standing on an arrow (§5).
+
+- **The player chooses the order.** Which stack steps next is a player decision, not an engine rule. This is why the per-step model was chosen: there is no within-turn resolution order to invent, and the ordering the player picked is already carried by the move list a replay stores.
+- **A stack may move or skip.** Skipping is a first-class choice, not the absence of one.
+- **A stack may step more than once per turn** if its allowance permits, and those steps may be **interleaved** with other stacks' steps. A 3-stack at 1.83 does not have to spend its steps consecutively.
+- **Sending different portions to different out-arrows is how a fork is made** — two moves from the same source, each with its own count. The pincer (§7) needs no special move.
 - **The turn ends when the player ends it**, or when no unit has a whole step left.
 
 **Ordering within your own turn is therefore a real tactic.** Stepping one head onto a stack to reinforce it before another head commits to a crossing is a legal and intended play — though §3's merge rule means the reinforced stack pays for it in tempo.
@@ -204,9 +207,23 @@ Result: fights concentrate at the frontier, heartlands resist raiding, and conqu
 
 ### Sentries
 
-A moving stack may **drop heads along its trail** as it goes. A dropped head is a stationary garrison defending that stretch of trail. A stack passing back over its own sentries may **pick them up again**.
+There is **no drop action and no pickup action.**
 
-This is the third leg of the tension: every sentry makes the chain safer and makes the head slower and weaker at the far end. Greed, speed, and safety trade against each other in a decision made repeatedly along the way.
+> **An arrow holds a count of heads. A move takes any portion of that count one step along an out-arrow.**
+
+Leaving some behind *is* the drop. Sending heads onto an arrow that already holds yours *is* the pickup, and it merges under §3 like any other arrival — no carve-out, no declaration, no placed-versus-loose distinction.
+
+A **sentry** is therefore not a kind of unit. It is the name for heads you chose not to bring: a stationary garrison defending that stretch of trail, indistinguishable from any other stack of the same size sitting on the same arrow.
+
+This is the third leg of the tension: every head left behind makes the chain safer and the far end slower and weaker. Greed, speed and safety trade against each other in a decision made repeatedly along the way — and because the portion is just a number on the move, that decision is available at *every* step rather than at authored moments.
+
+### Reading the board
+
+Each arrow shows the count of heads standing on it, in its owner's colour. Closed territory reads as solid; an **unclosed trail reads as visibly different** — reduced opacity, or stripes.
+
+That distinction is not decoration. "Is this stretch cuttable?" is the question a player asks most often (§6.1), and under the safety rule it is the *only* thing separating a head that cannot be touched from one that can. It has to be answerable at a glance rather than by tracing a path back to its anchor.
+
+The interaction model is Galcon-like: pick a source arrow, pick a destination, send a portion.
 
 ---
 
@@ -501,18 +518,19 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     - **Does a skipped step bank?** Reading: **no.** §3 says *fractional* movement banks; a declined whole step is not a fraction. This matters because the alternative turns a rearguard sentry into a spring — skip three turns, then move four — which would undercut the standing-still-is-doing-its-job point in §4.
     - **Does a merge forfeit an inherited bank?** Reading: **yes** — "loses bonus" covers accrued bonus, not just the rate. A 2-stack carrying 0.5 that merges into a 3-stack starts the next turn at 0.
-    - **Is splitting symmetric?** §5 lets a stack drop sentries *as it goes*, so a stack can shrink mid-turn. Reading: **speed is not recomputed downward mid-turn** — the stack keeps the allowance it started with. Splitting is the move the design wants to encourage, and taxing it mid-stride would punish exactly the sentry play §5 exists to enable. Note this is deliberately *not* symmetric with merging, because the exploits are not symmetric: merging up mid-turn is a free upgrade, shedding down is a cost already paid in combat strength.
+    - ~~Is splitting symmetric?~~ — **superseded by item 22**, which the count model made sharper.
 
     A fourth case is adjacent but different: a **spawned** head merging into a stack (§7) is not a move-merge, and resolution happens at the turn boundary rather than mid-turn. Reading: **it does not cost the stack its next turn's bonus.**
 
-21. **Are sentries dropped and picked up by moves?** Fixing the `Move` DTO forced this, and it exposed a contradiction the prose has been carrying:
+21. ~~Are sentries dropped and picked up by moves?~~ — **resolved, and the question dissolved.** There is no drop and no pickup. An arrow holds a count; a move takes a portion of it. Leaving heads behind is the drop, arriving on your own stack is the pickup, and §3's automatic merge needs no carve-out. §5 rewritten; the *may*/*automatic* contradiction is gone rather than adjudicated.
 
-    - **§5** says a stack "may **pick them up** again" — *may*, i.e. optional.
-    - **§3** says merging is "free and **automatic**. Two of your heads ending a move on the same arrow merge. No action cost, no declaration."
+22. **What happens to a stack's allowance when it splits mid-turn?** §3's table says splitting is *meant* to be throughput-positive — N singles do N steps against a stack's ~1.8 — so splitting is not an exploit to close. The unresolved case is narrower: a 3-stack takes one step of its 1.83, *then* sends a portion elsewhere. Do the two resulting stacks each get a fresh allowance, or share what was left?
 
-    Both cannot hold. A stack retracing its own trail either sweeps up every sentry it passes whether or not the player wants the trail left guarded, or sentry pickup is an exception to automatic merging. The second reads better — a sentry is a *placed* unit and un-placing it should be deliberate — but it is a real carve-out in a rule that currently has none, so it is a decision rather than a reading.
+    Fresh allowances make "split everything, move it all, re-merge" the correct opening to every single turn — the exact mirror of the merge exploit item 19 closed. Sharing the remainder needs a division rule for an odd remainder.
 
-    Dropping has the same shape and is unstated either way: §5's "as it goes" suggests shedding is part of a step, but a standalone drop-without-moving is equally plausible and is the only way a stationary stack can garrison the arrow it is already on. **This one is not a residual — neither branch is written down.** It touches the `Move` DTO, so it wants settling in P01's phase 1.
+    Reading: **the mirror of the merge rule — a stack that split this turn has speed 1 for that turn.** It closes the double-dip without costing the design anything, because splitting at the *start* of a turn still yields N steps against 1.83, which is precisely the throughput advantage §3 wants splitting to have. It also means one sentence covers both directions instead of two rules that have to be kept consistent.
+
+    **Not blocking P01** — it does not touch the `Move` DTO — but P04 cannot be written without it.
 
 ---
 

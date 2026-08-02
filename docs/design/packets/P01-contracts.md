@@ -52,19 +52,30 @@ packets instead of within one.
 ## Decisions this packet fixes
 
 **D1 — Ids are opaque and branded, not lattice coordinates.**
-`ArrowId`, `PointId`, `VertexId`, `PlayerId`, `UnitId`. Geometry is pluggable
-(ADR 0001) and fixture boards have no lattice coordinates to expose. A structured
-id would leak the generator's representation through the port and quietly make
-P02 impossible.
+`ArrowId`, `PointId`, `VertexId`, `PlayerId`. Geometry is pluggable (ADR 0001)
+and fixture boards have no lattice coordinates to expose. A structured id would
+leak the generator's representation through the port and quietly make P02
+impossible.
+
+**There is no `UnitId`.** §5 settled units as *counts on arrows*, not entities —
+a stack is `(player, count)` occupying an arrow, and a sentry is just heads that
+stayed. Introducing a unit identity would be modelling a shape the spec does not
+have, and would immediately raise questions the rules never ask: which unit is
+the survivor after attrition, which one carries the bank, which one a converted
+stack becomes.
 
 **D2 — `Rational` is integer numerator/denominator, normalized, totally ordered.**
 Required by §3 (harmonic banking) and §7 (accumulators). Never `number`. The
 total ordering matters as much as the arithmetic: comparisons feed ordered
 decisions, and a partial or identity-based order is a determinism bug (ADR 0001).
 
-**D3 — `Move` is one unit taking one step** (§4, §11 item 19). Variants, pending
-item 21: `step`, `skip`, `endTurn`, and whatever sentry drop/pickup turns out to
-be.
+**D3 — `Move` is `{ from: ArrowId, exit: ArrowId, count: number }`**, plus `skip`
+and `endTurn` (§4, §5; §11 items 19 and 21). Three fields and no unit reference.
+
+Splitting, merging, forking and sentry-dropping are all *the same move* with a
+different `count` — which is why there is no drop action, no pickup action, and
+no fork action. Any move type beyond these three is a signal that a mechanic has
+been invented rather than expressed.
 
 **D4 — Torus wrap is not on the port.** Wrap is internal to the geometry
 implementation; the port only ever returns already-correct neighbours (§2). A
@@ -120,7 +131,7 @@ Sketch, not final wording. Phase 1 sharpens these.
 | `geometry-connectivity` | every point reaches every other point; girth is 3 |
 | `geometry-chord-test` | interleaving chords cross; coinciding chords cross; a chord turning aside does not; the verdict is order-symmetric |
 | `rational-arithmetic` | `1/9 + 1/12 = 7/36` exactly; normalization; total ordering including equal-value-different-representation |
-| `move-dto` | a step names one unit and one exit arrow; skip and end-turn are representable; a turn is an ordered list |
+| `move-dto` | a step names a source arrow, an exit arrow and a count; `count` = whole stack, partial, and the zero/overdraw rejections; skip and end-turn are representable; a turn is an ordered list |
 
 Note that the chord-test scenarios are the only ones here that encode a *rule*
 rather than a shape — they are the port surface of §2's crossing definition, and
@@ -128,17 +139,13 @@ they are worth writing with more care than their size suggests.
 
 ## Questions for phase 1
 
-1. **§11 item 21 — sentry drop and pickup.** Neither branch is written down, and
-   §3 and §5 currently contradict each other on pickup. This is the only thing
-   that can still change `Move`, so it should be settled here rather than
-   discovered in P04. **Blocking for D3.**
-2. Does `GeometryPort` expose the six arrow-slot ordering at a point directly, or
+1. Does `GeometryPort` expose the six arrow-slot ordering at a point directly, or
    only the `crosses(a, b)` verdict? Exposing the ordering makes the chord test
    testable in isolation and makes §2's 81-entry lookup table a real
    implementation option; hiding it keeps the port smaller. Recommend exposing
    it — the table is the thing most likely to be wrong, and an opaque verdict is
    the hardest possible thing to debug.
-3. Do `RulesPort` and `EconomyPort` land in full here, or only `GeometryPort`
+2. Do `RulesPort` and `EconomyPort` land in full here, or only `GeometryPort`
    plus the DTOs, with the rules ports growing packet by packet? Recommend the
    latter: P01 cannot know the shape of closure resolution (§7) without having
    built P05, and a speculative signature is a rule invented in type form.
@@ -150,5 +157,4 @@ they are worth writing with more care than their size suggests.
   suite. None of them pass, because nothing implements the port yet — and the
   suite says so explicitly rather than being empty.
 - No file in `packages/contracts` imports from any other workspace package.
-- §11 item 21 is resolved in SPEC.md, or `Move` is explicitly documented as
-  provisional pending it.
+- `Move` has exactly three variants. Anything else means a mechanic got invented.

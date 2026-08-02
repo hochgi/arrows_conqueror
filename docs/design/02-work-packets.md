@@ -38,7 +38,7 @@ scheduled early in the first place.
 | P08 | Spawner economy | rules | §7 | P07 | exact rationals only; blockades halt accrual and cost the share |
 | P09 | Match lifecycle, setup & victory | rules | §8, §9 | P07, P08 | the turtle stalemate is an accepted risk (§9) — watch for it here |
 | P10 | Replay & determinism harness | cross-cutting | — | P04, P09 | the primary detector of accidental nondeterminism |
-| P11 | Renderer & hot-seat input | adapter | §2, §7 | P03, P09 | the only shipping adapter; reading a wrapping board is a real UX problem |
+| P11 | Renderer & hot-seat input | adapter | §2, §5, §7 | P03, P09 | the only shipping adapter. Galcon-style source→destination→portion input; trail-vs-territory must be legible at a glance (§5) |
 | ~~P12~~ | ~~AI opponent~~ | — | — | — | **out of MVP** (hot-seat). Kept in the graph because P10 exists partly to make it cheap later |
 
 ## Dependency graph
@@ -88,9 +88,12 @@ it catches nondeterminism *while the core is still small enough to find it*.
 Tracked in [`SPEC.md` §11](../../SPEC.md): **one measurement, two tuning knobs,
 and three recorded readings.** Nothing blocks P01.
 
-- **item 20** — the three residual edges of the per-step turn model (does a skip
-  bank, does a merge forfeit an inherited bank, is splitting symmetric). Each has
-  a strong reading written down; confirm before the code hardens them → **P04**
+- **item 22** — how a stack's movement allowance behaves when it splits mid-turn.
+  The mirror of the merge rule is the strong read; without it, "split, move
+  everything, re-merge" is the correct opening to every turn → **P04**
+- **item 20** — two residual edges of the per-step turn model (does a skipped
+  step bank, does a merge forfeit an inherited bank). Both have readings written
+  down; confirm before the code hardens them → **P04**
 - **item 1** — the junction orientation pattern (alternating vs three-consecutive).
   Alternating is the strong read; confirm it → **P03**
 - **item 11** — board size `(n, m)`, and MVP player count fixed at 2 → **P09**
