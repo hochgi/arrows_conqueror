@@ -16,12 +16,12 @@
 |---|---|---|---|---|---|
 | P01 | Contracts: ports & DTOs | foundation | §2–7 | — | port shape is derivable from the spec without the tiling measurement |
 | P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | none — unblocks every rules packet before the real tiling exists |
-| P03 | Tiling geometry & torus wrap | foundation | §2 | P01 | **closes §11 items 1, 5, 16.** The only measurement in the project |
+| P03 | Tiling generator & torus wrap | foundation | §2 | P01 | now a **generator**, not an extraction — the tiling is the oriented triangular lattice. Only the junction orientation pattern (§11 item 1) is still measured |
 | P04 | Movement, stacks & the turn loop | rules | §2–4 | P01, P02 | harmonic banking must be exact rationals, not floats |
 | P05 | Trails, crossings & closure | rules | §2, §5, §7 | P04 | the chord test and even-odd fill are the subtlest logic in the game |
-| P06 | Cuts, evaporation & combat | rules | §6 | P05 | fork evaporation charging (§11 item 8) still open |
+| P06 | Cuts, evaporation & combat | rules | §6 | P05 | two-step crossings: the gate and the casualty are separate stacks |
 | P07 | Territory & encirclement | rules | §7 | P05, P06 | conversion must conserve total heads exactly |
-| P08 | Spawner economy | rules | §7 | P07 | §11 item 15 (spawning onto a contested arrow) still open |
+| P08 | Spawner economy | rules | §7 | P07 | exact rationals only; blockades halt accrual and cost the share |
 | P09 | Match lifecycle, setup & victory | rules | §8, §9 | P07, P08 | the turtle stalemate is an accepted risk (§9) — watch for it here |
 | P10 | Replay & determinism harness | cross-cutting | — | P04, P09 | the primary detector of accidental nondeterminism |
 | P11 | Renderer (torus board) | adapter | §2, §7 | P03, P09 | reading a wrapping board is a real UX problem |
@@ -51,12 +51,12 @@ flowchart TD
 
 ## Build order and why
 
-**P01–P02 first, and P03 in parallel.** The rules are the product; the tiling is
-a measurement. Splitting fixture geometry from real geometry means every rules
-packet can proceed against small hand-authored boards with known adjacency while
-the extraction happens independently — same `GeometryPort`, same tests. This is
-the single most important sequencing decision in the plan; collapsing P02 and P03
-would block the entire game behind a measuring task.
+**P01–P02 first, and P03 in parallel.** The tiling is now known to be the
+oriented triangular lattice (§2), so P03 generates a board from two basis vectors
+and a modulus rather than tracing an image. Keeping fixture geometry separate
+still pays: rules packets test against small hand-authored boards with known
+adjacency, which make failures readable, while P03 settles the one remaining
+measurement — the junction orientation pattern — behind the same `GeometryPort`.
 
 **P04 → P05 → P06 → P07 is a genuine chain.** Closure needs movement; cuts need
 trails to cut; territory needs both closure and the encirclement that combat
@@ -71,13 +71,17 @@ it catches nondeterminism *while the core is still small enough to find it*.
 
 ## Open items this plan inherits
 
-Tracked in [`SPEC.md` §11](../../SPEC.md). The ones with a packet owner:
+Tracked in [`SPEC.md` §11](../../SPEC.md), which is now down to **one measurement
+and two tuning knobs** — every rules constant has been decided.
 
-- items 1, 5, 16 — the geometry measurement → **P03**
-- item 8 — which stack a fork's evaporation charges → **P06**
-- item 15 — spawning onto a contested arrow → **P08**
-- items 6, 7, 9, 10 — combat and merge constants → **P06**, **P04**
-- items 11, 12 — player count, board size, special density → **P09**
+- **item 1** — the junction orientation pattern (alternating vs three-consecutive).
+  Alternating is the strong read; confirm it → **P03**
+- **item 11** — board size `(n, m)`, and MVP player count fixed at 2 → **P09**
+- **item 12** — spawner density as a fraction of the `2nm` eligible vertices → **P09**
+
+Items 11 and 12 are a single balance sweep against total spawner force, and want
+a playable game rather than an argument — which is why P09 owns them and why the
+replay harness (P10) lands right behind it.
 
 An item with no packet owner is a scoping gap, not a decision. Say so rather than
 absorbing it.
