@@ -74,12 +74,28 @@ component tests is interchangeable.
 
 ## Commands
 
-**Not landed yet.** The toolchain is P01's first deliverable and was deliberately
-not guessed at. Intended shape, matching the sibling repo:
-`pnpm build | lint | typecheck | test | verify`.
+TypeScript (strict) + Vitest + pnpm workspaces. Landed in P01.
 
-Assumed stack unless the human says otherwise: TypeScript (strict) + Vitest +
-pnpm workspaces. Change it here before P01 if that is wrong.
+```bash
+pnpm verify      # typecheck && lint && test — run this before saying you are done
+```
+
+Also `pnpm build`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:watch`.
+
+`tsconfig.base.json` is deliberately strict beyond `"strict": true` —
+`noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` in particular. Both
+are irritating and both are the right trade in a rules engine where an
+off-by-one in an adjacency lookup is a silent wrong answer rather than a crash.
+
+**`eslint.config.js` carries the purity guard**: `Date`, `Math.random`,
+`performance.now`, `fetch`, `process` and `crypto` are banned inside
+`packages/contracts` and `packages/rules-core`. Adapters are exempt — the impure
+world is supposed to live there.
+
+That guard catches the loud violations only. It does **not** catch the realistic
+ones: iteration over an unordered collection feeding an ordered decision, or a
+`sort` whose ties break on identity. Both pass every unit test and surface only
+as replay drift, which is why P10 lands early.
 
 ## Testing posture
 

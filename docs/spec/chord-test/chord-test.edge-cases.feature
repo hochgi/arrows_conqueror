@@ -18,13 +18,28 @@ Feature: The chord test — totality, symmetry and the cases that unify
     determinism failure ADR 0001 names as the realistic one.
 
     Scenario: Every ordered pair of chords has a verdict
-      When I apply the chord test to every ordered pair of the 9 possible chords
-      Then all 81 pairs return a verdict
+      When I apply the chord test to every ordered pair of the 15 distinct chords
+      Then all 225 pairs return a verdict
       And no pair raises an error
+      # 6 slots give 15 distinct chords. A *layout* — which three slots are
+      # in-slots — makes only 9 of them realizable as a transit, so 81 pairs
+      # are the ones the game can actually reach. The function is total over
+      # all 225 precisely so it does not need to know the layout.
 
     Scenario: Swapping the arguments does not change the verdict
-      When I apply the chord test to every ordered pair of the 9 possible chords
+      When I apply the chord test to every ordered pair of the 15 distinct chords
       Then the verdict for each pair equals the verdict for its reverse
+
+    Scenario Outline: Both candidate layouts realize exactly 81 reachable pairs
+      Given the orientation pattern is <pattern>
+      When I enumerate the chords a transit can draw
+      Then there are exactly 9
+      And every ordered pair of them returns a verdict
+
+      Examples:
+        | pattern            | in-slots |
+        | alternating        | 0, 2, 4  |
+        | three-consecutive  | 0, 1, 2  |
 
     Scenario: A chord crosses itself
       Given red draws a chord between slots 0 and 3

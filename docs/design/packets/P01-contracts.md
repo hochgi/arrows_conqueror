@@ -158,9 +158,30 @@ they are worth writing with more care than their size suggests.
 
 ## Definition of done
 
-- `packages/contracts` builds and typechecks under strict TypeScript.
-- Every invariant above appears as a named, pending test in the conformance
-  suite. None of them pass, because nothing implements the port yet — and the
-  suite says so explicitly rather than being empty.
-- No file in `packages/contracts` imports from any other workspace package.
-- `Move` has exactly three variants. Anything else means a mechanic got invented.
+- [x] Toolchain landed — pnpm workspace, TypeScript strict, Vitest, ESLint with
+      the purity guard. `pnpm verify` runs.
+- [x] `packages/contracts` builds and typechecks under strict TypeScript.
+- [x] Every invariant appears as a named test. **Phase 2 complete: 86 failing,
+      2 passing**, and every failure was individually checked to be a missing
+      behaviour rather than a setup problem.
+- [x] No file in `packages/contracts` imports from any other workspace package.
+- [x] `Move` has exactly three variants, asserted.
+- [ ] Phase 3 — green.
+
+## Phase 2 notes worth carrying into phase 3
+
+**Two tests are green on purpose.** `the port surface is exactly these ten
+methods` and `Move admits exactly three variants` constrain shape that already
+exists; they are guards against a method or variant being added later, and they
+should fail loudly when that happens.
+
+**`ContractViolation` exists because of a false green.** The rejection tests
+originally asserted a bare `.toThrow()` and passed against empty skeletons —
+they would have stayed green through phase 3 whether or not the validation was
+ever written. They now assert the specific error type. Any new rejection test
+must do the same.
+
+**The geometry conformance suite runs against a port whose every method
+throws.** That is P01's honest red. P02 swaps in a fixture board and the same
+suite must go green *unchanged* — if it needs editing, the port leaked something
+concrete.
