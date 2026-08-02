@@ -1,0 +1,102 @@
+# language: en
+# Overview: docs/spec/chord-test/chord-test.md
+# SPEC §2 (chord test), §7 (self-crossing and even-odd fill), §11 item 1
+
+Feature: The chord test — totality, symmetry and the cases that unify
+  As the rules core
+  I want the chord test total, symmetric and blind to the orientation pattern
+  So that combat never depends on argument order and P03 cannot invalidate it
+
+  Background:
+    Given a point with six arrow slots numbered 0 to 5 in cyclic order
+
+  Rule: The test is total and symmetric
+
+    Interleaving and coincidence are both symmetric relations, so a verdict that
+    changed with argument order would make combat depend on which trail the
+    engine happened to examine first. That is exactly the iteration-order
+    determinism failure ADR 0001 names as the realistic one.
+
+    Scenario: Every ordered pair of chords has a verdict
+      When I apply the chord test to every ordered pair of the 9 possible chords
+      Then all 81 pairs return a verdict
+      And no pair raises an error
+
+    Scenario: Swapping the arguments does not change the verdict
+      When I apply the chord test to every ordered pair of the 9 possible chords
+      Then the verdict for each pair equals the verdict for its reverse
+
+    Scenario: A chord crosses itself
+      Given red draws a chord between slots 0 and 3
+      And blue draws a chord between slots 0 and 3
+      When I apply the chord test
+      Then blue crosses red
+      # Coincidence at both endpoints. This is the degenerate case the
+      # self-crossing rule in §7 relies on.
+
+  Rule: The verdict depends only on cyclic order
+
+    SPEC §11 item 1 — alternating versus three-consecutive in-slots — is the
+    last unmeasured geometric fact. The test must be correct under either, so
+    that P01 need not wait for P03 and P03 cannot invalidate P01.
+
+    Scenario: Rotating every slot label leaves the verdicts unchanged
+      When I rotate all six slot labels by one position
+      And I apply the chord test to every ordered pair of the 9 possible chords
+      Then every verdict is unchanged
+
+    Scenario: Reflecting the slot order leaves the verdicts unchanged
+      When I reverse the cyclic order of the six slots
+      And I apply the chord test to every ordered pair of the 9 possible chords
+      Then every verdict is unchanged
+
+    Scenario: The test never asks which slots are in-slots
+      When I inspect the chord test's inputs
+      Then it takes only two chords and the cyclic slot order
+      And it takes no direction information
+
+  Rule: The three behaviours the test must permit
+
+    These are not extra rules. They are consequences of testing the exit choice
+    rather than the arrival, and each would be lost if the test fired on contact.
+
+    Scenario: A head may shadow an enemy trail through a shared point
+      Given red draws a chord between slots 0 and 3
+      And blue draws a chord between slots 4 and 5
+      When I apply the chord test
+      Then blue does not cross red
+      # Blue transited the very point red's trail runs through, and nothing
+      # happened. It may do this point after point, choosing its moment.
+
+    Scenario: Two trails may run parallel through the same corridor
+      Given red draws a chord between slots 0 and 3
+      And blue draws a chord between slots 1 and 2
+      When I apply the chord test
+      Then blue does not cross red
+
+    Scenario: A defender may hold a contested point without committing
+      Given red draws a chord between slots 0 and 3
+      And blue has arrived at the point but has not chosen an exit
+      When I apply the chord test
+      Then no verdict is produced
+      And no combat is triggered
+      # Crossing is a decision. Arriving is not one.
+
+  Rule: One test, three callers
+
+    Enemy cut, self-crossing and combat location all reduce to this. If any
+    caller needs a variant of the test, the rule has been misunderstood.
+
+    Scenario Outline: The same verdict serves every caller
+      Given two chords that <relation>
+      When <caller> applies the chord test
+      Then the verdict is <verdict>
+
+      Examples:
+        | relation      | caller                        | verdict     |
+        | interleave    | the cut check in §6.1         | crossing    |
+        | coincide      | the cut check in §6.1          | crossing    |
+        | turn aside    | the cut check in §6.1          | no crossing |
+        | interleave    | the self-crossing check in §7  | crossing    |
+        | coincide      | the self-crossing check in §7  | crossing    |
+        | turn aside    | the self-crossing check in §7  | no crossing |

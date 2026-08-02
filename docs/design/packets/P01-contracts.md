@@ -121,7 +121,13 @@ Purity — these apply to every port, and are the reason P10 exists:
 
 ## Scenario inventory
 
-Sketch, not final wording. Phase 1 sharpens these.
+**Phase 1 is done.** The specs live in [`docs/spec/`](../../spec/README.md):
+[geometry-port](../../spec/geometry-port/geometry-port.md),
+[chord-test](../../spec/chord-test/chord-test.md),
+[rational](../../spec/rational/rational.md),
+[move](../../spec/move/move.md). 80 scenarios, 33 EARS invariants.
+
+The inventory below is the sketch those were written from, kept for the record.
 
 | Feature | Scenarios |
 |---|---|

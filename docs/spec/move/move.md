@@ -1,0 +1,96 @@
+# move — what a player does
+
+**Packet:** [P01 — Contracts](../../design/packets/P01-contracts.md)
+**SPEC:** §4 (turn structure), §5 (sentries are counts), §11 items 19 and 21
+**Features:** [core](./move.core.feature) · [edge cases](./move.edge-cases.feature)
+
+## Purpose
+
+> **A move takes a portion of one arrow's heads one step along an out-arrow.
+> A turn is an ordered list of moves, ended explicitly.**
+
+Three variants and no others: **step**, **skip**, **end-turn**.
+
+Splitting, merging, forking and dropping a sentry are all *the same move with a
+different count*. Any fourth variant is a signal that a mechanic has been
+invented rather than expressed.
+
+## Scope
+
+P01 owns the **shape** of a move. Whether a move is *legal* — whether the exit is
+an out-arrow of the source's target point, whether the mover has allowance left,
+whether a crossing is won — belongs to P04 and later. Letting legality leak into
+this feature would bind the DTO to rules that have not been built.
+
+## Terms
+
+| Term | Means |
+|---|---|
+| **head** | one unit; also one life |
+| **stack** | merged heads on one arrow; stack size **is** lives |
+| **sentry** | heads left behind on a trail; a name, not a kind of unit |
+| **count** | how many of a source arrow's heads a step takes |
+| **skip** | a stack declining to move; a choice, not the absence of one |
+
+## Why there is no unit identity
+
+A stack is the count standing on an arrow. Nothing else. Introducing a `UnitId`
+would model a shape the spec does not have, and would immediately raise
+questions the rules never ask: *which* unit survives attrition, *which* one
+carries the bank, *which* one a converted stack becomes.
+
+The count model came from the interaction, not the other way round: an arrow
+shows a number in its owner's colour, and you send a portion of it somewhere.
+Galcon, on a directed graph.
+
+## A turn
+
+```mermaid
+flowchart TD
+  S["turn begins"] --> P{"player picks"}
+  P -- "step" --> M["source arrow, exit arrow, count"]
+  P -- "skip" --> K["a stack declines to move"]
+  P -- "end turn" --> E["turn ends"]
+  M --> P
+  K --> P
+  E --> N["opponent's turn"]
+  P -- "no stack has a whole step left" --> E
+```
+
+The player chooses the order. That is the whole reason the per-step model was
+chosen over simultaneous resolution: **there is no within-turn resolution order
+to invent**, and the ordering the player picked is already carried by the move
+list a replay stores.
+
+## Invariants
+
+- The system shall represent a step as exactly a source arrow, an exit arrow and
+  a count, and nothing else.
+- The system shall reject a step whose count is zero, negative, or greater than
+  the heads standing on the source.
+- The system shall represent a skip as a source arrow with no exit and no count.
+- The system shall represent an end-turn with no arrow.
+- The system shall preserve the order of moves within a turn.
+- The system shall treat two structurally identical moves as equal, and shall not
+  fall back on object identity.
+- The system shall treat two turns containing the same moves in different orders
+  as unequal.
+- The system shall offer no move variant beyond step, skip and end-turn.
+
+## Order is data, and it changes outcomes
+
+Stepping one stack onto another to reinforce it before a third commits to a
+crossing is a legal and intended play (§4). So a turn is genuinely a *sequence*,
+not a set — and the last two invariants above are what let a replay reproduce a
+match exactly rather than approximately.
+
+The reinforcement is not free: §3's merge rule gives a stack that merged this
+turn speed 1 for that turn, which prices the manoeuvre in tempo without banning
+it.
+
+## Open, and not blocking
+
+**§11 item 22** — what happens to a stack's allowance when it splits mid-turn.
+It does not touch this DTO, but P04 cannot be written without it. The strong
+read is the mirror of the merge rule: a stack that split this turn has speed 1
+for that turn.
