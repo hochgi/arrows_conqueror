@@ -88,9 +88,24 @@ The reinforcement is not free: §3's merge rule gives a stack that merged this
 turn speed 1 for that turn, which prices the manoeuvre in tempo without banning
 it.
 
-## Open, and not blocking
+## What the DTO must keep expressible
 
-**§11 item 22** — what happens to a stack's allowance when it splits mid-turn.
-It does not touch this DTO, but P04 cannot be written without it. The strong
-read is the mirror of the merge rule: a stack that split this turn has speed 1
-for that turn.
+**§11 item 22 is settled** (§3, allowance and spending): on a split both parts
+inherit `spent`, so only the portion that moves pays. That is enforced by P04,
+not here — but it constrains this DTO in one way worth stating, because it is
+easy to lose.
+
+A split sends part of a group forward while the rest stays *and remains able to
+act*. So a turn routinely contains several moves naming the same origin, and a
+rear group following a front group along arrows the front group just laid. The
+DTO must not make either look malformed:
+
+- no limit on how many moves name the same source
+- no notion of a stack having "gone already"
+- no distinction between stepping onto fresh ground and stepping onto your own
+  trail
+
+That last one matters most. §6.1a's no-re-trace invariant constrains the
+trail's arrow *set* — a tip may not extend onto an arrow the trail already holds
+— and says nothing about where heads walk. A lagging group is ordinary play, and
+a DTO that treated it as suspect would have encoded the wrong invariant.

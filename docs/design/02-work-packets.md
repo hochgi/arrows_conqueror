@@ -86,14 +86,12 @@ it catches nondeterminism *while the core is still small enough to find it*.
 ## Open items this plan inherits
 
 Tracked in [`SPEC.md` §11](../../SPEC.md): **one measurement, two tuning knobs,
-and three recorded readings.** Nothing blocks P01.
+and two recorded readings.** Every structural decision is made — nothing blocks
+P01 or P04.
 
-- **item 22** — how a stack's movement allowance behaves when it splits mid-turn.
-  The mirror of the merge rule is the strong read; without it, "split, move
-  everything, re-merge" is the correct opening to every turn → **P04**
-- **item 20** — two residual edges of the per-step turn model (does a skipped
-  step bank, does a merge forfeit an inherited bank). Both have readings written
-  down; confirm before the code hardens them → **P04**
+- **item 20** — two residual carry edges (does a merge forfeit an inherited
+  carry, does a split duplicate one). Both have readings written down and both
+  are bounded below one step; confirm before the code hardens them → **P04**
 - **item 1** — the junction orientation pattern (alternating vs three-consecutive).
   Alternating is the strong read; confirm it → **P03**
 - **item 11** — board size `(n, m)`, and MVP player count fixed at 2 → **P09**

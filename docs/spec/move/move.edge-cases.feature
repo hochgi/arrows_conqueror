@@ -25,6 +25,22 @@ Feature: The move DTO — boundaries and the cases that must stay expressible
       And the DTO imposes no limit on how many moves name the same stack
       # Allowance is what limits this, and allowance is P04's business.
 
+    Scenario: A split leaves the remainder able to act
+      Given arrow a1 holds 3 heads belonging to player A
+      When player A constructs a step move from a1 with count 1
+      And player A constructs a further step move from a1 with count 2
+      Then both moves are well-formed
+      # SPEC §3: on a split both parts inherit `spent`, so only the portion
+      # that moved has paid. The DTO must not treat a1 as spent.
+
+    Scenario: A rear group may step onto an arrow the front group laid
+      Given player A has stepped a group from arrow a1 to arrow a2
+      When player A constructs a step move from a1 to a2 for the heads left behind
+      Then the move is well-formed
+      # SPEC §6.1a: no-re-trace constrains the trail's arrow set, not where
+      # heads walk. A lagging group is ordinary play, not a violation — it is
+      # how a spearhead brings its firebreaks along.
+
     Scenario: Moves from different stacks may be interleaved
       Given player A holds stacks on arrows a1 and a2
       When player A constructs a move from a1, then from a2, then from a1 again

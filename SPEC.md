@@ -150,6 +150,32 @@ Stated as a speed override rather than a special case, so nothing else needs cha
 
 This prices the obvious exploit. Without it, walking a spare head into a stack would be a free mid-turn speed upgrade, and the correct opening move every single turn would be to merge before doing anything else. It also keeps the promise above honest — stacking must never beat splitting on raw throughput, and a costless merge would beat it for exactly one turn, which is the turn that matters.
 
+### Allowance and spending
+
+A **group** is the heads of one player standing on one arrow. Allowance belongs to the group — not to a head, not to a player.
+
+> **A group may step while `spent + 1 ≤ allowance`**, where `allowance` is `speed(size)` plus any fraction carried from last turn, and `spent` counts the steps that group has already taken this turn.
+
+Two rules make a change of composition behave:
+
+- **On a split, both parts inherit `spent`.** Only the portion that moves pays for the step. The portion that stayed has spent nothing extra and may still act — branching off in another direction, or following the same path a step behind (§6.1a).
+- **On a merge, the arrivals' spending is discarded and the destination's is kept**, and the merged group's speed is 1 for the turn (above). The arrivals already paid to get there; they are carried, not carrying.
+
+**Splitting needs no penalty of its own, and that asymmetry is not an oversight.** Merging up mid-turn would be a free upgrade if unpriced, because a larger group is strictly faster. Splitting down needs no such guard: inheriting `spent` already prevents the double dip, because a stack that has taken its step cannot split into scouts that have not.
+
+What survives is exactly the throughput advantage splitting is supposed to have:
+
+| a fresh 3-stack (allowance 11/6) | steps this turn |
+|---|---|
+| moves as one | **1** — 11/6 affords one step, 5/6 banks |
+| splits 1 + 2, both move | **2** |
+| splits 1 + 1 + 1, all move | **3** |
+| moves as one, *then* tries to split | **1** — the parts inherit the spend |
+
+The last row is the whole rule in one line: **splitting is a decision you make before you move, not after.**
+
+And a group large enough to afford two steps takes its rear guard with it. A 6-stack splitting 4 + 2 sends the 4 forward two steps (25/12 affords it) while the 2 follows one step behind — a spearhead with its firebreak trailing it, from one ordinary split.
+
 ### Why both merging and splitting are attractive
 
 | | Merge | Split |
@@ -266,7 +292,11 @@ Four invariants govern every trail:
 3. **No arrow may be re-traced** within an unclosed trail. Each branch is *arrow-simple*.
 4. **Points may be revisited.** Crossing your own trail by looping around is legal, and inverts which regions are claimed when the path eventually closes (§7, even-odd).
 
-**Why 3 and 4 matter more than they look.** Together they make each branch a curve that may self-intersect only at points, never along an arrow — which is exactly the condition even-odd fill needs to be well-posed. A trail permitted to double back *along* itself leaves "inside" genuinely undefined.
+**Invariant 3 constrains the trail, not the heads.** It says the trail's arrow *set* gains no duplicate — that a tip may not extend onto an arrow the trail already holds. It says nothing about heads walking over ground already laid.
+
+So a **lagging group is legal and expected.** Split a stack, send the front group two steps and the rear group one, and the rear group is standing on an arrow the front group laid. Nothing was re-traced: the trail did not grow a second copy of that arrow, and the rear group is not a tip. This is ordinary play — it is how a spearhead brings its firebreaks along (§6.1) instead of abandoning them at the start line.
+
+**Why 3 and 4 matter more than they look.** Together they make each branch a curve that may self-intersect only at points, never along an arrow — which is exactly the condition even-odd fill needs to be well-posed. A trail permitted to double back *along* itself leaves "inside" genuinely undefined. Note this is a statement about the trail's geometry, which is why heads moving along it cannot disturb it.
 
 **Why 1 makes a whole class of case vanish.** Evaporation runs forward to the first *surviving* stack, so if a branch's tip head dies, everything forward of the cut died with it. A headless branch is therefore unreachable rather than handled. When a tip head dies its own arrow evaporates too — otherwise a one-arrow stub would violate invariant 1.
 
@@ -514,23 +544,20 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
 19. ~~What is a move?~~ — **resolved: per-step.** A move is one unit, one step; the player chooses the order; skip is a first-class move; the turn ends explicitly. No within-turn resolution order had to be invented. Merging mid-turn costs the stack its speed bonus for that turn, which prices the reinforce-then-strike combo without banning it. See §4 and §3.
 
-20. **Residuals of the per-step model.** Three edges the merge rule implies but does not state outright. Each has a strong reading recorded below; none blocks P01, and all three want confirming before P04 codifies them.
+20. **Residuals of the per-step model.** Edges the allowance model implies but does not state outright. Readings recorded; none blocks P01, all want confirming before P04 codifies them.
 
-    - **Does a skipped step bank?** Reading: **no.** §3 says *fractional* movement banks; a declined whole step is not a fraction. This matters because the alternative turns a rearguard sentry into a spring — skip three turns, then move four — which would undercut the standing-still-is-doing-its-job point in §4.
-    - **Does a merge forfeit an inherited bank?** Reading: **yes** — "loses bonus" covers accrued bonus, not just the rate. A 2-stack carrying 0.5 that merges into a 3-stack starts the next turn at 0.
-    - ~~Is splitting symmetric?~~ — **superseded by item 22**, which the count model made sharper.
+    - ~~Does a skipped step bank?~~ — **resolved: no.** Carry is the *fractional* part of `allowance − spent` at end of turn; whole unused steps are forfeited. Without this a rearguard sentry becomes a spring — skip three turns, move four — which would undercut the standing-still-is-doing-its-job point in §4. See §3, allowance and spending.
+    - **Does a merge forfeit an inherited carry?** Reading: **yes** — "loses bonus" covers accrued bonus, not just the rate. A 2-stack carrying 1/2 that merges into a 3-stack starts the next turn at 0.
+    - **Does a split duplicate an inherited carry?** Reading: **yes, both parts keep it.** It is bounded — a carry is below 1 by construction, and total steps are still capped by what splitting into singles would have given anyway — and the alternative needs a division rule for a fraction that does not divide.
+    - ~~Is splitting symmetric with merging?~~ — **resolved: no, and deliberately.** See item 22.
 
-    A fourth case is adjacent but different: a **spawned** head merging into a stack (§7) is not a move-merge, and resolution happens at the turn boundary rather than mid-turn. Reading: **it does not cost the stack its next turn's bonus.**
+    A further case is adjacent but different: a **spawned** head merging into a stack (§7) is not a move-merge, and resolution happens at the turn boundary rather than mid-turn. Reading: **it does not cost the stack its next turn's bonus.**
 
 21. ~~Are sentries dropped and picked up by moves?~~ — **resolved, and the question dissolved.** There is no drop and no pickup. An arrow holds a count; a move takes a portion of it. Leaving heads behind is the drop, arriving on your own stack is the pickup, and §3's automatic merge needs no carve-out. §5 rewritten; the *may*/*automatic* contradiction is gone rather than adjudicated.
 
-22. **What happens to a stack's allowance when it splits mid-turn?** §3's table says splitting is *meant* to be throughput-positive — N singles do N steps against a stack's ~1.8 — so splitting is not an exploit to close. The unresolved case is narrower: a 3-stack takes one step of its 1.83, *then* sends a portion elsewhere. Do the two resulting stacks each get a fresh allowance, or share what was left?
+22. ~~What happens to a stack's allowance when it splits mid-turn?~~ — **resolved: only the portion that moves spends.** Both parts inherit `spent`, so the portion that stayed may still act — branch off, or follow one step behind — while a stack that already moved as a whole cannot then split into scouts that have not. Splitting needs no penalty of its own; inheriting `spent` closes the double dip on its own, so the asymmetry with merging is deliberate rather than an oversight. See §3, allowance and spending.
 
-    Fresh allowances make "split everything, move it all, re-merge" the correct opening to every single turn — the exact mirror of the merge exploit item 19 closed. Sharing the remainder needs a division rule for an odd remainder.
-
-    Reading: **the mirror of the merge rule — a stack that split this turn has speed 1 for that turn.** It closes the double-dip without costing the design anything, because splitting at the *start* of a turn still yields N steps against 1.83, which is precisely the throughput advantage §3 wants splitting to have. It also means one sentence covers both directions instead of two rules that have to be kept consistent.
-
-    **Not blocking P01** — it does not touch the `Move` DTO — but P04 cannot be written without it.
+    This also settled a latent question in §6.1a: a lagging group standing on an arrow the front group laid is **not** re-tracing. Invariant 3 constrains the trail's arrow set, not where heads walk.
 
 ---
 
