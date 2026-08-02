@@ -10,11 +10,25 @@
 > Everything here is derived from [`SPEC.md`](../../SPEC.md). The § references
 > point at the section that owns the behaviour.
 
+## MVP scope
+
+MVP is **stateless, client-only, hot-seat** (SPEC §1). Two players alternating on
+one machine, no save/resume, no server, no AI.
+
+That trims the plan rather than reshaping it: **P12 leaves MVP**, and P11 becomes
+the only adapter that ships. Nothing moves the other way — there was never a
+persistence or netcode packet, because ADR 0001 kept both outside the core by
+construction.
+
+**P10 stays in, and its justification changes.** With no save/resume it is not a
+product feature; it is the determinism detector, which is the reason it was
+scheduled early in the first place.
+
 ## Packet index
 
 | # | Packet | Layer | SPEC | Depends on | Gate / risk |
 |---|---|---|---|---|---|
-| P01 | Contracts: ports & DTOs | foundation | §2–7 | — | port shape is derivable from the spec without the tiling measurement |
+| P01 | Contracts: ports & DTOs | foundation | §2–7 | — | unblocked — §11 item 19 settled the `Move` DTO: one unit, one step |
 | P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | none — unblocks every rules packet before the real tiling exists |
 | P03 | Tiling generator & torus wrap | foundation | §2 | P01 | now a **generator**, not an extraction — the tiling is the oriented triangular lattice. Only the junction orientation pattern (§11 item 1) is still measured |
 | P04 | Movement, stacks & the turn loop | rules | §2–4 | P01, P02 | harmonic banking must be exact rationals, not floats |
@@ -24,8 +38,8 @@
 | P08 | Spawner economy | rules | §7 | P07 | exact rationals only; blockades halt accrual and cost the share |
 | P09 | Match lifecycle, setup & victory | rules | §8, §9 | P07, P08 | the turtle stalemate is an accepted risk (§9) — watch for it here |
 | P10 | Replay & determinism harness | cross-cutting | — | P04, P09 | the primary detector of accidental nondeterminism |
-| P11 | Renderer (torus board) | adapter | §2, §7 | P03, P09 | reading a wrapping board is a real UX problem |
-| P12 | AI opponent | adapter | all | P09, P10 | needs a searchable, pure core — depends on P10 holding the line |
+| P11 | Renderer & hot-seat input | adapter | §2, §7 | P03, P09 | the only shipping adapter; reading a wrapping board is a real UX problem |
+| ~~P12~~ | ~~AI opponent~~ | — | — | — | **out of MVP** (hot-seat). Kept in the graph because P10 exists partly to make it cheap later |
 
 ## Dependency graph
 
@@ -43,10 +57,10 @@ flowchart TD
   P08 --> P09
   P04 --> P10["P10 replay harness"]
   P09 --> P10
-  P03 --> P11["P11 renderer"]
+  P03 --> P11["P11 renderer & hot-seat input"]
   P09 --> P11
-  P09 --> P12["P12 AI opponent"]
-  P10 --> P12
+  P09 -.-> P12["P12 AI opponent — post-MVP"]
+  P10 -.-> P12
 ```
 
 ## Build order and why
@@ -71,9 +85,12 @@ it catches nondeterminism *while the core is still small enough to find it*.
 
 ## Open items this plan inherits
 
-Tracked in [`SPEC.md` §11](../../SPEC.md), which is now down to **one measurement
-and two tuning knobs** — every rules constant has been decided.
+Tracked in [`SPEC.md` §11](../../SPEC.md): **one measurement, two tuning knobs,
+and three recorded readings.** Nothing blocks P01.
 
+- **item 20** — the three residual edges of the per-step turn model (does a skip
+  bank, does a merge forfeit an inherited bank, is splitting symmetric). Each has
+  a strong reading written down; confirm before the code hardens them → **P04**
 - **item 1** — the junction orientation pattern (alternating vs three-consecutive).
   Alternating is the strong read; confirm it → **P03**
 - **item 11** — board size `(n, m)`, and MVP player count fixed at 2 → **P09**

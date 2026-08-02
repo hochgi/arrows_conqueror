@@ -12,6 +12,14 @@ Two or more players carve territory out of a plane tiled with interlocking arrow
 
 You can only be hurt while you are growing. That is the spine of the whole design.
 
+### MVP delivery shape
+
+The first playable is a **stateless, client-only, hot-seat** game: two players alternating on one machine, the whole match held in memory, no save/resume, no server, no AI. Perfect information (§4) is what makes hot-seat exactly right — there is nothing to hide between turns, so passing the mouse costs the design nothing.
+
+This is a **delivery decision, not a rules decision**. It removes netcode, persistence and AI from MVP scope without touching a mechanic. It does have one structural consequence: it makes the question of *what a move is* concrete and urgent — see §11 item 19.
+
+Post-MVP is deliberately not designed here. Ask before assuming it.
+
 ---
 
 ## 2. The Board
@@ -132,6 +140,16 @@ Fractional movement **banks between turns**; a unit steps when it has a whole po
 
 > Alternative if fractions prove unpleasant: `speed(N) = 1 + floor(log2 N)` — every doubling adds one step. Cleaner to state, jumpier in feel.
 
+### Merging costs the turn
+
+Merging is free (above) but it is **not instant**.
+
+> **A stack that merged this turn has speed 1 for that turn**, not `speed(N)`. The heads that walked in have already spent their move getting there — they are carried, not carrying.
+
+Stated as a speed override rather than a special case, so nothing else needs changing: a 2-stack formed mid-turn moves 1 instead of 1.5, there is no fraction left to bank, and a constituent that already stepped this turn has therefore already used the stack's whole allowance. The bonus arrives next turn, when the stack is no longer *recently merged*.
+
+This prices the obvious exploit. Without it, walking a spare head into a stack would be a free mid-turn speed upgrade, and the correct opening move every single turn would be to merge before doing anything else. It also keeps the promise above honest — stacking must never beat splitting on raw throughput, and a costless merge would beat it for exactly one turn, which is the turn that matters.
+
 ### Why both merging and splitting are attractive
 
 | | Merge | Split |
@@ -147,9 +165,21 @@ A territory is closed by **one** chain, and that chain advances at the speed of 
 
 ## 4. Turn Structure
 
-- Players alternate turns.
-- **Every head acts each turn**, spending its own movement allowance (1 step for a single head, more for a stack).
+- Players alternate turns. MVP is 2 players, hot-seat (§1).
 - Perfect information. No fog of war, no hidden state.
+
+### A turn is a sequence of single steps
+
+> **A move is one unit taking one step. A turn is an ordered list of moves, ended explicitly.**
+
+- **The player chooses the order.** Which unit steps next is a player decision, not an engine rule. This is why the per-step model was chosen: it means there is no within-turn resolution order to invent, and the ordering the player picked is already carried by the move list a replay stores.
+- **A unit may move or skip.** Skipping is a first-class choice, not the absence of one.
+- **A unit may step more than once per turn** if its allowance permits, and those steps may be **interleaved** with other units' steps. A 3-stack at 1.83 does not have to spend its steps consecutively.
+- **The turn ends when the player ends it**, or when no unit has a whole step left.
+
+**Ordering within your own turn is therefore a real tactic.** Stepping one head onto a stack to reinforce it before another head commits to a crossing is a legal and intended play — though §3's merge rule means the reinforced stack pays for it in tempo.
+
+**Skipping is normal, not a fallback.** A rearguard head on an open trail is doing its job by standing still (§5): stepping forward only lengthens the trail it is there to guard, and drags it away from the stretch it defends. Expect a typical turn to move a minority of the units on the board.
 
 ---
 
@@ -462,6 +492,18 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 17. ~~Self-trap~~ — **resolved: impossible.** Proved in §6.1a from 3-in/3-out plus no-re-trace. No stuck-head handling needed.
 18. ~~Blockade cost~~ — **resolved.** The rotation still lands on a frozen arrow and that fraction is lost; output drops by a third per blockaded share. See §7.
 16. ~~Girth-loop / spawner-vertex correspondence~~ — **resolved, and it holds.** A lattice triangle encloses exactly its own centre, which is exactly one spawner vertex. The minimum enclosable territory holds exactly one special. See §2.
+
+**Structure**
+
+19. ~~What is a move?~~ — **resolved: per-step.** A move is one unit, one step; the player chooses the order; skip is a first-class move; the turn ends explicitly. No within-turn resolution order had to be invented. Merging mid-turn costs the stack its speed bonus for that turn, which prices the reinforce-then-strike combo without banning it. See §4 and §3.
+
+20. **Residuals of the per-step model.** Three edges the merge rule implies but does not state outright. Each has a strong reading recorded below; none blocks P01, and all three want confirming before P04 codifies them.
+
+    - **Does a skipped step bank?** Reading: **no.** §3 says *fractional* movement banks; a declined whole step is not a fraction. This matters because the alternative turns a rearguard sentry into a spring — skip three turns, then move four — which would undercut the standing-still-is-doing-its-job point in §4.
+    - **Does a merge forfeit an inherited bank?** Reading: **yes** — "loses bonus" covers accrued bonus, not just the rate. A 2-stack carrying 0.5 that merges into a 3-stack starts the next turn at 0.
+    - **Is splitting symmetric?** §5 lets a stack drop sentries *as it goes*, so a stack can shrink mid-turn. Reading: **speed is not recomputed downward mid-turn** — the stack keeps the allowance it started with. Splitting is the move the design wants to encourage, and taxing it mid-stride would punish exactly the sentry play §5 exists to enable. Note this is deliberately *not* symmetric with merging, because the exploits are not symmetric: merging up mid-turn is a free upgrade, shedding down is a cost already paid in combat strength.
+
+    A fourth case is adjacent but different: a **spawned** head merging into a stack (§7) is not a move-merge, and resolution happens at the turn boundary rather than mid-turn. Reading: **it does not cost the stack its next turn's bonus.**
 
 ---
 
