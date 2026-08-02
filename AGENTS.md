@@ -1,0 +1,154 @@
+# arrows-conqueror — shared conventions
+
+Tool-agnostic conventions for this repo. Every developer and every AI coding tool
+(Claude Code, Cursor, Codex, …) follows these regardless of IDE. Tool-specific
+notes live in each tool's own file (`CLAUDE.md`, …) and import this one as the
+shared base.
+
+## What this repo is
+
+A turn-based territorial conquest game played on an arrow tiling — Volfied's
+carve-and-enclose loop rebuilt as a deterministic skirmish game. Players advance
+**heads** along arrows, leaving **trails**; closing a shape claims everything
+inside it, including enemy units and spawner shares.
+
+- **Design source of truth: [`SPEC.md`](./SPEC.md)** at the repo root. It is
+  complete for MVP — every structural mechanic is decided. §11 lists the
+  remaining tuning constants and the one geometry measurement.
+- Architecture decisions: `docs/adr/`.
+- Work packets (the unit of delivery): `docs/design/02-work-packets.md`.
+
+## The blinker that matters most: the core is pure
+
+The rules engine is a pure function.
+
+```
+apply(state, move) -> state
+```
+
+**No `Date.now()`, no `Math.random()`, no I/O, no input mutation — anywhere in
+the core.** Not in a helper, not "just for a tiebreak", not behind a flag.
+
+This is not a testing convenience, it is a **product property**. SPEC.md has zero
+randomness by design: combat is deterministic attrition (§6.2), spawner timing is
+deterministic irregularity (§7), and the whole appeal of the multi-prong bonus and
+the accumulator rhythm is that an attentive player can compute them. Determinism
+is also what makes replays exact, what lets an AI search, and what makes a
+desync impossible in netplay.
+
+Accidental nondeterminism is the single easiest thing for an agent to introduce
+here — iteration order over a `Set`, a timestamp in a tiebreak, a shuffled spawn
+order. Treat any of it as a defect, not a style issue.
+
+## Never invent a rule
+
+**If a behaviour is not in SPEC.md, it is an open question, not a default.**
+
+SPEC.md §11 is the live list of known gaps. When you hit an undecided behaviour:
+add it to §11 and surface it to the human. Do not pick something reasonable and
+move on — a plausible invented rule is far more expensive to find later than an
+explicit gap, because it looks like it was designed.
+
+This applies to every phase, including the coder. "The test needed it" is a
+reason to ask, not a licence to decide.
+
+## Layout — hexagonal, dependencies pointing inward
+
+- **`packages/contracts`** — ports (interfaces) and domain DTOs. The core depends
+  on *only* this.
+  - `GeometryPort` — the arrow graph: 3-in/3-out adjacency, arrow direction,
+    torus wrap, the point lattice, the spawner-vertex lattice, the chord test.
+  - `RulesPort` — legal moves, `apply`, closure and fill resolution.
+  - `EconomyPort` — spawner accrual, carry, reset-on-capture.
+- **`packages/rules-core`** — the pure engine behind those ports.
+- **`packages/geometry-*`** — pluggable tiling implementations.
+- **Adapters at the edges** — renderer, input, AI, persistence, netcode. Never
+  referenced from the core.
+
+**Why geometry is pluggable and not just a constant table:** SPEC §11 items 1, 5
+and 16 are measurements of the real tiling that have not been taken yet. Every
+rule downstream must be testable *now*, against small hand-authored fixture
+boards with known adjacency, and later against the extracted tiling — same port,
+two implementations, one set of tests. Any impl that satisfies `GeometryPort`'s
+component tests is interchangeable.
+
+## Commands
+
+**Not landed yet.** The toolchain is P01's first deliverable and was deliberately
+not guessed at. Intended shape, matching the sibling repo:
+`pnpm build | lint | typecheck | test | verify`.
+
+Assumed stack unless the human says otherwise: TypeScript (strict) + Vitest +
+pnpm workspaces. Change it here before P01 if that is wrong.
+
+## Testing posture
+
+Three layers, each catching a different class of defect:
+
+1. **Component tests, one per Gherkin scenario**, written against the *ports* so
+   any implementation satisfies them. This is the default and the bulk.
+2. **Property tests for the invariants SPEC.md already states.** The design
+   conversation produced an unusual number of hard, checkable invariants — graph
+   balance, girth, strong connectivity, head conservation, even-odd fill
+   correctness, accumulator conservation under carry. See the
+   `rules-invariants` skill; these are cheap to write and catch whole categories
+   of rule bug at once.
+3. **Replay fixtures.** A match is an initial state plus an ordered list of moves.
+   Because the core is pure, a replay reproduces the final state exactly. A
+   golden replay covers an enormous rules surface per line of test code, and any
+   accidental nondeterminism shows up immediately as a replay mismatch.
+
+## The spec→ship workflow
+
+Take one work packet all the way to a PR through **four phases**, with an explicit
+**human gate** between them. In Claude Code: `/spec-to-ship <path-to-packet>`.
+
+1. **spec-author** drives `write-spec` → Gherkin `.feature` + mermaid (escape `;`
+   as `#59;`) + EARS invariants → **human approves the spec**.
+2. **test-author** drives `write-failing-tests` → one failing test per scenario
+   plus compiling skeletons → **human approves the tests**.
+3. **coder** drives `code-to-green` → red → green → refactor within budget.
+4. **reviewer** drives `review-changes` → spec ↔ tests ↔ code coherence,
+   boundaries, purity → **human approves to ship**.
+
+Do not skip gates or collapse phases. Opening a PR is human-gated.
+
+**How this differs from cycle-processing:** there, phase 1's input was a
+high-level spec living outside the repo. Here **SPEC.md is already that document**
+and it is unusually complete. Phase 1's input is therefore a *work packet* — a
+scoped slice of SPEC.md — and the spec-author's job is narrower and sharper:
+turn decided prose into executable scenarios, and interrogate the packet for the
+gaps SPEC §11 admits to. Fewer product questions, more precision questions.
+
+## Vocabulary — use these words exactly
+
+The spec's terms are load-bearing; synonyms cause real confusion because several
+of these are near-misses for each other.
+
+| Term | Means |
+|---|---|
+| **arrow** | one tile; a node in the movement graph |
+| **grain** | the direction an arrow points; movement always follows it |
+| **point** | a movement junction, 3 arrows in and 3 out; where crossings and combat resolve |
+| **vertex** | a pinwheel centre bordered by 3 arrows; where specials live; *never occupied* |
+| **head** | one unit; also one life |
+| **stack** | merged heads on one arrow; stack size **is** lives |
+| **sentry** | a head dropped along a trail to guard it |
+| **trail** | the path a head leaves; a tree rooted at your territory |
+| **anchor** | the connection from a trail back to your territory |
+| **cut** | an enemy crossing your trail |
+| **evaporation** | the forward destruction a cut causes, with the grain |
+| **firebreak** | the stack that halts evaporation and takes the head loss |
+| **crossing** | traversing a point another trail passes through |
+| **chord test** | the interleave-or-coincide rule that decides whether a traversal is a crossing |
+| **closure** | departing your territory and landing back on it; claims the enclosed region |
+| **land bridge** | a closure that encloses nothing, so the path itself becomes thin territory |
+| **pincer** | a forked trail whose two arms both land, taking the ground between |
+| **territory** | closed ground; free, trail-less, safe movement |
+| **spawner** | the only special in MVP; sits on a vertex |
+| **force** | a spawner's rate *f*, a fraction ≤ 1/3 |
+| **share** | one of the 3 arrows bordering a spawner |
+| **accumulator** | per-arrow production counter; carries remainder, resets on capture |
+
+Reserved but **not** MVP: *island* (setup-only concept, Appendix A), *forge*,
+*armory*, *gate*, *anvil*.
