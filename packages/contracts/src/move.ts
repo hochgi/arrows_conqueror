@@ -151,7 +151,8 @@ export const turnsEqual = (a: Turn, b: Turn): boolean => {
  * Two properties phase 3 must not break:
  *   - `speed(N) <= N` for all N, so splitting never loses on throughput (§3).
  *   - `speed(2) === 2`, so a pair moves exactly as far as two loose heads. That
- *     makes the pair the natural atom, which is also §5's sentry floor.
+ *     makes the pair the natural atom — the smallest garrison that halts an
+ *     evaporation front (§6.1), reached at no cost in speed.
  *
  * Integer arithmetic only. `Math.log2` is float arithmetic and rounds wrong at
  * exact powers of two on some inputs — a determinism bug of exactly the kind

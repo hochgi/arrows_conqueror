@@ -110,9 +110,10 @@ Feature: The move DTO — boundaries and the cases that must stay expressible
         | 1     | the smallest split                    |
         | 5     | leaving one head behind               |
         | 6     | taking everything, leaving the arrow empty |
-      # Well-formed is not legal. §5 sets a floor of one head per open side, so
-      # leaving exactly one behind mid-trail is a move P04 must reject — but it
-      # is a perfectly well-formed DTO, and that separation is the point.
+      # Well-formed is not legal. §5 requires an anchor left behind when a move
+      # creates a join or a split, so some of these counts are moves P04 must
+      # reject at a branch point — but every one is a well-formed DTO, and that
+      # separation is the point.
 
     Scenario: Taking every head is well-formed
       Given arrow a1 holds 1 head belonging to player A

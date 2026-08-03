@@ -149,16 +149,17 @@ of these are near-misses for each other.
 | **vertex** | a pinwheel centre bordered by 3 arrows; where specials live; *never occupied* |
 | **head** | one unit; also one life |
 | **stack** | merged heads on one arrow; stack size **is** lives |
-| **sentry** | heads left standing on a trail to guard it; two mid-trail, because one only bleeds a front and two halt it |
+| **sentry** | heads a player *chose* to leave on a trail; discretionary — one only bleeds a front, two halt it |
 | **trail** | the path a head leaves; a **set** of arrows — no order, no memory, not a tree |
-| **anchor** | the connection from a trail back to your territory |
+| **anchor** | what holds a trail live. **Territory grade**: can close and claim, and its heads resist conversion. **Stack grade**: live and drivable, but pays only a land bridge. Also the one head a branch is *required* to leave |
 | **cut** | an enemy crossing your trail |
 | **evaporation** | the destruction a cut causes, running **both** ways from the cut point |
-| **front** | one advancing edge of an evaporation; carries exactly one kill |
+| **front** | one advancing edge of an evaporation; carries exactly one kill; halts **per arrow**, never per point |
 | **firebreak** | the head a front halts at — the *second* one it meets, since the first is killed |
 | **region** | trail between two firebreaks, or a firebreak and territory; what one cut destroys |
+| **crossover** | a point one trail runs through more than once; a join followed by a split, **all ins feeding all outs**. Costs an anchor either side |
 | **crossing** | traversing a point another trail passes through |
-| **chord test** | the interleave-or-coincide rule that decides whether a traversal is a crossing |
+| **chord test** | the interleave-or-coincide rule that decides whether a traversal is a crossing; a point presents `i × o` chords |
 | **closure** | departing your territory and landing back on it; claims the enclosed region |
 | **land bridge** | a closure that encloses nothing, so the path itself becomes thin territory |
 | **pincer** | a forked trail whose two arms both land, taking the ground between |

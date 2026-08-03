@@ -67,6 +67,24 @@ re-traversing an arrow the trail already holds leaves that set unchanged. So the
 port exposes both `chordsInterleave` and `chordsCross`, and the relationship
 between them is itself an invariant rather than two independent tests.
 
+## One point can present several chords — and that is the caller's problem
+
+This predicate compares **two chords**. Extracting a trail's chords at a point is
+the caller's job, and it is not always one.
+
+A point is **all-to-all** (SPEC §6.1a): where a trail uses `i` in-arrows and `o`
+out-arrows there, it is a join followed by a split, so it presents **`i × o`
+chords** — one per (in, out) pair. A spine gives one, a fork or a join two, a
+crossover four, a triple crossover nine. The caller tests against each.
+
+That matters because the alternative was a port change. The arrow set holds no
+pairing to recover — a walk that went `a→a, b→b` and one that went `a→b, b→a`
+leave the identical set — and for a while it looked as though this predicate
+would have to take a *slot set* rather than a chord to answer at all. It does
+not: every configuration a caller needs to test has determined chords, because
+all-to-all determines them. **`chordsCross` stands unchanged, and is simply
+called `i × o` times.**
+
 ## Invariants
 
 - When two chords at a point interleave, the system shall report a crossing.
