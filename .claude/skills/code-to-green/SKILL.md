@@ -66,8 +66,11 @@ The quiet violations that survive review:
 
 Spawner force is a **rational** (SPEC §7), and the entire point of coprime
 denominators is that the resulting pattern is exact and player-computable.
-Represent accumulators as integer numerator/denominator, not `number`. The same
-applies to the harmonic movement banking in §3.
+Represent accumulators as integer numerator/denominator, not `number`.
+
+The §7 accumulators are the **only** consumer of exact rationals. Movement is not
+one: §3 is `speed(N) = 1 + floor(log₂ N)`, a whole integer with nothing carried
+between turns — see `speed` in `packages/contracts/src/move.ts`.
 
 `1/9 + 1/12` must be exactly `7/36`. If it is `0.19444444444444445`, the
 "deterministic irregularity" the design is built on becomes drift.

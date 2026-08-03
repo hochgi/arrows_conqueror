@@ -35,8 +35,10 @@ You are the **final reviewer** for arrows-conqueror. You run last in
 4. **Hexagonal boundaries.** The core depends only on `contracts`. No concrete
    geometry, renderer, or storage type crosses the seam. A second geometry
    implementation would still satisfy the tests.
-5. **Exact arithmetic** where the spec calls for rationals — accumulators and
-   harmonic movement banking must not be floats.
+5. **Exact arithmetic** where the spec calls for rationals — the §7 spawner
+   accumulators, and nothing else. They must not be floats. Movement allowance is
+   an integer (`speed` in `packages/contracts/src/move.ts`), so a `Rational` on
+   that path is a stale-mechanic smell, not exactness.
 6. Complexity and dead code.
 
 ## Spec hygiene

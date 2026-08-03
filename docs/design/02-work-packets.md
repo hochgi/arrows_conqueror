@@ -31,7 +31,7 @@ scheduled early in the first place.
 | P01 | Contracts: ports & DTOs | foundation | §2–7 | — | unblocked — §11 item 19 settled the `Move` DTO: one unit, one step |
 | P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | **owes the repo a green conformance suite.** P01 leaves `runGeometryPortConformance` pending behind a `describe.skip`; P02 must delete that wrapper, point the factory at a fixture board, and make all 27 pass **unchanged**. If the suite needs editing, the port leaked something concrete |
 | P03 | Tiling generator & torus wrap | foundation | §2 | P01 | now a **generator**, not an extraction — the tiling is the oriented triangular lattice with an alternating junction pattern (§11 item 1, resolved). Nothing left to measure; runs the same conformance suite as P02 |
-| P04 | Movement, stacks & the turn loop | rules | §2–4 | P01, P02 | harmonic banking must be exact rationals, not floats |
+| P04 | Movement, stacks & the turn loop | rules | §2–4 | P01, P02 | allowance is an **integer** — `speed(N) = 1 + floor(log₂ N)`, nothing carried between turns. No rationals on this path; exact rationals belong to the §7 accumulators (P08) |
 | P05 | Trails, crossings & closure | rules | §2, §5, §7 | P04 | the chord test and even-odd fill are the subtlest logic in the game. Fill must read the trail's **arrow set** and use `chordsInterleave`, not `chordsCross` (§6.1a) |
 | P06 | Cuts, evaporation & combat | rules | §6 | P05 | **§6 was rebuilt after P01 landed** — bidirectional evaporation, point shielding, regions, 1:1 per-move combat. §11 items 23 and 24 are open and both land here |
 | P07 | Territory & encirclement | rules | §7 | P05, P06 | conversion must conserve total heads exactly |

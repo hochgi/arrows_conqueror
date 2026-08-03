@@ -65,7 +65,9 @@ the survivor after attrition, which one carries the bank, which one a converted
 stack becomes.
 
 **D2 — `Rational` is integer numerator/denominator, normalized, totally ordered.**
-Required by §3 (harmonic banking) and §7 (accumulators). Never `number`. The
+Required by §7 (spawner accumulators) and nothing else — movement allowance is an
+integer, `speed(N) = 1 + floor(log₂ N)` (§3, `speed` in
+`packages/contracts/src/move.ts`). Never `number`. The
 total ordering matters as much as the arithmetic: comparisons feed ordered
 decisions, and a partial or identity-based order is a determinism bug (ADR 0001).
 
