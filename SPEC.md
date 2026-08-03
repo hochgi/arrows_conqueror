@@ -462,7 +462,7 @@ Three things follow:
 
 - A spawner has a **force** *f*, a rational fraction ≤ 1/3. **1/3 is a very rare maximum**; typical values are **1/9 or 1/12**. Total output is *f* heads per turn.
 - **Each turn, one adjacent arrow gains *f***, cycling round-robin. Post-MVP, other distributions per spawner type.
-- Each **accumulator belongs to the arrow, not the player.** When one reaches 1, a head appears on that arrow — merging into any stack already there — and the accumulator **carries the remainder** rather than resetting to zero. Nothing is wasted, which matters once two spawners feed one arrow and overshoot is routine. Same idiom as the banked fractional movement in §3.
+- Each **accumulator belongs to the arrow, not the player.** When one reaches 1, a head appears on that arrow — merging into any stack already there — and the accumulator **carries the remainder** rather than resetting to zero. Nothing is wasted, which matters once two spawners feed one arrow and overshoot is routine. **This is the only place in the game that banks anything** — §3 deliberately does not, since tempo you did not spend is tempo you gave away, whereas a spawner's trickle has to accumulate to be worth anything at all.
 - **An arrow that changes hands starts fresh.** Its accumulator resets to zero on capture — the one case where progress is destroyed rather than carried.
 - **An enemy head standing on the arrow halts accrual.** The accumulator neither advances nor resets; it holds at whatever it had reached and resumes when the intruder leaves. Nothing spawns into an occupied arrow.
 
@@ -482,11 +482,11 @@ It also makes **border churn economically sterile.** An arrow flipping back and 
 
 An arrow may border **two** spawners. Its single accumulator receives from both, and coprime denominators (1/9 against 1/12) produce compound, aperiodic-feeling spawn timing.
 
-**Overlap is common, not exceptional** — low-force spawners are the norm and their neighbourhoods routinely intersect.
+**Overlap is common where spawners are clustered, and rare where they are scattered** — which, since density is deliberately uneven (below), means the contested centre is riddled with double-fed arrows while home regions mostly are not.
 
 This is **deterministic irregularity** — no randomness anywhere, yet a rhythm complex enough to feel organic while staying fully predictable to a player willing to do the arithmetic. Double-fed arrows become natural **keystones**: capturing one wounds two spawners and gains two income streams at once, so overlapping neighbourhoods become the map's hot spots without any special-casing.
 
-**Overlap roughly halves fill time.** A single-fed arrow at 1/12 needs 36 turns; one fed by a 1/9 and a 1/12 gains 7/36 per three-turn cycle and fills in about **15**. Two 1/12s give 18. Since overlap is the norm, typical arrows pay out on a timescale contested ground can actually survive — the frontline-never-produces problem shrinks to genuinely isolated arrows.
+**Overlap roughly halves fill time.** A single-fed arrow at 1/12 needs 36 turns; one fed by a 1/9 and a 1/12 gains 7/36 per three-turn cycle and fills in about **15**. Two 1/12s give 18. That is what makes contested ground productive at all — an arrow that flips every twenty turns is worthless at 36-turn fill and worth fighting for at 15.
 
 ### The emergent income landscape
 
@@ -502,18 +502,37 @@ Reset-on-capture has a consequence worth designing around. At *f* = 1/12 a singl
 
 This gives spawner placement a design principle rather than a scatter, and makes the centre genuinely worth bleeding for.
 
+**Density scales with contestedness too, and for a second reason.** Force sets how fast one spawner pays; density sets how many arrows are *double-fed*, which halves fill time again on top of it. Clustering is therefore the cheaper of the two levers for making the centre productive, and scattering is what keeps home regions quiet without needing a slower *f* than 1/12.
+
+It also dissolves a tension that would otherwise be real. Spawners must be **scarce** — they are the objective, and a board where a third of all arrows produce is a board nobody fights over. But overlap must be **common**, or contested arrows never pay out. Those pull opposite ways under a uniform scatter, and not at all under a clustered one: scarce overall, dense where it matters.
+
+> **MVP defaults, chosen to be playable rather than derived.** Roughly **half** the eligible vertices in the central band carry a spawner, against **an eighth** in the home regions — **a fifth to a quarter of the `2nm`** overall, depending on how wide the centre band is. Centre spawners run at *f* = 1/3, the mid band at 1/9, home regions at 1/12.
+
+The arithmetic those are aimed at, since every arrow borders exactly two eligible vertices and so has two feed slots. At half density, **three quarters of centre arrows are fed and a third of those are double-fed**, and **seven in eight centre spawners have at least one keystone arrow** — the double-fed ones that wound two spawners when captured. At an eighth, home arrows are mostly single-fed or bare and fill on the scale of decades, which is what the quiet is for.
+
+A starting point for the first playtest, not a result. What they are chosen to produce: a centre that pays out inside ten turns and is therefore worth bleeding for, a home economy that rewards being left alone, and a board where sweeping the specials is not something a player can do.
+
 ### What the spawn rate implies about victory
 
-A cut removes **one head per branch it reaches** — usually one — and destroys the region it landed in (§6.1). It costs the attacker travel, exposure, and a head of its own for every exchange at a gated point (§6.2). Call it a cut every 3–4 turns for a committed attacker. A spawner replaces a head every 1/*f* turns.
+**Cutting is barely an attrition channel any more, and that changes the answer.** Linear trail carries no heads (§5), so a cut on a bare stretch kills **nobody**. It burns trail to the next head and destroys the region it landed in; everything beyond is demoted, not killed (§6.1). A committed attacker cutting every 3–4 turns is denying *tempo*, not removing heads.
 
-**Force is therefore the single knob that sets the game's character:**
+So the comparison is no longer heads-destroyed against heads-produced. It is **turns of work denied** against **heads accrued**, and those are different currencies:
+
+- A destroyed region of *R* arrows cost its owner *R* moves to lay, plus whatever the enclosure it was building would have been worth.
+- A spawner accrues one head every 1/*f* turns, and a head is worth roughly its remaining reach.
+- Heads only actually die in two places: **§6.2 combat**, one apiece per exchange, and **§6.3 conversion**, wholesale.
+
+**The victim picks which currency they pay in**, which is the sharpest consequence of the bare-trail default. Run bare and fast, and cuts cost you trail and time but no heads. Garrison, and cuts cost heads instead — but you paid those heads up front by parking them. There is no dominant answer on paper, and finding out which is right is most of what the first playtest is for.
+
+**Force still sets the game's character:**
 
 | *f* | Head every | Effect |
 |---|---|---|
-| 1/3 | 3 turns | Economy dominates. Attrition can never outpace production, so **encirclement is the only real killer** and elimination is mop-up after you have taken someone's spawners. |
-| 1/9 – 1/12 | 9–12 turns | Near the crossover. Attrition is viable, heads are precious, and chip damage genuinely decides games — while encirclement stays the decisive swing. |
+| 1/3 | 3 turns | Economy dominates outright. Nothing an attacker does with cuts keeps pace, so **encirclement is the only real killer** and elimination is mop-up after you have taken someone's spawners. Reserved for the contested centre, where arrows flip too often to reward anything slower. |
+| 1/9 | 9 turns | Production and denial trade roughly evenly. Cuts hurt because of what they *cost you to rebuild*, not because of what they kill. |
+| 1/12 | 12 turns | Denial dominates. Heads are precious, a lost region is expensive, and a player who is cut repeatedly cannot outproduce it. The home-region value, where the quiet is supposed to be what pays. |
 
-The typical values sit deliberately near that crossover, which is likely the most interesting place for them to be.
+**What moved, and why it is not a retune.** The earlier reading of this table put 1/9–1/12 "near the crossover, where attrition is viable." Attrition by cutting is now close to nil, so the crossover moved decisively toward economy on the head axis, and the whole contest re-formed on the tempo axis instead. That makes §6.3 conversion the clearest way to actually reduce an opponent — which is what §9 already wanted, arrived at from the other end.
 
 **These numbers predate the §6 rewrite and need re-deriving, not just re-checking.** They were worked out when a cut cost one head and the trail behind it always survived. A cut now destroys a whole region and evaporates backward toward home, so most of its value has moved from damage into tempo and denial — while §6.2's per-move exchange makes heads flow in both directions during a fight rather than only toward the defender. Which side of the crossover a given *f* lands on is now a playtest question. Item 25.
 
@@ -586,6 +605,10 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
 ## 11. Open Questions
 
+> **Nothing here blocks implementation any more.** Every item is resolved; the last two — spawner density and the damage-versus-production crossover — closed as *playtest-first defaults* rather than derivations, which is the honest shape for numbers nobody can settle on paper. They are marked as such where they land in §7, and refining them is expected rather than exceptional.
+>
+> Items are struck through rather than deleted on purpose. Several were resolved twice, and where a decision moved, the reasoning that moved it is usually the most valuable thing on the page. **New gaps belong here, not in the section that discovers them.**
+
 **Geometry**
 1. ~~The orientation pattern at a junction~~ — **resolved: alternating.** The out-set at every point is {up, down-left, down-right}: three directions 120° apart, so the six slots alternate in/out around the hexagon. Self-consistent throughout — the three out-vectors sum to zero, so the directed 3-cycle exists and girth is 3; the in-set is the complement {down, up-left, up-right}; exits from any in-arrow are straight or ±120°, so both handednesses are available and the board is mirror-symmetric rather than chiral. Every §2 consequence that was conditional on alternating now holds outright. **P03 generates rather than measures, and no geometric unknown remains.**
 2. ~~Reachability~~ — **resolved.** Balanced + weakly connected ⇒ Eulerian ⇒ strongly connected. See §2.
@@ -600,7 +623,9 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 9. ~~Converted stack size~~ — **resolved.** Stacks convert intact. See §6.3.
 10. ~~Multi-prong bonus~~ — **re-resolved: there is no bonus, and none is needed.** Under 1:1 attacks, two prongs simply bleed the defender twice as fast. Pooling-and-tie-flip was the price of instantaneous attrition; per-move combat delivers the same reward as arithmetic. See §6.2.
 11. ~~Board size~~ — **resolved as configurable.** A board is the lattice mod `(n, m)`: `3nm` arrows, `nm` points, `2nm` spawner-eligible vertices. Size is tuned by experiment against player count and total spawner force, not decided on paper. **Player count: MVP is 2, alternating** — which every rule above already assumes. 3+ is deferred; it raises kingmaking under elimination and wants its own design pass.
-12. Spawner density — a fraction of the `2nm` eligible vertices. Scarce enough that nobody sweeps them, common enough that overlap (§7) stays the norm. Part of the same tuning sweep as item 11.
+12. ~~Spawner density~~ — **resolved: not one number, because it is not uniform.** The criterion as originally stated — *scarce enough that nobody sweeps them, common enough that overlap stays the norm* — cannot be met by a single density: overlap only becomes typical at densities where spawners stop being scarce. Under a **clustered** placement it is met trivially, and clustering is already the §7 principle for force. Dense and fast in the contested centre, sparse and slow at home.
+
+    MVP defaults, chosen to be playable rather than derived: about **half** the eligible vertices in the central band, **an eighth** in home regions, ≈ **1/5 of the `2nm`** overall. See §7, *force should scale with contestedness*. Still in the tuning sweep with item 11 — but it no longer blocks anything, because a fixture board can be built from these today.
 13. ~~Accrual on unowned arrows / charge surviving capture~~ — **resolved.** An arrow that changes hands starts fresh. See §7.
 14. ~~Reset versus carry on spawn~~ — **resolved.** Carry the remainder. See §7.
 15. ~~Spawning onto a contested arrow~~ — **resolved.** An enemy head halts accrual; the accumulator holds and resumes when they leave. See §7.
@@ -636,9 +661,11 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
 24. ~~Does the arrow of a stack that dies absorbing a cut survive?~~ — **resolved, and the question changed shape.** A dying stack does not absorb at all. **Each evaporation front carries one kill: it spends that kill on the first head it meets and halts at the next head**, which survives with its arrow and the point it shields. So a lone head is a toll and a pair is a wall, in both directions. Two is not one-per-side; it is the smallest garrison that halts anything. That arithmetic survived the floor it was originally written to justify (item 27) — it is now the reason a player *chooses* pairs, rather than the reason a rule demands them. See §6.1.
 
-25. **The damage-versus-production crossover needs re-deriving.** §7's table — 1/3 means economy dominates, 1/9–1/12 sits near the crossover — was worked out when a cut removed one head and the trail behind it always survived. Neither holds: a cut now destroys a region, evaporates backward toward home, and §6.2's per-move exchange bleeds both sides during a fight. Most of a cut's value has moved from damage into tempo and denial, so which side of the crossover a given *f* lands on is no longer derived on paper. Belongs with items 11 and 12 in the tuning sweep.
+25. ~~The damage-versus-production crossover needs re-deriving.~~ — **re-derived, and it moved off its original axis.** The old table compared heads destroyed against heads produced. That comparison is now close to meaningless: linear trail carries no heads (§5), so **a cut on bare trail kills nobody**. It denies tempo — a region of *R* arrows cost *R* moves to lay — while heads die only in §6.2 combat and §6.3 conversion.
 
-    Its sharpest input is now **how much defence actually costs**, and that number changed twice. Linear trail is free (§5), so a long bare trail costs nothing but risk; every pair of sentries is a purchase, and every branch is a forced one. Whether the rational play is *"run bare and fast, accept the cuts"* or *"garrison and crawl"* is exactly what a playtest has to answer, and it is not obvious from the arithmetic.
+    So the contest re-formed as **turns denied against heads accrued**, and the interesting consequence is that *the victim chooses the currency*: run bare and cuts cost trail, garrison and they cost heads you had already spent by parking them. MVP values are **1/3 centre, 1/9 mid, 1/12 home** (§7, *what the spawn rate implies about victory*).
+
+    Explicitly a **playtest-first number.** These are chosen to be playable, not derived, and the human owns the refinement once the game can actually be played. The one structural claim worth keeping is that conversion, not chip damage, is now unambiguously how a player is reduced — which is what §9 wanted anyway.
 
 26. ~~Which in-arrow pairs with which out-arrow at a point the trail uses twice?~~ — **resolved: none of them, and the question was wrong.** Two in-arrows and two out-arrows admit three readings — two passages, two crossed passages, or a join then a fork — and they leave the identical arrow set, so the set determines no pairing. The hole was real: a crossing test that assumed a pairing gave opposite verdicts on the same board state, and evaporation had nowhere defined to route.
 
