@@ -22,6 +22,8 @@
  * @see docs/spec/chord-test/chord-test.md
  */
 
+import { reject } from './errors';
+import { SLOTS } from './ids';
 import type { Slot } from './ids';
 
 /** The pair of slots a path connects when it transits a point. Unordered. */
@@ -30,7 +32,47 @@ export interface Chord {
   readonly b: Slot;
 }
 
-export const chord = (a: Slot, b: Slot): Chord => ({ a, b });
+const isSlot = (s: number): boolean => Number.isInteger(s) && s >= 0 && s < SLOTS.length;
+
+/**
+ * Construct a chord, normalized so the lower slot comes first.
+ *
+ * Normalizing is how "unordered" above is made true rather than merely asserted:
+ * two structurally equal chords compare equal, which replay comparison and any
+ * future dedup depend on.
+ *
+ * Throws {@link ContractViolation} on a slot outside the six, and on a chord whose
+ * two ends are the same slot. A transit enters on an in-arrow and leaves on an
+ * out-arrow, so its ends are always distinct — the same reason `step` refuses a
+ * source and exit that match. A degenerate chord is also how "arrived but has not
+ * chosen an exit" would try to represent itself, and that is not a chord at all:
+ * crossing is a decision (§2), and there is nothing to test until it is made.
+ */
+export const chord = (a: Slot, b: Slot): Chord => {
+  if (!isSlot(a) || !isSlot(b)) {
+    reject(`a chord joins two of the six slots, got ${String(a)} and ${String(b)}`);
+  }
+  if (a === b) reject(`a chord joins two distinct slots, got ${String(a)} twice`);
+  return a < b ? { a, b } : { a: b, b: a };
+};
+
+/** Do the two chords share an end — is one path's arrow the other's? */
+const coincide = (blue: Chord, red: Chord): boolean =>
+  blue.a === red.a || blue.a === red.b || blue.b === red.a || blue.b === red.b;
+
+/**
+ * Is `x` strictly inside the arc walked from `from` to `to` one way around?
+ *
+ * Pure cyclic arithmetic, which is what keeps the whole test independent of which
+ * slots are in-slots (SPEC §11 item 1, and the hedge that let P01 land before P03).
+ */
+const strictlyWithinArc = (from: Slot, x: Slot, to: Slot): boolean => {
+  const n = SLOTS.length;
+  for (let s = (from + 1) % n; s !== to; s = (s + 1) % n) {
+    if (s === x) return true;
+  }
+  return false;
+};
 
 /**
  * Do `blue`'s endpoints separate `red`'s around the circle?
@@ -41,8 +83,15 @@ export const chord = (a: Slot, b: Slot): Chord => ({ a, b });
  * that set unchanged. A fill written against `chordsCross` would invert on a
  * lagging group walking ground it already owns, which is ordinary play.
  */
-export const chordsInterleave = (_blue: Chord, _red: Chord): boolean => {
-  throw new Error('not implemented: chordsInterleave');
+export const chordsInterleave = (blue: Chord, red: Chord): boolean => {
+  // Sharing an end is coincidence, never interleaving. Without this guard the arc
+  // test below reports a spurious interleave whenever the shared end sits outside
+  // the arc and the other end inside it — which would make even-odd fill invert on
+  // a lagging group walking ground it already owns (§6.1a).
+  if (coincide(blue, red)) return false;
+  return (
+    strictlyWithinArc(red.a, blue.a, red.b) !== strictlyWithinArc(red.a, blue.b, red.b)
+  );
 };
 
 /**
@@ -59,6 +108,5 @@ export const chordsInterleave = (_blue: Chord, _red: Chord): boolean => {
  * This is `chordsInterleave` widened by coincidence and must never disagree with
  * it — asserted, not assumed.
  */
-export const chordsCross = (_blue: Chord, _red: Chord): boolean => {
-  throw new Error('not implemented: chordsCross');
-};
+export const chordsCross = (blue: Chord, red: Chord): boolean =>
+  chordsInterleave(blue, red) || coincide(blue, red);

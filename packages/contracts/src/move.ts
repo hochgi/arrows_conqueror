@@ -19,7 +19,19 @@
  * @see docs/spec/move/move.md
  */
 
+import { reject } from './errors';
 import type { ArrowId } from './ids';
+
+/**
+ * An id is opaque (P01 decision D1), so the only thing this can check is that
+ * something arrived at all. The guard exists for data crossing a boundary the
+ * compiler cannot see — a replay file, a stored fixture, an adapter.
+ */
+const requireArrow = (id: ArrowId, field: string): void => {
+  if (typeof id !== 'string' || id.length === 0) {
+    reject(`a move needs a ${field} arrow, got ${String(id)}`);
+  }
+};
 
 export interface StepMove {
   readonly kind: 'step';
@@ -49,17 +61,32 @@ export const MOVE_KINDS = ['step', 'skip', 'endTurn'] as const;
  * and on a step whose source and exit are the same arrow — a step goes
  * somewhere, and staying put is a skip, which is a different move.
  */
-export const step = (_from: ArrowId, _exit: ArrowId, _count: number): StepMove => {
-  throw new Error('not implemented: step');
+export const step = (from: ArrowId, exit: ArrowId, count: number): StepMove => {
+  requireArrow(from, 'source');
+  requireArrow(exit, 'exit');
+  if (!Number.isInteger(count) || count < 1) {
+    reject(`a step moves a whole positive portion, got ${String(count)}`);
+  }
+  if (from === exit) {
+    reject(`a step goes somewhere; staying put is a skip (${String(from)})`);
+  }
+  return { kind: 'step', from, exit, count };
 };
 
-export const skip = (_from: ArrowId): SkipMove => {
-  throw new Error('not implemented: skip');
+/**
+ * A skip names the arrow that declined to move, and carries nothing else.
+ *
+ * The rest parameter is not decoration: a count on a skip would imply a *portion*
+ * declined, which is not a thing — the rest of the stack simply was not named
+ * (§4). TypeScript rejects the call; this rejects the data.
+ */
+export const skip = (from: ArrowId, ...extra: readonly unknown[]): SkipMove => {
+  requireArrow(from, 'source');
+  if (extra.length > 0) reject('a skip carries no count — it names an arrow and nothing else');
+  return { kind: 'skip', from };
 };
 
-export const endTurn = (): EndTurnMove => {
-  throw new Error('not implemented: endTurn');
-};
+export const endTurn = (): EndTurnMove => ({ kind: 'endTurn' });
 
 /**
  * Can this move be satisfied by a source arrow holding `headsOnSource` heads?
@@ -68,13 +95,25 @@ export const endTurn = (): EndTurnMove => {
  * that needs to look at the board. Keeping it a pure function of a single
  * number keeps P01 free of any dependency on game state.
  */
-export const isSatisfiableBy = (_move: Move, _headsOnSource: number): boolean => {
-  throw new Error('not implemented: isSatisfiableBy');
+export const isSatisfiableBy = (move: Move, headsOnSource: number): boolean => {
+  // A skip or an end-turn asks nothing of the board, so nothing can make it
+  // unsatisfiable. Only a step names a portion.
+  if (move.kind !== 'step') return true;
+  return Number.isInteger(headsOnSource) && headsOnSource >= move.count;
 };
 
 /** Structural equality. Never object identity — replay comparison depends on it. */
-export const movesEqual = (_a: Move, _b: Move): boolean => {
-  throw new Error('not implemented: movesEqual');
+export const movesEqual = (a: Move, b: Move): boolean => {
+  switch (a.kind) {
+    case 'step':
+      return (
+        b.kind === 'step' && a.from === b.from && a.exit === b.exit && a.count === b.count
+      );
+    case 'skip':
+      return b.kind === 'skip' && a.from === b.from;
+    case 'endTurn':
+      return b.kind === 'endTurn';
+  }
 };
 
 /**
@@ -87,8 +126,18 @@ export const movesEqual = (_a: Move, _b: Move): boolean => {
  */
 export type Turn = readonly Move[];
 
-export const turnsEqual = (_a: Turn, _b: Turn): boolean => {
-  throw new Error('not implemented: turnsEqual');
+export const turnsEqual = (a: Turn, b: Turn): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const left = a[i];
+    const right = b[i];
+    // `noUncheckedIndexedAccess` makes these possibly-undefined. The length check
+    // above already rules it out, but asserting it beats a non-null assertion in a
+    // module whose whole job is that illegal shapes are unrepresentable.
+    if (left === undefined || right === undefined) return false;
+    if (!movesEqual(left, right)) return false;
+  }
+  return true;
 };
 
 /**
@@ -109,6 +158,17 @@ export const turnsEqual = (_a: Turn, _b: Turn): boolean => {
  * ADR 0001 calls the realistic one, since it would pass unit tests and surface
  * as replay drift.
  */
-export const speed = (_heads: number): number => {
-  throw new Error('not implemented: speed');
+export const speed = (heads: number): number => {
+  if (!Number.isInteger(heads) || heads < 1) {
+    reject(`a group is a whole positive number of heads, got ${String(heads)}`);
+  }
+  // Halve until nothing is left to halve, counting the halvings. That is
+  // floor(log2 heads) by definition, computed in integers — `Math.log2` is float
+  // arithmetic, and a rounding slip at a power of two would pass every value in
+  // the table and surface only as replay drift (ADR 0001, P10).
+  let steps = 1;
+  for (let n = heads; n >= 2; n = (n - (n % 2)) / 2) {
+    steps += 1;
+  }
+  return steps;
 };

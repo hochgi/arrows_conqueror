@@ -16,3 +16,15 @@ export class ContractViolation extends Error {
     this.name = 'ContractViolation';
   }
 }
+
+/**
+ * Raise a {@link ContractViolation}. Internal to the package — the error type is
+ * public because tests assert on it, but this shorthand is not part of the port
+ * surface.
+ *
+ * Typed `never` so a guard can sit in an expression position without the
+ * compiler losing track of the fact that control does not return.
+ */
+export const reject = (message: string): never => {
+  throw new ContractViolation(message);
+};

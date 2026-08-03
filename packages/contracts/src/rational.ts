@@ -1,22 +1,23 @@
 /**
  * Exact rational arithmetic.
  *
- * SPEC §3 (harmonic allowance, banked movement) and §7 (spawner accrual).
- * ADR 0001 — never floating point.
+ * SPEC §7 — spawner accrual. ADR 0001 — never floating point.
  *
- * Exactness is a product property, not a preference. Coprime denominators over
- * a round-robin are what produce "deterministic irregularity": a rhythm complex
+ * Exactness is a product property, not a preference. Coprime denominators over a
+ * round-robin are what produce "deterministic irregularity": a rhythm complex
  * enough to feel organic while staying computable by an attentive player. Five
  * additions of 7/36 fall short of 1 and six overshoot it — an implementation
  * carrying an epsilon lands on the wrong side of that boundary, and then every
  * subsequent carry is wrong too.
  *
- * SKELETON — phase 2. Every function throws. Phase 3 implements them.
+ * Movement no longer lives here. §3 replaced the harmonic curve with
+ * `speed(N) = 1 + floor(log2 N)` — whole steps, nothing banked — so allowance is
+ * an integer and lives in ./move. **Movement is integer, economy is exact**: a
+ * spawner's trickle has to be bankable, whereas tempo you did not spend is tempo
+ * you gave away.
  */
 
-const notImplemented = (what: string): never => {
-  throw new Error(`not implemented: ${what}`);
-};
+import { reject } from './errors';
 
 /** Always normalized to lowest terms, with a positive denominator. */
 export interface Rational {
@@ -24,57 +25,79 @@ export interface Rational {
   readonly den: number;
 }
 
+/** Euclid. Integer-only, and `b` is always positive here so it terminates. */
+const gcd = (a: number, b: number): number => {
+  let x = a;
+  let y = b;
+  while (y !== 0) {
+    const t = x % y;
+    x = y;
+    y = t;
+  }
+  return x;
+};
+
 /**
  * Construct a rational in lowest terms.
  *
- * Throws {@link ContractViolation} on a zero denominator or any negative value:
- * neither allowance nor accrual is ever negative, and an unsigned type makes an
- * underflow bug unrepresentable rather than merely detectable.
+ * Throws {@link ContractViolation} on a zero denominator, a non-integer term, or
+ * any negative value: neither a force nor an accumulator is ever negative, and
+ * refusing to represent one makes an underflow bug unrepresentable rather than
+ * merely detectable.
  */
-export const rational = (_num: number, _den: number): Rational =>
-  notImplemented('rational');
+export const rational = (num: number, den: number): Rational => {
+  if (!Number.isInteger(num) || !Number.isInteger(den)) {
+    reject(`a rational is a ratio of integers, got ${String(num)}/${String(den)}`);
+  }
+  if (den === 0) reject('a rational has no zero denominator');
+  if (num < 0 || den < 0) reject(`a rational is never negative, got ${String(num)}/${String(den)}`);
 
-export const add = (_a: Rational, _b: Rational): Rational => notImplemented('add');
+  if (num === 0) return { num: 0, den: 1 };
+  const g = gcd(num, den);
+  return { num: num / g, den: den / g };
+};
 
-/** Total order. Returns a negative number, zero, or a positive number. */
-export const compare = (_a: Rational, _b: Rational): number => notImplemented('compare');
-
-export const equals = (_a: Rational, _b: Rational): boolean => notImplemented('equals');
-
-/** Whole steps this value affords: floor(value). */
-export const wholeSteps = (_a: Rational): number => notImplemented('wholeSteps');
+export const add = (a: Rational, b: Rational): Rational =>
+  rational(a.num * b.den + b.num * a.den, a.den * b.den);
 
 /**
- * Subtract one whole step. Precondition: the value is at least 1.
+ * Total order. Returns a negative number, zero, or a positive number.
  *
- * SPEC §3 — spending a step reduces an allowance by exactly 1, leaving the
- * fraction intact.
+ * Cross-multiplied rather than divided, so the comparison never touches a float.
+ * Both denominators are positive by construction, which is what makes the sign of
+ * the difference the sign of the comparison.
+ *
+ * Totality matters as much as correctness: comparisons feed ordered decisions, and
+ * an order that fell back on representation or identity would be the iteration-order
+ * determinism failure ADR 0001 names as the realistic one.
  */
-export const spendStep = (_a: Rational): Rational => notImplemented('spendStep');
+export const compare = (a: Rational, b: Rational): number => a.num * b.den - b.num * a.den;
+
+export const equals = (a: Rational, b: Rational): boolean => compare(a, b) === 0;
+
+/** Whole units this value affords: floor(value). */
+export const wholeSteps = (a: Rational): number => (a.num - (a.num % a.den)) / a.den;
 
 /**
- * The fractional part.
+ * Subtract one whole unit. Precondition: the value is at least 1.
  *
- * SPEC §3 and §11 item 20: only the sub-step remainder carries between turns.
- * Whole unspent steps are forfeited — otherwise a rearguard sentry becomes a
- * spring, skipping three turns to move four, which would undercut the point
- * that standing still is doing its job.
+ * SPEC §7 — an accumulator crossing 1 emits a head and keeps the overshoot.
  */
-export const fractionalPart = (_a: Rational): Rational =>
-  notImplemented('fractionalPart');
+export const spendStep = (a: Rational): Rational => {
+  // `num < den` is "value below 1" exactly, because the denominator is positive by
+  // construction. Stated that way rather than via compare(a, ONE) so the guard does
+  // not depend on a constant declared further down the file.
+  if (a.num < a.den) reject(`cannot spend a whole unit from ${String(a.num)}/${String(a.den)}`);
+  return rational(a.num - a.den, a.den);
+};
 
-/*
- * Movement allowance used to live here, as the harmonic curve
- * `speed(n) = 1 + 1/2 + ... + 1/n` with a banked fractional remainder.
+/**
+ * The fractional part — what an accumulator carries forward.
  *
- * It is gone. SPEC §3 now uses `speed(N) = 1 + floor(log2 N)` — a whole number,
- * with nothing carried between turns — so movement needs no rational arithmetic
- * at all. See `speed` in ./move.
- *
- * What remains here serves the spawner economy (SPEC §7), which *does* carry:
- * an accumulator gains an exact fraction per turn and emits a head when it
- * reaches 1, keeping the overshoot. Movement is integer, economy is exact.
+ * SPEC §7 and §11 item 14: the remainder carries on spawn, and resets on capture.
+ * The reset is P08's; this function only ever computes the carry.
  */
+export const fractionalPart = (a: Rational): Rational => rational(a.num % a.den, a.den);
 
 export const ZERO: Rational = { num: 0, den: 1 };
 export const ONE: Rational = { num: 1, den: 1 };

@@ -174,7 +174,9 @@ they are worth writing with more care than their size suggests.
       required before this box is honest.
 - [x] No file in `packages/contracts` imports from any other workspace package.
 - [x] `Move` has exactly three variants, asserted.
-- [ ] Phase 3 — green.
+- [x] Phase 3 — green. **91 passing, 0 failing, 27 pending**; `pnpm verify` clean.
+      No test was weakened, no scenario deleted, and no rule kicked back — SPEC
+      answered every question the implementation raised.
 
 ## Phase 2 notes worth carrying into phase 3
 
@@ -222,4 +224,31 @@ accumulator work; renaming them is worth doing when P08 lands, not now.
 **Phase 3 must not implement `speed` with `Math.log2`.** It is float arithmetic,
 it would pass every value in the table, and it is exactly the determinism failure
 ADR 0001 calls the realistic one — invisible in unit tests, visible as replay
-drift in P10.
+drift in P10. *Done: halve-and-count, integer only.*
+
+## Phase 3 notes for the reviewer
+
+**Four guards exist that no scenario specifies.** Each is DTO well-formedness of
+the same class the approved scenarios already cover, but none is under test, so
+they are the places to look for an invented rule:
+
+- `chord` rejects a degenerate chord (both ends the same slot), by parallel with
+  `step` rejecting a matching source and exit. A transit enters on an in-arrow and
+  leaves on an out-arrow, so its ends cannot coincide.
+- `chord` normalizes to lower-slot-first, which is how the interface's stated
+  "unordered" becomes true rather than asserted — structural equality depends on it.
+- `spendStep` now enforces the precondition its doc comment already stated.
+- `isSatisfiableBy` returns `true` for a skip and an end-turn: neither names a
+  portion, so nothing about the board can make it unsatisfiable. This is the one of
+  the four that is closest to a judgement call.
+
+**Six skipped tests place a requirement on P02.** The foreign-identifier cases in
+the conformance suite assert `ContractViolation`, so a fixture board must reject an
+id it did not mint rather than returning a plausible-looking answer. They are
+pending, so nothing enforces this until P02 unwraps the suite.
+
+**Denominators are bounded by construction, not by a cap.** `add` normalizes via
+gcd on every call, so a denominator never exceeds the lcm of its inputs — 36 for
+the 1/9 and 1/12 forces §7 expects. There is no overflow guard because there is no
+growth to guard against; if P08 introduces forces with large coprime denominators,
+that assumption is the thing to re-check.
