@@ -16,7 +16,6 @@ import {
   ContractViolation,
   equals,
   fractionalPart,
-  harmonicAllowance,
   MAX_FORCE,
   rational,
   spendStep,
@@ -40,14 +39,6 @@ describe('rational — addition is exact across coprime denominators', () => {
     is(acc, 7, 6);
   });
 
-  it.each([
-    { heads: 1, num: 1, den: 1 },
-    { heads: 2, num: 3, den: 2 },
-    { heads: 3, num: 11, den: 6 },
-    { heads: 4, num: 25, den: 12 },
-  ])('computes harmonic allowance for $heads heads exactly', ({ heads, num, den }) => {
-    is(harmonicAllowance(heads), num, den);
-  });
 });
 
 describe('rational — normalized and compared by value', () => {

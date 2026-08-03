@@ -149,12 +149,13 @@ of these are near-misses for each other.
 | **vertex** | a pinwheel centre bordered by 3 arrows; where specials live; *never occupied* |
 | **head** | one unit; also one life |
 | **stack** | merged heads on one arrow; stack size **is** lives |
-| **sentry** | heads left standing on a trail to guard it; one per open side, so two mid-trail |
+| **sentry** | heads left standing on a trail to guard it; two mid-trail, because one only bleeds a front and two halt it |
 | **trail** | the path a head leaves; a **set** of arrows — no order, no memory, not a tree |
 | **anchor** | the connection from a trail back to your territory |
 | **cut** | an enemy crossing your trail |
 | **evaporation** | the destruction a cut causes, running **both** ways from the cut point |
-| **firebreak** | the stack that halts evaporation and takes the head loss, from either side |
+| **front** | one advancing edge of an evaporation; carries exactly one kill |
+| **firebreak** | the head a front halts at — the *second* one it meets, since the first is killed |
 | **region** | trail between two firebreaks, or a firebreak and territory; what one cut destroys |
 | **crossing** | traversing a point another trail passes through |
 | **chord test** | the interleave-or-coincide rule that decides whether a traversal is a crossing |

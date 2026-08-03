@@ -120,3 +120,42 @@ Feature: The move DTO — boundaries and the cases that must stay expressible
       Then the move is well-formed
       # Moving a lone head off an arrow is the ordinary case, not an edge one.
       # Whether the vacated arrow stays territory is P07's business, not the DTO's.
+
+  Rule: Movement allowance is a whole number of steps
+
+    SPEC §3: speed(N) = 1 + floor(log2 N). This replaced a harmonic curve whose
+    fractional remainder banked between turns — exact to compute and impossible
+    to read at the table. Nothing carries now, so allowance needs no rational
+    arithmetic and no state beyond the group's size.
+
+    Scenario Outline: Every doubling adds one step
+      When I compute the movement allowance of a group of <heads>
+      Then the allowance is exactly <steps> steps
+
+      Examples:
+        | heads | steps | note                                    |
+        | 1     | 1     | the floor                               |
+        | 2     | 2     | the pair moves as far as two loose heads |
+        | 3     | 2     | no gain until the next doubling         |
+        | 4     | 3     |                                         |
+        | 7     | 3     | the last of its band                    |
+        | 8     | 4     |                                         |
+        | 15    | 4     |                                         |
+        | 16    | 5     |                                         |
+
+    Scenario: Splitting never loses on throughput
+      When I compare a group's allowance against splitting it into single heads
+      Then the allowance never exceeds the head count
+      # §3's founding constraint. It is what keeps stacking a tactical choice
+      # rather than a strictly better one, and it holds with equality only at
+      # 1 and 2 — which is why the pair is free and the natural atom.
+
+    Scenario Outline: A group size that cannot exist is rejected
+      When I compute the movement allowance of a group of <heads>
+      Then the computation fails
+
+      Examples:
+        | heads |
+        | 0     |
+        | -1    |
+        | 1.5   |

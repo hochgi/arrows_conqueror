@@ -12,7 +12,6 @@ export {
   wholeSteps,
   spendStep,
   fractionalPart,
-  harmonicAllowance,
   ZERO,
   ONE,
   MAX_FORCE,
@@ -30,6 +29,7 @@ export {
   isSatisfiableBy,
   movesEqual,
   turnsEqual,
+  speed,
 } from './move';
 
 export type { GeometryPort } from './geometry-port';

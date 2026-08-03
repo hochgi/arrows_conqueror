@@ -63,14 +63,18 @@ export const spendStep = (_a: Rational): Rational => notImplemented('spendStep')
 export const fractionalPart = (_a: Rational): Rational =>
   notImplemented('fractionalPart');
 
-/**
- * Harmonic movement allowance: `speed(n) = 1 + 1/2 + ... + 1/n`.
+/*
+ * Movement allowance used to live here, as the harmonic curve
+ * `speed(n) = 1 + 1/2 + ... + 1/n` with a banked fractional remainder.
  *
- * SPEC §3. Sub-linear by design — stacking must never beat splitting on raw
- * throughput.
+ * It is gone. SPEC §3 now uses `speed(N) = 1 + floor(log2 N)` — a whole number,
+ * with nothing carried between turns — so movement needs no rational arithmetic
+ * at all. See `speed` in ./move.
+ *
+ * What remains here serves the spawner economy (SPEC §7), which *does* carry:
+ * an accumulator gains an exact fraction per turn and emits a head when it
+ * reaches 1, keeping the overshoot. Movement is integer, economy is exact.
  */
-export const harmonicAllowance = (_heads: number): Rational =>
-  notImplemented('harmonicAllowance');
 
 export const ZERO: Rational = { num: 0, den: 1 };
 export const ONE: Rational = { num: 1, den: 1 };

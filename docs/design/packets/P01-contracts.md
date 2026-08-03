@@ -162,11 +162,11 @@ they are worth writing with more care than their size suggests.
       the purity guard. `pnpm verify` runs.
 - [x] `packages/contracts` builds and typechecks under strict TypeScript.
 - [x] Every invariant appears as a named test, and **every in-scope scenario has
-      one**: 81 of 84 scenarios, the other 3 tagged `@deferred-P02` / `-P08`
+      one**: 83 of 86 scenarios, the other 3 tagged `@deferred-P02` / `-P08`
       because they need a board constructor or an owned accumulator that a
-      GeometryPort and a Rational respectively do not have. **Phase 2: 105
-      failing, 3 passing** — every failure individually checked to be a missing
-      behaviour rather than a setup problem.
+      GeometryPort and a Rational respectively do not have. **Phase 2: 87
+      failing, 4 passing, 27 pending** — every failure individually checked to be
+      a missing behaviour rather than a setup problem.
 
       The first pass through this checkbox was wrong. It audited failure
       *reasons* and never audited *coverage*, and 11 scenarios turned out to
@@ -204,7 +204,22 @@ they would have stayed green through phase 3 whether or not the validation was
 ever written. They now assert the specific error type. Any new rejection test
 must do the same.
 
-**The geometry conformance suite runs against a port whose every method
-throws.** That is P01's honest red. P02 swaps in a fixture board and the same
-suite must go green *unchanged* — if it needs editing, the port leaked something
-concrete.
+**The geometry conformance suite is pending, not red.** It is wrapped in a
+`describe.skip` naming P02. Left running it would keep `pnpm verify` failing for
+the whole gap between the two packets, and a permanently-failing verify is how
+people stop reading verify. Skipped is the honest state — neither green nor red,
+every test still named in the report. P02 deletes the wrapper, points the factory
+at a fixture board, and the suite must go green *unchanged*; if it needs editing,
+the port leaked something concrete.
+
+**Movement allowance left `rational` for `move`.** §3 replaced the harmonic curve
+with `speed(N) = 1 + floor(log₂ N)` — whole steps, nothing banked — so allowance
+needs no rational arithmetic and is a pure function of one integer.
+`Rational` now serves only the spawner economy (§7), which does carry. Note
+`wholeSteps` and `spendStep` still carry movement-flavoured names while doing
+accumulator work; renaming them is worth doing when P08 lands, not now.
+
+**Phase 3 must not implement `speed` with `Math.log2`.** It is float arithmetic,
+it would pass every value in the table, and it is exactly the determinism failure
+ADR 0001 calls the realistic one — invisible in unit tests, visible as replay
+drift in P10.

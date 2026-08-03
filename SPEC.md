@@ -131,52 +131,75 @@ Both directions are free, deliberately. Spawners produce **dispersion** — head
 
 A stack moves faster than a single head, but **sub-linearly** — stacking must never beat splitting on raw throughput.
 
+> **`speed(N) = 1 + floor(log₂ N)`** — every doubling adds one step.
+
 ```
-speed(N) = 1 + 1/2 + 1/3 + ... + 1/N      (harmonic)
-
-N:      1     2     3     4     5     6
-speed:  1.00  1.50  1.83  2.08  2.28  2.45
+N:      1  2  3  4  5  6  7  8  ...  15  16
+speed:  1  2  2  3  3  3  3  4  ...   4   5
 ```
 
-Fractional movement **banks between turns**; a unit steps when it has a whole point available.
+**Allowance is a whole number, and nothing banks.** No fractional movement, no carry between turns, no saving a step for later. A group gets its steps and either spends them or loses them.
 
-> Alternative if fractions prove unpleasant: `speed(N) = 1 + floor(log2 N)` — every doubling adds one step. Cleaner to state, jumpier in feel.
+This is a deliberate trade against an earlier harmonic curve. Harmonic had a pleasing rhythm as a stack's remainder filled and drained, and it was genuinely hard to track at the table — you cannot tell at a glance how far a 5-stack moves this turn without knowing what it banked last turn. Predictable jumps beat elegant fractions in a game whose whole appeal is that an attentive player can compute the next move (§1).
+
+Two properties make this the right ladder:
+
+- **Splitting still wins on throughput, always.** A 4-stack takes 3 steps where four singles take 4; a 16-stack takes 5 where sixteen singles take 16.
+- **The pair is free.** `speed(2) = 2`, exactly what two separate heads get, so pairing costs nothing in distance and buys concentration — and two is also the minimum sentry §5 allows. **The game's natural atom is the pair**, and it falls out of the curve rather than being chosen.
+
+Exact rationals do not leave the engine: spawner accumulators still carry their remainders (§7). **Movement is integer, economy is exact rational** — production is a slow trickle you must be able to bank, whereas tempo you did not use is tempo you gave away.
 
 ### Merging costs the turn
 
 Merging is free (above) but it is **not instant**.
 
-> **A stack that merged this turn has speed 1 for that turn**, not `speed(N)`. The heads that walked in have already spent their move getting there — they are carried, not carrying.
+> **A stack that merged this turn has speed 1 for that turn**, and **speed 0 if any group that arrived was larger than what it joined.**
 
-Stated as a speed override rather than a special case, so nothing else needs changing: a 2-stack formed mid-turn moves 1 instead of 1.5, there is no fraction left to bank, and a constituent that already stepped this turn has therefore already used the stack's whole allowance. The bonus arrives next turn, when the stack is no longer *recently merged*.
+The heads that walked in have already spent their move getting there — they are carried, not carrying. So the only question is what fraction of the merged stack has already moved. Arrive as the **minority** and most of the stack is fresh, so it may still take a step. Arrive as the **majority** and most of it has already gone, so it stops. Equal counts still move: half is fresh.
 
-This prices the obvious exploit. Without it, walking a spare head into a stack would be a free mid-turn speed upgrade, and the correct opening move every single turn would be to merge before doing anything else. It also keeps the promise above honest — stacking must never beat splitting on raw throughput, and a costless merge would beat it for exactly one turn, which is the turn that matters.
+***Any* is load-bearing.** Once a stack is barred for the turn, a later small arrival cannot un-bar it — otherwise merging big-then-small would launder the restriction, and the order the player chose (§4) would decide the rule rather than the rule deciding.
+
+Stated as a speed override rather than a special case, so nothing else needs changing: a constituent that already stepped this turn has therefore already used the merged stack's whole allowance, and the bonus arrives next turn when the stack is no longer *recently merged*.
+
+This prices two exploits at once. Without the speed-1 clause, walking a spare head into a stack would be a free mid-turn speed upgrade and the correct opening move every turn would be to merge before doing anything else. Without the speed-0 clause you get the conveyor below for nothing.
 
 ### Allowance and spending
 
 A **group** is the heads of one player standing on one arrow. Allowance belongs to the group — not to a head, not to a player.
 
-> **A group may step while `spent + 1 ≤ allowance`**, where `allowance` is `speed(size)` plus any fraction carried from last turn, and `spent` counts the steps that group has already taken this turn.
+> **A group may step while `spent < speed(size)`**, where `spent` counts the steps that group has already taken this turn.
 
-Two rules make a change of composition behave:
+Both are whole numbers and neither survives the turn boundary. Two rules make a change of composition behave:
 
 - **On a split, both parts inherit `spent`.** Only the portion that moves pays for the step. The portion that stayed has spent nothing extra and may still act — branching off in another direction, or following the same path a step behind (§6.1a).
-- **On a merge, the arrivals' spending is discarded and the destination's is kept**, and the merged group's speed is 1 for the turn (above). The arrivals already paid to get there; they are carried, not carrying.
+- **On a merge, the arrivals' spending is discarded and the destination's is kept**, and the merged group's speed is overridden per the rule above. The arrivals already paid to get there; they are carried, not carrying.
 
 **Splitting needs no penalty of its own, and that asymmetry is not an oversight.** Merging up mid-turn would be a free upgrade if unpriced, because a larger group is strictly faster. Splitting down needs no such guard: inheriting `spent` already prevents the double dip, because a stack that has taken its step cannot split into scouts that have not.
 
 What survives is exactly the throughput advantage splitting is supposed to have:
 
-| a fresh 3-stack (allowance 11/6) | steps this turn |
+| a fresh 4-stack (speed 3) | steps this turn |
 |---|---|
-| moves as one | **1** — 11/6 affords one step, 5/6 banks |
-| splits 1 + 2, both move | **2** |
-| splits 1 + 1 + 1, all move | **3** |
-| moves as one, *then* tries to split | **1** — the parts inherit the spend |
+| moves as one | **3** |
+| splits 2 + 2, both move | **4** — two steps each |
+| splits 1+1+1+1, all move | **4** — one step each |
+| moves as one, *then* tries to split | **3** — the parts inherit the spend |
 
 The last row is the whole rule in one line: **splitting is a decision you make before you move, not after.**
 
-And a group large enough to afford two steps takes its rear guard with it. A 6-stack splitting 4 + 2 sends the 4 forward two steps (25/12 affords it) while the 2 follows one step behind — a spearhead with its firebreak trailing it, from one ordinary split.
+And a group large enough to afford two steps takes its rear guard with it. A 6-stack splitting 4 + 2 sends the 4 forward three steps while the 2 follows behind at two — a spearhead with its firebreak trailing it, from one ordinary split.
+
+### The conveyor
+
+The merge rule permits a real manoeuvre worth naming, because it looks like an exploit and — priced — is not.
+
+Park heads along a chain of arrows and shuttle forward link by link: the rear group merges into the next arrow, that stack steps into the next, and so on, until the whole parked force stands on the far end. Unpriced this is a genuine throughput exploit — a chain of four single heads delivers 10 head-arrows in one turn where those four heads moving independently deliver 4.
+
+The speed-0 clause prices it exactly. Each link must be **no smaller than the stack arriving at it**, and the arriving stack grows every link, so the breadcrumbs have to grow at least as fast as their own running total — geometrically. A five-link conveyor is `1, 1, 2, 4, 8`: sixteen heads parked to deliver **15** head-arrows, where those sixteen heads moving as their own groups would deliver 50.
+
+So the conveyor is not a speed trick, it is a **concentration trick that costs most of its own movement** — exactly the trade §3 is about, made by hand. A naive chain of equal links gets one hop and stops.
+
+On a trail it costs double, because §5's floor makes every link a pair, and one cut destroys the region. In your own territory it costs single heads and cannot be cut, and that is where it is strongest — the same "a large empire repositions instantly" pressure §10 already accepts.
 
 ### Why both merging and splitting are attractive
 
@@ -247,13 +270,15 @@ This is the third leg of the tension: every head left behind makes the chain saf
 
 ### A sentry is one head per open side
 
-An arrow's **back** is open if the trail continues behind it; its **front** is open if the trail continues ahead of it. Evaporation can arrive from either open side and each arrival costs the stack a head (§6.1).
+An arrow's **back** is open if the trail continues behind it; its **front** is open if the trail continues ahead of it. Evaporation arriving from either open side spends a head (§6.1).
 
 > **You may not leave fewer heads on an arrow than it has open sides.**
 
-Mid-trail that means **two** — a lone sentry would be spent by the first cut from either direction and leave the stretch it was guarding open. One suffices where only one side is open: a **tip** has nothing ahead of it, and the first arrow off your own territory has nothing behind it that can evaporate, because territory does not burn.
+Mid-trail that means **two**, and the reason is not symmetry but arithmetic: an evaporation front spends its kill on the first head and **halts at the next one**. A lone head is therefore a toll and not a wall — the front pays it and rolls on into the stretch that head was supposed to be guarding. Two heads is the smallest garrison that actually stops anything.
 
-Two is therefore not a chosen number. It is the count of ways a sentry can be attacked.
+One suffices where nothing needs stopping. A **tip** has no trail ahead of it, so a front arriving from behind runs out of board; the first arrow off your own territory has nothing behind it that can burn, because territory does not burn.
+
+Two is therefore not a chosen number. It is the smallest number that halts a front.
 
 **This constrains what you may leave, not what may exist.** Damage can reduce a mid-trail pair to a single head, and that survivor is perfectly legal — it simply could not have been created deliberately. Keeping the rule a precondition on the move is what stops it needing any repair machinery when a cut lands.
 
@@ -275,14 +300,14 @@ There are exactly **two** ways to hurt a player.
 
 An enemy head crosses your open trail at a **point**. If the crossing succeeds, the trail **evaporates in both directions from the cut point** — forward with the grain, and backward against it.
 
-One rule stops it, stated once and doing two jobs:
+Each evaporation front carries exactly **one kill**:
 
-> **An occupied arrow is not destroyed, and the point it points into is not passed through.**
+> **A front spends its kill on the first head it meets, and halts at the next head — which survives, along with its arrow and the point that arrow points into.**
 
-A stack therefore shields the arrow it stands on *and* the junction ahead of it. Evaporation halts on reaching either, and **the stack that halts it loses one head**, from whichever side the evaporation arrived.
+So a **lone head bleeds evaporation without stopping it; a pair stops it.** That is the whole reason §5 sets the sentry floor at two — one head is a toll, two is a wall — and it is why a damaged single is a hole rather than a weak spot.
 
-- **One head per branch reached.** Forward evaporation propagates down *every* fork it meets and halts at the first stack on each; backward evaporation arriving at a point charges every stack pointing into it. A cut on a spine costs one head; a cut below a three-way join costs three.
-- **A stack that dies absorbing a hit still absorbs it.** Evaporation stops at that arrow even with nothing left standing on it, and the arrow itself survives as headless trail.
+- **A front per branch, a kill per front.** Forward evaporation propagates down *every* fork it meets, each branch carrying its own kill; backward evaporation arriving at a point spawns a front along every trail arrow entering it. A cut on a spine costs one head; a cut below a three-way join costs three.
+- **The surviving head shields its point.** That shielding is what partitions a trail into regions, and it is why the pair matters twice: the second head is both the wall and the shield.
 - **Territory is a wall.** Backward evaporation reaching your own closed ground stops there and costs nothing. There is nothing to destroy and nothing to charge (§5).
 - Trail beyond the halting stacks survives but is **unanchored** — dormant, not dead.
 - A stranded stack **fights its way home**. Because the graph is strongly connected (§2), it does this by looping forward around the grain rather than reversing, laying fresh cuttable trail the entire way.
@@ -291,11 +316,13 @@ A stack therefore shields the arrow it stands on *and* the junction ahead of it.
 
 Four properties fall out of this:
 
-**A cut destroys one region.** Shielded points and occupied arrows partition a trail into regions, and evaporation runs from the cut in both directions until it meets one, or meets territory. Everything between those two boundaries is lost; everything outside them is untouched. So a player sets the price of being cut by choosing how far apart to place sentries — the answer is *region length*, and it is legible on the board at a glance rather than by tracing a path (§5).
+**A cut destroys one region — as long as your sentries are pairs.** Surviving heads and the points they shield partition a trail into regions, and evaporation runs from the cut in both directions until it meets one, or meets territory. Everything between those two boundaries is lost; everything outside them is untouched. So a player sets the price of being cut by choosing how far apart to place sentries — the answer is *region length*, legible on the board at a glance rather than by tracing a path (§5).
+
+Break the floor and the guarantee breaks with it. A single head does not bound anything: the front spends its kill and rolls on to the *next* sentry, so a cut costs two regions instead of one. This is the single sharpest reason the floor is a rule and not advice.
 
 **Cut depth is still everything, by a better mechanism.** A deep cut no longer destroys more, it **orphans** more. Take out the region touching the victim's territory and every junction beyond it survives — sentries intact, anchor gone — dormant, claiming nothing, defending nothing, waiting for a road that has to be built from scratch. Attackers are still drawn toward the victim's own border, precisely where the victim is strongest and the attacker most exposed. Cut value and cut difficulty rise together, with no balancing constant.
 
-**Sentries are firebreaks in both directions, and prying one open takes a sequence.** A mid-trail sentry is two heads (§5), one per open side. A cut behind it costs one; a cut ahead of it costs the other; only then is the point it was shielding open, and only then does a third cut flood through into everything beyond. Each of those is a separate crossing — a separate move, a separate exposure, on a separate turn, against a defender who can see it coming (§4). Dismantling a garrisoned trail is a siege, not a lucky swing.
+**Sentries are firebreaks in both directions, and prying one open takes a sequence.** A mid-trail sentry is two heads (§5). The first cut from either side spends its kill and halts on the survivor, costing one region. The second cut kills that survivor and **rolls on**, taking the region beyond as well and leaving the point bare. A third floods the junction freely. Each of those is a separate crossing — a separate move, a separate exposure, on a separate turn, against a defender who can see it coming (§4). Dismantling a garrisoned trail is a siege, not a lucky swing.
 
 **Forks are ordinary trail.** A fork is one arrow with two trail arrows leaving it; nothing about it is privileged, and it needs no rule of its own. Ungarrisoned, a cut behind it floods into both branches and costs one head on each. Garrisoned, it is a bulkhead like any other. Trail *shape* stays a strategic choice — a branching trail covers more ground, offers more cut points, and bleeds once per branch — but branching itself is free.
 
@@ -539,11 +566,11 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 ## 11. Open Questions
 
 **Geometry**
-1. **The orientation pattern at a junction** — alternating or three-consecutive (§2). Everything else about the tiling is now derived rather than measured. Alternating is the strong read from the crossing examples; confirm it against the real tiling. *This is the last geometric unknown.*
+1. ~~The orientation pattern at a junction~~ — **resolved: alternating.** The out-set at every point is {up, down-left, down-right}: three directions 120° apart, so the six slots alternate in/out around the hexagon. Self-consistent throughout — the three out-vectors sum to zero, so the directed 3-cycle exists and girth is 3; the in-set is the complement {down, up-left, up-right}; exits from any in-arrow are straight or ±120°, so both handednesses are available and the board is mirror-symmetric rather than chiral. Every §2 consequence that was conditional on alternating now holds outright. **P03 generates rather than measures, and no geometric unknown remains.**
 2. ~~Reachability~~ — **resolved.** Balanced + weakly connected ⇒ Eulerian ⇒ strongly connected. See §2.
 3. ~~Girth~~ — **resolved.** 3, the pinwheel triangle. See §2.
 4. ~~Board topology~~ — **resolved.** Torus, wrapping both ways. Preserves rim balance, kills corner camping. See §2.
-5. ~~Shortest U-turn loop~~ — **resolved.** 3 under the alternating pattern: a stranded head loops back onto its own trail in three moves. Retreat is cheap; flagged as a balance watch-point in §2.
+5. ~~Shortest U-turn loop~~ — **resolved, and now unconditional** (item 1). 3: a stranded head loops back onto its own trail in three moves, which is legal because a trail is a set (§6.1a invariant 2). Retreat is cheap; flagged as a balance watch-point in §2.
 
 **Tuning — none of these block a paper playtest**
 6. ~~Crossing target~~ — **re-resolved.** The two-step gate-and-charge is gone. A contested crossing is a 1:1 attack costing a move, and evaporation charges whichever stack halts it. Gating range narrowed with it: a stack contests only the point it *points into*, the same range over which it shields, rather than any of that point's six arrows. See §6.2 and §6.1. *(The original answer — deterministic attrition, defender wins ties, charge to the nearest stack — survived from the first draft until the §6.1 rewrite made both halves redundant.)*
@@ -564,14 +591,17 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
 19. ~~What is a move?~~ — **resolved: per-step.** A move is one unit, one step; the player chooses the order; skip is a first-class move; the turn ends explicitly. No within-turn resolution order had to be invented. Merging mid-turn costs the stack its speed bonus for that turn, which prices the reinforce-then-strike combo without banning it. See §4 and §3.
 
-20. **Residuals of the per-step model.** Edges the allowance model implies but does not state outright. Readings recorded; none blocks P01, all want confirming before P04 codifies them.
+20. ~~Residuals of the per-step model~~ — **resolved: there are no residuals.** The harmonic curve is replaced by `speed(N) = 1 + floor(log₂ N)`, allowance is a whole number, and nothing survives the turn boundary — not a fraction, not an unused whole step. Every sub-question dissolved rather than being answered:
 
-    - ~~Does a skipped step bank?~~ — **resolved: no.** Carry is the *fractional* part of `allowance − spent` at end of turn; whole unused steps are forfeited. Without this a rearguard sentry becomes a spring — skip three turns, move four — which would undercut the standing-still-is-doing-its-job point in §4. See §3, allowance and spending.
-    - **Does a merge forfeit an inherited carry?** Reading: **yes** — "loses bonus" covers accrued bonus, not just the rate. A 2-stack carrying 1/2 that merges into a 3-stack starts the next turn at 0.
-    - **Does a split duplicate an inherited carry?** Reading: **yes, both parts keep it.** It is bounded — a carry is below 1 by construction, and total steps are still capped by what splitting into singles would have given anyway — and the alternative needs a division rule for a fraction that does not divide.
-    - ~~Is splitting symmetric with merging?~~ — **resolved: no, and deliberately.** See item 22.
+    - ~~Does a skipped step bank?~~ — **no.** Nothing banks at all now, so this needs no rule of its own. The original reason still stands: a rearguard that banked would be a spring — skip three turns, move four — undercutting §4's standing-still-is-doing-its-job point.
+    - ~~Does a merge forfeit an inherited carry?~~ — **no carries exist.** What replaced it is sharper: a merged stack has speed 1, or **speed 0 if any arriving group outnumbered what it joined**. See §3, merging costs the turn.
+    - ~~Does a split duplicate an inherited carry?~~ — **no carries exist.** Both parts inherit `spent`, so a split trades one group's distance for a second group's existence and the arithmetic balances itself.
+    - ~~Is splitting symmetric with merging?~~ — **no, and deliberately.** See item 22.
+    - ~~Does a spawned head merging into a stack cost the bonus?~~ — **no.** Spawn resolution happens at the turn boundary, not mid-turn, so it is not a move-merge and the speed override does not apply.
 
-    A further case is adjacent but different: a **spawned** head merging into a stack (§7) is not a move-merge, and resolution happens at the turn boundary rather than mid-turn. Reading: **it does not cost the stack its next turn's bonus.**
+    The harmonic curve was not wrong, it was unreadable: you could not tell how far a 5-stack moves this turn without knowing what it banked last turn, in a game whose entire appeal is that the next move is computable (§1). The log₂ ladder also makes **the pair the natural atom** — `speed(2) = 2`, exactly what two singles get — which lines up with §5's sentry floor without either rule being written for the other.
+
+    One live consequence, priced rather than banned: see **the conveyor** in §3.
 
 21. ~~Are sentries dropped and picked up by moves?~~ — **resolved, and the question dissolved.** There is no drop and no pickup. An arrow holds a count; a move takes a portion of it. Leaving heads behind is the drop, arriving on your own stack is the pickup, and §3's automatic merge needs no carve-out. §5 rewritten; the *may*/*automatic* contradiction is gone rather than adjudicated.
 
@@ -579,11 +609,11 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     This also settled a latent question in §6.1a: a lagging group standing on an arrow the front group laid is **not** re-tracing. Invariant 2 constrains the trail's arrow set, not where heads walk.
 
-23. **Is a sentry at a branch point mandatory, or only subject to the minimum?** §5 states a floor on what you may *leave* — one head per open side — and nothing that compels you to leave anything. During the design pass a compulsory garrison at every split and join was on the table, introduced to bound evaporation and to stop headless trail forming. Bidirectional evaporation and point-shielding (§6.1) now do both of those jobs, so the compulsion looks vestigial. Reading: **not mandatory** — an ungarrisoned fork is legal, and a cut behind it simply floods both branches for one head each. Confirm before P04 codifies legality, because it is the difference between a fork costing two heads and costing nothing.
+23. ~~Is a sentry at a branch point mandatory, or only subject to the minimum?~~ — **resolved: only the minimum.** An ungarrisoned fork is legal. A compulsory garrison at every split and join was on the table, introduced to bound evaporation and to stop headless trail forming, and §6.1 now does both jobs without it. Three reasons it stays out: its original justification is gone; the incentive already exists, since a bare fork lets one cut flood both branches and take the whole region; and a mandate would be **unenforceable in exactly the case it was written for** — damage can empty a fork, producing a state no move created and no rule can repair. §5's floor already needed the escape hatch *"this constrains what you may leave, not what may exist"*, and a rule you must exempt from damage is not doing work.
 
-24. **Does the arrow of a stack that dies absorbing a cut survive?** §6.1 says it does, leaving a one-arrow headless stub. The previous draft said the opposite — *when a tip head dies its own arrow evaporates too* — but that was justified solely by the *every tip carries a head* invariant, which is gone (item 8). Reading: **the arrow survives.** It costs nothing to allow now that headless trail is ordinary, and it is one fewer special case in the evaporation walk.
+24. ~~Does the arrow of a stack that dies absorbing a cut survive?~~ — **resolved, and the question changed shape.** A dying stack does not absorb at all. **Each evaporation front carries one kill: it spends that kill on the first head it meets and halts at the next head**, which survives with its arrow and the point it shields. So a lone head is a toll and a pair is a wall, in both directions. This retroactively gives §5's floor its real justification — two is not one-per-side, it is the smallest garrison that halts anything — and it makes breaking the floor cost a whole extra region rather than merely being untidy. See §6.1.
 
-25. **Sentry density against the economy.** A mid-trail sentry is two heads, so garrisoning a long trail every few arrows is a real fraction of a player's whole head count at §7's spawn rates. This sets how long an operation can be before it is uninsurable, which is the main lever on enclosure size — and therefore on whether large enclosures stay attemptable (§6.1) in practice rather than only on paper. Part of the same tuning sweep as items 11 and 12; nothing to decide on paper.
+25. **The damage-versus-production crossover needs re-deriving.** §7's table — 1/3 means economy dominates, 1/9–1/12 sits near the crossover — was worked out when a cut removed one head and the trail behind it always survived. Neither holds: a cut now destroys a region, evaporates backward toward home, and §6.2's per-move exchange bleeds both sides during a fight. Most of a cut's value has moved from damage into tempo and denial, so which side of the crossover a given *f* lands on is no longer derived on paper. Belongs with items 11 and 12 in the tuning sweep, and sentry density (two heads per garrisoned arrow, so a long trail is a real fraction of a player's whole force) is one of its inputs.
 
 ---
 

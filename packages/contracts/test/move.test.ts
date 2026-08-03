@@ -20,6 +20,7 @@ import {
   mintArrowId,
   movesEqual,
   skip,
+  speed,
   step,
   turnsEqual,
 } from '../src/index';
@@ -184,5 +185,44 @@ describe('move — illegal shapes are unrepresentable', () => {
 
   it('accepts taking every head off an arrow', () => {
     expect(isSatisfiableBy(step(a1, a2, 1), 1)).toBe(true);
+  });
+});
+
+describe('move — allowance is a whole number of steps', () => {
+  it.each([
+    { heads: 1, steps: 1 },
+    { heads: 2, steps: 2 },
+    { heads: 3, steps: 2 },
+    { heads: 4, steps: 3 },
+    { heads: 7, steps: 3 },
+    { heads: 8, steps: 4 },
+    { heads: 15, steps: 4 },
+    { heads: 16, steps: 5 },
+  ])('gives a group of $heads exactly $steps steps', ({ heads, steps }) => {
+    expect(speed(heads)).toBe(steps);
+  });
+
+  it('never lets a group outpace splitting into single heads', () => {
+    // SPEC §3's founding constraint. Equality only at 1 and 2, which is what
+    // makes the pair free and therefore the game's natural atom (§5).
+    for (let n = 1; n <= 64; n += 1) {
+      expect(speed(n)).toBeLessThanOrEqual(n);
+    }
+    expect(speed(1)).toBe(1);
+    expect(speed(2)).toBe(2);
+    expect(speed(3)).toBeLessThan(3);
+  });
+
+  it('is monotonic and never jumps by more than one', () => {
+    // A doubling adds exactly one step. A gap of two would mean some stack size
+    // is strictly better than the one above it, which no rule intends.
+    for (let n = 2; n <= 64; n += 1) {
+      const d = speed(n) - speed(n - 1);
+      expect(d === 0 || d === 1).toBe(true);
+    }
+  });
+
+  it.each([0, -1, 1.5])('rejects a group size of %s', (heads) => {
+    expect(() => speed(heads)).toThrow(ContractViolation);
   });
 });

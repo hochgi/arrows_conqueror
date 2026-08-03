@@ -90,3 +90,25 @@ export type Turn = readonly Move[];
 export const turnsEqual = (_a: Turn, _b: Turn): boolean => {
   throw new Error('not implemented: turnsEqual');
 };
+
+/**
+ * A group's movement allowance for one turn: `speed(N) = 1 + floor(log2 N)`.
+ *
+ * SPEC §3. A whole number, and nothing carries between turns — the harmonic
+ * curve this replaced needed exact rationals and a bank, and was unreadable at
+ * the table because you could not tell how far a stack moved without knowing
+ * what it saved last turn.
+ *
+ * Two properties phase 3 must not break:
+ *   - `speed(N) <= N` for all N, so splitting never loses on throughput (§3).
+ *   - `speed(2) === 2`, so a pair moves exactly as far as two loose heads. That
+ *     makes the pair the natural atom, which is also §5's sentry floor.
+ *
+ * Integer arithmetic only. `Math.log2` is float arithmetic and rounds wrong at
+ * exact powers of two on some inputs — a determinism bug of exactly the kind
+ * ADR 0001 calls the realistic one, since it would pass unit tests and surface
+ * as replay drift.
+ */
+export const speed = (_heads: number): number => {
+  throw new Error('not implemented: speed');
+};

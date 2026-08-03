@@ -1,7 +1,7 @@
 # move — what a player does
 
 **Packet:** [P01 — Contracts](../../design/packets/P01-contracts.md)
-**SPEC:** §4 (turn structure), §5 (sentries are counts), §11 items 19 and 21
+**SPEC:** §3 (speed and allowance), §4 (turn structure), §5 (sentries are counts), §11 items 19, 20, 21
 **Features:** [core](./move.core.feature) · [edge cases](./move.edge-cases.feature)
 
 ## Purpose
@@ -76,6 +76,31 @@ list a replay stores.
 - The system shall treat two turns containing the same moves in different orders
   as unequal.
 - The system shall offer no move variant beyond step, skip and end-turn.
+- The system shall compute a group's movement allowance as `1 + floor(log₂ N)`
+  whole steps, and shall never return a fraction.
+- The system shall never return an allowance greater than the group's head count,
+  so that splitting never loses on throughput.
+- The system shall return an allowance that grows by at most one step per
+  additional head.
+- The system shall reject an allowance query for a group size that is zero,
+  negative or fractional.
+
+## Allowance moved here from `rational`
+
+It was the harmonic curve with a banked remainder, which needed exact rationals
+and turn-to-turn state. SPEC §3 now uses whole steps with nothing carried, so
+allowance is a pure function of one integer and belongs beside the moves it
+budgets rather than beside the accumulator arithmetic.
+
+Two properties are worth more than the table of values. `speed(N) ≤ N` is §3's
+founding constraint — stacking must never beat splitting — and it holds with
+equality only at 1 and 2, which is what makes **the pair free** and therefore the
+game's natural atom, the same size §5 sets as the sentry floor. Neither rule was
+written for the other.
+
+`Math.log2` is float arithmetic. An implementation that rounds it is a
+determinism bug of exactly the kind ADR 0001 calls the realistic one: it passes
+unit tests and surfaces as replay drift.
 
 ## Order is data, and it changes outcomes
 

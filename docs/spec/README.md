@@ -12,15 +12,22 @@ behaviour is not here, it will not be built.**
 
 ## Index
 
-| Feature | Packet | SPEC | Scenarios | Invariants |
-|---|---|---|---|---|
-| [geometry-port](./geometry-port/geometry-port.md) | P01 | §2, §7 | 24 | 11 |
-| [chord-test](./chord-test/chord-test.md) | P01 | §2 | 16 | 6 |
-| [rational](./rational/rational.md) | P01 | §3, §7 | 20 | 8 |
-| [move](./move/move.md) | P01 | §4, §5 | 20 | 8 |
+| Feature | Packet | SPEC | Scenarios | Deferred | Invariants |
+|---|---|---|---|---|---|
+| [geometry-port](./geometry-port/geometry-port.md) | P01 | §2, §7 | 24 | 1 | 11 |
+| [chord-test](./chord-test/chord-test.md) | P01 | §2 | 18 | — | 8 |
+| [rational](./rational/rational.md) | P01 | §7 | 19 | 2 | 8 |
+| [move](./move/move.md) | P01 | §3, §4, §5 | 25 | — | 12 |
 
-80 scenarios, 109 concrete cases once `Examples` rows are expanded, 33
-invariants.
+86 scenarios, of which **83 are in scope for P01** and 3 are tagged
+`@deferred-P02` / `@deferred-P08`. 117 concrete cases once `Examples` rows are
+expanded, 39 invariants.
+
+A `@deferred-<packet>` tag means the behaviour is decided and specified here, but
+its seam falls in another packet — a board constructor is not on the port, and an
+accumulator that knows its owner is not a `Rational`. It is not a `@wip`. **A
+scenario with neither a test nor this tag is a defect**, and eleven of them once
+were.
 
 ## Reading order for P01
 

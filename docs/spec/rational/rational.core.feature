@@ -27,16 +27,11 @@ Feature: Exact rational arithmetic
       # Five additions fall short of 1 and six overshoot it. An implementation
       # that drifts by an epsilon lands on the wrong side of that boundary.
 
-    Scenario Outline: Harmonic allowance is exact
-      When I compute the movement allowance of a stack of <heads>
-      Then the result is exactly <allowance>
-
-      Examples:
-        | heads | allowance |
-        | 1     | 1/1       |
-        | 2     | 3/2       |
-        | 3     | 11/6      |
-        | 4     | 25/12     |
+    # Movement allowance used to live here as the harmonic curve, with a banked
+    # fractional remainder. SPEC §3 now uses 1 + floor(log2 N) — a whole number,
+    # nothing carried — so movement needs no rational arithmetic at all. The
+    # scenarios moved to the move feature. What stays here serves the spawner
+    # economy (§7), which does carry.
 
   Rule: Values are normalized and compared by value
 
