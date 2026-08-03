@@ -21,9 +21,13 @@ Feature: Exact rational arithmetic — boundaries and destructive cases
       Then exactly one head is produced
       And the accumulator holds exactly 7/12
 
-    Scenario: Force above the maximum is rejected
-      When a spawner is constructed with force greater than 1/3
-      Then construction fails
+    Scenario: The maximum force is exposed as a comparable ceiling
+      Given the maximum spawner force of 1/3
+      When a force of 1/2 is compared against it
+      Then the force is greater than the maximum
+      # P01 owns the constant and the ordering that makes it checkable.
+      # Rejecting an over-forced spawner is P08's — a Rational has no idea
+      # what a spawner is, and giving it one would be a boundary leak.
 
   Rule: Reset destroys, carry preserves — and they must not be confused
 
@@ -31,12 +35,19 @@ Feature: Exact rational arithmetic — boundaries and destructive cases
     carried. Getting it backwards would make border churn profitable, which
     inverts the incentive toward consolidation the economy is built on.
 
+    # Both scenarios below need an accumulator that knows its owner and whether
+    # an enemy stands on it. A Rational knows neither, and teaching it would put
+    # economy rules inside a numeric DTO. They are specified here because this
+    # is where the arithmetic they rely on is pinned, and they are P08's to test.
+
+    @deferred-P08
     Scenario: Capture at the brink loses everything banked
       Given an accumulator holding exactly 11/12
       When the arrow changes owner
       Then the accumulator holds exactly 0
       And no head is produced
 
+    @deferred-P08
     Scenario: A blockade holds the value rather than resetting it
       Given an accumulator holding exactly 11/12
       When an enemy head stands on the arrow without capturing it

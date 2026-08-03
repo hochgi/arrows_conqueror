@@ -119,6 +119,16 @@ describe('move — a turn is an ordered list, and order is data', () => {
     expect(turnsEqual(turn, turn)).toBe(true);
   });
 
+  it('lets moves from different stacks be interleaved', () => {
+    // SPEC §4: a 3-stack at 11/6 does not have to spend its steps consecutively,
+    // and the order the player chose is data the replay carries. a1, a2, a1 is
+    // not the same turn as a1, a1, a2 even though both stacks moved twice.
+    const interleaved: Turn = [step(a1, a2, 1), step(a2, a3, 1), step(a1, a3, 1)];
+    const consecutive: Turn = [step(a1, a2, 1), step(a1, a3, 1), step(a2, a3, 1)];
+    expect(interleaved.map((m) => m.kind)).toEqual(['step', 'step', 'step']);
+    expect(turnsEqual(interleaved, consecutive)).toBe(false);
+  });
+
   it('leaves the remainder of a split able to act', () => {
     // SPEC §3: on a split both parts inherit `spent`, so only the portion that
     // moved has paid. The DTO must not treat a1 as spent.
@@ -141,6 +151,26 @@ describe('move — a turn is an ordered list, and order is data', () => {
 describe('move — illegal shapes are unrepresentable', () => {
   it('refuses a step whose source and exit are the same arrow', () => {
     expect(() => step(a1, a1, 2)).toThrow(ContractViolation);
+  });
+
+  it.each([
+    { field: 'source', build: () => step(undefined as unknown as typeof a1, a2, 1) },
+    { field: 'exit', build: () => step(a1, undefined as unknown as typeof a2, 1) },
+    { field: 'count', build: () => step(a1, a2, undefined as unknown as number) },
+  ])('refuses a step constructed without the $field', ({ build }) => {
+    // TypeScript already blocks these at the call site; the runtime guard is for
+    // everything that reaches the core across a boundary the compiler cannot see
+    // — a replay file, a saved fixture, an adapter. Three fields, all required.
+    expect(build).toThrow(ContractViolation);
+  });
+
+  it('refuses a skip carrying a count', () => {
+    // A skip is the arrow declining to move. A count on it would imply a
+    // portion declined, which is not a thing — the rest of the stack simply
+    // was not named (§4).
+    expect(() => (skip as (a: typeof a1, c?: number) => unknown)(a1, 1)).toThrow(
+      ContractViolation,
+    );
   });
 
   it('admits exactly three variants', () => {

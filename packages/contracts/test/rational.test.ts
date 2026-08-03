@@ -17,6 +17,7 @@ import {
   equals,
   fractionalPart,
   harmonicAllowance,
+  MAX_FORCE,
   rational,
   spendStep,
   wholeSteps,
@@ -136,6 +137,17 @@ describe('rational — zero, whole numbers and rejection', () => {
 
   it('rejects a zero denominator', () => {
     expect(() => rational(1, 0)).toThrow(ContractViolation);
+  });
+
+  it('exposes the maximum force as a comparable ceiling', () => {
+    // SPEC §7: a spawner's force is a fraction ≤ 1/3. P01 owns the constant and
+    // the ordering that makes it checkable; *rejecting* an over-forced spawner
+    // is P08's, because a Rational has no idea what a spawner is and teaching
+    // it would put economy rules inside a numeric DTO.
+    expect(equals(MAX_FORCE, rational(1, 3))).toBe(true);
+    expect(compare(rational(1, 2), MAX_FORCE)).toBeGreaterThan(0);
+    expect(compare(rational(1, 9), MAX_FORCE)).toBeLessThan(0);
+    expect(compare(MAX_FORCE, MAX_FORCE)).toBe(0);
   });
 });
 

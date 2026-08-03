@@ -46,8 +46,8 @@ Feature: The chord test — totality, symmetry and the cases that unify
       And blue draws a chord between slots 0 and 3
       When I apply the chord test
       Then blue crosses red
-      # Coincidence at both endpoints. This is the degenerate case the
-      # self-crossing rule in §7 relies on.
+      # Coincidence at both endpoints — the degenerate case §6.1's cut check
+      # relies on. It is NOT an interleave, so §7 reads no inversion from it.
 
   Rule: The verdict depends only on cyclic order
 
@@ -97,21 +97,32 @@ Feature: The chord test — totality, symmetry and the cases that unify
       And no combat is triggered
       # Crossing is a decision. Arriving is not one.
 
-  Rule: One test, three callers
+  Rule: One predicate, and §7 asks the narrower half of it
 
-    Enemy cut, self-crossing and combat location all reduce to this. If any
-    caller needs a variant of the test, the rule has been misunderstood.
+    The enemy cut (§6.1) and combat location (§6.2) both want the full verdict:
+    interleave OR coincide. Even-odd fill (§7) wants interleave alone, because
+    coincidence cannot invert anything — fill reads the trail's arrow set
+    (§6.1a), and re-traversing an arrow the trail already holds leaves that set
+    unchanged. So the predicate is shared and one caller reads only part of it.
 
-    Scenario Outline: The same verdict serves every caller
+    Scenario Outline: The full verdict serves the cut and combat callers
       Given two chords that <relation>
-      When <caller> applies the chord test
+      When the cut check in §6.1 applies the chord test
       Then the verdict is <verdict>
 
       Examples:
-        | relation      | caller                        | verdict     |
-        | interleave    | the cut check in §6.1         | crossing    |
-        | coincide      | the cut check in §6.1          | crossing    |
-        | turn aside    | the cut check in §6.1          | no crossing |
-        | interleave    | the self-crossing check in §7  | crossing    |
-        | coincide      | the self-crossing check in §7  | crossing    |
-        | turn aside    | the self-crossing check in §7  | no crossing |
+        | relation      | verdict     |
+        | interleave    | crossing    |
+        | coincide      | crossing    |
+        | turn aside    | no crossing |
+
+    Scenario Outline: Even-odd fill inverts on interleave alone
+      Given two chords of one player's own trail that <relation>
+      When §7 asks whether the lobes invert
+      Then the answer is <inverts>
+
+      Examples:
+        | relation      | inverts |
+        | interleave    | yes     |
+        | coincide      | no      |
+        | turn aside    | no      |

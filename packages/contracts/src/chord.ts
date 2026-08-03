@@ -33,12 +33,31 @@ export interface Chord {
 export const chord = (a: Slot, b: Slot): Chord => ({ a, b });
 
 /**
- * Does `blue` cross `red`?
+ * Do `blue`'s endpoints separate `red`'s around the circle?
+ *
+ * The narrower half of the verdict, and the one even-odd fill needs (SPEC §7).
+ * Coincidence cannot invert an enclosure: fill reads the trail's arrow *set*
+ * (§6.1a invariant 2), and re-traversing an arrow the trail already holds leaves
+ * that set unchanged. A fill written against `chordsCross` would invert on a
+ * lagging group walking ground it already owns, which is ordinary play.
+ */
+export const chordsInterleave = (_blue: Chord, _red: Chord): boolean => {
+  throw new Error('not implemented: chordsInterleave');
+};
+
+/**
+ * Does `blue` cross `red`? Interleave OR coincide.
+ *
+ * What §6.1's cut check and §6.2's combat location both want: an enemy landing
+ * on your arrow is as much a crossing as one threading between two of them.
  *
  * Symmetric by construction — interleaving and coincidence are both symmetric
  * relations, and a verdict that changed with argument order would make combat
  * depend on which trail the engine happened to examine first. That is the
  * iteration-order determinism failure ADR 0001 names as the realistic one.
+ *
+ * This is `chordsInterleave` widened by coincidence and must never disagree with
+ * it — asserted, not assumed.
  */
 export const chordsCross = (_blue: Chord, _red: Chord): boolean => {
   throw new Error('not implemented: chordsCross');

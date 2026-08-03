@@ -60,8 +60,12 @@ decision, not a tripwire. Three behaviours emerge with no extra design:
 - Two trails can **race in parallel** through the same corridor, mutually aware
   and mutually unobligated — until one of them turns.
 
-And three things unify under one definition: enemy cut (§6.1), self-crossing
-(the even-odd inversion in §7), and where combat resolves (§6.2).
+Enemy cut (§6.1) and where combat resolves (§6.2) both take the full verdict.
+**Even-odd fill (§7) takes the interleave half alone**, because coincidence
+cannot invert anything: fill reads the trail's arrow set (§6.1a), and
+re-traversing an arrow the trail already holds leaves that set unchanged. So the
+port exposes both `chordsInterleave` and `chordsCross`, and the relationship
+between them is itself an invariant rather than two independent tests.
 
 ## Invariants
 
@@ -69,6 +73,11 @@ And three things unify under one definition: enemy cut (§6.1), self-crossing
 - When two chords at a point share an endpoint, the system shall report a
   crossing.
 - When neither holds, the system shall report no crossing.
+- The system shall report a crossing exactly when the chords interleave or
+  coincide, so that `chordsCross` is `chordsInterleave` widened by coincidence
+  and can never disagree with it.
+- When two chords coincide without interleaving, the system shall report a
+  crossing and shall report no interleave.
 - The system shall return the same verdict for a pair of chords regardless of
   argument order.
 - The system shall return a verdict for all 81 ordered pairs of chords and shall

@@ -16,7 +16,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { ContractViolation } from '../errors';
 import type { GeometryPort } from '../geometry-port';
+import { mintArrowId, mintPointId, mintVertexId } from '../ids';
 import type { ArrowId, PointId, VertexId } from '../ids';
 
 interface Cycle3 {
@@ -224,6 +226,39 @@ export const runGeometryPortConformance = (
           expect(seen.has(key)).toBe(false);
           seen.add(key);
         }
+      });
+
+      it('has no arrow whose origin and target are the same point', () => {
+        // A self-loop would make girth 1 and would let a head "advance" without
+        // going anywhere, which the movement rules have no concept of.
+        const g = makePort();
+        for (const a of g.allArrows()) {
+          expect(g.origin(a)).not.toBe(g.target(a));
+        }
+      });
+    });
+
+    describe('identifiers from another board are rejected', () => {
+      // Fixture boards (P02) and a generated tiling (P03) coexist in one test
+      // run. An id minted against one must never silently resolve against the
+      // other — a plausible-looking wrong answer here is an adjacency bug that
+      // surfaces turns later as a replay mismatch.
+      const foreign = {
+        arrow: mintArrowId('foreign-board:arrow'),
+        point: mintPointId('foreign-board:point'),
+        vertex: mintVertexId('foreign-board:vertex'),
+      };
+
+      it.each([
+        { query: 'out-arrows', run: (g: GeometryPort) => g.outArrows(foreign.point) },
+        { query: 'in-arrows', run: (g: GeometryPort) => g.inArrows(foreign.point) },
+        { query: 'origin', run: (g: GeometryPort) => g.origin(foreign.arrow) },
+        { query: 'target', run: (g: GeometryPort) => g.target(foreign.arrow) },
+        { query: 'flank-vertices', run: (g: GeometryPort) => g.flankVertices(foreign.arrow) },
+        { query: 'border-arrows', run: (g: GeometryPort) => g.borderArrows(foreign.vertex) },
+      ])('fails loudly when $query is given a foreign identifier', ({ run }) => {
+        const g = makePort();
+        expect(() => run(g)).toThrow(ContractViolation);
       });
     });
 

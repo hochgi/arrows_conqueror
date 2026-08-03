@@ -13,7 +13,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { chord, chordsCross, SLOTS } from '../src/index';
+import { chord, chordsCross, chordsInterleave, ContractViolation, SLOTS } from '../src/index';
 import type { Chord, Slot } from '../src/index';
 
 /** All 15 distinct chords on six slots. A chord's endpoints are distinct. */
@@ -135,5 +135,62 @@ describe('chord test — depends only on cyclic order', () => {
       }
     }
     expect(pairs).toBe(81);
+  });
+});
+
+describe('chord test — the predicate takes chords and nothing else', () => {
+  it('never asks which slots are in-slots', () => {
+    // SPEC §11 item 1 is unmeasured, so the test must not depend on it. Pinned
+    // as arity: two chords in, no orientation argument, no direction flag. If
+    // this ever has to grow a parameter, the rule was misunderstood, not the
+    // hedge (chord-test.md, "The last invariant is a hedge").
+    expect(chordsCross).toHaveLength(2);
+    expect(chordsInterleave).toHaveLength(2);
+    expect(chord).toHaveLength(2);
+  });
+
+  it('cannot be asked about a head that arrived without choosing an exit', () => {
+    // "A defender may hold a contested point without committing." Holding is
+    // not a chord — there is no partial chord to hand the test, so the answer
+    // is not "no crossing", it is unaskable. Crossing is a decision (§2).
+    expect(() => chord(0, undefined as unknown as Slot)).toThrow(ContractViolation);
+    expect(() => chord(0, 6 as unknown as Slot)).toThrow(ContractViolation);
+  });
+});
+
+describe('chord test — §7 reads the interleave half alone', () => {
+  // The cut check (§6.1) and combat location (§6.2) want interleave OR coincide.
+  // Even-odd fill wants interleave alone: fill reads the trail's arrow set
+  // (§6.1a invariant 2), so re-traversing an arrow the trail already holds
+  // changes nothing and must not invert. A fill written against chordsCross
+  // would invert on a lagging group walking its own ground — ordinary play.
+  it('inverts on an interleave', () => {
+    expect(chordsInterleave(chord(1, 4), chord(0, 3))).toBe(true);
+  });
+
+  it('does not invert on coincidence alone', () => {
+    expect(chordsCross(chord(0, 2), chord(0, 3))).toBe(true);
+    expect(chordsInterleave(chord(0, 2), chord(0, 3))).toBe(false);
+  });
+
+  it('does not invert on a chord identical to itself', () => {
+    expect(chordsCross(chord(0, 3), chord(0, 3))).toBe(true);
+    expect(chordsInterleave(chord(0, 3), chord(0, 3))).toBe(false);
+  });
+
+  it('does not invert when the chord turns aside', () => {
+    expect(chordsInterleave(chord(4, 5), chord(0, 3))).toBe(false);
+  });
+
+  it('keeps crossing exactly interleave-or-coincide across all 225 pairs', () => {
+    // The relationship is the invariant, not the two predicates separately —
+    // they can never disagree, so neither can drift from the other in phase 3.
+    const coincides = (blue: Chord, red: Chord): boolean =>
+      blue.a === red.a || blue.a === red.b || blue.b === red.a || blue.b === red.b;
+    for (const blue of allChords()) {
+      for (const red of allChords()) {
+        expect(chordsCross(blue, red)).toBe(chordsInterleave(blue, red) || coincides(blue, red));
+      }
+    }
   });
 });

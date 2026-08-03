@@ -52,6 +52,12 @@ Feature: GeometryPort conformance — boundaries and degeneracies
       When I enumerate every ordered pair of points on the board
       Then at most one arrow runs from the first to the second
 
+    # Board construction is not on the port — a GeometryPort is handed a board,
+    # it does not build one. This belongs to whichever implementation owns the
+    # constructor, so the fixture builder (P02) and the generator (P03) each
+    # test it against their own entry point.
+
+    @deferred-P02
     Scenario: A board too small to satisfy the above is rejected
       When a board is constructed below the minimum modulus
       Then construction fails

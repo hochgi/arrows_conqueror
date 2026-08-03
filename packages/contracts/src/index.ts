@@ -19,7 +19,7 @@ export {
 } from './rational';
 
 export type { Chord } from './chord';
-export { chord, chordsCross } from './chord';
+export { chord, chordsInterleave, chordsCross } from './chord';
 
 export type { Move, StepMove, SkipMove, EndTurnMove, Turn } from './move';
 export {

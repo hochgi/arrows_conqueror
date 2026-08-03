@@ -56,7 +56,7 @@ All three survive §6.2's contested-crossing rule only because **declining is al
 Three things then unify under one definition:
 
 - **Enemy cut** — an opponent traverses a point your trail passes through (§6.1).
-- **Self-crossing** — *you* revisit a point your own trail already uses, producing the even-odd inversion in §7.
+- **Self-crossing** — *you* revisit a point your own trail already uses. Only an **interleave** inverts the enclosed lobes (§7). Coincidence cannot: fill reads the trail's arrow *set* (§6.1a), and re-traversing an arrow you already hold leaves that set unchanged. So the predicate is shared but §7 asks the narrower question.
 - **Combat** — resolved at that point, which is where §6.2 already puts it, with its three approaches.
 
 It subsumes the tile rule for free: an enemy cannot stand on your trail arrow without entering through its tail point, which your trail also uses.

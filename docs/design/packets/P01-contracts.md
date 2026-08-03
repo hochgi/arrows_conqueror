@@ -161,19 +161,42 @@ they are worth writing with more care than their size suggests.
 - [x] Toolchain landed — pnpm workspace, TypeScript strict, Vitest, ESLint with
       the purity guard. `pnpm verify` runs.
 - [x] `packages/contracts` builds and typechecks under strict TypeScript.
-- [x] Every invariant appears as a named test. **Phase 2 complete: 86 failing,
-      2 passing**, and every failure was individually checked to be a missing
+- [x] Every invariant appears as a named test, and **every in-scope scenario has
+      one**: 81 of 84 scenarios, the other 3 tagged `@deferred-P02` / `-P08`
+      because they need a board constructor or an owned accumulator that a
+      GeometryPort and a Rational respectively do not have. **Phase 2: 105
+      failing, 3 passing** — every failure individually checked to be a missing
       behaviour rather than a setup problem.
+
+      The first pass through this checkbox was wrong. It audited failure
+      *reasons* and never audited *coverage*, and 11 scenarios turned out to
+      have no test at all. Two different audits; only one had been run. Both are
+      required before this box is honest.
 - [x] No file in `packages/contracts` imports from any other workspace package.
 - [x] `Move` has exactly three variants, asserted.
 - [ ] Phase 3 — green.
 
 ## Phase 2 notes worth carrying into phase 3
 
-**Two tests are green on purpose.** `the port surface is exactly these ten
-methods` and `Move admits exactly three variants` constrain shape that already
-exists; they are guards against a method or variant being added later, and they
-should fail loudly when that happens.
+**Three tests are green on purpose.** `the port surface is exactly these ten
+methods`, `Move admits exactly three variants`, and `the chord test never asks
+which slots are in-slots` constrain shape that already exists. They are guards
+against a method, a variant or a parameter being added later, and they should
+fail loudly when that happens — the third in particular, because a chord test
+that grows an orientation argument means §11 item 1 leaked into P01.
+
+**`chordsCross` split into two predicates.** §7's even-odd fill needs
+`chordsInterleave` alone: coincidence cannot invert an enclosure, because fill
+reads the trail's arrow set (§6.1a invariant 2) and re-traversing an arrow the
+trail already holds leaves that set unchanged. `chordsCross` stays as interleave
+OR coincide for §6.1's cut check. Phase 3 must implement them so that
+`chordsCross ≡ chordsInterleave ∨ coincide` — asserted across all 225 pairs, so
+they cannot drift apart.
+
+**`@deferred-<packet>` is the tag for a scenario specified here but owned
+elsewhere.** Three carry it. It is not a `@wip` — the behaviour is decided, the
+seam just falls in another packet. A scenario without a test and without this
+tag is a phase-2 defect.
 
 **`ContractViolation` exists because of a false green.** The rejection tests
 originally asserted a bare `.toThrow()` and passed against empty skeletons —
