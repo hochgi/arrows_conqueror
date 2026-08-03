@@ -32,8 +32,8 @@ scheduled early in the first place.
 | P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | none — unblocks every rules packet before the real tiling exists |
 | P03 | Tiling generator & torus wrap | foundation | §2 | P01 | now a **generator**, not an extraction — the tiling is the oriented triangular lattice. Only the junction orientation pattern (§11 item 1) is still measured |
 | P04 | Movement, stacks & the turn loop | rules | §2–4 | P01, P02 | harmonic banking must be exact rationals, not floats |
-| P05 | Trails, crossings & closure | rules | §2, §5, §7 | P04 | the chord test and even-odd fill are the subtlest logic in the game |
-| P06 | Cuts, evaporation & combat | rules | §6 | P05 | two-step crossings: the gate and the casualty are separate stacks |
+| P05 | Trails, crossings & closure | rules | §2, §5, §7 | P04 | the chord test and even-odd fill are the subtlest logic in the game. Fill must read the trail's **arrow set** and use `chordsInterleave`, not `chordsCross` (§6.1a) |
+| P06 | Cuts, evaporation & combat | rules | §6 | P05 | **§6 was rebuilt after P01 landed** — bidirectional evaporation, point shielding, regions, 1:1 per-move combat. §11 items 23 and 24 are open and both land here |
 | P07 | Territory & encirclement | rules | §7 | P05, P06 | conversion must conserve total heads exactly |
 | P08 | Spawner economy | rules | §7 | P07 | exact rationals only; blockades halt accrual and cost the share |
 | P09 | Match lifecycle, setup & victory | rules | §8, §9 | P07, P08 | the turtle stalemate is an accepted risk (§9) — watch for it here |

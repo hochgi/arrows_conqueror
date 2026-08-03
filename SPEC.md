@@ -96,7 +96,7 @@ Balance (3 in, 3 out) does not by itself fix *which* slots are which. The 3-fold
 
 **Alternating is the strong read**, because the crossing examples show a head able to turn *either* right or left aside from a trail without crossing it. Confirm against the extracted tiling (§11 item 1).
 
-Under alternating, the shortest directed cycle is 3, so **a stranded head loops back onto its own trail in three moves**. Retreat is cheap — noted as a balance watch-point, since §6.1 has already softened cuts three times over.
+Under alternating, the shortest directed cycle is 3, so **a stranded head loops back onto its own trail in three moves** — legal, since a trail is a set and re-traversal adds nothing to it (§6.1a invariant 2). Retreat is cheap, and that is a balance watch-point in both directions: §6.1 softens a cut by orphaning rather than destroying what lies beyond it, and hardens one by evaporating backward as well as forward.
 
 ### Reachability
 
@@ -456,7 +456,7 @@ This gives spawner placement a design principle rather than a scatter, and makes
 
 ### What the spawn rate implies about victory
 
-A cut removes exactly one head, and costs the attacker travel, exposure, and a won crossing — call it a cut every 3–4 turns for a committed attacker. A spawner replaces a head every 1/*f* turns.
+A cut removes **one head per branch it reaches** — usually one — and destroys the region it landed in (§6.1). It costs the attacker travel, exposure, and a head of its own for every exchange at a gated point (§6.2). Call it a cut every 3–4 turns for a committed attacker. A spawner replaces a head every 1/*f* turns.
 
 **Force is therefore the single knob that sets the game's character:**
 
@@ -465,7 +465,9 @@ A cut removes exactly one head, and costs the attacker travel, exposure, and a w
 | 1/3 | 3 turns | Economy dominates. Attrition can never outpace production, so **encirclement is the only real killer** and elimination is mop-up after you have taken someone's spawners. |
 | 1/9 – 1/12 | 9–12 turns | Near the crossover. Attrition is viable, heads are precious, and chip damage genuinely decides games — while encirclement stays the decisive swing. |
 
-The typical values sit deliberately near that crossover, which is likely the most interesting place for them to be. Worth re-checking against real playtest numbers, since it decides whether cuts earn their keep through damage or only through tempo and denial.
+The typical values sit deliberately near that crossover, which is likely the most interesting place for them to be.
+
+**These numbers predate the §6 rewrite and need re-deriving, not just re-checking.** They were worked out when a cut cost one head and the trail behind it always survived. A cut now destroys a whole region and evaporates backward toward home, so most of its value has moved from damage into tempo and denial — while §6.2's per-move exchange makes heads flow in both directions during a fight rather than only toward the defender. Which side of the crossover a given *f* lands on is now a playtest question. Item 25.
 
 **MVP ships spawners only.** Every special is the same kind of object, differing only in force and in where it sits — all the variety comes from placement geometry and overlap, none from authored perk types.
 
@@ -528,7 +530,7 @@ Known pressure points and their built-in counterweights:
 | Safe movement inside territory is free, so a large empire repositions instantly | A large empire has an enormous perimeter it cannot garrison everywhere |
 | More specials → more heads | Specials are physical locations that can be attacked, and only produce while enclosed |
 | Big stacks win fights | Big stacks are slow and throughput-negative; splitting is genuinely competitive |
-| Leader can cut every enemy chain | Cutting requires leaving safety — the cutter becomes trailed and cuttable itself, and spends a whole turn to remove one life |
+| Leader can cut every enemy chain | Cutting requires leaving safety — the cutter becomes trailed and cuttable itself, and pays a head of its own for every exchange at a point the defender gates (§6.2) |
 
 The decoy play this enables: bait an attacker into committing to a cut, and counterattack the now-exposed cutter with a flanking stack. If they refuse the bait, the decoy changes course and joins the flank to close the shape. This emerges from the rules rather than being designed in.
 
