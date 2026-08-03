@@ -30,7 +30,7 @@ apply(state, move) -> state
 the core.** Not in a helper, not "just for a tiebreak", not behind a flag.
 
 This is not a testing convenience, it is a **product property**. SPEC.md has zero
-randomness by design: combat is deterministic attrition (§6.2), spawner timing is
+randomness by design: combat is a deterministic 1:1 exchange (§6.2), spawner timing is
 deterministic irregularity (§7), and the whole appeal of the multi-prong bonus and
 the accumulator rhythm is that an attentive player can compute them. Determinism
 is also what makes replays exact, what lets an AI search, and what makes a
@@ -149,12 +149,13 @@ of these are near-misses for each other.
 | **vertex** | a pinwheel centre bordered by 3 arrows; where specials live; *never occupied* |
 | **head** | one unit; also one life |
 | **stack** | merged heads on one arrow; stack size **is** lives |
-| **sentry** | a head dropped along a trail to guard it |
-| **trail** | the path a head leaves; a tree rooted at your territory |
+| **sentry** | heads left standing on a trail to guard it; one per open side, so two mid-trail |
+| **trail** | the path a head leaves; a **set** of arrows — no order, no memory, not a tree |
 | **anchor** | the connection from a trail back to your territory |
 | **cut** | an enemy crossing your trail |
-| **evaporation** | the forward destruction a cut causes, with the grain |
-| **firebreak** | the stack that halts evaporation and takes the head loss |
+| **evaporation** | the destruction a cut causes, running **both** ways from the cut point |
+| **firebreak** | the stack that halts evaporation and takes the head loss, from either side |
+| **region** | trail between two firebreaks, or a firebreak and territory; what one cut destroys |
 | **crossing** | traversing a point another trail passes through |
 | **chord test** | the interleave-or-coincide rule that decides whether a traversal is a crossing |
 | **closure** | departing your territory and landing back on it; claims the enclosed region |

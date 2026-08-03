@@ -37,9 +37,9 @@ Feature: The move DTO — boundaries and the cases that must stay expressible
       Given player A has stepped a group from arrow a1 to arrow a2
       When player A constructs a step move from a1 to a2 for the heads left behind
       Then the move is well-formed
-      # SPEC §6.1a: no-re-trace constrains the trail's arrow set, not where
-      # heads walk. A lagging group is ordinary play, not a violation — it is
-      # how a spearhead brings its firebreaks along.
+      # SPEC §6.1a invariant 2: a trail is a set of arrows, so stepping onto one
+      # it already holds is legal and adds nothing. A lagging group is ordinary
+      # play — it is how a spearhead brings its firebreaks along.
 
     Scenario: Moves from different stacks may be interleaved
       Given player A holds stacks on arrows a1 and a2
@@ -108,8 +108,11 @@ Feature: The move DTO — boundaries and the cases that must stay expressible
       Examples:
         | count | note                                  |
         | 1     | the smallest split                    |
-        | 5     | leaving a single sentry               |
+        | 5     | leaving one head behind               |
         | 6     | taking everything, leaving the arrow empty |
+      # Well-formed is not legal. §5 sets a floor of one head per open side, so
+      # leaving exactly one behind mid-trail is a move P04 must reject — but it
+      # is a perfectly well-formed DTO, and that separation is the point.
 
     Scenario: Taking every head is well-formed
       Given arrow a1 holds 1 head belonging to player A

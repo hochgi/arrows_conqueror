@@ -28,7 +28,7 @@ this feature would bind the DTO to rules that have not been built.
 |---|---|
 | **head** | one unit; also one life |
 | **stack** | merged heads on one arrow; stack size **is** lives |
-| **sentry** | heads left behind on a trail; a name, not a kind of unit |
+| **sentry** | heads left behind on a trail; a name, not a kind of unit. §5 sets a floor of one per open side — a legality rule, not a DTO one |
 | **count** | how many of a source arrow's heads a step takes |
 | **skip** | a stack declining to move; a choice, not the absence of one |
 
@@ -105,7 +105,7 @@ DTO must not make either look malformed:
 - no distinction between stepping onto fresh ground and stepping onto your own
   trail
 
-That last one matters most. §6.1a's no-re-trace invariant constrains the
-trail's arrow *set* — a tip may not extend onto an arrow the trail already holds
-— and says nothing about where heads walk. A lagging group is ordinary play, and
-a DTO that treated it as suspect would have encoded the wrong invariant.
+That last one matters most. §6.1a invariant 2 makes a trail a *set* of arrows:
+stepping onto an arrow it already holds is legal and adds nothing. A lagging
+group is ordinary play, and a DTO that treated it as suspect would have encoded
+the wrong invariant.

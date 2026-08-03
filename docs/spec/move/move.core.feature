@@ -31,7 +31,7 @@ Feature: The move DTO
         | 1    | 1     | moving a lone head                  |
         | 3    | 3     | moving the whole stack              |
         | 3    | 1     | sending a scout, leaving a 2-sentry |
-        | 3    | 2     | advancing, leaving a single sentry  |
+        | 3    | 2     | advancing, leaving one head behind  |
 
     Scenario: A fork is two moves from the same source
       Given arrow a1 holds 3 heads belonging to player A

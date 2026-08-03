@@ -42,7 +42,7 @@ describe('move — a step names a source, an exit and a count', () => {
     { held: 1, count: 1, manoeuvre: 'moving a lone head' },
     { held: 3, count: 3, manoeuvre: 'moving the whole stack' },
     { held: 3, count: 1, manoeuvre: 'sending a scout, leaving a 2-sentry' },
-    { held: 3, count: 2, manoeuvre: 'advancing, leaving a single sentry' },
+    { held: 3, count: 2, manoeuvre: 'advancing, leaving one head behind' },
   ])('expresses $manoeuvre with one move type', ({ held, count }) => {
     const m = step(a1, a2, count);
     expect(isSatisfiableBy(m, held)).toBe(true);
@@ -129,8 +129,8 @@ describe('move — a turn is an ordered list, and order is data', () => {
   });
 
   it('lets a rear group step onto an arrow the front group laid', () => {
-    // SPEC §6.1a: no-re-trace constrains the trail's arrow set, not where heads
-    // walk. A lagging group is ordinary play, not a violation.
+    // SPEC §6.1a invariant 2: a trail is a set of arrows, so stepping onto one
+    // it already holds is legal. A lagging group is ordinary play.
     const front = step(a1, a2, 1);
     const rear = step(a1, a2, 1);
     expect(movesEqual(front, rear)).toBe(true);

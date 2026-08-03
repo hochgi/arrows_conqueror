@@ -45,11 +45,13 @@ Each point has six surrounding arrow-slots (3 in, 3 out). A path transiting the 
 
 This single test covers both real cases: threading between two of red's arrows (interleave) and landing directly on a red arrow (coincide). A blue chord that stays on one side of red's — turning aside rather than through — is not a crossing.
 
-**Crossing is therefore a decision, not a tripwire.** A head standing at a vertex an enemy trail runs through has not crossed anything; it commits by choosing its exit arrow. Three things follow with no extra design:
+**Crossing is therefore a decision, not a tripwire.** A head standing at a point an enemy trail runs through has not crossed anything; it commits by choosing its exit arrow. Three things follow with no extra design:
 
-- A head can **shadow** an enemy trail, travelling alongside it vertex after vertex without triggering combat, choosing its moment.
-- A defender can **hold a contested vertex** without committing to a fight.
+- A head can **shadow** an enemy trail, travelling alongside it point after point without triggering combat, choosing its moment.
+- A defender can **hold a contested point** without committing to a fight.
 - Two trails can **race in parallel** through the same corridor, mutually aware and mutually unobligated — until one of them turns.
+
+All three survive §6.2's contested-crossing rule only because **declining is always legal**. Skip is a first-class move (§4), so adjacency never forces a fight. What an enemy stack denies you is passage *through* the point — never the right to stand beside it.
 
 Three things then unify under one definition:
 
@@ -120,7 +122,7 @@ Special tiles and starting positions are placed with **rotational symmetry about
 - A player's units are **heads**.
 - Heads on the same tile may **merge** into a **stack**.
 - **Stack size is lives.** A 3-stack is literally three heads standing together. There is no separate HP stat — a stack that loses one becomes a 2-stack.
-- **Splitting is unmerging.** A stack may shed heads (see §5, sentries).
+- **Splitting is unmerging.** A stack may shed heads (see §5, sentries), down to a floor of one head per open side.
 - **Merging is free and automatic.** Two of your heads ending a move on the same arrow merge. No action cost, no declaration.
 
 Both directions are free, deliberately. Spawners produce **dispersion** — heads arrive one at a time on different arrows (§7) — so concentration is already the work the player is doing. Taxing the merge would tax the exact play the economy forces on you.
@@ -243,6 +245,18 @@ A **sentry** is therefore not a kind of unit. It is the name for heads you chose
 
 This is the third leg of the tension: every head left behind makes the chain safer and the far end slower and weaker. Greed, speed and safety trade against each other in a decision made repeatedly along the way — and because the portion is just a number on the move, that decision is available at *every* step rather than at authored moments.
 
+### A sentry is one head per open side
+
+An arrow's **back** is open if the trail continues behind it; its **front** is open if the trail continues ahead of it. Evaporation can arrive from either open side and each arrival costs the stack a head (§6.1).
+
+> **You may not leave fewer heads on an arrow than it has open sides.**
+
+Mid-trail that means **two** — a lone sentry would be spent by the first cut from either direction and leave the stretch it was guarding open. One suffices where only one side is open: a **tip** has nothing ahead of it, and the first arrow off your own territory has nothing behind it that can evaporate, because territory does not burn.
+
+Two is therefore not a chosen number. It is the count of ways a sentry can be attacked.
+
+**This constrains what you may leave, not what may exist.** Damage can reduce a mid-trail pair to a single head, and that survivor is perfectly legal — it simply could not have been created deliberately. Keeping the rule a precondition on the move is what stops it needing any repair machinery when a cut lands.
+
 ### Reading the board
 
 Each arrow shows the count of heads standing on it, in its owner's colour. Closed territory reads as solid; an **unclosed trail reads as visibly different** — reduced opacity, or stripes.
@@ -259,69 +273,73 @@ There are exactly **two** ways to hurt a player.
 
 ### 6.1 Cutting a trail
 
-An enemy head crosses your open trail at a **point**. If the crossing succeeds:
+An enemy head crosses your open trail at a **point**. If the crossing succeeds, the trail **evaporates in both directions from the cut point** — forward with the grain, and backward against it.
 
-- **The trail evaporates forward, with the grain**, from the cut point — propagating down *every* fork it meets.
-- **Evaporation halts at the first stack on each branch**, and that stack **loses one head**. An unmerged single head that loses its life **dies and is removed**.
-- **The trail behind the cut survives and stays anchored.** Your investment near home is never lost, and a branch that forked off *behind* the cut is untouched and still connected.
-- Trail fragments beyond the firebreak stacks survive but are **unanchored** — dormant, not dead.
-- A stranded head **fights its way home**. Because the graph is strongly connected (§2), it does this by looping forward around the grain rather than reversing, laying fresh cuttable trail the entire way.
+One rule stops it, stated once and doing two jobs:
+
+> **An occupied arrow is not destroyed, and the point it points into is not passed through.**
+
+A stack therefore shields the arrow it stands on *and* the junction ahead of it. Evaporation halts on reaching either, and **the stack that halts it loses one head**, from whichever side the evaporation arrived.
+
+- **One head per branch reached.** Forward evaporation propagates down *every* fork it meets and halts at the first stack on each; backward evaporation arriving at a point charges every stack pointing into it. A cut on a spine costs one head; a cut below a three-way join costs three.
+- **A stack that dies absorbing a hit still absorbs it.** Evaporation stops at that arrow even with nothing left standing on it, and the arrow itself survives as headless trail.
+- **Territory is a wall.** Backward evaporation reaching your own closed ground stops there and costs nothing. There is nothing to destroy and nothing to charge (§5).
+- Trail beyond the halting stacks survives but is **unanchored** — dormant, not dead.
+- A stranded stack **fights its way home**. Because the graph is strongly connected (§2), it does this by looping forward around the grain rather than reversing, laying fresh cuttable trail the entire way.
 
 **Fragments are re-attachable, and this needs no special machinery.** The ordinary rule already covers it: a path counts once it runs continuously from your territory to your territory. Lay a fresh path from home that reconnects to a dormant fragment, and the whole chain is live again. Nothing floats, nothing is tracked separately — an orphan is simply a wall waiting for a road.
 
-Three properties fall out of this:
+Four properties fall out of this:
 
-**Cut depth is everything.** A cut near the tip scratches off a few tiles; a cut near the root wipes the whole tree forward of it. So attackers are drawn toward the victim's own border — precisely where the victim is strongest and the attacker most exposed. Cut value and cut difficulty rise together, with no balancing constant.
+**A cut destroys one region.** Shielded points and occupied arrows partition a trail into regions, and evaporation runs from the cut in both directions until it meets one, or meets territory. Everything between those two boundaries is lost; everything outside them is untouched. So a player sets the price of being cut by choosing how far apart to place sentries — the answer is *region length*, and it is legible on the board at a glance rather than by tracing a path (§5).
 
-**Sentries are firebreaks.** Evaporation stops at the first stack, so a trail garrisoned every couple of tiles can only ever lose that short stretch. Paid for by the fact that every sentry dropped bleeds the spearhead's speed and its ability to win the next crossing.
+**Cut depth is still everything, by a better mechanism.** A deep cut no longer destroys more, it **orphans** more. Take out the region touching the victim's territory and every junction beyond it survives — sentries intact, anchor gone — dormant, claiming nothing, defending nothing, waiting for a road that has to be built from scratch. Attackers are still drawn toward the victim's own border, precisely where the victim is strongest and the attacker most exposed. Cut value and cut difficulty rise together, with no balancing constant.
 
-**Forks hedge risk.** A cut behind a fork takes everything; a cut on one branch leaves the other whole and anchored. Trail shape becomes a strategic choice — but a branching trail also offers more cut points and loses one head *per branch*.
+**Sentries are firebreaks in both directions, and prying one open takes a sequence.** A mid-trail sentry is two heads (§5), one per open side. A cut behind it costs one; a cut ahead of it costs the other; only then is the point it was shielding open, and only then does a third cut flood through into everything beyond. Each of those is a separate crossing — a separate move, a separate exposure, on a separate turn, against a defender who can see it coming (§4). Dismantling a garrisoned trail is a siege, not a lucky swing.
 
-A cut is therefore expensive but survivable. You lose a head, you lose the back half of your work, and you are stranded behind enemy lines. This matters: under a rule where cutting destroyed the whole trail, ambition would be suicidal and the rational play would always be small safe nibbles. Here, large enclosures stay attemptable.
+**Forks are ordinary trail.** A fork is one arrow with two trail arrows leaving it; nothing about it is privileged, and it needs no rule of its own. Ungarrisoned, a cut behind it floods into both branches and costs one head on each. Garrisoned, it is a bulkhead like any other. Trail *shape* stays a strategic choice — a branching trail covers more ground, offers more cut points, and bleeds once per branch — but branching itself is free.
 
-It also makes **sentries literally armor** — the closest stack absorbs the hit, so heads dropped along the trail are what keep the chain alive.
+A cut is therefore expensive but survivable. You lose a head, you lose the region you were cut in, and what lies beyond it is orphaned rather than destroyed. This matters: under a rule where cutting destroyed the whole trail, ambition would be suicidal and the rational play would always be small safe nibbles. Here, large enclosures stay attemptable — and the spearhead itself survives, which is what keeps a six-turn operation worth starting.
 
 ### 6.1a Trail invariants
 
-Because a stack can split and diverge, a trail may **fork** — it is a tree rooted at your territory. Trail *shape* is a decision, not just trail length: a branching trail covers more ground and offers more cut points; a single spine concentrates its defenders.
+> **A trail is a set of arrows.** Not a walk, not a tree.
 
-Four invariants govern every trail:
+Nothing about it records the order it was laid, which heads laid it, or how many times one has walked it. Every question the rules ask of a trail — where evaporation stops, what is enclosed, what is still anchored, whether a sentry is legal — is answerable from that set plus the counts standing on it. **Trails have no memory**, and that is a load-bearing property: it is what removes head identity from the engine entirely (§3, §4), and it is the reason none of the rules below need a resolution order.
 
-1. **Every tip carries a head.** There are no headless branches.
-2. **Movement is forward along the grain**, always (§2).
-3. **No arrow may be re-traced** within an unclosed trail. Each branch is *arrow-simple*.
-4. **Points may be revisited.** Crossing your own trail by looping around is legal, and inverts which regions are claimed when the path eventually closes (§7, even-odd).
+Three invariants govern every trail:
 
-**Invariant 3 constrains the trail, not the heads.** It says the trail's arrow *set* gains no duplicate — that a tip may not extend onto an arrow the trail already holds. It says nothing about heads walking over ground already laid.
+1. **Movement is forward along the grain**, always (§2).
+2. **The trail is a set.** Stepping onto an arrow it already holds is legal and adds nothing.
+3. **Points may be revisited.** Crossing your own trail by looping around is legal, and inverts which regions are claimed when the path eventually closes (§7, even-odd).
 
-So a **lagging group is legal and expected.** Split a stack, send the front group two steps and the rear group one, and the rear group is standing on an arrow the front group laid. Nothing was re-traced: the trail did not grow a second copy of that arrow, and the rear group is not a tip. This is ordinary play — it is how a spearhead brings its firebreaks along (§6.1) instead of abandoning them at the start line.
+**Invariant 2 constrains the trail, not the heads.** A **lagging group is legal and expected**: split a stack, send the front group two steps and the rear group one, and the rear group stands on an arrow the front group laid. The trail did not grow a second copy of that arrow. This is how a spearhead brings its firebreaks along (§6.1) instead of abandoning them at the start line.
 
-**Why 3 and 4 matter more than they look.** Together they make each branch a curve that may self-intersect only at points, never along an arrow — which is exactly the condition even-odd fill needs to be well-posed. A trail permitted to double back *along* itself leaves "inside" genuinely undefined. Note this is a statement about the trail's geometry, which is why heads moving along it cannot disturb it.
+**Why 2 and 3 matter more than they look.** Even-odd fill needs a boundary that self-intersects only at points, never *along* an arrow — a curve permitted to double back along itself leaves "inside" genuinely undefined. The set representation gives that for free, twice over: a set holds no duplicates, and movement along the grain means a second traversal is *coincident*, never anti-parallel. So re-traversal is not doubling back, and fill reads the same boundary however many times a head walked it.
 
-**Why 1 makes a whole class of case vanish.** Evaporation runs forward to the first *surviving* stack, so if a branch's tip head dies, everything forward of the cut died with it. A headless branch is therefore unreachable rather than handled. When a tip head dies its own arrow evaporates too — otherwise a one-arrow stub would violate invariant 1.
+> This is why **fill must read the arrow set and never the move list.** Under a re-tracing prohibition that was automatic. It is now an assertion, and it is the one place where getting the representation wrong would silently produce a wrong answer instead of a crash.
 
-**A head can never self-trap.** It looks as though invariants 2 and 3 might strand a head at a point whose three out-arrows are all already in its own trail. They cannot:
+**Headless trail is ordinary.** An earlier draft carried a fourth invariant — *every tip carries a head* — justified on the grounds that evaporation runs forward to the first surviving stack, so a branch whose tip dies died with it. That reasoning only ever looked forward. A plain mid-trail cut leaves the stretch *behind* it anchored with no head on it, so the invariant was never true; it was violated by the ordinary operation of §6.1. It is dropped rather than repaired. A headless stretch is simply a wall: it cannot close, nothing charges to it, fill counts it, and a head may walk onto it later and put it back to work — which is exactly §6.1's re-attachment.
 
-> Each visit to a point consumes exactly one in-arrow and one out-arrow, and no arrow may be re-traced. After *k* arrivals the trail has used *k* in-arrows and at most *k−1* out-arrows, leaving at least **4−k** free. Since a point has only 3 in-arrows, *k* ≤ 3, so at least one exit is always available — and a 4th arrival is impossible, as there would be no unused in-arrow to arrive on.
+**A head can never be trapped.** Balance gives strong connectivity via the Eulerian argument (§2). Since invariant 2 no longer removes arrows from consideration, that argument covers move legality directly: three out-arrows always exist at every point and none of them is forbidden. No stuck-head handling is needed anywhere in the engine.
 
-This survives forking too: if *h* heads sit on in-arrows of the same point, departures = arrivals − *h*, so free out-arrows ≥ *h* — exactly enough, and they must take distinct ones regardless.
-
-**3-in/3-out therefore pays twice**: balance gives strong connectivity via the Eulerian argument (§2), and the same degree condition combined with no-re-trace guarantees a legal move always exists. No stuck-head handling is needed anywhere in the engine.
+> An earlier draft proved this the hard way, from 3-in/3-out plus no-re-trace: each visit to a point consumes one in-arrow and one out-arrow, so after *k* arrivals at most *k−1* exits are used and one is always free. **That proof is true for a path and false for a tree.** A split makes one arrival fund several departures — fan a 3-stack out of a point onto all three of its out-arrows and the accounting goes negative, stranding anything that arrives there afterwards, including the sentry the player was told to leave. The proof is not patched here because invariant 2 removes the premise it needed.
 
 ### 6.2 Contested crossings
 
-Crossings resolve at points. An attacker approaches along one of the point's three in-arrows; a defender's stack may hold another of its arrows.
+Crossings resolve at points, and a stack contests the point **it points into** — the same range over which it shields against evaporation (§6.1). One range, one rule, both jobs.
 
-**The fight and the casualty are two separate things.**
+> **When two players' stacks point into the same point, a move against that point is an attack rather than a step. Both sides lose one head.**
 
-1. **The gate.** A crossing is contested only if an enemy stack sits on one of that point's arrows. Beat it to pass:
-   - **Deterministic attrition** — both sides lose the smaller stack's size.
-   - **Defender wins ties.** The attacker needs *strict* superiority.
-2. **The charge.** Once through, the head loss is charged to the **nearest stack along the trail** (§6.1) — which may be a different stack entirely, or nowhere near the point you crossed at.
+That is the entire rule. No attrition table, no tie-break, no bonus constant.
 
-Sentries therefore have two distinct jobs — **gatekeeping a point** and **absorbing evaporation** — so *where* along a trail you place them is a real decision, not one undifferentiated blob of defence.
+- **An attack costs a move**, spent from the attacking group's allowance (§3) like any other step. A 2-stack gets one attack a turn; a 4-stack gets two.
+- **Declining is always legal.** Skip is first-class (§4), so a stack may stand beside an enemy indefinitely. What it may not do is walk *through* the contested point without fighting for it. This is what keeps §2's promise intact — shadowing, parallel racing and holding a contested point all survive, because none of them requires passing through.
+- **Combat is interruptible.** A fight is a sequence of moves rather than one resolution, so reinforcements can arrive mid-fight and either side can disengage between rounds. A large stack can no longer grind a defender down inside a single turn; it can only out-bleed them over several, in the open, where the loser can see it coming.
 
-**Multi-prong.** Attacking a point from **two of its arrows in the same turn** pools both stacks *and* flips the tie rule: the attacker wins ties. No magic constant. The reward for the genuinely hard thing — splitting your force and coordinating its arrival — is precisely the edge a single big stack can never buy, however large it gets.
+**Multi-prong is now emergent.** Two of your stacks pointing into one enemy-held point each attack for one, so the defender bleeds at twice the rate while each of yours bleeds at once. The reward for the genuinely hard thing — splitting your force and coordinating its arrival — falls out of rate arithmetic rather than a special case. This is what the previous draft was buying with a tie-flip, bought instead with nothing.
+
+**Sentries still have two distinct jobs, and they now sit on different axes.** A sentry **gates** the point ahead of it against an enemy step, and **absorbs** evaporation arriving along the trail from either side. Different threats, different directions — so *where* along a trail you place them stays a real decision rather than one undifferentiated blob of defence.
 
 No randomness anywhere. A six-turn enclosure never dies to a bad roll; it dies to being outplayed.
 
@@ -335,7 +353,7 @@ Closing a shape around enemy heads is the common case, not a separate rule — t
 
 Two consequences that are easy to miss:
 
-- **Sentries do not protect a raider from conversion.** A firebreak halts evaporation and moves where the head loss lands, but the fragment beyond it is still unanchored — so a raider inside enemy territory is captured however well its trail was garrisoned.
+- **Sentries do not protect a raider from conversion.** A firebreak bounds how much trail a cut destroys, but the fragment beyond it is still unanchored — so a raider inside enemy territory is captured however well its trail was garrisoned.
 - **"Stranded" means two different things.** Stranded in *neutral* ground is the recoverable case of §6.1: dormant trail, fight your way home. Stranded inside *enemy territory* is capture. The distinction is load-bearing.
 
 This is how the head pool moves between players, and it is what makes encirclement rather than attrition the decisive move (§9): a well-placed lasso is a 2× swing on the axis that decides the game, which is the comeback vector a losing player needs a reason to attempt.
@@ -362,7 +380,7 @@ A forked trail whose two branches both land on your territory **is a valid conqu
 
 The two arms never need to form a directed cycle. **Enclosure is a property of the curve, not of the flow along it.**
 
-This gives forking an offensive identity rather than a purely defensive one: two arms sweep out, both come home, and the ground between them falls. Paid for by splitting (which slows both arms), by having two trails to defend instead of one, and by the fact that a single cut on the shared stem kills the whole operation.
+This gives forking an offensive identity rather than a purely defensive one: two arms sweep out, both come home, and the ground between them falls. Paid for by splitting (which slows both arms), by having two trails to defend instead of one, and by the stem being a single point of failure — a cut there destroys its region and orphans *both* arms at once (§6.1), so the stem is the stretch most worth garrisoning and the stretch the defender most wants to reach.
 
 ### Why this kills the corridor exploit
 
@@ -526,17 +544,17 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 5. ~~Shortest U-turn loop~~ — **resolved.** 3 under the alternating pattern: a stranded head loops back onto its own trail in three moves. Retreat is cheap; flagged as a balance watch-point in §2.
 
 **Tuning — none of these block a paper playtest**
-6. ~~Crossing target~~ — **resolved.** Two-step: fight whoever gates the point, charge the head to the nearest stack along the trail. See §6.2.
+6. ~~Crossing target~~ — **re-resolved.** The two-step gate-and-charge is gone. A contested crossing is a 1:1 attack costing a move, and evaporation charges whichever stack halts it. Gating range narrowed with it: a stack contests only the point it *points into*, the same range over which it shields, rather than any of that point's six arrows. See §6.2 and §6.1. *(The original answer — deterministic attrition, defender wins ties, charge to the nearest stack — survived from the first draft until the §6.1 rewrite made both halves redundant.)*
 7. ~~Merging cost~~ — **resolved.** Free and automatic on contact. See §3.
-8. ~~Fork branch whose head dies~~ — **resolved, and the state is unreachable.** Every tip carries a head and evaporation runs to the first *surviving* stack, so a headless branch cannot form. See §6.1a.
+8. ~~Fork branch whose head dies~~ — **re-resolved: the state is reachable, and it is fine.** The old answer rested on *every tip carries a head*, which was never true — a plain mid-trail cut leaves the stretch behind it anchored and headless. Headless trail is now ordinary: a wall that claims nothing, charges nothing, and can be walked onto again. See §6.1a.
 9. ~~Converted stack size~~ — **resolved.** Stacks convert intact. See §6.3.
-10. ~~Multi-prong bonus~~ — **resolved.** Both stacks pool and the attacker wins ties. No constant. See §6.2.
+10. ~~Multi-prong bonus~~ — **re-resolved: there is no bonus, and none is needed.** Under 1:1 attacks, two prongs simply bleed the defender twice as fast. Pooling-and-tie-flip was the price of instantaneous attrition; per-move combat delivers the same reward as arithmetic. See §6.2.
 11. ~~Board size~~ — **resolved as configurable.** A board is the lattice mod `(n, m)`: `3nm` arrows, `nm` points, `2nm` spawner-eligible vertices. Size is tuned by experiment against player count and total spawner force, not decided on paper. **Player count: MVP is 2, alternating** — which every rule above already assumes. 3+ is deferred; it raises kingmaking under elimination and wants its own design pass.
 12. Spawner density — a fraction of the `2nm` eligible vertices. Scarce enough that nobody sweeps them, common enough that overlap (§7) stays the norm. Part of the same tuning sweep as item 11.
 13. ~~Accrual on unowned arrows / charge surviving capture~~ — **resolved.** An arrow that changes hands starts fresh. See §7.
 14. ~~Reset versus carry on spawn~~ — **resolved.** Carry the remainder. See §7.
 15. ~~Spawning onto a contested arrow~~ — **resolved.** An enemy head halts accrual; the accumulator holds and resumes when they leave. See §7.
-17. ~~Self-trap~~ — **resolved: impossible.** Proved in §6.1a from 3-in/3-out plus no-re-trace. No stuck-head handling needed.
+17. ~~Self-trap~~ — **re-resolved: still impossible, but the old proof was wrong.** It held for a single path and failed for a forked one: a split lets *one* arrival at a point fund *three* departures, so a 3-stack fanning onto all three out-arrows strands whatever arrives there next — including the sentry §6.1 tells you to leave. Fixed at the source rather than patched. The trail is a set and re-traversal is legal (§6.1a invariant 2), so no-re-trace no longer subtracts arrows and §2's Eulerian argument covers move legality on its own.
 18. ~~Blockade cost~~ — **resolved.** The rotation still lands on a frozen arrow and that fraction is lost; output drops by a third per blockaded share. See §7.
 16. ~~Girth-loop / spawner-vertex correspondence~~ — **resolved, and it holds.** A lattice triangle encloses exactly its own centre, which is exactly one spawner vertex. The minimum enclosable territory holds exactly one special. See §2.
 
@@ -557,7 +575,13 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
 22. ~~What happens to a stack's allowance when it splits mid-turn?~~ — **resolved: only the portion that moves spends.** Both parts inherit `spent`, so the portion that stayed may still act — branch off, or follow one step behind — while a stack that already moved as a whole cannot then split into scouts that have not. Splitting needs no penalty of its own; inheriting `spent` closes the double dip on its own, so the asymmetry with merging is deliberate rather than an oversight. See §3, allowance and spending.
 
-    This also settled a latent question in §6.1a: a lagging group standing on an arrow the front group laid is **not** re-tracing. Invariant 3 constrains the trail's arrow set, not where heads walk.
+    This also settled a latent question in §6.1a: a lagging group standing on an arrow the front group laid is **not** re-tracing. Invariant 2 constrains the trail's arrow set, not where heads walk.
+
+23. **Is a sentry at a branch point mandatory, or only subject to the minimum?** §5 states a floor on what you may *leave* — one head per open side — and nothing that compels you to leave anything. During the design pass a compulsory garrison at every split and join was on the table, introduced to bound evaporation and to stop headless trail forming. Bidirectional evaporation and point-shielding (§6.1) now do both of those jobs, so the compulsion looks vestigial. Reading: **not mandatory** — an ungarrisoned fork is legal, and a cut behind it simply floods both branches for one head each. Confirm before P04 codifies legality, because it is the difference between a fork costing two heads and costing nothing.
+
+24. **Does the arrow of a stack that dies absorbing a cut survive?** §6.1 says it does, leaving a one-arrow headless stub. The previous draft said the opposite — *when a tip head dies its own arrow evaporates too* — but that was justified solely by the *every tip carries a head* invariant, which is gone (item 8). Reading: **the arrow survives.** It costs nothing to allow now that headless trail is ordinary, and it is one fewer special case in the evaporation walk.
+
+25. **Sentry density against the economy.** A mid-trail sentry is two heads, so garrisoning a long trail every few arrows is a real fraction of a player's whole head count at §7's spawn rates. This sets how long an operation can be before it is uninsurable, which is the main lever on enclosure size — and therefore on whether large enclosures stay attemptable (§6.1) in practice rather than only on paper. Part of the same tuning sweep as items 11 and 12; nothing to decide on paper.
 
 ---
 
