@@ -29,7 +29,7 @@ scheduled early in the first place.
 | # | Packet | Layer | SPEC | Depends on | Gate / risk |
 |---|---|---|---|---|---|
 | P01 | Contracts: ports & DTOs | foundation | §2–7 | — | unblocked — §11 item 19 settled the `Move` DTO: one unit, one step |
-| P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | **owes the repo a green conformance suite.** P01 leaves `runGeometryPortConformance` pending behind a `describe.skip`; P02 must delete that wrapper, point the factory at a fixture board, and make all 27 pass **unchanged**. If the suite needs editing, the port leaked something concrete. **Answer §11 item 29 first** — whether a fixture must have alternating in/out slots decides which boards are legal to author, and the suite currently asserts distinctness only |
+| P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | **owes the repo a green conformance suite.** P01 leaves `runGeometryPortConformance` pending behind a `describe.skip`; P02 must delete that wrapper, point the factory at a fixture board, and make all 28 pass **unchanged**. If the suite needs editing, the port leaked something concrete. Fixtures are **abstract conformant digraphs, not lattice sub-boards** (§11 item 29) — floor is near 6 points / 18 arrows, against 16/48 for the smallest conformant torus, and readability when a rules test fails is the whole point. Slots must **alternate** in/out; the phase is free |
 | P03 | Tiling generator & torus wrap | foundation | §2 | P01 | now a **generator**, not an extraction — the tiling is the oriented triangular lattice with an alternating junction pattern (§11 item 1, resolved). Nothing left to measure; runs the same conformance suite as P02 |
 | P04 | Movement, stacks & the turn loop | rules | §2–4 | P01, P02 | allowance is an **integer** — `speed(N) = 1 + floor(log₂ N)`, nothing carried between turns. No rationals on this path; exact rationals belong to the §7 accumulators (P08) |
 | P05 | Trails, crossings & closure | rules | §2, §5, §7 | P04 | the chord test and even-odd fill are the subtlest logic in the game. Fill must read the trail's **arrow set** and use `chordsInterleave`, not `chordsCross` (§6.1a). A point presents `i × o` chords, not one — extracting them is this packet's job, and `chordsCross` is called once per chord. Also owns §5's branch-anchor legality: a move creating a join or a split must leave a head |
@@ -73,6 +73,13 @@ separate still pays: rules packets test against small hand-authored boards with
 known adjacency, which make failures readable, while both implementations answer
 to the same `GeometryPort` and the same conformance suite.
 
+It pays by more than it looks, because **the smallest conformant torus is 4×4** —
+16 points and 48 arrows, since anything smaller breaks *girth-3 encloses exactly
+one vertex* under wrap (§11 item 29). A hand-authored abstract digraph has no wrap
+and bottoms out near 6 points and 18 arrows. That is the difference between a
+fixture you can read when a rules test fails and one you cannot, and it is why P02
+authors graphs rather than sub-boards.
+
 **P02 is the closest thing to a hard prerequisite.** Until it lands, 27 of P01's
 tests are pending rather than passing, so the repo has no board and no rules
 packet can be tested against one.
@@ -90,16 +97,10 @@ it catches nondeterminism *while the core is still small enough to find it*.
 
 ## Open items this plan inherits
 
-Tracked in [`SPEC.md` §11](../../SPEC.md): **one structural question, two tuning
-knobs.** No geometric measurement remains — items 1, 5 and 16 are all resolved, so
-P03 generates rather than extracts. Nothing blocks P01 or P04.
+Tracked in [`SPEC.md` §11](../../SPEC.md): **two tuning knobs, and nothing
+structural.** No geometric measurement remains — items 1, 5, 16 and 29 are all
+resolved, so P03 generates rather than extracts. Nothing blocks any packet.
 
-- **item 29** — must *every* board have alternating in/out slots, or only the
-  generated tiling? Resolving item 1 turned the pattern from a measurement into a
-  rule, and no invariant enforces it: a fixture board with three-consecutive
-  in-slots passes the whole conformance suite while contradicting §2. Decides
-  what a legal fixture is, so it is not a test-coverage detail → **P02**, P03 to
-  confirm
 - **item 11** — board size `(n, m)`, and MVP player count fixed at 2 → **P09**
 - **item 12** — spawner density, resolved as *non-uniform*: dense and fast in the
   contested centre, sparse and slow at home. MVP defaults are written down and

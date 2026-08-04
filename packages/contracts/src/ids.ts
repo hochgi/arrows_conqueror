@@ -31,9 +31,11 @@ export type PlayerId = Brand<string, 'PlayerId'>;
  * One of the six arrow positions around a point, in cyclic order.
  *
  * Which of the six are in-slots is deliberately not encoded, and stays that way
- * now that SPEC §11 item 1 is resolved (alternating: even slots in, odd out).
- * The chord test depends only on cyclic order, so it never needs to ask — and a
- * `Slot` that carried its direction would invite a caller to branch on it.
+ * now that SPEC §11 item 1 is resolved. In and out *alternate* around the six
+ * (§11 item 29, a conformance requirement), but the **phase is free** — a board
+ * may put in-arrows on the even slots or the odd ones. The chord test depends
+ * only on cyclic order and so never needs to ask; a `Slot` that carried its
+ * direction would invite a caller to branch on it.
  */
 export type Slot = 0 | 1 | 2 | 3 | 4 | 5;
 

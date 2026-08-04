@@ -114,9 +114,11 @@ called `i × o` times.**
 ## The last invariant began as a hedge and is now the reason the test is total
 
 SPEC §11 item 1 — whether a point's three in-arrows alternate with its three
-out-arrows or sit consecutively — is **resolved: alternating**, so even slots are
-in-slots and odd slots are out-slots. Writing the chord test against cyclic slot
-order alone was originally what let P01 land before that was settled.
+out-arrows or sit consecutively — is **resolved: alternating**, and item 29 makes
+that a conformance requirement of every board. The *phase* stays free, though:
+in-arrows may hold the even slots or the odd ones, so even a caller that knows the
+pattern still cannot name a specific slot. Writing the chord test against cyclic
+slot order alone was originally what let P01 land before any of this was settled.
 
 Keep the independence anyway. It is what makes the predicate **total**: a layout
 realizes only 9 of the 15 chords as transits, and a test that knew the layout

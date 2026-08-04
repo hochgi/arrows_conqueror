@@ -79,14 +79,15 @@ arrows : points : vertices  =  3 : 1 : 2
 - The system shall enclose exactly one vertex within every directed 3-cycle.
 - The system shall enumerate each point, arrow and vertex exactly once.
 - The system shall assign each of a point's six arrows a distinct slot.
+- The system shall alternate in-arrows and out-arrows around every point's six
+  slots.
 - While enumerating, the system shall yield a stable order for equal inputs.
 
-**Not asserted, and open:** whether in-slots and out-slots must *alternate*
-around a point. SPEC §2 says the lattice alternates, but SPEC §11 item 29 asks
-whether that binds every `GeometryPort` implementation or only the generated
-tiling — which is a question about what a legal fixture board is. Until it is
-answered this suite asserts distinctness only. It is not an oversight; adding the
-stronger assertion would decide item 29 by implication.
+**The phase of the alternation is not asserted, deliberately.** In-arrows may hold
+the even slots or the odd ones (SPEC §11 item 29). Slot indices are this port's
+own labelling and the chord test is rotation-invariant, so pinning the phase would
+create a fact for a caller to depend on and buy nothing. An implementation that
+needs a particular phase has misread the chord test.
 
 ## Why these and not more
 
@@ -103,6 +104,15 @@ connected. The same degree condition independently makes self-trap impossible
 the atomic unit of value are the same object. The smallest territory the board
 permits holds exactly one spawner, which is what makes the drafted opening
 affordable (Appendix A) and what sets the whole scale of the economy.
+
+It is also the invariant that **constrains board size**, and by more than it
+looks. The smallest *torus* satisfying this suite is 4×4 — 16 points, 48 arrows,
+32 vertices. At 2×2 and 3×3 the wrap collapses the triangle count to 4 and 27
+against 8 and 18 vertices, and at any `n = 3` three steps of one out-vector wrap
+to zero and manufacture a straight-line 3-cycle that encloses nothing. An
+**abstract** conformant digraph has no such wrap and bottoms out near 6 points and
+18 arrows, which is why P02 authors those rather than lattice sub-boards (§11
+item 29).
 
 ## Stable ordering is a determinism requirement
 

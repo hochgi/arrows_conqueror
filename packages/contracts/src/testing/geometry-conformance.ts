@@ -18,8 +18,8 @@
 import { describe, expect, it } from 'vitest';
 import { ContractViolation } from '../errors';
 import type { GeometryPort } from '../geometry-port';
-import { mintArrowId, mintPointId, mintVertexId } from '../ids';
-import type { ArrowId, PointId, VertexId } from '../ids';
+import { SLOTS, mintArrowId, mintPointId, mintVertexId } from '../ids';
+import type { ArrowId, PointId, Slot, VertexId } from '../ids';
 
 interface Cycle3 {
   readonly arrows: readonly [ArrowId, ArrowId, ArrowId];
@@ -327,6 +327,28 @@ export const runGeometryPortConformance = (
           const six = [...g.inArrows(p), ...g.outArrows(p)];
           const slots = six.map((a) => g.slotOf(p, a));
           expect(new Set(slots).size).toBe(6);
+        }
+      });
+
+      it('alternates in-arrows and out-arrows around every point', () => {
+        // SPEC §2 and §11 item 29. Not cosmetic: "both handednesses available"
+        // is what §5 and §6 assume when a head turns aside from a trail without
+        // crossing it, and those scenarios are tested on fixture boards. A
+        // chiral board answers them differently.
+        //
+        // The PHASE is deliberately free — in-arrows may hold the even slots or
+        // the odd ones. Slot indices are the port's own labelling and the chord
+        // test is rotation-invariant, so pinning it would only create a fact for
+        // a caller to depend on.
+        const g = makePort();
+        for (const p of g.allPoints()) {
+          const isIn = new Map<Slot, boolean>();
+          for (const a of g.inArrows(p)) isIn.set(g.slotOf(p, a), true);
+          for (const a of g.outArrows(p)) isIn.set(g.slotOf(p, a), false);
+          for (const s of SLOTS) {
+            const next = ((s + 1) % SLOTS.length) as Slot;
+            expect(isIn.get(s)).not.toBe(isIn.get(next));
+          }
         }
       });
     });

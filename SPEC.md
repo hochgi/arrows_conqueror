@@ -100,6 +100,8 @@ The out-set at every point is {up, down-left, down-right}: three directions 120�
 
 **Every consequence below that was once conditional on alternating now holds outright**, and P03 generates a board from two basis vectors and a modulus rather than measuring anything. Three-consecutive stays named because the chord test is still written against cyclic slot order alone and its suite uses that layout as a **counterfactual** — the way it proves the predicate never asks which slots are in-slots. That independence is defence in depth now rather than a hedge against a pending measurement, and it is worth keeping.
 
+**Alternation binds every board, not just the generated one** (§11 item 29). It is part of what `GeometryPort` means and a conformance requirement, because *both handednesses available* is what §5 and §6 assume when a head turns aside from a trail without crossing it — a chiral board would answer those scenarios differently. What is **not** fixed is the *phase*: which slot index the alternation starts on is the port's own labelling, and nothing may depend on it. In-arrows may occupy the even slots or the odd ones; they may not sit two-in-a-row.
+
 The shortest directed cycle is 3, so **a stranded head loops back onto its own trail in three moves** — legal, since a trail is a set and re-traversal adds nothing to it (§6.1a invariant 2). Retreat is cheap, and that is a balance watch-point in both directions: §6.1 softens a cut by demoting rather than destroying what lies beyond it, and hardens one by evaporating backward as well as forward.
 
 ### Reachability
@@ -622,9 +624,9 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
 ## 11. Open Questions
 
-> **Nothing here blocks P01 or P04.** Every structural item is resolved; the two tuning items — spawner density and the damage-versus-production crossover — closed as *playtest-first defaults* rather than derivations, which is the honest shape for numbers nobody can settle on paper. They are marked as such where they land in §7, and refining them is expected rather than exceptional.
+> **Nothing here blocks implementation.** Every structural item is resolved; the two tuning items — spawner density and the damage-versus-production crossover — closed as *playtest-first defaults* rather than derivations, which is the honest shape for numbers nobody can settle on paper. They are marked as such where they land in §7, and refining them is expected rather than exceptional.
 >
-> **One item is open again: 29**, added by the P01 review. Resolving item 1 promoted the orientation pattern from a measurement to a rule, and no invariant enforces it — which is the ordinary way closing one gap opens another, and the reason this list is not deleted when it empties.
+> Item **29** was opened by the P01 review and closed in the same pass: resolving item 1 promoted the orientation pattern from a measurement to a rule, and no invariant enforced it. That is the ordinary way closing one gap opens another, and the reason this list is not deleted when it empties.
 >
 > Items are struck through rather than deleted on purpose. Several were resolved twice, and where a decision moved, the reasoning that moved it is usually the most valuable thing on the page. **New gaps belong here, not in the section that discovers them.**
 
@@ -707,16 +709,15 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     Collapsing them would let a stack parked in open ground found an island (§7 forbids it outright) and make any raider with a sentry behind it immune to encirclement, which would take §9's decisive move with it.
 
-**Open — found in P01 review**
+29. ~~Must every board be alternating, or only the generated one?~~ — **resolved: every board.** Resolving item 1 turned the orientation pattern from a measurement into a rule and nothing enforced it: the conformance suite asserted a point's six arrows get six *distinct* slots, never that in and out alternate, so a fixture board with three-consecutive in-slots passed the whole suite while contradicting §2. Now a conformance invariant (§2).
 
-29. **Must every board be alternating, or only the generated one?** Resolving item 1 turned the orientation pattern from a measurement into a **rule**, and nothing enforces it. `GeometryPort`'s conformance suite asserts that a point's six arrows get six *distinct* slots; it does not assert that in-slots and out-slots alternate. So a hand-authored fixture board (P02) with three-consecutive in-slots passes the entire suite while contradicting §2 — and P02 is precisely the packet that owes the repo a green suite.
+    What decided it is that **both handednesses available** is not decoration — §5 and §6 assume a head can turn either way aside from a trail without crossing it, and those are the scenarios rules packets test *on fixtures*. A chiral fixture would answer them differently, which would break the suite's one promise: that any implementation satisfying it is interchangeable.
 
-    Two readings, and they differ in what a legal fixture is:
+    The **phase is deliberately free** — in-arrows may take the even slots or the odd ones. Slot indices are the port's own labelling, the chord test is rotation-invariant (§2), and pinning the phase would create a fact for a caller to depend on with nothing gained.
 
-    - **Every board alternates.** The pattern is part of what `GeometryPort` *means*, so the assertion belongs in the shared conformance suite and a non-alternating fixture is simply an invalid board. Costs: some very small hand-authored boards may not be constructible at all, since alternation plus 3-in/3-out plus no-multi-edge is a real constraint on a tiny torus.
-    - **Only the generated tiling alternates.** Fixtures are deliberately unrealistic — that is why they are readable — and the assertion belongs in P03's own suite. Costs: a rule could then be written that happens to work only on non-alternating boards and would pass every fixture test.
+    Measured while deciding it, and useful independently: **alternation is not what constrains board size.** The smallest torus satisfying the existing suite is 4×4 — 16 points, 48 arrows, 32 vertices. Smaller ones fail on *girth-3 encloses exactly one vertex*: at 2×2 and 3×3 the wrap collapses the triangle count to 4 and 27 against 8 and 18 vertices, and at any n = 3 three steps of one out-vector wrap to zero and manufacture a straight-line 3-cycle enclosing nothing. So requiring alternation costs a labelling convention and nothing else.
 
-    Not decided here, because it decides what a legal board is rather than how a rule behaves. Note that it does **not** touch the chord test either way: that predicate is layout-independent by construction (§2), which is now the thing keeping this question cheap. → **P02**, with P03 to confirm.
+    A fixture board need not be a lattice at all, only satisfy the suite, and counting bounds put that floor near 6 points and 18 arrows — which is why **P02 authors abstract conformant digraphs rather than lattice sub-boards**, and why a fixture stays readable when a rules test fails.
 
 ---
 
