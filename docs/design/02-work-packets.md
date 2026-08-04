@@ -35,8 +35,8 @@ scheduled early in the first place.
 | P05 | Trails, crossings & closure | rules | §2, §5, §7 | P04 | the chord test and even-odd fill are the subtlest logic in the game. Fill must read the trail's **arrow set** and use `chordsInterleave`, not `chordsCross` (§6.1a). A point presents `i × o` chords, not one — extracting them is this packet's job, and `chordsCross` is called once per chord. Also owns §5's branch-anchor legality: a move creating a join or a split must leave a head |
 | P06 | Cuts, evaporation & combat | rules | §6 | P05 | **§6 was rebuilt twice after P01 landed.** Bidirectional evaporation, one kill per front, 1:1 per-move combat — then bare trail, **all-to-all points**, and **per-arrow halting** (a head does *not* shield the point ahead against fire; that range is combat's alone). Two grades of anchor, territory and stack, and conflating them breaks §6.3 |
 | P07 | Territory & encirclement | rules | §7 | P05, P06 | conversion must conserve total heads exactly |
-| P08 | Spawner economy | rules | §7 | P07 | exact rationals only — **the accumulator is the one thing in the game that banks**; blockades halt accrual and cost the share. MVP force and density defaults are in §7 and are explicitly playtest-first (§11 items 12 and 25) |
-| P09 | Match lifecycle, setup & victory | rules | §8, §9 | P07, P08 | the turtle stalemate is an accepted risk (§9) — watch for it here |
+| P08 | Spawner economy | rules | §7 | P07 | exact rationals only — **the accumulator is the one thing in the game that banks**; blockades halt accrual and cost the share. Accrual takes *a* force per spawner and must never read its value: **no branch on 1/3 vs 1/12, no threshold against a constant** (§7, *placement and force are setup data*). MVP defaults are playtest-first (§11 items 12 and 25) and a retune must not change which scenarios pass |
+| P09 | Match lifecycle, setup & victory | rules | §8, §9 | P07, P08 | the turtle stalemate is an accepted risk (§9) — watch for it here. **Owns the spawner tuning table**: which eligible vertices carry a spawner, band boundaries, force per band — one input read once at setup, not conditions spread through placement (§7) |
 | P10 | Replay & determinism harness | cross-cutting | — | P04, P09 | the primary detector of accidental nondeterminism |
 | P11 | Renderer & hot-seat input | adapter | §2, §5, §7 | P03, P09 | the only shipping adapter. Galcon-style source→destination→portion input; trail-vs-territory must be legible at a glance (§5) |
 | ~~P12~~ | ~~AI opponent~~ | — | — | — | **out of MVP** (hot-seat). Kept in the graph because P10 exists partly to make it cheap later |
@@ -100,11 +100,18 @@ P01 or P04.
 - **item 1** — the junction orientation pattern (alternating vs three-consecutive).
   Alternating is the strong read; confirm it → **P03**
 - **item 11** — board size `(n, m)`, and MVP player count fixed at 2 → **P09**
-- **item 12** — spawner density as a fraction of the `2nm` eligible vertices → **P09**
+- **item 12** — spawner density, resolved as *non-uniform*: dense and fast in the
+  contested centre, sparse and slow at home. MVP defaults are written down and
+  explicitly playtest-first → **P09**
 
 Items 11 and 12 are a single balance sweep against total spawner force, and want
 a playable game rather than an argument — which is why P09 owns them and why the
 replay harness (P10) lands right behind it.
+
+Neither is a blocker, and the reason is a constraint rather than an accident:
+§7's *placement and force are setup data* keeps every one of these numbers on the
+setup side of the port. Build against the defaults now; the sweep later is a
+table edit, and if it turns out not to be, that is a defect in P08 or P09.
 
 An item with no packet owner is a scoping gap, not a decision. Say so rather than
 absorbing it.

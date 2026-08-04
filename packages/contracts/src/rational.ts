@@ -102,5 +102,15 @@ export const fractionalPart = (a: Rational): Rational => rational(a.num % a.den,
 export const ZERO: Rational = { num: 0, den: 1 };
 export const ONE: Rational = { num: 1, den: 1 };
 
-/** The maximum spawner force (SPEC §7). 1/3 is a very rare maximum. */
+/**
+ * The maximum spawner force (SPEC §7). 1/3 is a very rare maximum.
+ *
+ * A documented ceiling, deliberately **not** a guard. SPEC §7 (*placement and
+ * force are setup data*) forbids any rule from reading a force's value, and
+ * every number in that section is playtest-first (§11 items 12 and 25) — so a
+ * later packet that validates a force against this constant would turn a table
+ * edit into a contract violation, which is exactly the friction the constraint
+ * exists to prevent. Compare against it in a setup sanity check if you like;
+ * never in the core.
+ */
 export const MAX_FORCE: Rational = { num: 1, den: 3 };

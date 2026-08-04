@@ -512,6 +512,21 @@ The arithmetic those are aimed at, since every arrow borders exactly two eligibl
 
 A starting point for the first playtest, not a result. What they are chosen to produce: a centre that pays out inside ten turns and is therefore worth bleeding for, a home economy that rewards being left alone, and a board where sweeping the specials is not something a player can do.
 
+### Placement and force are setup data, not rules
+
+Everything in the two blocks above is a **number to be tuned**, and none of it is a mechanic. That distinction has to survive contact with the code, or the first retune becomes an engineering task instead of a table edit.
+
+> **No rule reads a force's value.** Accrual takes *a* rational per spawner and *a* set of spawner vertices from the board, and does the same arithmetic whatever they are. Nothing in the core knows what "the centre band" is, nothing branches on 1/3 versus 1/12, and no threshold anywhere compares a force against a constant.
+
+So the whole of the placement scheme — which eligible vertices carry a spawner, which band each sits in, what force each runs at — is produced by **match setup** (§8) and consumed as opaque rationals. Retuning means editing the table setup builds from; it does not mean touching the engine, and it cannot change which scenarios pass.
+
+Two things must hold for that to stay true:
+
+- **A force is an exact rational, never a float.** Carry, reset-on-capture and the coprime-denominator rhythm are rules; the numerator and denominator are data. `1/9 + 1/12` has to be exactly `7/36` for a retune to be a retune rather than a new drift profile.
+- **Density and band boundaries live in one place.** They are inputs to placement, not conditions scattered through it — one table, read once, at setup.
+
+If a rule ever needs to ask *how large* a force is, or *where* a spawner sits, that is a design change and not a tuning change, and it belongs in §11 rather than in a branch.
+
 ### What the spawn rate implies about victory
 
 **Cutting is barely an attrition channel any more, and that changes the answer.** Linear trail carries no heads (§5), so a cut on a bare stretch kills **nobody**. It burns trail to the next head and destroys the region it landed in; everything beyond is demoted, not killed (§6.1). A committed attacker cutting every 3–4 turns is denying *tempo*, not removing heads.
@@ -534,7 +549,7 @@ So the comparison is no longer heads-destroyed against heads-produced. It is **t
 
 **What moved, and why it is not a retune.** The earlier reading of this table put 1/9–1/12 "near the crossover, where attrition is viable." Attrition by cutting is now close to nil, so the crossover moved decisively toward economy on the head axis, and the whole contest re-formed on the tempo axis instead. That makes §6.3 conversion the clearest way to actually reduce an opponent — which is what §9 already wanted, arrived at from the other end.
 
-**These numbers predate the §6 rewrite and need re-deriving, not just re-checking.** They were worked out when a cut cost one head and the trail behind it always survived. A cut now destroys a whole region and evaporates backward toward home, so most of its value has moved from damage into tempo and denial — while §6.2's per-move exchange makes heads flow in both directions during a fight rather than only toward the defender. Which side of the crossover a given *f* lands on is now a playtest question. Item 25.
+**What stays uncertain is the number, not the shape.** The original table was worked out when a cut cost one head and the trail behind it always survived; the re-derivation above is what replaced that reading. One further pressure it puts on any *f* worth choosing: §6.2's per-move exchange makes heads flow in **both** directions during a fight, rather than only toward the defender, so an attacker's losses now scale with how long they stay — which is a cost the old table did not price at all. Which side of the crossover a given *f* lands on is a playtest question and always was. Item 25.
 
 **MVP ships spawners only.** Every special is the same kind of object, differing only in force and in where it sits — all the variety comes from placement geometry and overlap, none from authored perk types.
 
@@ -626,6 +641,8 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 12. ~~Spawner density~~ — **resolved: not one number, because it is not uniform.** The criterion as originally stated — *scarce enough that nobody sweeps them, common enough that overlap stays the norm* — cannot be met by a single density: overlap only becomes typical at densities where spawners stop being scarce. Under a **clustered** placement it is met trivially, and clustering is already the §7 principle for force. Dense and fast in the contested centre, sparse and slow at home.
 
     MVP defaults, chosen to be playable rather than derived: about **half** the eligible vertices in the central band, **an eighth** in home regions, ≈ **1/5 of the `2nm`** overall. See §7, *force should scale with contestedness*. Still in the tuning sweep with item 11 — but it no longer blocks anything, because a fixture board can be built from these today.
+
+    **The values are deliberately cheap to change**, and §7 (*placement and force are setup data*) says what that costs the implementation: one table at setup, no rule reading a force's value, no threshold comparing one against a constant. A retune must not be able to change which scenarios pass.
 13. ~~Accrual on unowned arrows / charge surviving capture~~ — **resolved.** An arrow that changes hands starts fresh. See §7.
 14. ~~Reset versus carry on spawn~~ — **resolved.** Carry the remainder. See §7.
 15. ~~Spawning onto a contested arrow~~ — **resolved.** An enemy head halts accrual; the accumulator holds and resumes when they leave. See §7.
@@ -665,7 +682,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     So the contest re-formed as **turns denied against heads accrued**, and the interesting consequence is that *the victim chooses the currency*: run bare and cuts cost trail, garrison and they cost heads you had already spent by parking them. MVP values are **1/3 centre, 1/9 mid, 1/12 home** (§7, *what the spawn rate implies about victory*).
 
-    Explicitly a **playtest-first number.** These are chosen to be playable, not derived, and the human owns the refinement once the game can actually be played. The one structural claim worth keeping is that conversion, not chip damage, is now unambiguously how a player is reduced — which is what §9 wanted anyway.
+    Explicitly a **playtest-first number**, and one the implementation must keep cheap to move — see item 12 and §7, *placement and force are setup data*. These are chosen to be playable, not derived, and the human owns the refinement once the game can actually be played. The one structural claim worth keeping is that conversion, not chip damage, is now unambiguously how a player is reduced — which is what §9 wanted anyway.
 
 26. ~~Which in-arrow pairs with which out-arrow at a point the trail uses twice?~~ — **resolved: none of them, and the question was wrong.** Two in-arrows and two out-arrows admit three readings — two passages, two crossed passages, or a join then a fork — and they leave the identical arrow set, so the set determines no pairing. The hole was real: a crossing test that assumed a pairing gave opposite verdicts on the same board state, and evaporation had nowhere defined to route.
 
