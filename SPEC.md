@@ -87,6 +87,21 @@ The chevron artwork is a decoration of a directed edge; the graph underneath is 
 - **An edge borders exactly two triangles**, so two spawners feeding one arrow is a structural hard cap. Triple-fed arrows do not exist.
 - A **board is the lattice mod `(n·u, m·v)`** — a torus by construction, with `3nm` arrows, `nm` points and `2nm` spawner-eligible vertices, and 3-in/3-out holding everywhere with no rim.
 
+**The generator constants, confirmed against the artwork.** Basis `u = (1, 0)`, `v = (½, √3⁄2)`. The three out-directions in lattice coordinates are
+
+```
+OUT = { (1, 0), (-1, 1), (0, -1) }        world angles 0° / 120° / 240°
+```
+
+which must satisfy **both** conditions and it is easy to pick a set that satisfies only one: they sum to zero (so the directed 3-cycle closes and girth is 3) *and* they sit 120° apart (so the board is mirror-symmetric rather than skewed). Each point owns two triangles, at `+(⅓, ⅓)` and `+(⅔, ⅔)` — one "up", one "down" — which are its two spawner vertices.
+
+Two facts fall out, and both were measured rather than assumed:
+
+- **An arrow's two flanking triangles are always one up and one down.** Never two of the same kind. So §7's cap of two feed slots per arrow is geometry, not a rule.
+- **Slots alternate with in-arrows on the odd indices**, given the labelling above. The lattice picks that phase; §11 item 29 forbids anything depending on it, and this is precisely why.
+
+The chevron's own outline — where the boundary between two tiles bends on its way from a triangle centre to a lattice point — is a **rendering** parameter and lives with the tiling implementation, not here. See [P03](docs/design/packets/P03-tiling.md).
+
 ### Orientation pattern — resolved: alternating
 
 Balance (3 in, 3 out) does not by itself fix *which* slots are which — the 3-fold symmetry sits at the spawner vertices, not at the junctions. Two patterns were consistent with everything above, and **the lattice has the alternating one** (§11 item 1):

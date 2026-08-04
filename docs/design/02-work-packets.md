@@ -29,8 +29,8 @@ scheduled early in the first place.
 | # | Packet | Layer | SPEC | Depends on | Gate / risk |
 |---|---|---|---|---|---|
 | P01 | Contracts: ports & DTOs | foundation | §2–7 | — | unblocked — §11 item 19 settled the `Move` DTO: one unit, one step |
-| P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | **owes the repo a green conformance suite.** P01 leaves `runGeometryPortConformance` pending behind a `describe.skip`; P02 must delete that wrapper, point the factory at a fixture board, and make all 28 pass **unchanged**. If the suite needs editing, the port leaked something concrete. Fixtures are **abstract conformant digraphs, not lattice sub-boards** (§11 item 29) — floor is near 6 points / 18 arrows, against 16/48 for the smallest conformant torus, and readability when a rules test fails is the whole point. Slots must **alternate** in/out; the phase is free |
-| P03 | Tiling generator & torus wrap | foundation | §2 | P01 | now a **generator**, not an extraction — the tiling is the oriented triangular lattice with an alternating junction pattern (§11 item 1, resolved). Nothing left to measure; runs the same conformance suite as P02 |
+| P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | **no longer owes the green suite — P03 discharges it**, so P02 matches a suite already known satisfiable. Fixtures are **abstract conformant digraphs, not lattice sub-boards** (§11 item 29) — floor near 6 points / 18 arrows against 16/48 for the smallest conformant torus, and readability when a *rules* test fails is the whole point. Slots must **alternate** in/out; the phase is free. No layout: an abstract board has no coordinates |
+| P03 | Tiling generator & torus wrap | foundation | §2 | P01 | **[packet doc written](./packets/P03-tiling.md); taken next, ahead of P02.** A generator, not an extraction, and the maths is already validated against the artwork by a throwaway viewer (14/14 conformance, 14×14 torus). **Discharges the conformance debt** instead of P02 — 28 assertions, unedited. Also owns the renderer's **layout** (a polygon per arrow), which is *not* on `GeometryPort`: item 29 made fixtures abstract digraphs, and those have no coordinates at all. Board floor is **4×4** |
 | P04 | Movement, stacks & the turn loop | rules | §2–4 | P01, P02 | allowance is an **integer** — `speed(N) = 1 + floor(log₂ N)`, nothing carried between turns. No rationals on this path; exact rationals belong to the §7 accumulators (P08) |
 | P05 | Trails, crossings & closure | rules | §2, §5, §7 | P04 | the chord test and even-odd fill are the subtlest logic in the game. Fill must read the trail's **arrow set** and use `chordsInterleave`, not `chordsCross` (§6.1a). A point presents `i × o` chords, not one — extracting them is this packet's job, and `chordsCross` is called once per chord. Also owns §5's branch-anchor legality: a move creating a join or a split must leave a head |
 | P06 | Cuts, evaporation & combat | rules | §6 | P05 | **§6 was rebuilt twice after P01 landed.** Bidirectional evaporation, one kill per front, 1:1 per-move combat — then bare trail, **all-to-all points**, and **per-arrow halting** (a head does *not* shield the point ahead against fire; that range is combat's alone). Two grades of anchor, territory and stack, and conflating them breaks §6.3 |
@@ -80,9 +80,11 @@ and bottoms out near 6 points and 18 arrows. That is the difference between a
 fixture you can read when a rules test fails and one you cannot, and it is why P02
 authors graphs rather than sub-boards.
 
-**P02 is the closest thing to a hard prerequisite.** Until it lands, 27 of P01's
-tests are pending rather than passing, so the repo has no board and no rules
-packet can be tested against one.
+**P03 is the closest thing to a hard prerequisite, and it used to be P02.** Until
+one of them lands, 28 of P01's tests are pending rather than passing, so the repo
+has no board and no rules packet can be tested against one. P03 is taken first
+because it also produces a **visible** board, and because proving the suite
+against the real tiling is worth more than proving it against a fixture.
 
 **P04 → P05 → P06 → P07 is a genuine chain.** Closure needs movement; cuts need
 trails to cut; territory needs both closure and the encirclement that combat
