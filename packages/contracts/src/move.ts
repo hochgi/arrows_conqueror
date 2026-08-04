@@ -14,8 +14,6 @@
  * an out-arrow of the source's target point, whether the mover has allowance
  * left, whether a crossing is won — is P04 and later.
  *
- * SKELETON — phase 2.
- *
  * @see docs/spec/move/move.md
  */
 

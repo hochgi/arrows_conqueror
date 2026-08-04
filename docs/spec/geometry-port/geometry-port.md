@@ -10,10 +10,16 @@
 scenario here must pass for **any** implementation — the hand-authored fixture
 boards of P02 and the generated tiling of P03 alike.
 
-That is not a stylistic preference. SPEC §11 item 1 is still unmeasured, so the
-rules have to be buildable and testable before the real tiling exists. A
-conformance suite two implementations both satisfy is what makes that possible,
-and it is the reason geometry is a port rather than a constant table.
+That is not a stylistic preference. Rules packets test against small boards with
+known adjacency, which make a failure readable in a way a 3·n·m torus never will,
+and the generated board answers the same suite. A conformance suite two
+implementations both satisfy is what makes that possible, and it is the reason
+geometry is a port rather than a constant table.
+
+The port **outlived the reason it was introduced**, which was that SPEC §11
+item 1 had not been measured. It is now resolved — alternating — and P03
+generates rather than measures. The port stays because readable fixtures are
+worth having on their own.
 
 **Nothing in these scenarios may name a lattice coordinate, a wrap, or a board
 size.** If a scenario needs one it belongs in that implementation's own suite.
@@ -72,7 +78,15 @@ arrows : points : vertices  =  3 : 1 : 2
 - The system shall have girth exactly 3.
 - The system shall enclose exactly one vertex within every directed 3-cycle.
 - The system shall enumerate each point, arrow and vertex exactly once.
+- The system shall assign each of a point's six arrows a distinct slot.
 - While enumerating, the system shall yield a stable order for equal inputs.
+
+**Not asserted, and open:** whether in-slots and out-slots must *alternate*
+around a point. SPEC §2 says the lattice alternates, but SPEC §11 item 29 asks
+whether that binds every `GeometryPort` implementation or only the generated
+tiling — which is a question about what a legal fixture board is. Until it is
+answered this suite asserts distinctness only. It is not an oversight; adding the
+stronger assertion would decide item 29 by implication.
 
 ## Why these and not more
 

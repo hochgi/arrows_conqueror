@@ -51,9 +51,11 @@ Feature: The chord test — totality, symmetry and the cases that unify
 
   Rule: The verdict depends only on cyclic order
 
-    SPEC §11 item 1 — alternating versus three-consecutive in-slots — is the
-    last unmeasured geometric fact. The test must be correct under either, so
-    that P01 need not wait for P03 and P03 cannot invalidate P01.
+    SPEC §11 item 1 is resolved — in-slots alternate with out-slots — and this
+    Rule stays anyway. Layout independence is what makes the predicate total
+    over all 15 chords rather than the 9 a layout realizes, so the
+    three-consecutive rows below are a COUNTERFACTUAL, not a live candidate.
+    They are the assertion that the test never asks which slots are in-slots.
 
     Scenario: Rotating every slot label leaves the verdicts unchanged
       When I rotate all six slot labels by one position

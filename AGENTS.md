@@ -65,12 +65,17 @@ reason to ask, not a licence to decide.
 - **Adapters at the edges** — renderer, input, AI, persistence, netcode. Never
   referenced from the core.
 
-**Why geometry is pluggable and not just a constant table:** SPEC §11 items 1, 5
-and 16 are measurements of the real tiling that have not been taken yet. Every
-rule downstream must be testable *now*, against small hand-authored fixture
-boards with known adjacency, and later against the extracted tiling — same port,
-two implementations, one set of tests. Any impl that satisfies `GeometryPort`'s
-component tests is interchangeable.
+**Why geometry is pluggable and not just a constant table:** every rule
+downstream must be testable against small hand-authored fixture boards with known
+adjacency, where a failure is readable, *as well as* against the generated tiling
+— same port, two implementations, one set of tests. Any impl that satisfies
+`GeometryPort`'s conformance suite is interchangeable.
+
+The port was introduced because SPEC §11 items 1, 5 and 16 were unmeasured
+properties of the real tiling. **All three are now resolved** (§2: alternating,
+girth 3, one spawner vertex per minimal cycle) and P03 *generates* a board rather
+than extracting one. The port stays regardless — readable fixtures earn it on
+their own.
 
 ## Commands
 

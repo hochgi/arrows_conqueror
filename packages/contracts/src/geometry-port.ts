@@ -10,8 +10,11 @@
  *
  * Two implementations must satisfy the same conformance suite — hand-authored
  * fixture boards (P02) and the generated tiling (P03). That is not a stylistic
- * preference: SPEC §11 item 1 is still unmeasured, so the rules have to be
- * buildable and testable before the real tiling exists.
+ * preference: rules packets test against small boards with known adjacency,
+ * which make failures readable, and the generated board answers the same suite.
+ * No geometric fact is outstanding — SPEC §11 item 1 resolved to alternating —
+ * so P03 generates rather than measures, and the port outlives the reason it
+ * was introduced.
  *
  * @see docs/spec/geometry-port/geometry-port.md
  */

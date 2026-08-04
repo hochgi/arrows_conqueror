@@ -87,18 +87,20 @@ The chevron artwork is a decoration of a directed edge; the graph underneath is 
 - **An edge borders exactly two triangles**, so two spawners feeding one arrow is a structural hard cap. Triple-fed arrows do not exist.
 - A **board is the lattice mod `(n·u, m·v)`** — a torus by construction, with `3nm` arrows, `nm` points and `2nm` spawner-eligible vertices, and 3-in/3-out holding everywhere with no rim.
 
-### Orientation pattern — the one free choice
+### Orientation pattern — resolved: alternating
 
-Balance (3 in, 3 out) does not by itself fix *which* slots are which. The 3-fold symmetry sits at the spawner vertices, not at the junctions, so the pattern is a property of the tiling to be measured. Two are consistent with everything above:
+Balance (3 in, 3 out) does not by itself fix *which* slots are which — the 3-fold symmetry sits at the spawner vertices, not at the junctions. Two patterns were consistent with everything above, and **the lattice has the alternating one** (§11 item 1):
 
 | Pattern | Successors from any arrow | Consequence |
 |---|---|---|
 | **Alternating** — out at 0°/120°/240° | straight, or turn **±120°** | both handednesses available |
-| Three-consecutive | straight, or turn +60°/+120° | chiral board — left turns only |
+| ~~Three-consecutive~~ | straight, or turn +60°/+120° | chiral board — left turns only |
 
-**Alternating is the strong read**, because the crossing examples show a head able to turn *either* right or left aside from a trail without crossing it. Confirm against the extracted tiling (§11 item 1).
+The out-set at every point is {up, down-left, down-right}: three directions 120° apart, so **the six slots alternate in/out around the hexagon** and the in-set is the complement {down, up-left, up-right}. It is self-consistent throughout — the three out-vectors sum to zero, so the directed 3-cycle exists and girth is 3; exits from any in-arrow are straight or ±120°, so both handednesses are available and the board is mirror-symmetric rather than chiral. That last property is the one the crossing examples demand: a head can turn *either* right or left aside from a trail without crossing it.
 
-Under alternating, the shortest directed cycle is 3, so **a stranded head loops back onto its own trail in three moves** — legal, since a trail is a set and re-traversal adds nothing to it (§6.1a invariant 2). Retreat is cheap, and that is a balance watch-point in both directions: §6.1 softens a cut by demoting rather than destroying what lies beyond it, and hardens one by evaporating backward as well as forward.
+**Every consequence below that was once conditional on alternating now holds outright**, and P03 generates a board from two basis vectors and a modulus rather than measuring anything. Three-consecutive stays named because the chord test is still written against cyclic slot order alone and its suite uses that layout as a **counterfactual** — the way it proves the predicate never asks which slots are in-slots. That independence is defence in depth now rather than a hedge against a pending measurement, and it is worth keeping.
+
+The shortest directed cycle is 3, so **a stranded head loops back onto its own trail in three moves** — legal, since a trail is a set and re-traversal adds nothing to it (§6.1a invariant 2). Retreat is cheap, and that is a balance watch-point in both directions: §6.1 softens a cut by demoting rather than destroying what lies beyond it, and hardens one by evaporating backward as well as forward.
 
 ### Reachability
 
@@ -456,7 +458,7 @@ Three things follow:
 
 - **Partial capture gives granular pressure.** Shaving one arrow off a rival cuts their income by a third — a real blow available without mounting a full operation, and one a weaker player can land. A raid that falls short still pays.
 - **Border *shape* starts mattering.** Capturing fully is no longer about reaching, it's about how your seam runs; a sloppy border clips your own specials to 2/3. New, legible pressure toward compact, well-formed territory.
-- **The atomic unit of conquest and the atomic unit of value may be the same object.** The girth-3 minimum loop is three arrows pinwheeling about a centre; a special is a centre bordered by three arrows. If those are the same three arrows — the images strongly suggest it — then the smallest territory the board permits encloses exactly one special. *Confirm when the graph is extracted (§11).*
+- **The atomic unit of conquest and the atomic unit of value are the same object.** The girth-3 minimum loop is three arrows pinwheeling about a centre; a special is a centre bordered by three arrows; and they are the same three arrows — a lattice triangle encloses exactly its own centre, which is exactly one spawner vertex (§11 item 16). So **the smallest territory the board permits encloses exactly one special**, which is what sets the scale of the whole economy and what makes the drafted opening affordable (Appendix A). Every board must satisfy it: it is a `GeometryPort` conformance invariant, not an observation.
 
 ### Spawner logic
 
@@ -620,7 +622,9 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
 ## 11. Open Questions
 
-> **Nothing here blocks implementation any more.** Every item is resolved; the last two — spawner density and the damage-versus-production crossover — closed as *playtest-first defaults* rather than derivations, which is the honest shape for numbers nobody can settle on paper. They are marked as such where they land in §7, and refining them is expected rather than exceptional.
+> **Nothing here blocks P01 or P04.** Every structural item is resolved; the two tuning items — spawner density and the damage-versus-production crossover — closed as *playtest-first defaults* rather than derivations, which is the honest shape for numbers nobody can settle on paper. They are marked as such where they land in §7, and refining them is expected rather than exceptional.
+>
+> **One item is open again: 29**, added by the P01 review. Resolving item 1 promoted the orientation pattern from a measurement to a rule, and no invariant enforces it — which is the ordinary way closing one gap opens another, and the reason this list is not deleted when it empties.
 >
 > Items are struck through rather than deleted on purpose. Several were resolved twice, and where a decision moved, the reasoning that moved it is usually the most valuable thing on the page. **New gaps belong here, not in the section that discovers them.**
 
@@ -702,6 +706,17 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
     - **Stack grade** — can be driven home for a **land bridge**, claiming the path and nothing else. Encloses nothing, and does **not** save a head from conversion inside enemy ground.
 
     Collapsing them would let a stack parked in open ground found an island (§7 forbids it outright) and make any raider with a sentry behind it immune to encirclement, which would take §9's decisive move with it.
+
+**Open — found in P01 review**
+
+29. **Must every board be alternating, or only the generated one?** Resolving item 1 turned the orientation pattern from a measurement into a **rule**, and nothing enforces it. `GeometryPort`'s conformance suite asserts that a point's six arrows get six *distinct* slots; it does not assert that in-slots and out-slots alternate. So a hand-authored fixture board (P02) with three-consecutive in-slots passes the entire suite while contradicting §2 — and P02 is precisely the packet that owes the repo a green suite.
+
+    Two readings, and they differ in what a legal fixture is:
+
+    - **Every board alternates.** The pattern is part of what `GeometryPort` *means*, so the assertion belongs in the shared conformance suite and a non-alternating fixture is simply an invalid board. Costs: some very small hand-authored boards may not be constructible at all, since alternation plus 3-in/3-out plus no-multi-edge is a real constraint on a tiny torus.
+    - **Only the generated tiling alternates.** Fixtures are deliberately unrealistic — that is why they are readable — and the assertion belongs in P03's own suite. Costs: a rule could then be written that happens to work only on non-alternating boards and would pass every fixture test.
+
+    Not decided here, because it decides what a legal board is rather than how a rule behaves. Note that it does **not** touch the chord test either way: that predicate is layout-independent by construction (§2), which is now the thing keeping this question cheap. → **P02**, with P03 to confirm.
 
 ---
 

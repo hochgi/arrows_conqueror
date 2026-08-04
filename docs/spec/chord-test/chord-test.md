@@ -7,9 +7,15 @@
 ## Purpose
 
 This is the only part of P01 that encodes a **rule** rather than a shape, and it
-is the subtlest logic in the game. It is also small enough to specify totally:
-3 in-slots × 3 out-slots = 9 possible chords at a point, so **81 ordered pairs**.
-An implementation may be a lookup table, and probably should be.
+is the subtlest logic in the game. It is also small enough to specify totally.
+
+Two counts, and using the wrong one is a trap. Six slots give **15 distinct
+chords and 225 ordered pairs** — that is the predicate's domain, and the size a
+lookup-table implementation has to be. A *layout* — which three slots are
+in-slots — makes only 9 of them realizable as a transit, so a point sees **81
+reachable pairs**. The predicate deliberately does not know the layout (see the
+last invariant), so it must answer all 225. Build the 9×9 table and it throws on
+the six chords no layout realizes.
 
 ## The problem it solves
 
@@ -98,19 +104,26 @@ called `i × o` times.**
   crossing and shall report no interleave.
 - The system shall return the same verdict for a pair of chords regardless of
   argument order.
-- The system shall return a verdict for all 81 ordered pairs of chords and shall
+- The system shall return a verdict for all 225 ordered pairs of chords and shall
   fail for none.
+- The system shall return a verdict for each of the 81 pairs a layout makes
+  reachable, under either candidate layout.
 - The system shall depend only on the cyclic order of the six slots, and not on
   which of them are in-slots.
 
-## The last invariant is a hedge, and a deliberate one
+## The last invariant began as a hedge and is now the reason the test is total
 
 SPEC §11 item 1 — whether a point's three in-arrows alternate with its three
-out-arrows or sit consecutively — is the **only** geometric fact still
-unmeasured. Alternating is the strong read, because the crossing examples show a
-head able to turn either right or left aside from a trail without crossing it.
+out-arrows or sit consecutively — is **resolved: alternating**, so even slots are
+in-slots and odd slots are out-slots. Writing the chord test against cyclic slot
+order alone was originally what let P01 land before that was settled.
 
-Writing the chord test against cyclic slot order alone means P01 does not have
-to wait for that measurement, and P03 cannot invalidate this suite when it
-arrives. If the test ever needs to know which slots are in-slots, that is a
-signal the rule was misunderstood, not that the hedge failed.
+Keep the independence anyway. It is what makes the predicate **total**: a layout
+realizes only 9 of the 15 chords as transits, and a test that knew the layout
+would have 6 chords it could refuse. The suite exercises the
+three-consecutive layout as a **counterfactual** for exactly this reason — not
+because it is still a candidate. Do not delete that case as dead weight; it is
+the assertion that the predicate never asks.
+
+If the test ever needs to know which slots are in-slots, that is a signal the
+rule was misunderstood, not that the independence stopped paying.

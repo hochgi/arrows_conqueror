@@ -29,7 +29,7 @@ scheduled early in the first place.
 | # | Packet | Layer | SPEC | Depends on | Gate / risk |
 |---|---|---|---|---|---|
 | P01 | Contracts: ports & DTOs | foundation | §2–7 | — | unblocked — §11 item 19 settled the `Move` DTO: one unit, one step |
-| P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | **owes the repo a green conformance suite.** P01 leaves `runGeometryPortConformance` pending behind a `describe.skip`; P02 must delete that wrapper, point the factory at a fixture board, and make all 27 pass **unchanged**. If the suite needs editing, the port leaked something concrete |
+| P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | **owes the repo a green conformance suite.** P01 leaves `runGeometryPortConformance` pending behind a `describe.skip`; P02 must delete that wrapper, point the factory at a fixture board, and make all 27 pass **unchanged**. If the suite needs editing, the port leaked something concrete. **Answer §11 item 29 first** — whether a fixture must have alternating in/out slots decides which boards are legal to author, and the suite currently asserts distinctness only |
 | P03 | Tiling generator & torus wrap | foundation | §2 | P01 | now a **generator**, not an extraction — the tiling is the oriented triangular lattice with an alternating junction pattern (§11 item 1, resolved). Nothing left to measure; runs the same conformance suite as P02 |
 | P04 | Movement, stacks & the turn loop | rules | §2–4 | P01, P02 | allowance is an **integer** — `speed(N) = 1 + floor(log₂ N)`, nothing carried between turns. No rationals on this path; exact rationals belong to the §7 accumulators (P08) |
 | P05 | Trails, crossings & closure | rules | §2, §5, §7 | P04 | the chord test and even-odd fill are the subtlest logic in the game. Fill must read the trail's **arrow set** and use `chordsInterleave`, not `chordsCross` (§6.1a). A point presents `i × o` chords, not one — extracting them is this packet's job, and `chordsCross` is called once per chord. Also owns §5's branch-anchor legality: a move creating a join or a split must leave a head |
@@ -90,15 +90,16 @@ it catches nondeterminism *while the core is still small enough to find it*.
 
 ## Open items this plan inherits
 
-Tracked in [`SPEC.md` §11](../../SPEC.md): **one measurement, two tuning knobs,
-and two recorded readings.** Every structural decision is made — nothing blocks
-P01 or P04.
+Tracked in [`SPEC.md` §11](../../SPEC.md): **one structural question, two tuning
+knobs.** No geometric measurement remains — items 1, 5 and 16 are all resolved, so
+P03 generates rather than extracts. Nothing blocks P01 or P04.
 
-- **item 20** — two residual carry edges (does a merge forfeit an inherited
-  carry, does a split duplicate one). Both have readings written down and both
-  are bounded below one step; confirm before the code hardens them → **P04**
-- **item 1** — the junction orientation pattern (alternating vs three-consecutive).
-  Alternating is the strong read; confirm it → **P03**
+- **item 29** — must *every* board have alternating in/out slots, or only the
+  generated tiling? Resolving item 1 turned the pattern from a measurement into a
+  rule, and no invariant enforces it: a fixture board with three-consecutive
+  in-slots passes the whole conformance suite while contradicting §2. Decides
+  what a legal fixture is, so it is not a test-coverage detail → **P02**, P03 to
+  confirm
 - **item 11** — board size `(n, m)`, and MVP player count fixed at 2 → **P09**
 - **item 12** — spawner density, resolved as *non-uniform*: dense and fast in the
   contested centre, sparse and slow at home. MVP defaults are written down and
@@ -112,6 +113,10 @@ Neither is a blocker, and the reason is a constraint rather than an accident:
 §7's *placement and force are setup data* keeps every one of these numbers on the
 setup side of the port. Build against the defaults now; the sweep later is a
 table edit, and if it turns out not to be, that is a defect in P08 or P09.
+
+**Item 20 is closed and the plan used to say otherwise.** The two "residual carry
+edges" it listed dissolved when §3 dropped banking — there are no carries to
+forfeit or duplicate, so P04 inherits nothing from it.
 
 An item with no packet owner is a scoping gap, not a decision. Say so rather than
 absorbing it.

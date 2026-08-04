@@ -37,8 +37,9 @@ an implementation either has them or does not.
 **`chord-test` is different and deserves more attention than its size suggests.**
 It is the only file in P01 that encodes a *rule*, it is the subtlest logic in the
 game, and it is the one place where a wrong-but-plausible implementation would
-pass a casual reading. It is also totally specifiable — 81 ordered pairs — so
-there is no excuse for leaving any of it to inference.
+pass a casual reading. It is also totally specifiable — 225 ordered pairs over
+the 15 chords six slots admit, of which a layout realizes 81 — so there is no
+excuse for leaving any of it to inference.
 
 `move` is a DTO, and its job is mostly to make illegal shapes unrepresentable.
 Its edge cases carry more weight than its core.

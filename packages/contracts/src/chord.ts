@@ -13,11 +13,12 @@
  *   red's around the circle — or COINCIDE, meaning they share an endpoint.
  *
  * The test depends only on the cyclic order of the six slots. It never asks
- * which of them are in-slots, so it is correct under either candidate
- * orientation pattern (SPEC §11 item 1) and P03 cannot invalidate it.
- *
- * SKELETON — phase 2. Phase 3 implements it, and a lookup table is a legitimate
- * implementation: there are only 15 distinct chords and 225 ordered pairs.
+ * which of them are in-slots, so it holds under any layout — including the
+ * alternating one SPEC §11 item 1 settled on. That independence started as a
+ * hedge against a pending measurement; it is kept because it is also what makes
+ * the predicate total. A layout makes only 9 of the chords realizable as a
+ * transit, but the predicate answers all **15 chords and 225 ordered pairs**,
+ * which is the size any lookup-table implementation has to be.
  *
  * @see docs/spec/chord-test/chord-test.md
  */
@@ -64,7 +65,9 @@ const coincide = (blue: Chord, red: Chord): boolean =>
  * Is `x` strictly inside the arc walked from `from` to `to` one way around?
  *
  * Pure cyclic arithmetic, which is what keeps the whole test independent of which
- * slots are in-slots (SPEC §11 item 1, and the hedge that let P01 land before P03).
+ * slots are in-slots — the property that let P01 land before P03 and that still
+ * makes the predicate total over all 15 chords rather than the 9 a layout
+ * realizes.
  */
 const strictlyWithinArc = (from: Slot, x: Slot, to: Slot): boolean => {
   const n = SLOTS.length;

@@ -30,9 +30,10 @@ export type PlayerId = Brand<string, 'PlayerId'>;
 /**
  * One of the six arrow positions around a point, in cyclic order.
  *
- * Which of the six are in-slots is deliberately not encoded. SPEC §11 item 1 —
- * alternating versus three-consecutive — is the last unmeasured geometric fact,
- * and the chord test must be correct under either.
+ * Which of the six are in-slots is deliberately not encoded, and stays that way
+ * now that SPEC §11 item 1 is resolved (alternating: even slots in, odd out).
+ * The chord test depends only on cyclic order, so it never needs to ask — and a
+ * `Slot` that carried its direction would invite a caller to branch on it.
  */
 export type Slot = 0 | 1 | 2 | 3 | 4 | 5;
 
