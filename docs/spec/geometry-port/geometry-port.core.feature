@@ -5,7 +5,7 @@
 Feature: GeometryPort conformance — the arrow graph
   As the rules core
   I want the board exposed as adjacency, incidence and a crossing test
-  So that I can be built and tested before the real tiling has been measured
+  So that I can be tested against a readable fixture and the real tiling alike
 
   Background:
     Given a board obtained from a conforming GeometryPort

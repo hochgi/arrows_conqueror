@@ -18,10 +18,12 @@ behaviour is not here, it will not be built.**
 | [chord-test](./chord-test/chord-test.md) | P01 | §2 | 18 | — | 8 |
 | [rational](./rational/rational.md) | P01 | §7 | 19 | 2 | 8 |
 | [move](./move/move.md) | P01 | §3, §4, §5 | 25 | — | 12 |
+| [tiling](./tiling/tiling.md) | P03 | §2 | 28 | — | 11 |
+| [layout](./layout/layout.md) | P03 | §2 | 22 | — | 11 |
 
-86 scenarios, of which **83 are in scope for P01** and 3 are tagged
-`@deferred-P02` / `@deferred-P08`. 117 concrete cases once `Examples` rows are
-expanded, 39 invariants.
+136 scenarios. **83 are in scope for P01**, 3 are tagged `@deferred-P02` /
+`@deferred-P08`, and **50 belong to P03**. 190 concrete cases once `Examples` rows
+are expanded, 61 invariants.
 
 A `@deferred-<packet>` tag means the behaviour is decided and specified here, but
 its seam falls in another packet — a board constructor is not on the port, and an
@@ -43,6 +45,19 @@ excuse for leaving any of it to inference.
 
 `move` is a DTO, and its job is mostly to make illegal shapes unrepresentable.
 Its edge cases carry more weight than its core.
+
+## Reading order for P03
+
+`tiling` is the first real `GeometryPort`, so most of what it must satisfy is
+already written — the 28-assertion conformance suite. Its own scenarios cover what
+the suite cannot: the size floor, the invisibility of the seam, and determinism.
+
+**`layout` looks cosmetic and is not.** SPEC §2's out-directions have to sum to
+zero *and* sit 120° apart; a set doing only the first is an isomorphic graph that
+passes every conformance assertion and renders skewed. Layout holds the only
+executable check on that, and on the up/down twist parity — a mistake there still
+tiles the plane perfectly and just quietly deletes the arrowhead. Both failure
+modes are invisible to every other test in the repo.
 
 ## What is deliberately not here
 
