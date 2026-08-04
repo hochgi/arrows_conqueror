@@ -99,11 +99,24 @@ it catches nondeterminism *while the core is still small enough to find it*.
 
 ## Open items this plan inherits
 
-Tracked in [`SPEC.md` §11](../../SPEC.md): **two tuning knobs, and nothing
-structural.** No geometric measurement remains — items 1, 5, 16 and 29 are all
-resolved, so P03 generates rather than extracts. Nothing blocks any packet.
+Tracked in [`SPEC.md` §11](../../SPEC.md): **two structural questions and two
+tuning knobs.** No geometric measurement remains — items 1, 5, 16 and 29 are all
+resolved, so P03 generates rather than extracts. Nothing blocks P01, P02 or P03.
 
-- **item 11** — board size `(n, m)`, and MVP player count fixed at 2 → **P09**
+Items 30 and 31 share a cause worth stating once: **the board is a torus, and §7's
+fill and §8's setup were both written as though it were a plane.**
+
+- **item 30** — what a trail that girdles the torus encloses. A closed curve on a
+  torus need not separate it, so even-odd fill is **undefined** for a
+  non-contractible loop — not hard, undefined. Reachable in sixteen moves on a
+  4×4 board. Land bridge is the cheap answer and needs no new machinery, but it
+  is a rule → **P05**, and it must be settled before fill is built
+- **item 31** — a torus has no centre, and §2's map symmetry and §8's contested
+  centre both assume one. Mostly fixable prose, except that **two players on a
+  torus have two frontlines, not one** → **P09**
+- **item 11** — board size `(n, m)`, and MVP player count fixed at 2. Floor is
+  **4×4** (P03); 3-fold symmetry would need `n = m`, 2-fold works at any size →
+  **P09**
 - **item 12** — spawner density, resolved as *non-uniform*: dense and fast in the
   contested centre, sparse and slow at home. MVP defaults are written down and
   explicitly playtest-first → **P09**

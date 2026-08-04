@@ -643,6 +643,8 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > Item **29** was opened by the P01 review and closed in the same pass: resolving item 1 promoted the orientation pattern from a measurement to a rule, and no invariant enforced it. That is the ordinary way closing one gap opens another, and the reason this list is not deleted when it empties.
 >
+> **Items 30 and 31 are open**, and they share a cause: the board is a **torus**, and §7's fill and §8's setup were both written as though it were a plane. Neither blocks P01, P02 or P03 — the geometry is unaffected — but 30 must be answered before fill is built in P05.
+>
 > Items are struck through rather than deleted on purpose. Several were resolved twice, and where a decision moved, the reasoning that moved it is usually the most valuable thing on the page. **New gaps belong here, not in the section that discovers them.**
 
 **Geometry**
@@ -733,6 +735,30 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
     Measured while deciding it, and useful independently: **alternation is not what constrains board size.** The smallest torus satisfying the existing suite is 4×4 — 16 points, 48 arrows, 32 vertices. Smaller ones fail on *girth-3 encloses exactly one vertex*: at 2×2 and 3×3 the wrap collapses the triangle count to 4 and 27 against 8 and 18 vertices, and at any n = 3 three steps of one out-vector wrap to zero and manufacture a straight-line 3-cycle enclosing nothing. So requiring alternation costs a labelling convention and nothing else.
 
     A fixture board need not be a lattice at all, only satisfy the suite, and counting bounds put that floor near 6 points and 18 arrows — which is why **P02 authors abstract conformant digraphs rather than lattice sub-boards**, and why a fixture stays readable when a rules test fails.
+
+**Open — the torus is not a plane, and two sections still read as though it were**
+
+30. **What does a trail that girdles the board enclose?** On a torus a closed curve does **not** necessarily separate the surface. Depart from your territory, run all the way around the board, and land back on it: cutting a torus along one non-contractible loop yields a *cylinder* — one connected piece, no inside. Even-odd fill (§7) is not merely awkward there, it is undefined, because a ray cast to count crossings wraps round and meets itself, so the parity it reports depends on homology class rather than on containment.
+
+    Reachable in ordinary play, not a curiosity: on a 4×4 board it is sixteen moves in a straight line.
+
+    Three readings:
+
+    - **A land bridge.** It encloses nothing, so it claims the path and nothing else — §7 already says exactly this for a closure that surrounds no ground, and it needs no new machinery. The cheap answer, and probably the right one.
+    - **Claim one side.** Two parallel girdles *do* cut the torus into two cylinders, so a second girdle could claim the ground between. Consistent, and it makes girdling a real strategy rather than a null move.
+    - **Illegal.** Rejected on sight, but this needs a legality test that knows about homology, which is a great deal of machinery for one case.
+
+    Note the first two are not exclusive — one girdle as a land bridge and a second one claiming the strip between them is a single coherent rule. → **P05** (closure and fill), which is where fill is built.
+
+31. **A torus has no centre, and §2 and §8 both assume one.** §2's *map symmetry* places specials "with rotational symmetry about the board center"; §8 puts the contested cluster "in the center, far from every start". Every point of a torus is equivalent, so the "middle" of a rendered board is an artifact of the fundamental domain, which is invisible during play.
+
+    Most of this is fixable prose — *centre* can mean "the spawner cluster" and *home* "far from it" in graph distance, both well defined on a torus, and §7's density gradient survives unchanged. But one consequence is a genuine design fact nobody has chosen:
+
+    > **With two players on a torus there are two frontlines, not one.** Each player can be approached from either way around, so there is no single front to hold and no rear.
+
+    That may be better than what §8 describes — it makes turtling harder, which §9 wants. It is not what §8 describes. Decide whether it is intended, then fix the prose in both sections. → **P09** (setup and victory), with the §2 wording fixable sooner.
+
+    Related: the 120° rotation of the lattice survives the quotient **only when `n = m`**; 180° rotation survives for any `(n, m)`. So a 2-player board is symmetric at any size, and a 3-player one would need `n = m`. Bears on item 11.
 
 ---
 
