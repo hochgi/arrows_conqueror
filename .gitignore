@@ -6,3 +6,6 @@ coverage/
 .DS_Store
 .claude/settings.local.json
 *.tsbuildinfo
+
+# throwaway visual validation — not part of the build
+.scratch/
