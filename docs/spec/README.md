@@ -24,10 +24,12 @@ behaviour is not here, it will not be built.**
 | [movement](./movement/movement.md) | P04 | §3, §4, §2 | 30 | — | 16 |
 | [trails](./trails/trails.md) | P05 | §5, §6.1a, §6.1 | 34 | — | 19 |
 | [crossings](./crossings/crossings.md) | P05 | §2, §6.1a | 24 | — | 11 |
+| [closure](./closure/closure.md) | P05b | §7, §6.1a | 27 | — | 13 |
+| [fill](./fill/fill.md) | P05b | §7, §2 | 22 | — | 12 |
 
-258 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
-**58 belong to P03**, **18 to P02**, **30 to P04**, and **58 to P05**. 344 concrete
-cases once `Examples` rows are expanded, 128 invariants.
+307 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
+**58 belong to P03**, **18 to P02**, **30 to P04**, **58 to P05**, and **49 to P05b**.
+395 concrete cases once `Examples` rows are expanded, 153 invariants.
 
 A `@deferred-<packet>` tag means the behaviour is decided and specified here, but
 its seam falls in another packet — an accumulator that knows its owner is not a
@@ -132,6 +134,37 @@ coincidence — and §7 needs the narrow one.
 Neither directory resolves anything. A crossing is *reported*; what it destroys is
 P06 and what it claims is P05b.
 
+## Reading order for P05b
+
+Two directories again, and the split is the same shape: `closure` is graph
+bookkeeping over the trail set, `fill` is a topological algorithm. They fail
+differently and one hands the other its input, so read `closure` first.
+
+**In `closure`, the rule to read first is the backward walk.** §7 needed opposite
+answers in two passages — the pincer's second arm has to stay an *open trail* or it
+has nothing left to enclose, and a cut fragment driven home has to claim "the path
+itself" even though a fragment is entirely a dangling arm. Following the trail
+*against the grain* from the closing arrow gives both: a fork's other arm is
+downstream, a fragment is upstream. It also decides enclose-versus-strip from the
+same traversal, so there is no second gate — which is why `anchorGrade` is not
+consulted here even though it looks like the obvious test.
+
+**`fill` is the subtlest logic in the game and §6.1a says so.** It is the one place
+where a wrong representation produces a *wrong answer* rather than a crash. Three
+scenarios carry it:
+
+- *A probe cannot escape between two boundary arrows meeting at a point* — the
+  diagonal leak. If it fails, every enclosure on the board leaks and nothing else
+  reports it.
+- *A doubly wound loop encloses nothing* — where even-odd and flood-fill-from-outside
+  part company. §7 chose even-odd, so the inversion is the mechanic.
+- *A finite board reports nothing enclosed, and that is the theorem* — the reason this
+  is the first suite that cannot use a fixture board.
+
+Neither directory converts a head. §7 grants the enclosed tiles "and everything
+standing on them — enemy heads, converted", and the conversion half is P07's; the
+seam is a named scenario so a surviving enemy head is not read as a rule.
+
 ## What is deliberately not here
 
 A `Then` step that asserts a behaviour its packet does not own has leaked.
@@ -141,6 +174,11 @@ A `Then` step that asserts a behaviour its packet does not own has leaked.
 - **P04** owns movement legality, not combat or territory — an enemy-occupied
   destination is refused here; resolving it is P06. Closure, fill, spawners and
   victory are later still.
+- **P05b** owns what a landing claims and what a closed curve contains — not what
+  happens to the heads standing on it. Conversion is P07, evaporation is P06, and
+  an accumulator resetting on capture is P08. No scenario here enumerates a
+  vertex: a special's ownership is a reading of its three bordering arrows
+  (§11 item 34), and a second copy of that fact could drift from it.
 - **P05** owns what a trail *is* and whether a traversal crossed it, not what
   either causes. A step landing on your own territory marks nothing and claims
   nothing (P05b owns closure); a crossing is a verdict with no consequence (P06

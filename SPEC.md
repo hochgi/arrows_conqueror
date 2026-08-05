@@ -476,6 +476,18 @@ This is the hexa.io / splix.io rule, not "any cycle of your own trail."
 - **A stack anchor pays a land bridge and nothing more.** A fragment that survived a cut is anchored on its own stack (§6.1). Drive it into your territory and you claim **the path itself** — a land bridge — but it encloses nothing, because enclosure requires territory at *both* ends. This is what makes salvage worth attempting, and what stops a stack parked in open ground from becoming a founding site.
 - **Self-crossings invert.** Crossing your own trail doesn't close anything on the spot; it flips which lobes count as enclosed when you finally land. Formally: even-odd fill. Figure-eights resolve without a special case.
 
+**Which arrows the landing claims: walk the trail backwards along the grain.**
+
+> **From the arrow the closing step departed, follow trail arrows *against* the grain — `Y` precedes `X` when `Y` is trail and `target(Y)` is `origin(X)`. Everything reached is claimed. Nothing else is.**
+
+The trail is a set with no memory (§6.1a), so "the path you walked" is not recorded — but it does not need to be. The grain recovers it: every arrow the closing head *could* have come through is upstream of the landing, and nothing else is. Three consequences, and they are the reason this is the rule rather than *claim the whole connected stretch*:
+
+- **A fork's other arm is downstream, so it is not claimed.** It stays an open trail, now rooted on ground that has just become territory — which is exactly what the pincer below needs in order to have anything left to enclose.
+- **A cut fragment driven home is upstream, so all of it is claimed**, dead end included. That is the land bridge two bullets up, and it is why fighting a stranded stack home is worth the trip.
+- **At a merge, every trail in-arrow is claimed.** The set holds no pairing to prefer one by (§6.1a, §11 item 26), and a point is all-to-all in this direction for the same reason it is for evaporation.
+
+**The same walk says whether the landing encloses anything.** If it reaches ground you already own, the curve has territory at both ends, and there is an inside to fill. If it dead-ends, there is no second end and no parity to take — so the path becomes a strip and nothing more. That is *enclosure requires territory at both ends*, read off one traversal instead of a separate test.
+
 Closing grants the enclosed tiles **and everything standing on them** — enemy heads, converted (§6.3).
 
 **A special is not among them, because a special is not a tile.** Specials live on vertices (below), and a vertex is never enclosed, occupied or granted: **it is owned in thirds, one share per bordering arrow**, and a closure moves those shares only by moving the arrows that carry them. So nothing here has to enumerate vertices at all — territory changes hands, and ownership of every special it borders follows (§11 item 34).
@@ -496,7 +508,7 @@ Two consequences worth stating, because they are what "unbounded" costs and buys
 
 A forked trail whose two branches both land on your territory **is a valid conquest**, and it requires no additional rule. Branches land one at a time: when the first arm lands, the whole drawn path becomes territory, stem included. The second arm is then an open trail hanging off a fork point that is *now territory*, so its landing is an ordinary territory-to-territory closure — and it takes the ground between itself and the now-solid first arm.
 
-The two arms never need to form a directed cycle. **Enclosure is a property of the curve, not of the flow along it.**
+The two arms never need to form a directed cycle. **Enclosure is a property of the curve, not of the flow along it** — the *interior* does not care which way anything ran. What the flow does decide is *which arrows the landing claims*, which is the backward walk above: each arm is claimed by its own landing, and neither has to reach the other.
 
 This gives forking an offensive identity rather than a purely defensive one: two arms sweep out, both come home, and the ground between them falls. Paid for by splitting (which slows both arms and costs an anchor on each, §5), by having two trails to defend instead of one, and by the stem being a single point of failure — a cut there destroys its region and demotes *both* arms at once (§6.1), so the stem is the stretch most worth garrisoning and the stretch the defender most wants to reach.
 
