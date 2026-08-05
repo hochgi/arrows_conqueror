@@ -28,9 +28,8 @@ Test against small hand-authored boards with known adjacency, not the real
 tiling, which is **unbounded** (SPEC §11 item 4) and so cannot be enumerated,
 printed or diffed whole:
 
-- `single-pinwheel` — one triangle, one vertex; the minimum legal closure
-- `two-pinwheels` — the smallest board with a genuine crossing decision
-- `micro-board` — the smallest conformant digraph, for the balance properties
+- `minimal` — the 7-point board (`K₇`); the conformance witness and anything about a single point's neighbourhood
+- `spacious` — the 8-point board, undirected diameter 2; the smallest conformant board that can express "not adjacent" or "outside the window"
 
 Readable failures, instant runs, and they keep passing unchanged when generated
 geometry lands behind the same port.

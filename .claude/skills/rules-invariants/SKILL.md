@@ -94,16 +94,15 @@ turns, an accumulator captured at 11/12, a closure that swallows enemy heads.
 
 ## Fixture boards, not the real tiling
 
-Until SPEC §11 items 1/5/16 are measured, test against **small hand-authored
-boards** with known adjacency:
+Test against **small hand-authored boards** with known adjacency (P02), not the
+unbounded tiling, except where fill / encirclement genuinely need the plane:
 
-- `single-pinwheel` — one triangle, one vertex. The minimum legal closure.
-- `two-pinwheels` — the smallest board with a real crossing decision.
-- `micro-board` — the smallest conformant digraph, for the balance properties.
+- `minimal` — the 7-point board (`K₇`); the conformance witness and anything about a single point's neighbourhood.
+- `spacious` — the 8-point board, undirected diameter 2; the smallest conformant board that can express "not adjacent" or "outside the window".
 
-They make failures readable, they run instantly, and they keep passing unchanged
-once generated geometry lands behind the same port. Reserve the extracted tiling
-for the geometry package's own tests.
+They make failures readable, they run instantly, and they satisfy the same
+`GeometryPort` conformance suite as the generated tiling. Reserve the tiling for
+fill-dependent packets (P05 closure, P07) and the geometry package's own tests.
 
 ## Determinism checklist
 
