@@ -71,9 +71,10 @@ Three ideas, in dependency order:
 - **Cuts, evaporation, combat** — P06 (§6.1, §6.2). This packet *reports* that a
   traversal crossed a trail and does not resolve it. Nothing evaporates yet.
 - **Encirclement and conversion** — P07 (§6.3).
-- **Spawners, shares, accrual** — P08 (§7). Vertices are untouched here; which
-  vertices a closure claims is P05b's question (§11 item 34, opened by this
-  packet).
+- **Spawners, shares, accrual** — P08 (§7). Vertices are untouched here, and
+  nothing should tempt you to touch them: a special is owned in thirds by its
+  three bordering arrows (§7), so vertex ownership is a *reading* of tile
+  ownership and no rule in this half has any reason to name a vertex.
 - **Victory, setup, replay harness, renderer** — P09 / P10 / P11.
 
 ## Decisions this packet fixes
@@ -243,28 +244,32 @@ Counts are a target for phase 1, not a contract.
   headless trail; grade is undirected; re-attachment promotes a fragment.
 - **Purity** (≈2) — no mutation; equal inputs, equal outputs.
 
-## The one thing this packet does not decide, and it is not this half's
+## The gap this packet reported, which was not one
 
-**SPEC §11 item 34, opened while writing this packet: which vertices does a
-closure claim?**
+**SPEC §11 item 34, opened while writing this doc and closed the same day: §7's
+closure clause was wrong, not silent.**
 
-§7 grants "the enclosed tiles and everything inside them — enemy heads
-(converted) and special tiles". §11 item 16 says the minimal closure — a lattice
-triangle, three arrows around one vertex — "encloses exactly its own centre, which
-is exactly one spawner vertex", and calls that "the minimum enclosable territory".
+It granted "the enclosed tiles and everything inside them — enemy heads
+(converted) and **special tiles**". §11 item 16 calls the minimal closure — a
+lattice triangle, three arrows around one vertex — "the minimum enclosable
+territory". Those do not compose: the triangle's three arrows **are** the path, so
+it encloses **zero tiles**, and the cheapest closure in the game would get nothing
+at its centre.
 
-Those two do not compose. **The triangle encloses zero tiles**: its three arrows
-are the path, and there is no arrow strictly inside them. So the spawner item 16
-promises is not inside any *enclosed tile*, and under §7 read literally the
-cheapest closure in the game claims three tiles and no spawner — while §7's own
-land-bridge clause says a path that encloses nothing is a thin strip, which is
-what a triangle would be.
+The answer was already in §7, three subsections down: *"Ownership is fractional,
+in thirds. Each of the 3 bordering arrows carries one share"* and *"the vertex
+never needs to be enclosed."* The triangle holds all three bordering arrows, so it
+holds the whole spawner — and the phrase "special tiles" contradicted §7's own
+next subsection, which exists to say a special is not a tile. §7 is corrected;
+no rule was added.
 
-This is a rules question, not an algorithm one, and it decides how expensive a
-spawner is: three arrows, or a real enclosure. It belongs to **P05b**, it is
-recorded in §11 rather than answered here, and P08 consumes whatever it says.
+**The lesson is worth more than the item.** This spec is dense and
+cross-referential by design, and the question was asked against one subsection and
+answered by another. Check three sections away before opening a §11 item — the
+`code-to-green` skill says exactly this and it applies to phase 1 just as much.
 
-It does **not** block this packet. Nothing in the scope above reads a vertex.
+Nothing in this packet reads a vertex, so it was never blocked either way. The one
+real seam this half leaves is **D8's**.
 
 ## Settled before phase 1
 
@@ -291,5 +296,5 @@ rather than translate:
 - [ ] Every scenario in the approved spec has a test; every EARS invariant has an
       assertion.
 - [ ] The closure seam is documented where a reader will hit it, not only here.
-- [ ] SPEC §11 item 34 recorded and still open, or resolved by the human and
-      pointed at P05b.
+- [ ] No rule in this packet reads a vertex (§11 item 34 — ownership is a reading
+      of the three bordering tiles, and this half owns no tiles).

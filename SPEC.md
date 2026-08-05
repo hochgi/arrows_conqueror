@@ -8,7 +8,7 @@ Status: core mechanics settled, open questions listed at the end. No implementat
 
 ## 1. Premise
 
-Two or more players carve territory out of a plane tiled with interlocking arrows. You advance **heads** along the arrows, leaving a **trail** behind them. When your trails close a loop, everything inside becomes yours — including any enemy units caught in it, and any **special tiles** that then start producing for you.
+Two or more players carve territory out of a plane tiled with interlocking arrows. You advance **heads** along the arrows, leaving a **trail** behind them. When your trails close a loop, everything inside becomes yours — including any enemy units caught in it, and a share of every **spawner** the new ground borders, which then starts producing for you.
 
 You can only be hurt while you are growing. That is the spine of the whole design.
 
@@ -474,7 +474,14 @@ This is the hexa.io / splix.io rule, not "any cycle of your own trail."
 - **A stack anchor pays a land bridge and nothing more.** A fragment that survived a cut is anchored on its own stack (§6.1). Drive it into your territory and you claim **the path itself** — a land bridge — but it encloses nothing, because enclosure requires territory at *both* ends. This is what makes salvage worth attempting, and what stops a stack parked in open ground from becoming a founding site.
 - **Self-crossings invert.** Crossing your own trail doesn't close anything on the spot; it flips which lobes count as enclosed when you finally land. Formally: even-odd fill. Figure-eights resolve without a special case.
 
-Closing grants the enclosed tiles **and everything inside them** — enemy heads (converted) and special tiles.
+Closing grants the enclosed tiles **and everything standing on them** — enemy heads, converted (§6.3).
+
+**A special is not among them, because a special is not a tile.** Specials live on vertices (below), and a vertex is never enclosed, occupied or granted: **it is owned in thirds, one share per bordering arrow**, and a closure moves those shares only by moving the arrows that carry them. So nothing here has to enumerate vertices at all — territory changes hands, and ownership of every special it borders follows (§11 item 34).
+
+Two consequences worth stating, because the shares rule is easy to read as being only about partial capture:
+
+- **The minimal closure takes a whole spawner.** Three arrows around one vertex enclose no tile, so a closure clause that granted "the specials inside" would hand the minimum enclosable territory (§11 item 16) nothing at all. Under shares it takes all three, and the minimum really is one: three arrows, three steps, one spawner. That is the game's cheapest objective and it is meant to be — a three-arrow closure is also the most cuttable thing on the board and claims nothing besides.
+- **An interior vertex comes free, and a surrounded spawner is never unowned.** A vertex strictly inside a filled region has all three borders claimed by the fill already, so it is wholly owned without a second pass. The reading is identical for an enclosure, a land bridge and a carve-out.
 
 **Even-odd is correct here because the board is a plane** (§2). A ray cast from a candidate tile escapes to infinity and crosses the boundary an odd number of times exactly when the tile is inside — the classical Jordan argument, and it needs the ray to *leave*. This was the deciding argument against a toroidal board: there a ray closes on itself and always crosses a contractible boundary an even number of times, so even-odd reports *outside* for every tile of every enclosure. The rule below reads as it always did; what changed is that it is now true.
 
@@ -718,7 +725,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > **Item 32 is open**, and is the one thing an unbounded board costs: nothing stops a losing player walking away forever. It is the turtle stalemate in another costume and wants the same answer. → §9, → P09.
 >
-> **Item 34 is open**, opened while writing P05. §7 reads a special's fate off the tile containing it, and the smallest closure there is contains no tile at all — so *the minimum enclosable territory* (item 16) may or may not come with the spawner item 16 measured at its centre. → §7, → P05b.
+> **Item 34 was opened and closed by P05, and it was never a gap.** §7's closure clause granted "special tiles", which §7's *own next subsection* forbids — specials are vertices, owned in thirds by their bordering arrows, and a vertex is never enclosed. The answer was three subsections from the question, which is the failure mode a spec this cross-referential invites; the item stays as a reminder to look before opening one. → §7 (corrected), → P05b, → P08.
 >
 > Items are struck through rather than deleted on purpose. Several were resolved twice, and where a decision moved, the reasoning that moved it is usually the most valuable thing on the page. **New gaps belong here, not in the section that discovers them.**
 
@@ -845,17 +852,15 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     Note the flee case is *strictly easier* than the turtle case — a turtle keeps its economy, a runner has none — so anything that solves the turtle solves this, and it is not worth designing separately. → **P09** (match lifecycle and victory), and it should be decided together with §9's accepted risk rather than bolted beside it.
 
-34. **The minimal closure encloses no tile, so it is undecided whether it claims the spawner at its centre.** §7 grants "the enclosed tiles and everything inside them — enemy heads (converted) and special tiles", which reads a special's fate off the tile containing it. Item 16 says the smallest possible closure — a lattice triangle, three arrows around one vertex — "encloses exactly its own centre, which is exactly one spawner vertex", and calls it *the minimum enclosable territory*.
+**~~What does the minimal closure claim at its centre?~~ — not a gap: §7 already answered it, in a different subsection than the one that asked**
 
-    **Those two do not compose.** A triangle's three arrows *are* the path; there is no arrow strictly inside them, so the triangle encloses **zero tiles** and the vertex item 16 promises is inside none of them. Read strictly, §7 hands the cheapest closure in the game three tiles and no spawner — and §7's own land-bridge clause then says a path enclosing nothing is a thin strip, which makes the minimum enclosable territory a land bridge. Item 16 was measured against the *geometry* and is correct about it; what was never written is the rule that turns "the curve surrounds this vertex" into "you own it".
+34. ~~Does the minimal closure claim the spawner at its centre?~~ — **resolved: yes, and no new rule was needed.** §7's closure clause granted "the enclosed tiles and everything inside them — enemy heads (converted) and **special tiles**", which reads a special's fate off the tile containing it. Item 16 says the smallest possible closure — a lattice triangle, three arrows around one vertex — is *the minimum enclosable territory*, and a triangle's three arrows **are** the path, so it encloses **zero tiles**. Read only against that clause, the cheapest closure in the game got three tiles and nothing at the centre.
 
-    Candidates, none chosen:
+    **The clause was wrong, not silent.** Three subsections down, §7 already says what owns a special: *"Ownership is fractional, in thirds. Each of the 3 bordering arrows carries one share"*, and *"the vertex never needs to be enclosed — one adjacent arrow gets you in on the action."* That settles it outright — the minimal triangle holds all three bordering arrows, so it holds all three shares — and it means **the phrase "special tiles" contradicted §7's own next subsection**, which exists to say specials are not tiles at all. The defect was a closure clause written as though a vertex could be enclosed.
 
-    - **A vertex is claimed when all three of its border arrows are.** Makes item 16 true as stated, needs no fill pass over vertices at all — `borderArrows` already answers it — and it means three arrows buy a spawner. That is either the game's cheapest and most elegant opening or a mispriced one; it is a balance question, not a correctness one.
-    - **A vertex is claimed when it is inside the filled region**, on the same even-odd test as a tile. Prices a spawner at a real enclosure and makes the minimal triangle a land bridge, contradicting item 16's "minimum enclosable territory" — which would then be a phrase about geometry that the rules do not honour.
-    - **Both** — inside the region, *or* fully bordered. Claims the most, and is the only reading under which a spawner cannot sit unowned in the middle of a large holding.
+    So the fix is a correction and a cross-reference rather than a rule: closure moves *tiles*, and every special's ownership follows from the tiles bordering it, in thirds. Consequences, now stated in §7 where the closure is described: the minimal closure takes a whole spawner; a vertex strictly inside a filled region is wholly owned without a second pass; and the reading is identical for an enclosure, a land bridge and a carve-out. **Nothing in the engine enumerates vertices during fill** — `borderArrows` answers ownership on demand, so it cannot drift from the tiles it is read off.
 
-    Note that §7's *stacked spawners* and the whole share economy (P08) read vertex ownership constantly, so this cannot be left to the implementation: whichever reading lands, no rule downstream may re-derive it. Opened by **P05**, which does not read a vertex and is not blocked by it. → **P05b** (closure and fill), → **P08** (shares).
+    Recorded rather than deleted because the near-miss is instructive: the question was asked against §7's *closure* prose and answered by §7's *specials* prose, which is exactly the failure mode this spec's density invites. **Check three sections away before opening an item.** Opened and closed by **P05**, which never reads a vertex and was not blocked either way. → **§7** (*closure*, corrected), → **P05b** (fill), → **P08** (shares).
 
 **~~The merge price had nothing to hang on~~ — resolved: the heads carry it**
 
