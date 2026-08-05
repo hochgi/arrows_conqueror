@@ -77,13 +77,16 @@ Feature: Fill — which arrows a closed curve contains
       Then each lobe's verdict is the parity of its own escaping probe
       And no clause anywhere named the crossing as a case
 
-    Scenario: A doubly wound loop encloses nothing
-      Given a boundary that winds twice around the same region before returning
+    Scenario: A boundary of two concentric rings encloses only the ring between them
+      Given a boundary of two separate concentric loops around the same region, in one trail
       When I ask whether an arrow in that region is enclosed
       Then it is not enclosed
       And its escaping probe crossed the boundary twice
-      # This is exactly where even-odd and "flood fill from outside" part company, and
-      # §7 chose even-odd. The inversion is the mechanic, not a bug to route around.
+      # **The scenario that decides the algorithm — SPEC §11 item 36, open.** Even-odd
+      # puts the core outside (two crossings); flood-from-outside puts it inside
+      # (unreachable). Re-walking one ring cannot produce this shape, because a trail is
+      # a set and re-traversal adds nothing (§6.1a invariant 2) — it takes two distinct
+      # rings. Do not write this test until the item is answered.
 
   Rule: The verdict does not depend on the probe
 

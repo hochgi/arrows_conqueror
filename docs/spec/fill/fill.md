@@ -92,6 +92,14 @@ notion on the port; when it would run along the boundary, another route gives th
 same answer. A candidate with *no* escaping route is enclosed, which is the right
 answer and needs no rule.
 
+> **BLOCKED — SPEC §11 item 36.** This file says the boundary is the claim, and the
+> claim is the trail alone. That is not a closed curve: the enclosed region is bounded
+> by the trail on one side and by the player's **existing territory** on the other, so
+> a probe can escape through the territory side having crossed the trail zero times.
+> Adding territory to the boundary does not fix it — territory is a thick region, and
+> a probe entering and leaving crosses twice. The discretization has to be decided
+> before this suite can be written; [closure](../closure/closure.md) is unaffected.
+
 ## The boundary is the claim, not the trail
 
 A dangling arm is not part of the boundary, and this is not an optimisation.

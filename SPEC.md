@@ -768,7 +768,9 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > **Item 35 was opened and closed by P05's review**, and it is the sharpest example on this list of why the review phase exists. §5 charged a branch on the move that creates it, in words that name a pairing a *set* cannot hold — so the implementation had to choose a standing form, chose the larger one, and passed every scenario doing it. Resolved to *one head per branch*; §5 now states the standing form and §6.1's price list is the price. → §5, → §6.1, → P05.
 >
-> **With item 32 answered, §11 carries no open structural question and no open behavioural one.** What is left is the tuning table of item 11 — *R*, the band radii, force per band, and now *N* — which is P09's to set by playing, not by deriving.
+> **Item 36 is open, and P05b is blocked on it.** §7 says *even-odd fill*, and even-odd needs a closed curve — but a claim is bounded by the trail on one side and by the player's existing territory on the other, so the curve is only half drawn. The two available discretizations disagree on one shape (a trail that rings a region twice with two separate loops), and that shape is a rules question. → §7, → P05b.
+>
+> Apart from it, §11 carries no open structural question. The rest is the tuning table of item 11 — *R*, the band radii, force per band, and *N* — which is P09's to set by playing, not by deriving.
 >
 > **Item 34 was opened and closed by P05, and it was never a gap.** §7's closure clause granted "special tiles", which §7's *own next subsection* forbids — specials are vertices, owned in thirds by their bordering arrows, and a vertex is never enclosed. The answer was three subsections from the question, which is the failure mode a spec this cross-referential invites; the item stays as a reminder to look before opening one. → §7 (corrected), → P05b, → P08.
 >
@@ -901,6 +903,23 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
     **It closed §9's turtle too, which was not the plan.** The turtle was accepted on the reasoning that the only way through a shell was to encircle the entire enclave. That premise was that the attacker needed the turtle's *heads*; domination needs their *production*, and a spawner is enclosable at the minimum size the game has — the three-arrow lattice triangle of items 16 and 34. Territory is contestable (§7), so a shell is proof against cutting and never against closure; and closing around the garrison converts it (§6.3), so the heads defending a share are what make taking it worth attempting. A turtle therefore pays whether it garrisons or not, cannot grow to replace the loss, and ends on the clock with no income. **§9 no longer carries an accepted risk**, and upkeep went from *drop-in fix* to *shelved balance knob*.
 
     Opened by the unbounded-board resolution (item 4) and answered by the human directly. → **§9** (*domination*, and the turtle's revised note), → **P09** (*N*, with the rest of the spawner table).
+
+**Open**
+
+36. **§7 says "even-odd fill" and even-odd needs a closed curve, but a claim is only half of one.** The enclosed region is bounded by the trail on one side and by the player's **existing territory** on the other. So a probe cast from an enclosed arrow can escape through the territory side having crossed the trail zero times, and even-odd reports it *outside*. Adding territory to the boundary does not repair it: territory is a thick **region**, not a curve, so a probe that enters and leaves it crosses twice and reads even. Every enclosure would be reported empty, which is the same failure mode the torus had (item 4) arriving from a different direction.
+
+    Opened by **P05b's test phase**, against the spec **P05b's own phase 1 wrote** — `fill.md` says "the boundary is the claim", and the claim is the trail alone.
+
+    Two discretizations are available and they are not equivalent:
+
+    - **Close the curve through the territory outline.** Take the arc of `∂T` between the landing point and the departure point on the enclosing side, append it to the path, and run even-odd against the result. Faithful to §7 as written. Costs a boundary-tracing pass, and the phrase *"on the enclosing side"* needs its own definition when the territory is not simply connected.
+    - **Flood from outside, with chord-test walls.** An arrow is enclosed when it cannot reach infinity without crossing the path or entering the player's territory, where "crossing" is §2's chord test so the diagonal gap does not leak. No outline, no arc, one sweep — and it is what every splix-family implementation does.
+
+    **The two agree on every simple closure and part company on nested loops.** They have to be told apart by a real shape, and re-traversal is not one: a trail is a set, so walking the same ring twice leaves the same arrows (§6.1a invariant 2) and cannot wind anything twice. What *can* is **two distinct concentric loops** in one un-landed trail — a spiral. Even-odd puts the core *outside* (two crossings, even), flood-from-outside puts it *inside* (unreachable). So:
+
+    > **Does a trail that encircles a region twice, with two separate rings, claim the middle?**
+
+    That is a rules question, not an implementation detail, and it decides which algorithm is correct rather than merely convenient. It is also rare enough to be worth deciding on feel rather than on principle. → **§7** (*even-odd*, which needs the discretization stated), → **P05b**, which is blocked on it: the fill suite cannot be written until it is answered, though [closure](../docs/spec/closure/closure.md)'s backward walk is unaffected and fully specified.
 
 **~~What does the minimal closure claim at its centre?~~ — not a gap: §7 already answered it, in a different subsection than the one that asked**
 
