@@ -718,6 +718,8 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > **Item 32 is open**, and is the one thing an unbounded board costs: nothing stops a losing player walking away forever. It is the turtle stalemate in another costume and wants the same answer. → §9, → P09.
 >
+> **Item 34 is open**, opened while writing P05. §7 reads a special's fate off the tile containing it, and the smallest closure there is contains no tile at all — so *the minimum enclosable territory* (item 16) may or may not come with the spawner item 16 measured at its centre. → §7, → P05b.
+>
 > Items are struck through rather than deleted on purpose. Several were resolved twice, and where a decision moved, the reasoning that moved it is usually the most valuable thing on the page. **New gaps belong here, not in the section that discovers them.**
 
 **Geometry**
@@ -817,7 +819,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     A fixture board need not be a lattice at all, only satisfy the suite, and its floor is **7 points, 21 arrows, 14 vertices** — which is why **P02 authors abstract conformant digraphs rather than lattice sub-boards**, and why a fixture stays readable when a rules test fails. That reasoning is untouched by item 4: a fixture is finite and enumerable whatever the real board is, which is now the sharpest difference between the two implementations of the port.
 
-    **Finiteness is a limit as well as a convenience, measured while building P02.** *Straight-ahead* — arrive at a point on slot `s`, leave on slot `s + 3`, which alternation guarantees is an out-slot — is a **bijection on arrows**, so on any finite board every orbit is a cycle: every ray closes on itself and even-odd fill (§7) counts zero crossings for every enclosure. That is item 4's argument with the torus taken out of it; it was never about wrapping, it was about finiteness, and the torus was merely the finite board we happened to be holding. Movement, the chord test, cuts and accrual are local, so a fixture hosts them; **closure and fill (P05) and encirclement (P07) test against the tiling**, which is where fill is defined anyway. This is not a deferral — no authoring choice fixes it.
+    **Finiteness is a limit as well as a convenience, measured while building P02.** *Straight-ahead* — arrive at a point on slot `s`, leave on slot `s + 3`, which alternation guarantees is an out-slot — is a **bijection on arrows**, so on any finite board every orbit is a cycle: every ray closes on itself and even-odd fill (§7) counts zero crossings for every enclosure. That is item 4's argument with the torus taken out of it; it was never about wrapping, it was about finiteness, and the torus was merely the finite board we happened to be holding. Movement, the chord test, cuts and accrual are local, so a fixture hosts them; **closure and fill (P05b) and encirclement (P07) test against the tiling**, which is where fill is defined anyway — and that line is what split P05 into a local half and a planar one. This is not a deferral — no authoring choice fixes it.
 
     ~~counting bounds put its own floor near 6 points and 18 arrows~~ — **corrected while writing P02.** Six points cannot carry the suite: no-rim forces undirected degree 6 at every point, and with no parallel arrows that needs at least 7 points. Seven is attained, by a *unique* board up to isomorphism — the tournament on ℤ/7, `i → j` iff `j − i` is a square mod 7 (21 arrows, 14 vertices, girth 3, six triangles per point). Brute-forced over every lattice quotient to 30 points: nothing below 7 satisfies the conformance conditions. This also makes the smallest fixture `K₇` — every point adjacent to every other — so P02 ships a second, 8-point board for anything about non-adjacency or a window that is a proper part of the board.
 
@@ -842,6 +844,18 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
     - **Accept it**, as §9 already accepts the turtle. Defensible for a hot-seat MVP where both players can simply agree it is over, and indefensible the moment there is an AI or a ladder.
 
     Note the flee case is *strictly easier* than the turtle case — a turtle keeps its economy, a runner has none — so anything that solves the turtle solves this, and it is not worth designing separately. → **P09** (match lifecycle and victory), and it should be decided together with §9's accepted risk rather than bolted beside it.
+
+34. **The minimal closure encloses no tile, so it is undecided whether it claims the spawner at its centre.** §7 grants "the enclosed tiles and everything inside them — enemy heads (converted) and special tiles", which reads a special's fate off the tile containing it. Item 16 says the smallest possible closure — a lattice triangle, three arrows around one vertex — "encloses exactly its own centre, which is exactly one spawner vertex", and calls it *the minimum enclosable territory*.
+
+    **Those two do not compose.** A triangle's three arrows *are* the path; there is no arrow strictly inside them, so the triangle encloses **zero tiles** and the vertex item 16 promises is inside none of them. Read strictly, §7 hands the cheapest closure in the game three tiles and no spawner — and §7's own land-bridge clause then says a path enclosing nothing is a thin strip, which makes the minimum enclosable territory a land bridge. Item 16 was measured against the *geometry* and is correct about it; what was never written is the rule that turns "the curve surrounds this vertex" into "you own it".
+
+    Candidates, none chosen:
+
+    - **A vertex is claimed when all three of its border arrows are.** Makes item 16 true as stated, needs no fill pass over vertices at all — `borderArrows` already answers it — and it means three arrows buy a spawner. That is either the game's cheapest and most elegant opening or a mispriced one; it is a balance question, not a correctness one.
+    - **A vertex is claimed when it is inside the filled region**, on the same even-odd test as a tile. Prices a spawner at a real enclosure and makes the minimal triangle a land bridge, contradicting item 16's "minimum enclosable territory" — which would then be a phrase about geometry that the rules do not honour.
+    - **Both** — inside the region, *or* fully bordered. Claims the most, and is the only reading under which a spawner cannot sit unowned in the middle of a large holding.
+
+    Note that §7's *stacked spawners* and the whole share economy (P08) read vertex ownership constantly, so this cannot be left to the implementation: whichever reading lands, no rule downstream may re-derive it. Opened by **P05**, which does not read a vertex and is not blocked by it. → **P05b** (closure and fill), → **P08** (shares).
 
 **~~The merge price had nothing to hang on~~ — resolved: the heads carry it**
 

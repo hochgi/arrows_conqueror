@@ -29,10 +29,11 @@ scheduled early in the first place.
 | # | Packet | Layer | SPEC | Depends on | Gate / risk |
 |---|---|---|---|---|---|
 | P01 | Contracts: ports & DTOs | foundation | §2–7 | — | unblocked — §11 item 19 settled the `Move` DTO: one unit, one step |
-| P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | **[packet doc written](./packets/P02-fixtures.md).** **No longer owes the green suite — P03 discharges it**, so P02 matches a suite already known satisfiable. Fixtures are **abstract conformant digraphs, not lattice sub-boards** (§11 item 29) — floor **7 points / 21 arrows / 14 vertices** (corrected from "near 6 and 18" while writing P02), and readability when a *rules* test fails is the whole point. **A fixture is finite where the real board is not** (§11 item 4), so its window at a large enough radius simply *is* the board — the sharpest remaining difference between the two implementations, and also its one hard limit: **on a finite board every ray closes, so no fixture can host even-odd fill**, and P05's closure half and P07 test against the tiling. Slots must **alternate** in/out; the phase is free. No layout: an abstract board has no coordinates |
+| P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | **[packet doc written](./packets/P02-fixtures.md).** **No longer owes the green suite — P03 discharges it**, so P02 matches a suite already known satisfiable. Fixtures are **abstract conformant digraphs, not lattice sub-boards** (§11 item 29) — floor **7 points / 21 arrows / 14 vertices** (corrected from "near 6 and 18" while writing P02), and readability when a *rules* test fails is the whole point. **A fixture is finite where the real board is not** (§11 item 4), so its window at a large enough radius simply *is* the board — the sharpest remaining difference between the two implementations, and also its one hard limit: **on a finite board every ray closes, so no fixture can host even-odd fill**, and P05b and P07 test against the tiling — which is what split P05 in two. Slots must **alternate** in/out; the phase is free. No layout: an abstract board has no coordinates |
 | P03 | Tiling generator | foundation | §2 | P01 | **[packet doc written](./packets/P03-tiling.md); taken next, ahead of P02.** A generator, not an extraction, and the maths is already validated against the artwork by a throwaway viewer. **Discharges the conformance debt** instead of P02 — 37 assertions, unedited. **§11 item 4 shrank this packet**: the board is unbounded, so `makeTiling()` takes no arguments, precomputes nothing, and the whole seam and board-floor surface is gone. Also owns the renderer's **layout** (a polygon per arrow), which is *not* on `GeometryPort`: item 29 made fixtures abstract digraphs, and those have no coordinates at all |
 | P04 | Movement, stacks & the turn loop | rules | §2–4 | P01, P02 | **[packet doc written](./packets/P04-movement.md).** allowance is an **integer** — `speed(N) = 1 + floor(log₂ N)`, nothing carried between turns. No rationals on this path; exact rationals belong to the §7 accumulators (P08). First `RulesPort` / `rules-core` slice; trails and combat stay out (P05/P06) |
-| P05 | Trails, crossings & closure | rules | §2, §5, §7 | P04 | the chord test and even-odd fill are the subtlest logic in the game. Fill must read the trail's **arrow set** and use `chordsInterleave`, not `chordsCross` (§6.1a). A point presents `i × o` chords, not one — extracting them is this packet's job, and `chordsCross` is called once per chord. **§11 item 4 made fill easier, not harder**: the board is a plane, so a ray escapes, every closed curve bounds, there is no girdling case and no homology anywhere. Fill is bounded by the trail's own extent, never by the board. Also owns §5's branch-anchor legality: a move creating a join or a split must leave a head |
+| P05 | Trails, sentries & crossings | rules | §2, §5, §6.1a | P04 | **[packet doc written](./packets/P05-trails-crossings.md); P05 was split, and P02's finiteness theorem is the seam.** Everything here is *local*, so it tests on a fixture board where a failure prints; closure and fill are not and cannot (§11 item 4), so they moved to P05b. A point presents `i × o` chords, not one — extracting them is this packet's job, and `chordsCross` is called once per chord. Owns §5's branch-anchor legality, whose prose admits three readings and only one avoids freezing the board: it constrains **what you may leave**, locally to what a move changes, because damage can legally empty a fork |
+| P05b | Closure, fill & land bridges | rules | §7 | P05 | **even-odd fill is the subtlest logic in the game**, and it must read the trail's **arrow set** and use `chordsInterleave`, not `chordsCross` (§6.1a). **§11 item 4 made fill easier, not harder**: the board is a plane, so a ray escapes, every closed curve bounds, there is no girdling case and no homology anywhere. Fill is bounded by the trail's own extent, never by the board — but *not* by a fixture: on any finite board every ray closes, so this packet is the first that **cannot** use one. Owns the land bridge, the pincer, and the anchor-grade consequence (only territory grade closes). **§11 item 34 must be answered first**: the minimal closure encloses zero tiles, so it is undecided whether it claims the spawner vertex at its centre |
 | P06 | Cuts, evaporation & combat | rules | §6 | P05 | **§6 was rebuilt twice after P01 landed.** Bidirectional evaporation, one kill per front, 1:1 per-move combat — then bare trail, **all-to-all points**, and **per-arrow halting** (a head does *not* shield the point ahead against fire; that range is combat's alone). Two grades of anchor, territory and stack, and conflating them breaks §6.3 |
 | P07 | Territory & encirclement | rules | §7 | P05, P06 | conversion must conserve total heads exactly |
 | P08 | Spawner economy | rules | §7 | P07 | exact rationals only — **the accumulator is the one thing in the game that banks**; blockades halt accrual and cost the share. Accrual takes *a* force per spawner and must never read its value: **no branch on 1/3 vs 1/12, no threshold against a constant** (§7, *placement and force are setup data*). MVP defaults are playtest-first (§11 items 12 and 25) and a retune must not change which scenarios pass |
@@ -48,9 +49,10 @@ flowchart TD
   P01["P01 contracts"] --> P02["P02 fixture geometry"]
   P01 --> P03["P03 tiling geometry"]
   P02 --> P04["P04 movement & turns"]
-  P04 --> P05["P05 trails & closure"]
+  P04 --> P05["P05 trails & crossings"]
+  P05 --> P05B["P05b closure & fill"]
   P05 --> P06["P06 cuts & combat"]
-  P05 --> P07["P07 territory & encirclement"]
+  P05B --> P07["P07 territory & encirclement"]
   P06 --> P07
   P07 --> P08["P08 spawner economy"]
   P07 --> P09["P09 match lifecycle"]
@@ -73,8 +75,9 @@ pays: rules packets test against small hand-authored boards with known adjacency
 which make failures readable, while both implementations answer to the same
 `GeometryPort` and the same conformance suite. **With one measured exception:**
 every ray closes on itself on a finite board, so even-odd fill reports *outside*
-everywhere and P05's closure half and P07 test against the tiling (§11 item 29,
-P02 measurement 2).
+everywhere and P05b and P07 test against the tiling (§11 item 29, P02
+measurement 2). That line is where the P05 split came from: the theorem draws it,
+not a preference about packet size.
 
 It pays by more than it looks, and §11 item 4 changed *why*. The old argument was
 a size floor — the smallest conformant torus was 4×4, against a hand-authored
@@ -93,6 +96,13 @@ against the real tiling is worth more than proving it against a fixture.
 **P04 → P05 → P06 → P07 is a genuine chain.** Closure needs movement; cuts need
 trails to cut; territory needs both closure and the encirclement that combat
 produces. Do not try to parallelise these — the interactions are the game.
+
+**P05b and P06 are the one exception, and it is a fork rather than a
+parallelisation.** Both need P05's trail state and neither needs the other:
+evaporation reads *what a trail is* and *where it is anchored*, not *what a
+closure claims*. They rejoin at P07, which needs both. The order between them is
+therefore free, and the tie-breaker is that P05b has an open rules question
+(§11 item 34) while P06 has none.
 
 **P08 after P07**, because a spawner share is ownership of an arrow *as
 territory*, so there is nothing to accrue to until territory exists.
@@ -122,12 +132,18 @@ What that costs and pays across the plan:
   restated locally. Suite went 28 → 37, all still pending
 - **P03** — smaller. No `(n, m)`, no 4×4 floor, no seam, no wrap; a stateless
   generator that takes no arguments
-- **P05** — simpler. Even-odd fill is now correct as written, and there is no
-  homology case to handle
+- **P05b** — simpler. Even-odd fill is now correct as written, and there is no
+  homology case to handle. It also cannot run on a fixture, and that is what split
+  P05 in two
 - **P09** — gains the radial gradient and loses the board size
 
 Still open:
 
+- **item 34** — the minimal closure is three arrows around one spawner vertex and
+  encloses **no tile**, so §7's "everything inside the enclosed tiles" does not
+  reach the vertex item 16 measured at its centre. Either three arrows buy a
+  spawner or the minimum enclosable territory is a land bridge → **P05b**, then
+  **P08**
 - **item 32** — nothing ends a match against a player who simply walks away. The
   gradient removes the *reward* for fleeing, not the possibility. **The turtle
   stalemate in another costume**, and §9 should answer both at once — upkeep is

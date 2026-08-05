@@ -133,15 +133,16 @@ consequence for this packet is exact:
 
 | Rules a fixture can host | Rules only the tiling can host |
 |---|---|
-| movement, stacks, the turn loop (P04) | closure and fill (P05) |
+| movement, stacks, the turn loop (P04) | closure and fill (P05b) |
 | crossings, the chord test, branch anchors (P05) | encirclement and conversion (P07) |
 | cuts, evaporation, combat (P06) | |
 | spawner accrual, shares, blockades (P08) | |
 
 Most of the rules surface is local and lives in the left column. What sits on the
 right is **not deferred — it is impossible on any finite board**, and no authoring
-choice changes that. P05's closure half and P07 test against the tiling, which is
-correct there anyway: the plane is where fill is defined. The readable-failure debt
+choice changes that. P05b and P07 test against the tiling, which is correct there
+anyway: the plane is where fill is defined — and this table is why P05 was split
+along that line rather than delivered as one packet. The readable-failure debt
 they take on is paid back by a window printer, deferred to P05 (P02 D4).
 
 The edge cases turn this into one executable scenario — every straight-ahead ray
