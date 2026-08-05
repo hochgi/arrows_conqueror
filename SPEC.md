@@ -326,7 +326,7 @@ This is the third leg of the tension: every head left behind makes the chain saf
 
 ### Branching costs an anchor
 
-**Linear trail carries no heads.** A tip walks, marking arrows behind it, and leaves nothing. The trail is a mark on the board, not a chain of garrisons — every sentry above is a head you *chose* to leave. There is exactly one place the rules require one.
+**Linear trail carries no heads.** A tip walks, marking arrows behind it, and leaves nothing. (Behind it *including the one under it*: a step marks its **destination**, so the arrow a head stands on is trail and the ground it departed is not. §6.1 depends on that — a front halts when it meets a head "on the arrow it is entering", which requires the occupied arrow to be part of the trail — and so does the safety rule two paragraphs up, since the first step off your own territory must not mark the territory it left.) The trail is a mark on the board, not a chain of garrisons — every sentry above is a head you *chose* to leave. There is exactly one place the rules require one.
 
 That place is **branching**. A trail that joins or splits is no longer one trail: it is several **mini-trails** meeting at a point, and each of them needs its own anchored end.
 
@@ -387,7 +387,7 @@ A single sentry does not bound anything: the front spends its kill on it and rol
 
 **Sentries are firebreaks in both directions, and prying one open takes a sequence.** A firebreak is two heads a player chose to leave. The first cut from either side spends its kill and halts on the survivor, costing one region. The second cut kills that survivor and **rolls on**, taking the region beyond as well and leaving the point bare. A third floods it freely. Each of those is a separate crossing — a separate move, a separate exposure, on a separate turn, against a defender who can see it coming (§4). Dismantling a garrisoned trail is a siege, not a lucky swing.
 
-**Forks are ordinary trail, but branching is not free.** A fork is one arrow with two trail arrows leaving it; nothing about its *behaviour* is privileged and it needs no rule of its own — a cut behind it floods into both branches and costs one head on each. What it costs is the anchor §5 charges to create it. Trail *shape* stays a strategic choice — a branching trail covers more ground, offers more cut points, and bleeds once per branch — and it now comes with a price list: one head per join, one per split, two at a crossover.
+**Forks are ordinary trail, but branching is not free.** A fork is one arrow with two trail arrows leaving it; nothing about its *behaviour* is privileged and it needs no rule of its own — a cut behind it floods into both branches and costs one head on each. What it costs is the anchor §5 charges to create it. Trail *shape* stays a strategic choice — a branching trail covers more ground, offers more cut points, and bleeds once per branch — and it now comes with a price list: one head per join, one per split, two at a crossover. (**That list and §5's *each mini-trail needs its own anchored end* charge a fork differently — see §11 item 35.** The engine currently prices per strand, which is the larger number.)
 
 A cut is therefore expensive but survivable. You lose a head, you lose the region you were cut in, and what lies beyond it is demoted rather than destroyed. This matters: under a rule where cutting destroyed the whole trail, ambition would be suicidal and the rational play would always be small safe nibbles. Here, large enclosures stay attemptable — and the spearhead itself survives, which is what keeps a six-turn operation worth starting.
 
@@ -858,6 +858,19 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
     - **Accept it**, as §9 already accepts the turtle. Defensible for a hot-seat MVP where both players can simply agree it is over, and indefensible the moment there is an AI or a ladder.
 
     Note the flee case is *strictly easier* than the turtle case — a turtle keeps its economy, a runner has none — so anything that solves the turtle solves this, and it is not worth designing separately. → **P09** (match lifecycle and victory), and it should be decided together with §9's accepted risk rather than bolted beside it.
+
+35. **Two sentences in §5 and §6.1 price a branch differently, and the memoryless trail cannot tell them apart.** §5 charges the *creating* move — "a head on the out-arrow it departed onto" — and §6.1 totals it as a price list: **"one head per join, one per split, two at a crossover."** But §5, four paragraphs earlier, says a branch is "several **mini-trails** meeting at a point, and **each of them needs its own anchored end**." At a fork those give different numbers, and both are literal.
+
+    Take linear trail `in → P → X`, then step off `in` onto `Y`, so P now has two trail out-arrows. §5's mandate and §6.1's list both charge **one** head, on `Y`. *Each mini-trail needs its own anchored end* charges **two**, because `X` is a mini-trail too and its end is also at P.
+
+    The gap is not the arithmetic, it is that **the trail holds no pairing to price against** (§6.1a, item 26): the set records neither which arm was second nor which in-arrow arrived last, so "the out-arrow it departed onto" names something the state does not carry — exactly the shape of item 33. Two readings survive that, and both are implementable:
+
+    - **Per strand.** Every in-arrow of a join and every out-arrow of a split must keep a head to be vacated. A fork costs two, a crossover four. This is *each of them needs its own anchored end*, read on a set.
+    - **Per branch.** A join must keep at least one head *somewhere* among its in-arrows, a split at least one among its out-arrows. A fork costs one, a crossover two — §6.1's price list exactly. Stated as a strip rule ("a move may not take the last one"), so a branch damage already emptied still constrains nothing (§5, *this constrains what you may leave*).
+
+    **The board-visible difference is what a fork costs to keep usable.** Under *per strand* both arms are pinned the moment either carries heads, so a branching trail sheds a head per arm and §6.1's *branching is not free* is twice the price it quotes. Under *per branch* one sentry covers the whole junction, and a player pays the quoted list. That is a balance knob on the mechanic §6.1 calls "trail shape stays a strategic choice", not a representation detail.
+
+    Reachable in ordinary play — any fork whose two arms both carry heads, which is how a fork is normally walked — and **not** discriminated by any approved P05 scenario: every scenario has heads on at most one strand per side, where the two readings agree. P05's implementation currently does *per strand*, on the strength of §5's mini-trail sentence, and that is a choice the spec did not make. → **§5** (*branching costs an anchor*) and **§6.1** (*forks are ordinary trail*) must end up quoting one number; opened by **P05**'s review.
 
 **~~What does the minimal closure claim at its centre?~~ — not a gap: §7 already answered it, in a different subsection than the one that asked**
 

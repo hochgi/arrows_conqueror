@@ -119,10 +119,26 @@ player who wants a branch point to actually stop something leaves two.
 **is this trail arrow connected, through the player's own trail arrows, to their
 territory — or only to one of their own stacks — or to neither?**
 
-Connectivity is **undirected**. §7's pincer says outright that *enclosure is a
-property of the curve, not of the flow along it*, and §6.1 re-attaches a fragment
-by laying a fresh path **to** it, against the direction the fragment was laid. A
-grade computed along the grain would refuse both.
+Connectivity **over the trail set** is undirected. §7's pincer says outright that
+*enclosure is a property of the curve, not of the flow along it*, and §6.1
+re-attaches a fragment by laying a fresh path **to** it, against the direction the
+fragment was laid. A grade computed along the grain would refuse both.
+
+**Touching territory is a different relation, and it is the departure.** "Undirected"
+above is about trail-to-trail; it does not say what it means for a stretch to *reach*
+the player's territory, and the two available answers are told apart by an approved
+scenario (*a trail touching your territory and a fragment touching only a stack*).
+The answer is that the stretch must **leave** ground the player already owns — some
+arrow of it departs a point one of their own territory arrows feeds. §7 requires
+this outright: *"A fragment that survived a cut is anchored on its own stack. Drive
+it into your territory and you claim the path itself — a land bridge — but it
+encloses nothing, because enclosure requires territory at **both** ends."* So
+arriving at territory does **not** promote a stretch; if it did, that fragment would
+enclose rather than earn a land bridge. §6.1 says the same from the other side — a
+deep cut takes *"the region touching the victim's territory"* and leaves the rest
+with *"territory anchor gone"*, which is only a demotion if the anchor was the
+departure. §6.3 completes it: a raider's trail earns no territory anchor however
+well it is garrisoned.
 
 ## Invariants
 
