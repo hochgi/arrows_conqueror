@@ -22,10 +22,12 @@ behaviour is not here, it will not be built.**
 | [layout](./layout/layout.md) | P03 | §2 | 24 | — | 12 |
 | [fixtures](./fixtures/fixtures.md) | P02 | §2, §7 | 18 | — | 13 |
 | [movement](./movement/movement.md) | P04 | §3, §4, §2 | 30 | — | 16 |
+| [trails](./trails/trails.md) | P05 | §5, §6.1a, §6.1 | 34 | — | 17 |
+| [crossings](./crossings/crossings.md) | P05 | §2, §6.1a | 24 | — | 11 |
 
-200 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
-**58 belong to P03**, **18 to P02**, and **30 to P04**. 279 concrete cases once
-`Examples` rows are expanded, 98 invariants.
+258 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
+**58 belong to P03**, **18 to P02**, **30 to P04**, and **58 to P05**. 344 concrete
+cases once `Examples` rows are expanded, 126 invariants.
 
 A `@deferred-<packet>` tag means the behaviour is decided and specified here, but
 its seam falls in another packet — an accumulator that knows its owner is not a
@@ -101,6 +103,28 @@ because the rejected reading — the override as a fact about the arrow the merg
 happened on — passes every scenario here and lets one ordinary step refund the
 whole merge price.
 
+## Reading order for P05
+
+Two directories, because trail bookkeeping and the crossing predicate fail in
+different ways. Read `trails` first — `crossings` asks questions of the state
+`trails` defines.
+
+**In `trails`, the rule to read first is the branch-anchor mandate**, and the
+overview's table of three readings is the reason. §5 states it in one sentence
+that is grammatically ambiguous about *when* it bites, and two of the three
+readings freeze the board the first time damage legally empties a fork. The
+scenario that tells them apart — *an already-unanchored branch does not freeze the
+board* — is in the edge cases and is the most load-bearing line in the packet.
+
+**In `crossings`, read the `i × o` table first.** A point presents one chord per
+(in, out) pair and an implementation that tests only the first passes every spine
+and quietly fails every knot. The two predicates are the other trap: `chordsCross`
+for an enemy trail, `chordsInterleave` for your own, differing exactly by
+coincidence — and §7 needs the narrow one.
+
+Neither directory resolves anything. A crossing is *reported*; what it destroys is
+P06 and what it claims is P05b.
+
 ## What is deliberately not here
 
 A `Then` step that asserts a behaviour its packet does not own has leaked.
@@ -110,3 +134,9 @@ A `Then` step that asserts a behaviour its packet does not own has leaked.
 - **P04** owns movement legality, not combat or territory — an enemy-occupied
   destination is refused here; resolving it is P06. Closure, fill, spawners and
   victory are later still.
+- **P05** owns what a trail *is* and whether a traversal crossed it, not what
+  either causes. A step landing on your own territory marks nothing and claims
+  nothing (P05b owns closure); a crossing is a verdict with no consequence (P06
+  owns evaporation and combat); no scenario reads a vertex (§11 item 34 — a
+  special is owned in thirds by its bordering arrows, so ownership is a reading of
+  tile ownership and this packet owns no tiles).

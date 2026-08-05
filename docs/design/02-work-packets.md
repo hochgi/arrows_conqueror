@@ -141,8 +141,12 @@ Still open:
 
 - **item 32** — nothing ends a match against a player who simply walks away. The
   gradient removes the *reward* for fleeing, not the possibility. **The turtle
-  stalemate in another costume**, and §9 should answer both at once — upkeep is
-  the front-runner because a runner has zero production → **P09**
+  stalemate in another costume**, and §9 should answer both at once. Two live
+  candidates that compose: **upkeep** (a runner has zero production, so it bleeds
+  them) as the floor, and **domination — every spawner share held for *N* turns**
+  as the fast path. The hold window is the point: an instant win on the last share
+  would end the match exactly when the losing side still has large fast stacks and
+  nothing left to defend → **P09**
 - **item 11** — ~~board size `(n, m)`~~ → the spawner cutoff radius *R* and the
   band radii. MVP player count fixed at 2, placed by **reflection** — 180°
   rotation reverses the grain and is not a symmetry → **P09**

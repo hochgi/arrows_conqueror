@@ -848,6 +848,13 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     - **Upkeep** — already named in §9 as the turtle's drop-in fix. Each special sustains some number of heads; hold less production than your army needs and you lose one head per turn. A runner has *zero* production, so it kills the flee case outright and faster than the turtle case. Reuses pieces already on the board and adds no subsystem, which is why it is the front-runner.
     - **A domination condition** — hold every spawner share, or some fraction of total force, for *N* consecutive turns. Ends the match on the axis the game is actually contested on, and needs no new state.
+
+        **Sharpened, and now a candidate in its own right rather than an alternative to upkeep.** Two refinements, both from the observation that a runner still *has an army*, they just have no income:
+
+        - **Every share, not a fraction.** A threshold invites a fight over where the threshold is, and there is a natural line at 100% that needs no tuning constant: the runner's production is already zero by the time they are running, so total capture is the state the flee case actually reaches.
+        - **Hold for *N* turns rather than winning on the turn of capture.** An instant win on the last share would end the match at the moment the underdog is most dangerous — they can be holding large, fast stacks (§3: a big stack outruns a small one, which is also why the runner cannot escape a strong pursuer) with nothing left to defend and every reason to counterattack. The hold window is what turns "I took everything" into "I kept it", and it gives the losing side a defined last chance instead of a rug-pull. *N* is a tuning number, deliberately.
+
+        This composes with upkeep rather than competing: upkeep bleeds a player with no production, and domination ends a match a player has already lost on the board. Either alone closes the flee case; together the second is the fast path and the first is the floor. **Still P09's call** — the two want deciding against §9's turtle in one pass.
     - **Accept it**, as §9 already accepts the turtle. Defensible for a hot-seat MVP where both players can simply agree it is over, and indefensible the moment there is an AI or a ladder.
 
     Note the flee case is *strictly easier* than the turtle case — a turtle keeps its economy, a runner has none — so anything that solves the turtle solves this, and it is not worth designing separately. → **P09** (match lifecycle and victory), and it should be decided together with §9's accepted risk rather than bolted beside it.
