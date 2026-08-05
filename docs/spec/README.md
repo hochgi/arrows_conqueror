@@ -22,12 +22,12 @@ behaviour is not here, it will not be built.**
 | [layout](./layout/layout.md) | P03 | §2 | 24 | — | 12 |
 | [fixtures](./fixtures/fixtures.md) | P02 | §2, §7 | 18 | — | 13 |
 | [movement](./movement/movement.md) | P04 | §3, §4, §2 | 30 | — | 16 |
-| [trails](./trails/trails.md) | P05 | §5, §6.1a, §6.1 | 34 | — | 17 |
+| [trails](./trails/trails.md) | P05 | §5, §6.1a, §6.1 | 34 | — | 19 |
 | [crossings](./crossings/crossings.md) | P05 | §2, §6.1a | 24 | — | 11 |
 
 258 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
 **58 belong to P03**, **18 to P02**, **30 to P04**, and **58 to P05**. 344 concrete
-cases once `Examples` rows are expanded, 126 invariants.
+cases once `Examples` rows are expanded, 128 invariants.
 
 A `@deferred-<packet>` tag means the behaviour is decided and specified here, but
 its seam falls in another packet — an accumulator that knows its owner is not a
@@ -115,6 +115,13 @@ that is grammatically ambiguous about *when* it bites, and two of the three
 readings freeze the board the first time damage legally empties a fork. The
 scenario that tells them apart — *an already-unanchored branch does not freeze the
 board* — is in the edge cases and is the most load-bearing line in the packet.
+
+That sentence turned out to be ambiguous about *how much* it charges as well, which
+P05's review caught and **§11 item 35** settled: **one head per branch, not one per
+strand**, so a sibling arm carries the toll for a whole junction. No scenario
+discriminates the two readings — each puts heads on at most one strand per side —
+so the three properties in `trails.invariants` are the only thing holding the
+decision. Read them next.
 
 **In `crossings`, read the `i × o` table first.** A point presents one chord per
 (in, out) pair and an implementation that tests only the first passes every spine

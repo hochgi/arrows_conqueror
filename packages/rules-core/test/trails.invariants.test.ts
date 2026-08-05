@@ -42,7 +42,7 @@ import {
   trailOf,
   via,
 } from './support';
-import type { ArrowId } from './support';
+import type { ArrowId, PointId } from './support';
 
 const BOARDS = [
   { name: 'minimal', description: MINIMAL, diameter: MINIMAL_DIAMETER },
@@ -145,19 +145,30 @@ describe('a step marks its destination unless that destination is the mover’s 
 
 // ── branch anchors ───────────────────────────────────────────────────────────
 
+/**
+ * Every point of a board, with its three in-arrows and three out-arrows.
+ *
+ * Module-level because both the branch properties and the crossing sweeps enumerate
+ * points, and a board is small enough that "every point" is the only honest scope.
+ */
+const junctionsOf = (
+  table: ReturnType<typeof onBoard>,
+  diameter: number,
+): readonly {
+  point: PointId;
+  ins: readonly ArrowId[];
+  outs: readonly ArrowId[];
+}[] =>
+  [...new Set(allArrows(table.geometry, diameter).map((a) => table.geometry.target(a)))].map(
+    (point) => ({
+      point,
+      ins: table.geometry.inArrows(point),
+      outs: table.geometry.outArrows(point),
+    }),
+  );
+
 describe('branching costs an anchor, and only what a move changes is checked', () => {
-  /** Every point of a board, with two of its in-arrows and two of its out-arrows. */
-  const junctions = (
-    table: ReturnType<typeof onBoard>,
-    diameter: number,
-  ): readonly { point: ReturnType<typeof table.geometry.target>; ins: readonly ReturnType<typeof anArrow>[]; outs: readonly ReturnType<typeof anArrow>[] }[] =>
-    [...new Set(allArrows(table.geometry, diameter).map((a) => table.geometry.target(a)))].map(
-      (point) => ({
-        point,
-        ins: table.geometry.inArrows(point),
-        outs: table.geometry.outArrows(point),
-      }),
-    );
+  const junctions = junctionsOf;
 
   it.each(BOARDS)('refuses every whole-stack join at every point of $name', ({
     description,
@@ -263,6 +274,112 @@ describe('branching costs an anchor, and only what a move changes is checked', (
       step(arm, exit, 1),
     );
     expect(after.groups.get(arm)?.heads).toBe(1);
+  });
+
+  it.each(BOARDS)('lets a split’s sibling arm carry the toll for the junction on $name', ({
+    description,
+    diameter,
+  }) => {
+    // **SPEC §11 item 35, and the only property that discriminates it.** The toll is
+    // one head per *branch*, not one per strand: §5 charges "the out-arrow it departed
+    // onto", and the trail is a set that records no pairing (§6.1a), so the arm a split
+    // created is indistinguishable from the arm already there. A junction therefore
+    // needs one head somewhere among its arms, and any arm may be wholly vacated while
+    // a sibling holds it.
+    //
+    // Every other scenario in the packet puts heads on one strand per side, where the
+    // per-branch and per-strand readings agree — which is exactly how a fork's price
+    // went undecided through two phases.
+    const table = onBoard(description);
+    const found = aSplitArmToVacate(table, diameter);
+    if (found === undefined) throw new Error('setup: no split with an unbranched continuation');
+    const { arm, other, exit } = found;
+    const trail = [arm, other];
+
+    const after = table.rules.apply(
+      stateOf(
+        [
+          { arrow: arm, owner: A, heads: 1 },
+          { arrow: other, owner: A, heads: 1 },
+        ],
+        A,
+        { trail: { A: trail } },
+      ),
+      step(arm, exit, 1),
+    );
+    expect(after.groups.get(arm)).toBeUndefined();
+    expect(after.groups.get(other)?.heads).toBe(1);
+    expect(after.groups.get(exit)?.heads).toBe(1);
+
+    // The contrast, and the half a per-strand rule would get wrong in the other
+    // direction: with the sibling bare, that head *is* the junction's last one.
+    expect(() =>
+      table.rules.apply(
+        stateOf([{ arrow: arm, owner: A, heads: 1 }], A, { trail: { A: trail } }),
+        step(arm, exit, 1),
+      ),
+    ).toThrow(ContractViolation);
+  });
+
+  it('does not let an enemy stack pay the mover’s toll', () => {
+    // The toll is one of *your* heads. Trails may overlap and an empty arrow of yours
+    // is enterable, so an enemy standing on a strand of your junction is a reachable
+    // state — and it is a problem, not an anchor (§6.1, the same reading anchorGrade
+    // takes of a stack).
+    const table = onBoard();
+    const point = table.geometry.target(anArrow(table.geometry));
+    const ins = table.geometry.inArrows(point);
+    const outs = table.geometry.outArrows(point);
+    const leaving = pick(ins, 0);
+    const occupied = pick(ins, 1);
+    const trail = [leaving, occupied, pick(outs, 0)];
+
+    expect(() =>
+      table.rules.apply(
+        stateOf(
+          [
+            { arrow: leaving, owner: A, heads: 1 },
+            { arrow: occupied, owner: B, heads: 2 },
+          ],
+          A,
+          { trail: { A: trail } },
+        ),
+        step(leaving, pick(outs, 0), 1),
+      ),
+    ).toThrow(ContractViolation);
+  });
+
+  it('lets a join’s sibling in-arrow carry the toll too', () => {
+    // The same reading on the in side, so the decision is pinned symmetrically.
+    const table = onBoard();
+    const point = table.geometry.target(anArrow(table.geometry));
+    const ins = table.geometry.inArrows(point);
+    const outs = table.geometry.outArrows(point);
+    const leaving = pick(ins, 0);
+    const sibling = pick(ins, 1);
+    const trail = [leaving, sibling, pick(outs, 0)];
+    const move = step(leaving, pick(outs, 0), 1);
+
+    const after = table.rules.apply(
+      stateOf(
+        [
+          { arrow: leaving, owner: A, heads: 1 },
+          { arrow: sibling, owner: A, heads: 1 },
+        ],
+        A,
+        { trail: { A: trail } },
+      ),
+      move,
+    );
+    expect(after.groups.get(leaving)).toBeUndefined();
+    expect(after.groups.get(sibling)?.heads).toBe(1);
+
+    expect(() =>
+      table.rules.apply(
+        stateOf([{ arrow: leaving, owner: A, heads: 1 }], A, { trail: { A: trail } }),
+        move,
+      ),
+    ).toThrow(ContractViolation);
   });
 
   it('does not charge an anchor to an arrow that is the mover’s territory', () => {
@@ -556,46 +673,70 @@ describe('a trail presents i × o chords at every point', () => {
 // ── the two crossing predicates ──────────────────────────────────────────────
 
 describe('the crossing queries agree with the primitives, chord for chord', () => {
-  /** Every trail shape at a point, against every traversal of that point. */
+  /**
+   * Every trail shape at **every point of a board**, against every traversal of it.
+   *
+   * Run on both fixtures, which is what makes it the *board-independence* property
+   * (`crossings.edge-cases.feature`, "the verdict does not depend on which board
+   * implementation answers"). That scenario asks for two isomorphic boards and there
+   * are none — `minimal` has 7 points and `spacious` 8 — so the realizable form of it
+   * is this: the verdict must equal the primitive applied to the slots the *port*
+   * reports, at every point of every board. An engine that leaned on anything
+   * board-specific, or inferred a slot from an arrow id, fails on the second board.
+   *
+   * The sweep is exhaustive rather than sampled: 9 trail shapes × 9 traversals × every
+   * point, twice over, which is 1,134 verdicts and still runs in milliseconds.
+   */
   const sweep = (
     table: ReturnType<typeof onBoard>,
-    ask: (state: GameState, into: ReturnType<typeof anArrow>, exit: ReturnType<typeof anArrow>) => boolean,
+    diameter: number,
+    ask: (state: GameState, into: ArrowId, exit: ArrowId) => boolean,
     predicate: (ours: ReturnType<typeof chordOf>, theirs: ReturnType<typeof chordOf>) => boolean,
   ): void => {
-    const point = table.geometry.target(anArrow(table.geometry));
-    const ins = table.geometry.inArrows(point);
-    const outs = table.geometry.outArrows(point);
-    for (let i = 1; i <= 3; i += 1) {
-      for (let o = 1; o <= 3; o += 1) {
-        const marked = [...ins.slice(0, i), ...outs.slice(0, o)];
-        const state = stateOf([], A, { trail: { A: marked } });
-        const theirChords = ins
-          .slice(0, i)
-          .flatMap((ti) => outs.slice(0, o).map((to) => chordOf(table.geometry, via(ti, to))));
-        for (const into of ins) {
-          for (const exit of outs) {
-            const ours = chordOf(table.geometry, via(into, exit));
-            const expected = theirChords.some((theirs) => predicate(ours, theirs));
-            expect(ask(state, into, exit)).toBe(expected);
+    let checked = 0;
+    for (const { ins, outs } of junctionsOf(table, diameter)) {
+      for (let i = 1; i <= 3; i += 1) {
+        for (let o = 1; o <= 3; o += 1) {
+          const marked = [...ins.slice(0, i), ...outs.slice(0, o)];
+          const state = stateOf([], A, { trail: { A: marked } });
+          const theirChords = ins
+            .slice(0, i)
+            .flatMap((ti) => outs.slice(0, o).map((to) => chordOf(table.geometry, via(ti, to))));
+          for (const into of ins) {
+            for (const exit of outs) {
+              const ours = chordOf(table.geometry, via(into, exit));
+              const expected = theirChords.some((theirs) => predicate(ours, theirs));
+              expect(ask(state, into, exit)).toBe(expected);
+              checked += 1;
+            }
           }
         }
       }
     }
+    expect(checked).toBeGreaterThan(0);
   };
 
-  it('crossesTrail is chordsCross over every chord the trail presents', () => {
-    const table = onBoard();
+  it.each(BOARDS)('crossesTrail is chordsCross over every chord, everywhere on $name', ({
+    description,
+    diameter,
+  }) => {
+    const table = onBoard(description);
     sweep(
       table,
+      diameter,
       (state, into, exit) => table.rules.crossesTrail(state, via(into, exit), A),
       chordsCross,
     );
   });
 
-  it('selfCrosses is chordsInterleave over every chord the trail presents', () => {
-    const table = onBoard();
+  it.each(BOARDS)('selfCrosses is chordsInterleave over every chord, everywhere on $name', ({
+    description,
+    diameter,
+  }) => {
+    const table = onBoard(description);
     sweep(
       table,
+      diameter,
       (state, into, exit) => table.rules.selfCrosses(state, via(into, exit), A),
       chordsInterleave,
     );

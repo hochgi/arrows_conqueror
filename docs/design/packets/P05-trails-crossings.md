@@ -285,16 +285,67 @@ rather than translate:
   correct here and incomplete until P05b. The scenario must say so, or a reader
   will take it for the whole rule.
 
-## Definition of done
+## Definition of done — met
 
-- [ ] `pnpm verify` green.
-- [ ] `packages/rules-core` still depends only on `@arrows/contracts`.
-- [ ] No closure, fill, evaporation, conversion or economy behaviour — those
-      packets' scenarios do not start passing "for free".
-- [ ] No `Date`, `Math.random`, or insertion-order dependence: the trail is a
-      `Set` and every ordered answer derived from it is sorted on a total key.
-- [ ] Every scenario in the approved spec has a test; every EARS invariant has an
-      assertion.
-- [ ] The closure seam is documented where a reader will hit it, not only here.
-- [ ] No rule in this packet reads a vertex (§11 item 34 — ownership is a reading
-      of the three bordering tiles, and this half owns no tiles).
+- [x] `pnpm verify` green. — 583 tests, 19 files; typecheck 0 errors; ESLint clean.
+- [x] `packages/rules-core` still depends only on `@arrows/contracts`. — `fixtures`
+      is a dev dependency, used by tests only.
+- [x] No closure, fill, evaporation, conversion or economy behaviour. — nothing
+      removes a trail arrow and nothing writes `territory`; the closure seam is the
+      one branch of `markStep` that marks nothing, labelled there.
+- [x] No `Date`, `Math.random`, or insertion-order dependence. — every list of trail
+      arrows is read off the port and *filtered* by the set rather than iterated
+      from it, and every trail set `apply` returns is rebuilt sorted on
+      `compareArrows`. Rebuilt unconditionally: a state whose destination was already
+      marked still gets a canonical set, because iteration order is observable.
+- [x] Every scenario has a test; every EARS invariant has an assertion. — verified by
+      name against all four `.feature` files. One scenario had none (see findings)
+      and now does; the branch-toll invariants were rewritten to their operative
+      form, since the creation half of §5's mandate is unfalsifiable — the movers
+      always land on the arrow it charges.
+- [x] The closure seam is documented where a reader will hit it. — `markStep`'s doc
+      comment in `trails.ts`, on the branch that takes it.
+- [x] No rule in this packet reads a vertex. — grep clean; the only two mentions of
+      the word are the header comment saying so.
+
+## Phase-4 findings, closed
+
+**1 — The implementation priced a fork, and SPEC.md did not (blocker).**
+`unpaidBranch` refused a step whenever the vacated arrow was *any* strand of a
+branch: per strand, so a fork cost one head per arm and a crossover four. §5's
+mandate, §5's *one before, one after* and §6.1's price list all say **one per
+branch**; only §5's *each mini-trail needs its own anchored end* says otherwise.
+The pairing §5's wording reaches for is unrecoverable from a set (§6.1a, item 26),
+so the standing rule is an existence test with a strip guard. Opened as **§11 item
+35**, decided **per branch** with the human, and reimplemented: a sibling arm now
+carries the toll for the whole junction.
+
+Three properties pin it — a split's sibling arm, a join's sibling in-arrow, and an
+enemy stack *not* paying the toll. Confirmed by mutation: reverting to per strand
+fails exactly those three and nothing else, which is why two phases missed it.
+
+**2 — The subtlest logic in the game ran on one board.**
+`crossings.edge-cases.feature`'s *the verdict does not depend on which board
+implementation answers* had no test, and all 26 crossings tests plus both predicate
+sweeps used `minimal` only. The scenario asks for two isomorphic boards and there
+are none, so the realizable form is the exhaustive sweep over **every point of both
+fixtures** — 1,134 verdicts, still milliseconds. An engine that inferred a slot from
+an arrow id now fails on the second board.
+
+**3 — One clause was dead code with a wrong rationale.**
+The strip guard compared the anchor pool before and after, and the comment claimed
+that comparison was what stopped the mandate freezing the board. Neither held: the
+vacated arrow is in the pool by construction and `moversFor` has already established
+heads stand on it, so `before` was never zero. **Locality** is the real mechanism —
+only the branches the departing arrow itself belongs to are examined. Clause removed,
+rationale corrected.
+
+**4 — Three test setups did not build their own scenario** (found in phase 3, listed
+here for the record): a group standing on the join it was meant to avoid, an arrow
+picked only for being outside a branch on a board where everything touches everything,
+and a trail chord on two adjacent slots — which interleaves with nothing, so the
+turning half of its scenario had nothing to assert.
+
+**Noted, not closed:** the golden replay's snapshot covers `groups`, `activePlayer`
+and `players`, so **no replay pins trail or territory**. P10's harness owns that, and
+it stays invisible until it drifts.

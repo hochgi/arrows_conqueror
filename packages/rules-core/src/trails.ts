@@ -167,12 +167,40 @@ export const makeTrailRules = (geometry: GeometryPort): TrailRules => {
 
   // ── branch anchors ─────────────────────────────────────────────────────────
 
-  /** How many of a player's trail arrows meet a point on the given side. */
-  const strandsInto = (point: PointId, trail: ReadonlySet<ArrowId>): number =>
-    geometry.inArrows(point).filter((a) => trail.has(a)).length;
+  /**
+   * The player's trail arrows meeting a point on one side — the **anchor pool** of a
+   * branch there. Two or more of them is a branch (a join on the in side, a split on
+   * the out side); one or none is ordinary trail.
+   */
+  const strandsInto = (
+    point: PointId,
+    trail: ReadonlySet<ArrowId>,
+  ): readonly ArrowId[] => geometry.inArrows(point).filter((a) => trail.has(a));
 
-  const strandsOutOf = (point: PointId, trail: ReadonlySet<ArrowId>): number =>
-    geometry.outArrows(point).filter((a) => trail.has(a)).length;
+  const strandsOutOf = (
+    point: PointId,
+    trail: ReadonlySet<ArrowId>,
+  ): readonly ArrowId[] => geometry.outArrows(point).filter((a) => trail.has(a));
+
+  /**
+   * The mover's heads standing on a pool, with `debit` heads already taken off the
+   * arrow the move is leaving.
+   *
+   * Only the mover's own heads count. An enemy stack sitting on your trail arrow is a
+   * problem, not an anchor (§6.1) — the same reading `anchorGrade` takes.
+   */
+  const anchoring = (
+    state: GameState,
+    pool: readonly ArrowId[],
+    mover: PlayerId,
+    leaving: ArrowId,
+    debit: number,
+  ): number =>
+    pool.reduce((heads, arrow) => {
+      const group = state.groups.get(arrow);
+      if (group === undefined || group.owner !== mover) return heads;
+      return heads + group.heads - (arrow === leaving ? debit : 0);
+    }, 0);
 
   /**
    * §5's branch mandate, read as P05 D6 settled it: **local to what the move
@@ -185,28 +213,35 @@ export const makeTrailRules = (geometry: GeometryPort): TrailRules => {
    * half of D6 — **the anchor the move steps away from** — which is exactly why the
    * only test here is on the arrow being vacated.
    *
-   * That arrow sits at two points, and is an anchor site at either:
+   * That arrow sits at two points, and is a strand of a branch at either:
    *
    * - as an **in-arrow** of the point it feeds, if the mover's trail has a second
    *   in-arrow there — a join, paid before;
    * - as an **out-arrow** of the point it leaves, if the mover's trail has a second
    *   out-arrow there — a split, paid after.
    *
-   * A crossover is both at once and so costs two heads, one each side, which is
-   * §5's arithmetic and the reason a lone head cannot branch: it pays its only head
-   * and stops there.
+   * **The toll is one head per branch, not one per strand** (SPEC §11 item 35). A
+   * join needs one of the mover's heads somewhere among its in-arrows and a split one
+   * among its out-arrows, so a fork costs one and a crossover two — §5's *one before,
+   * one after* and §6.1's price list, both. *Which* strand carries it is not asked,
+   * and cannot be: §5 charges "the out-arrow it departed onto" and the trail is a set
+   * that records no pairing (§6.1a, §11 item 26), so the arm a splitting move created
+   * is indistinguishable from the arm that was already there the moment it exists. A
+   * sibling arm therefore holds the toll for the whole junction.
    *
-   * Two things this deliberately is **not**:
+   * Three things this deliberately is **not**:
    *
-   * - **Not a standing invariant.** Only the vacated arrow is examined, so a branch
-   *   damage already emptied constrains nothing and a move elsewhere goes through.
-   *   §5 and §6.1 both say that state is legal; a whole-trail check would freeze the
-   *   board the first time a cut produced one.
-   * - **Not a tax on ordinary trail.** A linear arrow has one in-arrow at the point
-   *   ahead and one out-arrow at the point behind, so it is never an anchor site.
-   *   §5 records an earlier draft that read the vacated arrow *unconditionally* and
-   *   calls it fatal — a 2-stack could not move at all. The difference is the branch
-   *   test, and it is the whole difference.
+   * - **Not a standing invariant.** Only the two pools the vacated arrow belongs to
+   *   are examined, so a branch damage already emptied is one no move is standing on,
+   *   and every move elsewhere goes through. §5 and §6.1 both say that state is legal;
+   *   a whole-trail check would freeze the board the first time a cut produced one.
+   * - **Not a tax on ordinary trail.** A linear arrow is alone on both sides, so
+   *   neither pool is a branch. §5 records an earlier draft that read the vacated
+   *   arrow *unconditionally* and calls it fatal — a 2-stack could not move at all.
+   *   The difference is the branch test, and it is the whole difference.
+   * - **Not a wall.** One head is the price of branching and nothing more (§5): a
+   *   front spends its kill on the first head and halts at the second, so a player who
+   *   wants a junction to actually stop something leaves two, as anywhere else.
    */
   const unpaidBranch = (
     state: GameState,
@@ -217,17 +252,34 @@ export const makeTrailRules = (geometry: GeometryPort): TrailRules => {
     // Territory carries no anchor. An arrow the mover is not trailing on is not a
     // strand of theirs however dense the trail around it is (§5's safety rule).
     if (!trail.has(move.from)) return undefined;
-    if ((state.groups.get(move.from)?.heads ?? 0) - move.count > 0) return undefined;
+
+    /**
+     * Would this move take the branch's last head?
+     *
+     * Only the two pools `move.from` belongs to are ever asked, and **that locality is
+     * what keeps the mandate from freezing the board** — not a before-and-after
+     * comparison. A branch damage already emptied is a branch no move is standing on,
+     * so no move's pools contain it and nothing refuses. (A `before` guard would be
+     * dead code here: `move.from` is in the pool by construction and `moversFor` has
+     * already established the mover's group stands on it, so the pool is never empty
+     * of heads when it is asked.)
+     */
+    const stripped = (
+      pool: readonly ArrowId[],
+      kind: UnpaidBranch['kind'],
+      point: PointId,
+    ): UnpaidBranch | undefined => {
+      if (pool.length < 2) return undefined;
+      if (anchoring(state, pool, mover, move.from, move.count) > 0) return undefined;
+      return { kind, point, anchor: move.from };
+    };
 
     const ahead = geometry.target(move.from);
-    if (strandsInto(ahead, trail) >= 2) {
-      return { kind: 'join', point: ahead, anchor: move.from };
-    }
     const behind = geometry.origin(move.from);
-    if (strandsOutOf(behind, trail) >= 2) {
-      return { kind: 'split', point: behind, anchor: move.from };
-    }
-    return undefined;
+    return (
+      stripped(strandsInto(ahead, trail), 'join', ahead) ??
+      stripped(strandsOutOf(behind, trail), 'split', behind)
+    );
   };
 
   const requireBranchAnchors = (state: GameState, move: StepMove, mover: PlayerId): void => {

@@ -99,6 +99,32 @@ branch**: damage created it, no move is asked to repair it, and moves elsewhere
 stay legal. That case is a named scenario in the edge cases, because it is the one
 that tells the readings apart.
 
+### The toll is one head per branch, not one per strand
+
+§5 charges "the in-arrow it **arrived by**" and "the out-arrow it **departed onto**",
+and a trail is a set that records neither (§6.1a) — a moment after a split, the arm it
+created is indistinguishable from the arm already there. So the pairing the sentence
+reaches for cannot be recovered, exactly as in §11 item 26, and the standing form of
+the rule is an existence test rather than a per-arm one:
+
+> **A join must keep at least one of its owner's heads somewhere among its in-arrows,
+> a split at least one among its out-arrows, and no move may take the last one.**
+
+A fork therefore costs one head and a crossover two — §6.1's price list and §5's *one
+before, one after*, both — and a **sibling arm carries the toll for the whole
+junction**, so any arm may be wholly vacated while another holds it. Only the mover's
+own heads count: an enemy standing on a strand of your junction is a problem, not an
+anchor (§6.1).
+
+This was **§11 item 35**, resolved during P05's review. The alternative — one head per
+strand, from §5's *each mini-trail needs its own anchored end* — costs a fork two and a
+crossover four, contradicting both of §5's numbers and §6.1's list. No scenario above
+discriminates them, because each puts heads on at most one strand per side; the
+invariants carry three properties that do.
+
+Locality, not a before-and-after comparison, is what keeps this from freezing the
+board: only the two branches the departing arrow itself belongs to are examined.
+
 Two consequences already stated in §5 and not new here:
 
 - **A lone head cannot branch.** It pays its only head and *stops there*, becoming
@@ -151,14 +177,16 @@ well it is garrisoned.
 - The system shall mark trail when a step enters territory belonging to another
   player.
 - The system shall permit one arrow to belong to more than one player's trail.
-- The system shall refuse a move that gives a point a second trail in-arrow of the
-  mover without leaving at least one head on the arrow it arrived by.
-- The system shall refuse a move that gives a point a second trail out-arrow of
-  the mover without leaving at least one head on the arrow it departed onto.
+- The system shall refuse a move that would leave a join of the mover's trail with
+  none of the mover's heads on any of its in-arrows.
+- The system shall refuse a move that would leave a split of the mover's trail with
+  none of the mover's heads on any of its out-arrows.
+- The system shall permit a move that wholly vacates one strand of a branch while
+  another strand of that branch still carries one of the mover's heads.
+- The system shall not count another player's heads towards the mover's branch toll.
 - When a point of the mover's trail is both a join and a split, the system shall
-  require both anchors.
-- The system shall refuse a move that would leave a branch point of the mover's
-  trail with no head on an anchor the move is stepping away from.
+  require both tolls.
+- The system shall examine only the branches the departing arrow itself belongs to.
 - The system shall permit a move that leaves an already-unanchored branch point
   unanchored.
 - The system shall refuse every branching move by a group of one head, and shall
