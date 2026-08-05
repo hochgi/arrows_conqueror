@@ -681,22 +681,43 @@ This makes heads the life force rather than merely units. Conversion by encircle
 
 It also hands the trailing player a real comeback vector: a desperate lasso around an enemy stack doesn't just deal damage, it *takes* those heads — a 2× swing on the exact axis that decides the game.
 
+**Domination.** Hold **every spawner share on the board** for *N* consecutive turns and you win.
+
+The second condition, and it exists because elimination alone is unreachable against a player who simply refuses to be reached (§11 item 32). It ends a match on the axis the game is actually contested on — production — rather than on physically cornering a last head, which an unbounded board makes impossible.
+
+Two things about its shape are load-bearing and neither is a tuning choice:
+
+- **Every share, not a fraction.** A threshold invites an argument about where the threshold goes; 100% needs no constant. It is also the state the flee case genuinely reaches: a runner past *R* has no production at all (§7), so total capture is not a high bar against them, it is automatic the moment they leave.
+- **Held for *N* turns, not won on the turn of capture.** An instant win on the last share would end the match at the moment the losing side is most dangerous — they can still be holding large, fast stacks (§3: a big stack outruns a small one, which is also why a runner cannot escape a strong pursuer) with nothing left to defend and every reason to counterattack. The hold window turns *I took everything* into *I kept it*, and gives the losing side a defined last chance rather than a rug-pull.
+
+*N* is a tuning number, deliberately, and belongs with the rest of the spawner table (§7, §11 item 11).
+
+**Holding means owning, not blockading.** A share *is* ownership of one of the three arrows bordering the vertex, as territory (§7), and a head parked on a rival's spawner arrow **freezes** that share without taking it — the arrow is still theirs. So a blockade stops production and contributes nothing to the hold window. That is the reading §7 already requires, and it is the one that matters: if parking counted, domination would be won by garrisoning rather than by carving, and §7's *a blockade has a maintenance cost and a decisive failure mode* would stop being true.
+
+**This does not require upkeep.** Item 32 listed upkeep as the front-runner and domination as the alternative; domination won because it needs no new state and no per-turn bookkeeping — it reads ownership the board already carries. Upkeep remains available as a balance knob if playtesting wants more pressure on a hoarding player, but nothing depends on it.
+
 ### Accepted risk: the turtle stalemate
 
-"You can only be hurt while you're growing" means a player who **stops growing becomes unkillable by cutting**. A losing player can pull every head onto safe ground inside a small enclave and never lay another trail; the only remaining way to kill them is to encircle the entire enclave, which may be impractical at a chokepoint. With elimination as the sole win condition and no clock, that is a permanent stalemate rather than a slow one.
+"You can only be hurt while you're growing" means a player who **stops growing becomes unkillable by cutting**. A losing player can pull every head onto safe ground inside a small enclave and never lay another trail; the only remaining way to *kill* them is to encircle the entire enclave, which may be impractical at a chokepoint. **Domination** above is the clock elimination lacks, but it does not start on its own here: a turtle's spawner shares are inside the enclave, so they must be taken before any turn of the hold window counts.
 
-**Decision: accept it.** Encirclement is considered sufficient. If playtesting shows real stalemates, the drop-in fix is **upkeep** — each special sustains some number of heads, and holding less production than your army needs costs you one head per turn. That turns the turtle's shell into a starvation chamber and reuses pieces already on the board, without adding a subsystem.
+**Decision: accept it, and note that domination narrows it rather than closing it.** Encirclement is still considered sufficient.
 
-### Open risk: the board has no edge to corner someone against
+**Domination does not dissolve this case, and it is worth being precise about why.** A turtle keeps its economy — that is the whole of turtling — so its spawner shares are inside the enclave and the domination clock cannot start until they are taken. What changes is the *price of forcing it*: domination asks for the turtle's **production**, not its last head, and §7 already says an enemy can drive a chain into your territory and close a loop inside it, carving that chunk and any specials in it back out. Carving one spawner out of an enclave is a real operation with real risk (§5: a lasso deep inside enemy territory is brutally hard, because they are on safe ground the whole time and you never are) — but it is strictly smaller than encircling every head behind a chokepoint, which is the thing §9 called impractical. So the stalemate survives only against a turtle who can cut every incursion indefinitely, which is a much narrower player than "anyone who stops growing".
 
-An unbounded board (§2) makes a second non-termination case reachable, and it is the turtle's twin rather than a new problem. A losing player can walk their last heads past the cutoff radius *R* and keep walking.
+If playtesting shows real stalemates even then, the drop-in fix is still **upkeep** — each special sustains some number of heads, and holding less production than your army needs costs you one head per turn. That turns the turtle's shell into a starvation chamber and reuses pieces already on the board, without adding a subsystem.
 
-What is already true and worth stating, because it makes this smaller than it first looks:
+### Closed: the board has no edge, and it does not need one
+
+An unbounded board (§2) makes a second non-termination case reachable, and it looked like the turtle's twin: a losing player can walk their last heads past the cutoff radius *R* and keep walking.
+
+Two things were already true, and together they are why this needed a win condition rather than a chase mechanic:
 
 - **Fleeing gains nothing.** Past *R* there is no production (§7), so the runner's economy is fixed at zero while the pursuer keeps every spawner. Every turn spent running widens the gap.
 - **Pursuit converges.** `speed(N) = 1 + floor(log₂ N)` (§3), so a 16-stack closes four cells a turn on a lone head. Being faster is not enough on its own — the pursuer must also leave home to do it, and a chase is turns not spent defending.
 
-So it is a *griefing* case, not a strategic one: the runner cannot win, only decline to lose. That is exactly the shape of the turtle stalemate, and it wants the same fix — a condition that lets overwhelming economic dominance end a match without physically reaching every enemy head. **Not decided here.** → §11 item 32.
+So the runner cannot win, only decline to lose — and **domination above ends it**, because a player who has left the board's productive region holds no shares at all. The clock starts the moment they run, and it does not depend on catching them. **Resolved** — §11 item 32.
+
+Note the asymmetry with the turtle, since it is easy to read the two as one problem: *anything that solves the turtle solves the runner*, because a turtle keeps its economy and a runner has none. The converse does not hold, and this is the case where it matters.
 
 ---
 
@@ -725,7 +746,11 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > **Items 30 and 31 were opened together and closed together, by deleting their cause.** Both said the same thing — §7's fill and §8's setup were written for a plane while the board was a torus. The gap was closed in the direction nobody had considered: **the board became the plane** (item 4, re-resolved). Neither was answered on its own terms, and that is the better outcome; a rule invented to make fill work on a torus would have been a rule the game never needed.
 >
-> **Item 32 is open**, and is the one thing an unbounded board costs: nothing stops a losing player walking away forever. It is the turtle stalemate in another costume and wants the same answer. → §9, → P09.
+> **Item 32 was the one thing an unbounded board cost, and it is now closed** by a second win condition rather than by a chase mechanic: hold every spawner share for *N* turns and you win. A runner past *R* holds none, so the clock starts when they leave and never depends on catching them. It does *not* close §9's turtle — a turtle keeps its economy — but it narrows it from *encircle every head* to *carve out their production*. → §9 (*domination*), → P09 (*N*).
+>
+> **Item 35 was opened and closed by P05's review**, and it is the sharpest example on this list of why the review phase exists. §5 charged a branch on the move that creates it, in words that name a pairing a *set* cannot hold — so the implementation had to choose a standing form, chose the larger one, and passed every scenario doing it. Resolved to *one head per branch*; §5 now states the standing form and §6.1's price list is the price. → §5, → §6.1, → P05.
+>
+> **With item 32 answered, §11 carries no open structural question and no open behavioural one.** What is left is the tuning table of item 11 — *R*, the band radii, force per band, and now *N* — which is P09's to set by playing, not by deriving.
 >
 > **Item 34 was opened and closed by P05, and it was never a gap.** §7's closure clause granted "special tiles", which §7's *own next subsection* forbids — specials are vertices, owned in thirds by their bordering arrows, and a vertex is never enclosed. The answer was three subsections from the question, which is the failure mode a spec this cross-referential invites; the item stays as a reminder to look before opening one. → §7 (corrected), → P05b, → P08.
 >
@@ -751,6 +776,8 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 11. ~~Board size~~ — ~~resolved as configurable: the lattice mod `(n, m)`~~ — **re-resolved: there is no board size.** The board is unbounded (item 4), so the knob is no longer how big the world is but **how big the part worth having is**: the spawner cutoff radius *R*, plus the band radii inside it (§7, *the radial gradient*). One number where there were two, and it has a direct meaning — *R* is the distance past which the map stops paying.
 
     Still tuned by experiment against player count and total spawner force, not decided on paper. **Player count: MVP is 2, mirror-symmetric** — see §2, *map symmetry*, and note the correction there: the two-player involution is a **reflection**, because 180° rotation reverses every arrow's grain and is not a symmetry of the oriented board at all. 3+ is deferred; the 120° rotation is available for it, and it raises kingmaking under elimination and wants its own design pass.
+
+    **Item 32's *N* joins this table** — the number of consecutive turns every share must be held for a domination win (§9). Same shape as *R*: a number with a direct meaning that only playtesting can set, read once by the victory check rather than spread through it.
 12. ~~Spawner density~~ — **resolved: not one number, because it is not uniform.** The criterion as originally stated — *scarce enough that nobody sweeps them, common enough that overlap stays the norm* — cannot be met by a single density: overlap only becomes typical at densities where spawners stop being scarce. Under a **clustered** placement it is met trivially, and clustering is already the §7 principle for force. Dense and fast in the contested centre, sparse and slow at home.
 
     MVP defaults, chosen to be playable rather than derived: about **half** the eligible vertices in the central disc, **an eighth** in the home annulus, and **none at all past the cutoff radius *R***. See §7, *the radial gradient*. Still in the tuning sweep with item 11 — but it no longer blocks anything, because a fixture board can be built from these today.
@@ -842,24 +869,20 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     One thing this item asserted **was wrong and is now corrected in §2**. It said "the 120° rotation survives the quotient only when `n = m`; 180° rotation survives for any `(n, m)`, so a 2-player board is symmetric at any size." That is true of the *sublattice* and false of the *oriented graph*: `(i,j) ↦ (−i,−j)` sends every out-direction to a non-out-direction, so it reverses every arrow. It is an anti-automorphism, and a board built on it would hand player 2 a mirror world running backwards. The grain-preserving involution is a **reflection** — `(i,j) ↦ (i+j, −j)`, which fixes one out-direction and swaps the other two. 120° remains the three-player symmetry. See §2, *map symmetry*.
 
-**Open**
+**~~Nothing ends a match against an opponent who simply leaves~~ — resolved: a second win condition, on production rather than on pursuit**
 
-32. **Nothing ends a match against an opponent who simply leaves.** The board is unbounded (item 4), so a losing player can walk their last heads past the cutoff radius *R* and keep walking. §7's gradient removes the *reward* — there is no production out there and the pursuer keeps everything — and §3's speed curve means a large stack does close on a lone head. So the runner cannot win. They can decline to lose, indefinitely, and elimination is the only win condition (§9).
+32. ~~What stops a losing player walking away forever?~~ — **resolved: domination.** Hold **every spawner share for *N* consecutive turns** and you win (§9). The board is unbounded (item 4), so a losing player can walk their last heads past the cutoff radius *R* and keep walking; §7's gradient removes the *reward* and §3's speed curve means a large stack does close on a lone head, so the runner could never win — but with elimination as the only condition they could decline to lose, indefinitely.
 
-    **This is the turtle stalemate in another costume**, and the two want one answer rather than two. Both are a player who has stopped playing and cannot be reached; both are unreachable specifically because the reaching is physical. Candidates, none chosen:
+    **The answer is a win condition, not a chase mechanic**, and that is what makes it work: a runner past *R* holds no shares at all, so the clock starts the moment they leave and never depends on reaching them. Two things about its shape, neither a tuning choice:
 
-    - **Upkeep** — already named in §9 as the turtle's drop-in fix. Each special sustains some number of heads; hold less production than your army needs and you lose one head per turn. A runner has *zero* production, so it kills the flee case outright and faster than the turtle case. Reuses pieces already on the board and adds no subsystem, which is why it is the front-runner.
-    - **A domination condition** — hold every spawner share, or some fraction of total force, for *N* consecutive turns. Ends the match on the axis the game is actually contested on, and needs no new state.
+    - **Every share, not a fraction.** A threshold invites an argument about where the threshold goes; 100% needs no constant, and it is the state the flee case reaches automatically.
+    - **Held for *N* turns, not won on the turn of capture.** An instant win on the last share would end the match at the moment the losing side is most dangerous — still holding large, fast stacks (§3), with nothing left to defend and every reason to counterattack. The hold window turns *I took everything* into *I kept it*, and gives the losing side a defined last chance rather than a rug-pull. *N* is a tuning number, deliberately → item 11's table.
 
-        **Sharpened, and now a candidate in its own right rather than an alternative to upkeep.** Two refinements, both from the observation that a runner still *has an army*, they just have no income:
+    **Chosen over upkeep**, which had been the front-runner. Upkeep — each special sustains some number of heads, and holding less production than your army needs costs one head a turn — also kills the flee case, but it adds per-turn bookkeeping and a second head-loss channel to reason about, and domination reads ownership the board already carries. Upkeep survives as a balance knob, not as a requirement, and the two compose if playtesting wants both.
 
-        - **Every share, not a fraction.** A threshold invites a fight over where the threshold is, and there is a natural line at 100% that needs no tuning constant: the runner's production is already zero by the time they are running, so total capture is the state the flee case actually reaches.
-        - **Hold for *N* turns rather than winning on the turn of capture.** An instant win on the last share would end the match at the moment the underdog is most dangerous — they can be holding large, fast stacks (§3: a big stack outruns a small one, which is also why the runner cannot escape a strong pursuer) with nothing left to defend and every reason to counterattack. The hold window is what turns "I took everything" into "I kept it", and it gives the losing side a defined last chance instead of a rug-pull. *N* is a tuning number, deliberately.
+    **It does not close §9's turtle, and the asymmetry is the useful part.** *Anything that solves the turtle solves the runner* — a turtle keeps its economy, a runner has none — and the converse does not hold: a turtle's shares are inside the enclave, so the clock cannot start until they are carved out. What domination changes there is the price of forcing it, from *encircle every head behind a chokepoint* to *take their production*, which §7's carve-out already permits. §9 keeps the turtle as an accepted risk and now says why it is a smaller one.
 
-        This composes with upkeep rather than competing: upkeep bleeds a player with no production, and domination ends a match a player has already lost on the board. Either alone closes the flee case; together the second is the fast path and the first is the floor. **Still P09's call** — the two want deciding against §9's turtle in one pass.
-    - **Accept it**, as §9 already accepts the turtle. Defensible for a hot-seat MVP where both players can simply agree it is over, and indefensible the moment there is an AI or a ladder.
-
-    Note the flee case is *strictly easier* than the turtle case — a turtle keeps its economy, a runner has none — so anything that solves the turtle solves this, and it is not worth designing separately. → **P09** (match lifecycle and victory), and it should be decided together with §9's accepted risk rather than bolted beside it.
+    Opened by the unbounded-board resolution (item 4) and answered by the human directly. → **§9** (*domination*, and the turtle's revised note), → **P09** (*N*, with the rest of the spawner table).
 
 **~~What does the minimal closure claim at its centre?~~ — not a gap: §7 already answered it, in a different subsection than the one that asked**
 

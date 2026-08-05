@@ -37,7 +37,7 @@ scheduled early in the first place.
 | P06 | Cuts, evaporation & combat | rules | §6 | P05 | **§6 was rebuilt twice after P01 landed.** Bidirectional evaporation, one kill per front, 1:1 per-move combat — then bare trail, **all-to-all points**, and **per-arrow halting** (a head does *not* shield the point ahead against fire; that range is combat's alone). Two grades of anchor, territory and stack, and conflating them breaks §6.3 |
 | P07 | Territory & encirclement | rules | §7 | P05, P06 | conversion must conserve total heads exactly |
 | P08 | Spawner economy | rules | §7 | P07 | exact rationals only — **the accumulator is the one thing in the game that banks**; blockades halt accrual and cost the share. Accrual takes *a* force per spawner and must never read its value: **no branch on 1/3 vs 1/12, no threshold against a constant** (§7, *placement and force are setup data*). MVP defaults are playtest-first (§11 items 12 and 25) and a retune must not change which scenarios pass |
-| P09 | Match lifecycle, setup & victory | rules | §8, §9 | P07, P08 | the turtle stalemate is an accepted risk (§9), and **§11 item 32 is its twin** — an unbounded board lets a losing player simply walk away. Decide both together; upkeep answers both. **Owns the spawner tuning table**: which eligible vertices carry a spawner, the band *radii*, force per band, and the cutoff radius *R* past which there are none — one input read once at setup, not conditions spread through placement (§7). Also owns two-player placement, which must use the **reflection** `(i,j) ↦ (i+j,−j)`: 180° rotation reverses every arrow's grain and would hand player 2 a board running backwards |
+| P09 | Match lifecycle, setup & victory | rules | §8, §9 | P07, P08 | **two win conditions, not one.** Elimination, plus **domination — every spawner share held for *N* consecutive turns** (§9, §11 item 32 resolved). Domination is what makes an unbounded board terminate: a runner past *R* holds no shares, so the clock starts when they leave and never depends on catching them. The turtle stalemate stays an **accepted risk** — a turtle keeps its economy, so its shares must be carved out before the clock can start — and **upkeep** remains the drop-in fix if playtesting needs it. **Owns the spawner tuning table**: which eligible vertices carry a spawner, the band *radii*, force per band, *N*, and the cutoff radius *R* past which there are none — one input read once at setup, not conditions spread through placement (§7). Also owns two-player placement, which must use the **reflection** `(i,j) ↦ (i+j,−j)`: 180° rotation reverses every arrow's grain and would hand player 2 a board running backwards |
 | P10 | Replay & determinism harness | cross-cutting | — | P04, P09 | the primary detector of accidental nondeterminism |
 | P11 | Renderer & hot-seat input | adapter | §2, §5, §7 | P03, P09 | the only shipping adapter. Galcon-style source→destination→portion input; trail-vs-territory must be legible at a glance (§5). **The board is unbounded (§11 item 4), so deciding which arrows are on screen is this packet's central job**, not an afterthought — P03's layout clips nothing and knows no viewport |
 | ~~P12~~ | ~~AI opponent~~ | — | — | — | **out of MVP** (hot-seat). Kept in the graph because P10 exists partly to make it cheap later |
@@ -140,19 +140,27 @@ What that costs and pays across the plan:
   P05 in two
 - **P09** — gains the radial gradient and loses the board size
 
-Still open:
+Still open — **numbers only, no behaviour:**
 
-- **item 32** — nothing ends a match against a player who simply walks away. The
-  gradient removes the *reward* for fleeing, not the possibility. **The turtle
-  stalemate in another costume**, and §9 should answer both at once. Two live
-  candidates that compose: **upkeep** (a runner has zero production, so it bleeds
-  them) as the floor, and **domination — every spawner share held for *N* turns**
-  as the fast path. The hold window is the point: an instant win on the last share
-  would end the match exactly when the losing side still has large fast stacks and
-  nothing left to defend → **P09**
-- **item 11** — ~~board size `(n, m)`~~ → the spawner cutoff radius *R* and the
-  band radii. MVP player count fixed at 2, placed by **reflection** — 180°
-  rotation reverses the grain and is not a symmetry → **P09**
+- **item 11** — ~~board size `(n, m)`~~ → the spawner cutoff radius *R*, the band
+  radii, force per band, and **item 32's *N***. MVP player count fixed at 2, placed
+  by **reflection** — 180° rotation reverses the grain and is not a symmetry →
+  **P09**
+
+Closed since the last revision of this doc:
+
+- **item 32** — nothing ended a match against a player who simply walks away.
+  **Resolved: domination** — hold every spawner share for *N* consecutive turns and
+  you win (§9). A win condition rather than a chase mechanic, which is what makes it
+  work: a runner past *R* holds no shares, so the clock starts when they leave and
+  never depends on catching them. Chosen over **upkeep**, which also killed the flee
+  case but adds per-turn bookkeeping where domination reads ownership the board
+  already carries. It does **not** close §9's turtle — a turtle keeps its economy —
+  but it narrows the price of forcing one from *encircle every head* to *carve out
+  their production* → **P09** owns *N* and the victory check
+- **item 35** — §5 and §6.1 priced a branch at two different numbers, and the
+  memoryless trail could not tell them apart. **Resolved: one head per branch**,
+  opened and closed by P05's review → **P05**
 - **item 12** — spawner density, resolved as *non-uniform*: dense and fast in the
   contested centre, sparse and slow at home, nothing past *R*. MVP defaults are
   written down and explicitly playtest-first → **P09**
