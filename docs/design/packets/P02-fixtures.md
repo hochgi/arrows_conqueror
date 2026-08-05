@@ -259,60 +259,52 @@ job here is pure translation: turn these decisions and the conformance contract
 into Gherkin + EARS. If it uncovers a genuine mechanics gap, that is a §11 kickback
 like anywhere else — but the packet does not anticipate one.
 
-## Definition of done
+## Definition of done — met
 
-- [ ] `pnpm verify` green.
-- [ ] `runGeometryPortConformance` passing against every shipped board, **unedited**
-      — `git diff` touches nothing under `packages/contracts/src`.
-- [ ] A malformed board named in a test fails at construction with a message
+- [x] `pnpm verify` green.
+- [x] `runGeometryPortConformance` passing against every shipped board, **unedited**
+      — 74 assertions, two boards, and the phase-3 commit touches nothing under
+      `packages/contracts`.
+- [x] A malformed board named in a test fails at construction with a message
       naming the point or arrow at fault.
-- [ ] No `Date`, `Math.random` or insertion-order dependence; every derived id from
+- [x] No `Date`, `Math.random` or insertion-order dependence; every derived id from
       a canonical key.
-- [ ] `packages/geometry-fixtures` importing `@arrows/contracts` and nothing else —
-      in particular not `geometry-tiling`.
-- [ ] SPEC §11 item 29's floor corrected to 7 points / 21 arrows, and the reason
+- [x] `packages/geometry-fixtures` importing `@arrows/contracts` and nothing else —
+      `geometry-tiling` appears only in comments saying it is deliberately absent.
+- [x] SPEC §11 item 29's floor corrected to 7 points / 21 arrows, and the reason
       recorded.
-- [ ] The obsolete fixture names replaced in `.claude/skills/write-failing-tests`,
+- [x] The obsolete fixture names replaced in `.claude/skills/write-failing-tests`,
       `.claude/skills/rules-invariants` and `.claude/agents/test-author.md`.
 
-## Where this stopped — phases 1 and 2 are done, phase 3 is next
+## How it landed — all four phases complete
 
-**Phases 1 and 2 are complete and human-approved.** Phase 3 (coder,
-`code-to-green`) has not started. Nothing has been pushed; there is no remote.
+Four commits: the phase-1 spec at `docs/spec/fixtures/` (18 scenarios, 13 EARS
+invariants) with the §11 item 29 floor correction; the red suite at **106 failed /
+1 passed**, every failure an unimplemented stub; the implementation; and the §11
+finiteness record. The one test green while the suite was red is *the board exposes
+no extent* — structural, satisfied by the port surface alone, and there to fail the
+day someone adds a size accessor.
 
-Landed in two commits:
+P04 is the first packet to run its rules tests on these boards, and did so without
+touching them.
 
-- `docs(spec)` — the phase-1 spec at `docs/spec/fixtures/` (18 scenarios, 13 EARS
-  invariants), the §11 item 29 floor correction, and this packet doc.
-- `test(P02)` — `packages/geometry-fixtures`, red: **106 failed / 1 passed**, every
-  failure an unimplemented stub. `pnpm typecheck` and `pnpm lint` both pass, so the
-  suite is red for the right reason and not for a compile error.
+### What phase 3 built
 
-The one green test is *the board exposes no extent* — structural, passes from the
-port surface alone, and exists to fail the day someone adds a size accessor.
-
-### What phase 3 has to build
-
-`makeFixture(description): GeometryPort` in `src/fixture.ts`, where every method
-currently routes to an `unimplemented()` that throws a plain `Error`. Three pieces:
+`makeFixture(description): GeometryPort` in `src/fixture.ts`. Three pieces:
 
 1. **The validator**, run at construction. Every fault in D2, each raising
    `ContractViolation` with a message that *names the offending point or arrow* —
    the tests assert on the message, not just the type.
 2. **Derived vertices** — enumerate minimal directed 3-cycles, mint one vertex per
-   cycle from a **canonical key** (its three arrow names, sorted). This is the
+   cycle from a **canonical key** (its three arrow names, sorted). This was the
    packet's one real purity risk: the ids must not depend on map-insertion order,
    and a test compares ids across two independent builds specifically to catch it.
 3. **`window(centre, radius)`** — BFS ball over both arrow directions, with a fixed
    neighbour order.
 
-**Do not edit the stubs' plain `Error` into `ContractViolation` as a shortcut.**
-Phase 2 chose plain `Error` deliberately: the rejection tests assert
-`toThrow(ContractViolation)`, so a stub throwing that type would go *falsely* green.
-
-**Do not touch `packages/contracts/`.** The conformance suite is reused unedited —
-if it seems to need a change, the port leaked something concrete and that is the
-finding to report, not a fix to apply.
+Phase 2's stubs threw a plain `Error` on purpose, and phase 3 replaced them rather
+than retyping them: the rejection tests assert `toThrow(ContractViolation)`, so a
+stub throwing *that* type would have gone falsely green.
 
 ### The one finding phase 2 surfaced, already resolved in the spec
 
