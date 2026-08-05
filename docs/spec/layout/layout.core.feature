@@ -105,7 +105,6 @@ Feature: Layout — the arrow tiling as drawable polygons
     duplicated in two packages.
 
     Scenario: Layout accepts no screen parameters
-      When I inspect everything the layout exposes
-      Then no method accepts a scale
-      And no method accepts a pixel offset
-      And every coordinate returned is in lattice space
+      When I read back the parameters a layout was built with
+      Then they are exactly twist, bend and twist parity
+      And no scale, pixel offset or viewport is among them

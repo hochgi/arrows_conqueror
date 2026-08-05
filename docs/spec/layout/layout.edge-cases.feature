@@ -53,9 +53,17 @@ Feature: Layout edge cases — parity, degenerate parameters, and the skew check
         | 100   | 20   | a deeper, thinner arm         |
         | -87   | 36   | mirrored handedness           |
 
-    Scenario: No layout method branches on a particular twist value
-      When I inspect the layout implementation
-      Then no comparison against a specific twist or bend value appears in it
+    Scenario Outline: The silhouette varies continuously in <parameter>
+      When I sweep <parameter> across its range in small steps
+      Then no step moves any polygon vertex more than a small distance
+      # This is how "no method branches on a particular value" becomes testable.
+      # A threshold — `if twist is 87` — puts a jump in the map from parameter to
+      # polygon, and nothing else does. Fixed-value tests cannot see it.
+
+      Examples:
+        | parameter |
+        | twist     |
+        | bend      |
 
   Rule: Layout is translation-invariant, because the board is
 
@@ -76,9 +84,11 @@ Feature: Layout edge cases — parity, degenerate parameters, and the skew check
         | (400, 400)     | far outside any window       |
 
     Scenario: Layout clips nothing
-      When I inspect everything the layout exposes
-      Then no method accepts bounds
-      And no polygon vertex is constrained to any range
+      When I request the polygon for an arrow 400 cells from the origin
+      Then its vertices are 400 cells from the origin
+      And the parameters layout accepts name no scale, offset or bounds
+      # Clamping would still return eight plausible vertices, so the distance is
+      # what catches it, not the vertex count.
 
   Rule: Layout is the only check on the out-direction constant
 

@@ -33,20 +33,16 @@ const unimplementedPort = (): GeometryPort => {
   };
 };
 
-// PENDING UNTIL P03, DELIBERATELY.
+// The skipped placeholder that used to live here is GONE, and that is progress.
 //
-// P01 ships the conformance suite; it does not ship a board, so there is nothing
-// here for the suite to be true *about*. Left running it would leave `pnpm verify`
-// red for the whole gap between P01 and P03 — and a permanently-failing verify is
-// how people stop reading verify.
+// P01 shipped the suite without a board, so it was wrapped in a `describe.skip`
+// — neither green nor red, but named in the report. P03 supplies the generated
+// tiling, and `packages/geometry-tiling/test/conformance.test.ts` now runs the
+// suite against it for real. Keeping the stand-in would duplicate all 37
+// failures against a port that throws by design.
 //
-// Skipped is the honest state: neither green nor red, every test still named and
-// enumerable in the report. P03 deletes this wrapper, points the factory at the
-// generated tiling, and the suite must go green *unchanged* — if it needs editing,
-// the port leaked something concrete. That is in P03's definition of done.
-describe.skip('awaiting a board implementation (P03)', () => {
-  runGeometryPortConformance('no implementation (P01)', unimplementedPort);
-});
+// The suite must go green *unchanged* over there. If it needs editing, the port
+// leaked something concrete, and that is the finding rather than the fix.
 
 describe('the conformance suite is P01’s actual deliverable', () => {
   it('is exported as a parameterized suite, not a fixed one', () => {

@@ -144,6 +144,9 @@ Feature: Generating the arrow tiling
       Then both boards return that point's out-arrows in the same order
 
     Scenario: The generator holds no state
-      When I inspect the generator
-      Then it precomputes no collection of points, arrows or vertices
-      And every answer is derived from the identifier it was given
+      Given a generator that has already answered many queries
+      When I take a window from it and the same window from a fresh generator
+      Then the two are identical
+      And the generator exposes no property that is not a method
+      # There is no collection to iterate in the wrong order, so ADR 0001's
+      # realistic determinism failure is unreachable by construction.

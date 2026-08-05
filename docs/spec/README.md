@@ -22,7 +22,7 @@ behaviour is not here, it will not be built.**
 | [layout](./layout/layout.md) | P03 | §2 | 24 | — | 12 |
 
 152 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`, and
-**58 belong to P03**. 216 concrete cases once `Examples` rows are expanded,
+**58 belong to P03**. 217 concrete cases once `Examples` rows are expanded,
 69 invariants.
 
 A `@deferred-<packet>` tag means the behaviour is decided and specified here, but
