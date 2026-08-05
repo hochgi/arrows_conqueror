@@ -10,11 +10,12 @@
  *
  * P01 deliberately deferred this: a state shape guessed before a rule needed it
  * would have invented trails, territory and closure in type form. What is here
- * is exactly what movement reads. Later packets grow it — a trail set (P05), an
+ * is exactly what movement (P04) and trails (P05) read. Later packets grow it — an
  * accumulator per arrow (P08) — and the absence of those fields is a statement
  * about scope, not an oversight.
  *
  * @see docs/spec/movement/movement.md
+ * @see docs/spec/trails/trails.md
  */
 
 import type { ArrowId, PlayerId } from './ids';
@@ -81,4 +82,37 @@ export interface GameState {
    * is no contested-occupancy shape in P04 — that arrives with combat (P06).
    */
   readonly groups: ReadonlyMap<ArrowId, Group>;
+  /**
+   * **A trail is a set of arrows** (SPEC §6.1a) — per player, because two of them
+   * may mark the same arrow.
+   *
+   * A set and not a list, tree or walk: nothing records the order it was laid,
+   * which heads laid it, or how often one has walked it. Every question the rules
+   * ask of a trail — where evaporation stops, whether a crossing happened, what is
+   * enclosed, what is still anchored, whether a branch was paid for — is
+   * answerable from this plus {@link GameState.groups}. That is load-bearing, not
+   * frugal: it is what removes head identity from the engine, and it is why none
+   * of §6.1's rules need a resolution order.
+   *
+   * **Overlap is permitted.** Stepping onto an arrow an enemy trail holds is a
+   * crossing (§2, *coincide*), which is legal; what it destroys is P06's. Until
+   * evaporation exists the arrow simply stays in both sets, so the type has to
+   * allow it either way.
+   *
+   * Iterate this only through a sorted key. ADR 0001 names ordering, not
+   * randomness, as the realistic determinism failure, and a `Set` is exactly where
+   * it hides (P05 D1).
+   */
+  readonly trails: ReadonlyMap<PlayerId, ReadonlySet<ArrowId>>;
+  /**
+   * Closed ground: **one owner per arrow** (§7). An arrow absent from this map is
+   * unclaimed.
+   *
+   * One owner rather than a set per player, because territory changes hands rather
+   * than being shared — an enemy closing a loop inside your land carves that chunk
+   * out (§7, *territory is contestable*). A **vertex** is not here at all: a
+   * special is owned in thirds by its three bordering arrows (§7, §11 item 34), so
+   * vertex ownership is a *reading* of this map and never a second copy of it.
+   */
+  readonly territory: ReadonlyMap<ArrowId, PlayerId>;
 }

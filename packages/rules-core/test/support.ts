@@ -19,9 +19,10 @@
 
 import { makeFixture, MINIMAL } from '@arrows/geometry-fixtures';
 import type { BoardDescription } from '@arrows/geometry-fixtures';
-import { mintPlayerId } from '@arrows/contracts';
+import { chord, chordsCross, chordsInterleave, mintPlayerId } from '@arrows/contracts';
 import type {
   ArrowId,
+  Chord,
   GameState,
   GeometryPort,
   Group,
@@ -30,6 +31,7 @@ import type {
   PointId,
   RulesPort,
   StepMove,
+  Traversal,
 } from '@arrows/contracts';
 import { makeRules } from '../src/index';
 
@@ -66,13 +68,39 @@ const groupOf = (p: Placement): Group => ({
   ...(p.speedOverride === undefined ? {} : { speedOverride: p.speedOverride }),
 });
 
+/**
+ * Trail and territory, authored separately from occupancy.
+ *
+ * Deliberately *not* derived from the placements. P05 D2 says the arrow a head
+ * stands on is trail, but that is a consequence of stepping — a test that wants a
+ * head on unmarked ground (every P04 scenario does) must be able to say so, and a
+ * test about trails must be able to author a headless stretch (§6.1a). Deriving
+ * either from the other would make both unsayable.
+ */
+export interface Ground {
+  /** Arrows in each player's trail. Overlap between players is legal (P05 D1). */
+  readonly trail?: Readonly<Partial<Record<'A' | 'B', readonly ArrowId[]>>>;
+  /** Arrows of closed ground, one owner each. */
+  readonly territory?: readonly { readonly arrow: ArrowId; readonly owner: PlayerId }[];
+}
+
+const trailsOf = (ground: Ground): GameState['trails'] =>
+  new Map(
+    ([['A', A], ['B', B]] as const)
+      .map(([key, player]) => [player, new Set(ground.trail?.[key] ?? [])] as const)
+      .filter(([, arrows]) => arrows.size > 0),
+  );
+
 export const stateOf = (
   placements: readonly Placement[],
   activePlayer: PlayerId = A,
+  ground: Ground = {},
 ): GameState => ({
   players: PLAYERS,
   activePlayer,
   groups: new Map(placements.map((p) => [p.arrow, groupOf(p)] as const)),
+  trails: trailsOf(ground),
+  territory: new Map((ground.territory ?? []).map((t) => [t.arrow, t.owner] as const)),
 });
 
 // ── observing a state ─────────────────────────────────────────────────────────
@@ -97,6 +125,44 @@ export const spentOn = (state: GameState, arrow: ArrowId): number => {
 
 export const totalHeads = (state: GameState): number =>
   [...state.groups.values()].reduce((sum, group) => sum + group.heads, 0);
+
+// ── observing trail and territory ─────────────────────────────────────────────
+
+/**
+ * A player's trail as a **sorted** array of strings.
+ *
+ * Sorted so an assertion compares contents rather than the order a `Set` happened
+ * to be built in — which is the ordering dependence ADR 0001 calls the realistic
+ * one. The one test that cares about order compares two builds against each other.
+ */
+export const trailOf = (state: GameState, player: PlayerId): readonly string[] =>
+  [...(state.trails.get(player) ?? [])].map(String).toSorted();
+
+export const isTrail = (state: GameState, player: PlayerId, arrow: ArrowId): boolean =>
+  state.trails.get(player)?.has(arrow) === true;
+
+/** Who holds this arrow as closed ground, or `undefined`. */
+export const territoryOf = (state: GameState, arrow: ArrowId): PlayerId | undefined =>
+  state.territory.get(arrow);
+
+/** A traversal in by `from`, out by `exit` — the geometric question, no player. */
+export const via = (from: ArrowId, exit: ArrowId): Traversal => ({ from, exit });
+
+/**
+ * Chords as comparable strings, so a set of them can be asserted readably.
+ *
+ * `chord()` normalizes so the lower slot comes first, which is what makes two
+ * structurally equal chords compare equal — so this is a faithful key and not a
+ * lossy one.
+ */
+export const chordKeys = (chords: readonly Chord[]): readonly string[] =>
+  chords.map((c) => `${String(c.a)}-${String(c.b)}`).toSorted();
+
+/** The chord a traversal draws at the point it transits, asked of the board. */
+export const chordOf = (geometry: GeometryPort, t: Traversal): Chord => {
+  const point = geometry.target(t.from);
+  return chord(geometry.slotOf(point, t.from), geometry.slotOf(point, t.exit));
+};
 
 /**
  * A comparable, order-independent picture of a whole state.
@@ -249,8 +315,126 @@ export const twoSourcesOneDestination = (
   };
 };
 
+// ── authoring a point's neighbourhood ─────────────────────────────────────────
+
+/** One item of a list the board handed back, with the index checked. */
+export const pick = <T>(items: readonly T[], index: number): T =>
+  nth(items, index, 'item the board offered');
+
+/** A deterministic point to build a branch or a crossing at. */
+export const aPoint = (geometry: GeometryPort): PointId =>
+  geometry.target(anArrow(geometry));
+
+/**
+ * A point and the three arrows in and three out, as the board reports them.
+ *
+ * Every branch, crossover and crossing scenario is authored from this rather than
+ * from literal ids, so the same test runs on either fixture board — and on the
+ * tiling, when P05b needs it.
+ */
+export const slotsAt = (
+  geometry: GeometryPort,
+  point: PointId,
+): { readonly point: PointId; readonly ins: readonly ArrowId[]; readonly outs: readonly ArrowId[] } => ({
+  point,
+  ins: geometry.inArrows(point),
+  outs: geometry.outArrows(point),
+});
+
+/**
+ * Sort the out-arrows of `point` by how a traversal from `from` relates to
+ * `against` — the three cases §2 distinguishes.
+ *
+ * `aside` is the *neither* case: not interleaving and not coinciding. Turning aside
+ * rather than through.
+ */
+export const exitsByCrossing = (
+  geometry: GeometryPort,
+  point: PointId,
+  from: ArrowId,
+  against: Chord,
+): {
+  readonly interleaving: readonly ArrowId[];
+  readonly coincidingOnly: readonly ArrowId[];
+  readonly aside: readonly ArrowId[];
+} => {
+  const mine = geometry.slotOf(point, from);
+  const interleaving: ArrowId[] = [];
+  const coincidingOnly: ArrowId[] = [];
+  const aside: ArrowId[] = [];
+  for (const exit of geometry.outArrows(point)) {
+    const ours = chord(mine, geometry.slotOf(point, exit));
+    if (chordsInterleave(ours, against)) interleaving.push(exit);
+    else if (chordsCross(ours, against)) coincidingOnly.push(exit);
+    else aside.push(exit);
+  }
+  return { interleaving, coincidingOnly, aside };
+};
+
+/**
+ * A point, a spine of trail through it, and a traversal that **interleaves** with
+ * that spine — found by search rather than assumed.
+ *
+ * Whether a given (in, out) pair interleaves with another depends on the point's
+ * rotation system, which is authored data and free (§11 item 29). So a test that
+ * picked `ins[1]` and hoped would pass on one board and fail on the next. This
+ * asks the board for a configuration that exists, deterministically: first point,
+ * first pair, first hit.
+ */
+export const anInterleaving = (
+  geometry: GeometryPort,
+  diameter: number,
+): {
+  readonly point: PointId;
+  readonly trailIn: ArrowId;
+  readonly trailOut: ArrowId;
+  readonly ourIn: ArrowId;
+  readonly ourExit: ArrowId;
+} => {
+  for (const point of [...new Set(allArrows(geometry, diameter).map((a) => geometry.target(a)))]) {
+    const ins = geometry.inArrows(point);
+    const outs = geometry.outArrows(point);
+    for (const trailIn of ins) {
+      for (const trailOut of outs) {
+        const theirs = chord(geometry.slotOf(point, trailIn), geometry.slotOf(point, trailOut));
+        for (const ourIn of ins) {
+          if (ourIn === trailIn) continue;
+          for (const ourExit of outs) {
+            const ours = chord(geometry.slotOf(point, ourIn), geometry.slotOf(point, ourExit));
+            if (chordsInterleave(ours, theirs)) {
+              return { point, trailIn, trailOut, ourIn, ourExit };
+            }
+          }
+        }
+      }
+    }
+  }
+  throw new Error('setup: no interleaving configuration on this board');
+};
+
+/**
+ * Three arrows forming a directed cycle — `a → b → c → a`.
+ *
+ * Girth is 3 on every conformant board (SPEC §2, §11 item 3) and §11 item 5 calls
+ * this the shortest U-turn loop, so one exists; it is searched for rather than
+ * constructed because which three depends on the board.
+ */
+export const aThreeCycle = (
+  geometry: GeometryPort,
+  diameter: number,
+): readonly [ArrowId, ArrowId, ArrowId] => {
+  for (const a of allArrows(geometry, diameter)) {
+    for (const b of exitsFrom(geometry, a)) {
+      for (const c of exitsFrom(geometry, b)) {
+        if (exitsFrom(geometry, c).includes(a)) return [a, b, c];
+      }
+    }
+  }
+  throw new Error('setup: this board has no directed 3-cycle, so its girth is not 3');
+};
+
 export { MINIMAL, SPACIOUS } from '@arrows/geometry-fixtures';
-export type { ArrowId, GameState, PlayerId };
+export type { ArrowId, Chord, GameState, PlayerId, PointId, Traversal };
 
 /** Undirected diameters of the two fixture boards — a test-author fact (P02). */
 export const MINIMAL_DIAMETER = 1;

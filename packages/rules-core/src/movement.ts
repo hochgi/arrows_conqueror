@@ -29,6 +29,7 @@ import type {
   SkipMove,
   StepMove,
 } from '@arrows/contracts';
+import { makeTrailRules } from './trails';
 
 /**
  * Refuse a move. An illegal move is never a plausible no-op (P04 D2, D9): a
@@ -260,10 +261,20 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     }
   };
 
+  // P05's half of the port. Trail marking and branch anchors are not wired into
+  // `apply` yet — phase 3 does that — so the movement rules above still answer
+  // exactly what P04 approved, and every trail scenario is red for the right
+  // reason rather than for a compile error.
+  const trails = makeTrailRules(geometry);
+
   return {
     legalMoves,
     apply,
     effectiveSpeed: (state: GameState, arrow: ArrowId): number =>
       allowanceOf(groupOn(state, arrow)),
+    trailChordsAt: trails.trailChordsAt,
+    crossesTrail: trails.crossesTrail,
+    selfCrosses: trails.selfCrosses,
+    anchorGrade: trails.anchorGrade,
   };
 };
