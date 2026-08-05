@@ -1,0 +1,19 @@
+{
+  "name": "@arrows/rules-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --build --force"
+  },
+  "dependencies": {
+    "@arrows/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@arrows/geometry-fixtures": "workspace:*",
+    "vitest": "^2.1.8"
+  }
+}

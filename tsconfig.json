@@ -3,6 +3,7 @@
   "references": [
     { "path": "./packages/contracts" },
     { "path": "./packages/geometry-tiling" },
-    { "path": "./packages/geometry-fixtures" }
+    { "path": "./packages/geometry-fixtures" },
+    { "path": "./packages/rules-core" }
   ]
 }
