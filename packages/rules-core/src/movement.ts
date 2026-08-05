@@ -29,6 +29,7 @@ import type {
   SkipMove,
   StepMove,
 } from '@arrows/contracts';
+import { compareArrows } from './order';
 import { makeTrailRules } from './trails';
 
 /**
@@ -58,13 +59,6 @@ const asGroup = (
     ? { owner, heads, spent }
     : { owner, heads, spent, speedOverride: override };
 
-/** A total order on arrows, so an ordered answer never rests on map order. */
-const compareArrows = (left: ArrowId, right: ArrowId): number => {
-  if (String(left) < String(right)) return -1;
-  if (String(left) > String(right)) return 1;
-  return 0;
-};
-
 /**
  * Build the movement rules over a board.
  *
@@ -73,6 +67,11 @@ const compareArrows = (left: ArrowId, right: ArrowId): number => {
  * tiling (P03) satisfy the same rules unchanged.
  */
 export const makeRules = (geometry: GeometryPort): RulesPort => {
+  // P05's half of the port: what a step marks, what a branch costs, and who
+  // crossed whom. Movement asks it two questions — `requireBranchAnchors` before a
+  // step is written and `markStep` as it is — and exposes the rest unchanged.
+  const trails = makeTrailRules(geometry);
+
   /**
    * How far the group may go this turn: `speed(heads)`, unless a merge set an
    * override for the rest of the turn (§3, D4). Stated as an override so every
@@ -162,8 +161,16 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     return movers;
   };
 
+  /**
+   * A step: occupancy, then the mark it leaves.
+   *
+   * The branch mandate is asked **before** anything is written, against the trail
+   * the move would leave (§5, P05 D6) — an illegal move is never a plausible no-op
+   * (P04 D2), so a step that cannot pay for a branch must not have moved anything.
+   */
   const applyStep = (state: GameState, move: StepMove): GameState => {
     const movers = moversFor(state, move);
+    trails.requireBranchAnchors(state, move, movers.owner);
     const groups = new Map(state.groups);
     const remainder = movers.heads - move.count;
     // A split leaves the remainder its parent's `spent` and its parent's override,
@@ -177,7 +184,7 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
       );
     }
     groups.set(move.exit, landing(movers, move.count, state.groups.get(move.exit)));
-    return { ...state, groups };
+    return { ...state, groups, trails: trails.markStep(state, move, movers.owner) };
   };
 
   /**
@@ -234,6 +241,14 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
    * group has a whole step left, that leaves `endTurn` alone (D6, confirmed):
    * exhaustion restricts the offer rather than advancing the player behind their
    * back.
+   *
+   * A portion that would leave a branch of the mover's own trail unpaid is withheld
+   * (§5, P05 D6). The port promises that anything it names, `apply` accepts, so the
+   * mandate has to be read here and not only there — otherwise a player following
+   * the engine's own advice gets refused, and a replay could record a move the rules
+   * reject. A group with allowance whose every step is withheld still offers its
+   * `skip`: §5 leaves such a head standing, immobile until reinforced, and declining
+   * is always legal (§6.2).
    */
   const legalMoves = (state: GameState): readonly Move[] => {
     const moves: Move[] = [];
@@ -241,7 +256,9 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
       for (const exit of exitsFrom(arrow)) {
         if (!canLand(state, exit)) continue;
         for (let count = 1; count <= group.heads; count += 1) {
-          moves.push(step(arrow, exit, count));
+          const candidate = step(arrow, exit, count);
+          if (trails.unpaidBranch(state, candidate, group.owner) !== undefined) continue;
+          moves.push(candidate);
         }
       }
       moves.push(skip(arrow));
@@ -260,12 +277,6 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
         return applyEndTurn(state);
     }
   };
-
-  // P05's half of the port. Trail marking and branch anchors are not wired into
-  // `apply` yet — phase 3 does that — so the movement rules above still answer
-  // exactly what P04 approved, and every trail scenario is red for the right
-  // reason rather than for a compile error.
-  const trails = makeTrailRules(geometry);
 
   return {
     legalMoves,

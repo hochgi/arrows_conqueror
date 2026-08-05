@@ -42,6 +42,7 @@ import {
   trailOf,
   via,
 } from './support';
+import type { ArrowId } from './support';
 
 const BOARDS = [
   { name: 'minimal', description: MINIMAL, diameter: MINIMAL_DIAMETER },
@@ -208,6 +209,95 @@ describe('branching costs an anchor, and only what a move changes is checked', (
     }
   });
 
+  /**
+   * A split of the mover's trail, and the step that walks the last head off one of
+   * its arms.
+   *
+   * The point *ahead* of that arm is deliberately required to carry exactly one
+   * trail in-arrow, so the join half of the mandate cannot fire and the only anchor
+   * the move can strip is the split's. Without that constraint the assertion would
+   * pass on a dense board for the wrong reason.
+   */
+  const aSplitArmToVacate = (
+    table: ReturnType<typeof onBoard>,
+    diameter: number,
+  ): { arm: ArrowId; other: ArrowId; exit: ArrowId } | undefined => {
+    for (const { outs } of junctions(table, diameter)) {
+      for (const arm of outs) {
+        const other = outs.find((o) => o !== arm);
+        if (other === undefined) continue;
+        for (const exit of exitsFrom(table.geometry, arm)) {
+          const after = [arm, other, exit];
+          const ahead = table.geometry.target(arm);
+          const feeding = table.geometry.inArrows(ahead).filter((a) => after.includes(a));
+          if (feeding.length === 1) return { arm, other, exit };
+        }
+      }
+    }
+    return undefined;
+  };
+
+  it.each(BOARDS)('refuses walking the last head off a split’s arm on $name', ({
+    description,
+    diameter,
+  }) => {
+    // The other half of D6, and the half that gives §5's *one head after a split* its
+    // teeth: arriving always pays a split, because the movers land on the arm they
+    // created. So the rule can only ever bite when a head steps back off that arm.
+    const table = onBoard(description);
+    const found = aSplitArmToVacate(table, diameter);
+    if (found === undefined) throw new Error('setup: no split with an unbranched continuation');
+    const { arm, other, exit } = found;
+    const trail = [arm, other];
+
+    expect(() =>
+      table.rules.apply(
+        stateOf([{ arrow: arm, owner: A, heads: 1 }], A, { trail: { A: trail } }),
+        step(arm, exit, 1),
+      ),
+    ).toThrow(ContractViolation);
+
+    // A toll, not a wall (§5): the price is one head, never immobility.
+    const after = table.rules.apply(
+      stateOf([{ arrow: arm, owner: A, heads: 2 }], A, { trail: { A: trail } }),
+      step(arm, exit, 1),
+    );
+    expect(after.groups.get(arm)?.heads).toBe(1);
+  });
+
+  it('does not charge an anchor to an arrow that is the mover’s territory', () => {
+    // §5's safety rule, on the paying side. A branch is a branch of your *trail*, so
+    // territory holds no strand and can never owe an anchor — however many strands of
+    // yours meet the point ahead of it.
+    const table = onBoard();
+    for (const { ins, outs } of junctions(table, MINIMAL_DIAMETER)) {
+      const leaving = pick(ins, 0);
+      const joined = [pick(ins, 1), pick(ins, 2)];
+      const move = step(leaving, pick(outs, 0), 1);
+
+      // Territory: the whole stack may leave, even though the point ahead is a join.
+      const off = table.rules.apply(
+        stateOf([{ arrow: leaving, owner: A, heads: 1 }], A, {
+          trail: { A: joined },
+          territory: [{ arrow: leaving, owner: A }],
+        }),
+        move,
+      );
+      expect(off.groups.get(pick(outs, 0))?.heads).toBe(1);
+
+      // Trail: the same arrow, the same move, now a third strand into that join — and
+      // refused. The pair is the assertion; either alone proves nothing.
+      expect(() =>
+        table.rules.apply(
+          stateOf([{ arrow: leaving, owner: A, heads: 1 }], A, {
+            trail: { A: [leaving, ...joined] },
+          }),
+          move,
+        ),
+      ).toThrow(ContractViolation);
+    }
+  });
+
   it('refuses a lone head every branching move, everywhere', () => {
     const table = onBoard();
     for (const { ins, outs } of junctions(table, MINIMAL_DIAMETER)) {
@@ -222,25 +312,56 @@ describe('branching costs an anchor, and only what a move changes is checked', (
     }
   });
 
+  /**
+   * A move that forms no branch of its own — the "elsewhere" the exemption is about.
+   *
+   * Searched rather than picked. `minimal` is K₇, so an arrow chosen merely for
+   * sitting outside `marked` usually shares a point with it and gives that point a
+   * second trail in-arrow or out-arrow, which is a branch the mover has to pay for.
+   * Such a move would exercise the mandate instead of the exemption from it, and
+   * the property would be asserting the opposite of what it says.
+   *
+   * The condition is trails.md's own definition of a branch point, read on the trail
+   * the move would leave: exactly one of the mover's trail arrows on the relevant
+   * side of each point the moved arrow touches.
+   */
+  const aMoveFormingNoBranch = (
+    table: ReturnType<typeof onBoard>,
+    marked: readonly ReturnType<typeof anArrow>[],
+    diameter: number,
+  ): { from: ReturnType<typeof anArrow>; exit: ReturnType<typeof anArrow> } | undefined =>
+    allArrows(table.geometry, diameter)
+      .filter((from) => !marked.includes(from))
+      .flatMap((from) =>
+        exitsFrom(table.geometry, from)
+          .filter((exit) => !marked.includes(exit))
+          .map((exit) => ({ from, exit })),
+      )
+      .find(({ from, exit }) => {
+        const after = [...marked, from, exit];
+        const strands = (arrows: readonly ReturnType<typeof anArrow>[]): number =>
+          arrows.filter((a) => after.includes(a)).length;
+        return (
+          strands(table.geometry.inArrows(table.geometry.target(from))) === 1 &&
+          strands(table.geometry.outArrows(table.geometry.origin(from))) === 1
+        );
+      });
+
   it('permits every move that leaves an already-unanchored branch unanchored', () => {
     // The property behind the packet's one deadlock risk. Whatever unpaid branch
     // exists elsewhere, a move that does not touch it must go through.
     const table = onBoard();
+    let checked = 0;
     for (const { ins, outs } of junctions(table, MINIMAL_DIAMETER)) {
       const unpaid = [pick(ins, 0), pick(ins, 1), pick(outs, 0)];
-      const elsewhere = allArrows(table.geometry, MINIMAL_DIAMETER).find(
-        (a) => !unpaid.includes(a) && exitsFrom(table.geometry, a).some((e) => !unpaid.includes(e)),
-      );
-      if (elsewhere === undefined) continue;
-      const exit = pick(
-        exitsFrom(table.geometry, elsewhere).filter((e) => !unpaid.includes(e)),
-        0,
-      );
-      const state = stateOf([{ arrow: elsewhere, owner: A, heads: 1 }], A, {
-        trail: { A: [...unpaid, elsewhere] },
+      const move = aMoveFormingNoBranch(table, unpaid, MINIMAL_DIAMETER);
+      if (move === undefined) continue;
+      checked += 1;
+      const state = stateOf([{ arrow: move.from, owner: A, heads: 1 }], A, {
+        trail: { A: [...unpaid, move.from] },
       });
 
-      expect(() => table.rules.apply(state, step(elsewhere, exit, 1))).not.toThrow();
+      expect(() => table.rules.apply(state, step(move.from, move.exit, 1))).not.toThrow();
 
       // The contrast, so this cannot pass merely because no mandate exists: put a
       // lone head *on* the anchor and the same shape of move is refused.
@@ -254,6 +375,9 @@ describe('branching costs an anchor, and only what a move changes is checked', (
         ),
       ).toThrow(ContractViolation);
     }
+    // Without this the property passes by finding nothing to check — the one failure
+    // mode a "for every X" assertion has.
+    expect(checked).toBeGreaterThan(0);
   });
 });
 
@@ -301,6 +425,54 @@ describe('anchor grade is reachability over the trail set', () => {
     for (const arrow of stretch) {
       expect(table.rules.anchorGrade(state, arrow, A)).toBe('dormant');
     }
+  });
+
+  /**
+   * Two stretches of trail sharing no point, so neither can anchor the other.
+   *
+   * Point-disjoint, not merely arrow-disjoint: connectivity is over shared points
+   * (D7), so two stretches that avoid each other's *arrows* can still be one stretch.
+   */
+  const twoSeparateStretches = (
+    table: ReturnType<typeof onBoard>,
+    diameter: number,
+  ): { held: readonly ArrowId[]; loose: readonly ArrowId[] } | undefined => {
+    const chains = allArrows(table.geometry, diameter).flatMap((first) =>
+      exitsFrom(table.geometry, first).map((second) => [first, second] as readonly ArrowId[]),
+    );
+    const pointsOf = (chain: readonly ArrowId[]): ReadonlySet<string> =>
+      new Set(
+        chain.flatMap((a) => [
+          String(table.geometry.origin(a)),
+          String(table.geometry.target(a)),
+        ]),
+      );
+    for (const held of chains) {
+      const touched = pointsOf(held);
+      const loose = chains.find((c) => [...pointsOf(c)].every((p) => !touched.has(p)));
+      if (loose !== undefined) return { held, loose };
+    }
+    return undefined;
+  };
+
+  it.each(BOARDS)('anchors only the stretch a stack actually stands on, on $name', ({
+    description,
+    diameter,
+  }) => {
+    // §6.1: "trail beyond a halting stack is anchored *on that stack*" — the anchor is
+    // local to the stretch, not a property of owning a stack somewhere. Without this
+    // one parked group would make every mark on the board live, and `dormant` would be
+    // unreachable in a real game.
+    const table = onBoard(description);
+    const found = twoSeparateStretches(table, diameter);
+    if (found === undefined) throw new Error('setup: no two point-disjoint stretches');
+    const { held, loose } = found;
+    const state = stateOf([{ arrow: pick(held, 0), owner: A, heads: 2 }], A, {
+      trail: { A: [...held, ...loose] },
+    });
+
+    for (const arrow of held) expect(table.rules.anchorGrade(state, arrow, A)).toBe('stack');
+    for (const arrow of loose) expect(table.rules.anchorGrade(state, arrow, A)).toBe('dormant');
   });
 
   it('reports the same grade in both directions along a stretch', () => {

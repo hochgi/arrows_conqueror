@@ -91,13 +91,17 @@ describe('the branch mandate constrains what you may leave', () => {
     // illegal for a violation it did not cause and cannot repair, and the game
     // would be stuck for the rest of the match.
     const table = onBoard();
-    const { trail } = aJoin(table);
-    const elsewhere = pathFrom(table.geometry, anArrow(table.geometry), 2);
+    const { onward, trail } = aJoin(table);
+    // Downstream of the join, not on either of its in-arrows — the Given the
+    // scenario opens with. `anArrow` would *not* do: `aJoin` derives P as its
+    // target, so the group would stand on one of the very anchors the previous
+    // scenario refuses stepping off, and this would assert the opposite of it.
+    const elsewhere = pathFrom(table.geometry, onward, 2);
     const from = arrowAt(elsewhere, 0);
     const to = arrowAt(elsewhere, 1);
     const before = stateOf([{ arrow: from, owner: A, heads: 1 }], A, {
       // The join is authored with no head anywhere on it — exactly what a cut leaves.
-      trail: { A: [...trail, from] },
+      trail: { A: trail },
     });
 
     const after = table.rules.apply(before, step(from, to, 1));

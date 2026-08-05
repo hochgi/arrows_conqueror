@@ -282,15 +282,21 @@ describe('crossing is a decision, not a tripwire', () => {
   it('reports a crossing only at the point where one of them turns', () => {
     // Two trails race through one corridor, mutually aware and mutually
     // unobligated — until one of them turns (§2).
+    //
+    // The trail's chord is searched for rather than picked, for the same reason the
+    // edge cases search for one: a chord on two **adjacent** slots interleaves with
+    // nothing, because no slot lies strictly between its ends. So `(ins[0],
+    // outs[0])` offers no exit that threads it and the turning half of this
+    // scenario would have nothing to assert against.
     const table = onBoard();
-    const { point, ins, outs } = junction(table);
-    const theirIn = pick(ins, 0);
-    const theirOut = pick(outs, 0);
-    const ourIn = pick(ins, 1);
+    const { point, trailIn, trailOut, ourIn } = anInterleaving(
+      table.geometry,
+      MINIMAL_DIAMETER,
+    );
     const state = stateOf([{ arrow: ourIn, owner: A, heads: 1 }], A, {
-      trail: { A: [ourIn], B: [theirIn, theirOut] },
+      trail: { A: [ourIn], B: [trailIn, trailOut] },
     });
-    const theirs = chordOf(table.geometry, via(theirIn, theirOut));
+    const theirs = chordOf(table.geometry, via(trailIn, trailOut));
     const { aside, interleaving } = exitsByCrossing(table.geometry, point, ourIn, theirs);
 
     expect(table.rules.crossesTrail(state, via(ourIn, pick(aside, 0)), B)).toBe(false);

@@ -506,4 +506,28 @@ describe('apply is pure and determinate', () => {
       expect(() => table.rules.apply(state, move)).not.toThrow();
     }
   });
+
+  it('only ever offers moves it will accept, on a board carrying a branch too', () => {
+    // The same invariant, on the one kind of state that can actually break it. Every
+    // state above is trail-less, so the branch mandate (§5) has nothing to refuse and
+    // the two halves of the port agree for free — which is not the same as agreeing.
+    const table = onBoard();
+    const point = table.geometry.target(anArrow(table.geometry));
+    const ins = table.geometry.inArrows(point);
+    const outs = table.geometry.outArrows(point);
+    const pinned = arrowAt(ins, 1);
+    const state = stateOf([{ arrow: pinned, owner: A, heads: 1 }], A, {
+      trail: { A: [arrowAt(ins, 0), pinned, arrowAt(outs, 0)] },
+    });
+
+    for (const move of table.rules.legalMoves(state)) {
+      expect(() => table.rules.apply(state, move)).not.toThrow();
+    }
+
+    // Withheld on purpose rather than absent by accident: a lone head paying for that
+    // join has no step, and still has the skip that leaves it standing (§5, §6.2).
+    const offered = table.rules.legalMoves(state);
+    expect(offered.some((m) => m.kind === 'step')).toBe(false);
+    expect(offered.some((m) => m.kind === 'skip')).toBe(true);
+  });
 });
