@@ -18,6 +18,7 @@
  */
 
 import { makeFixture, MINIMAL } from '@arrows/geometry-fixtures';
+import { makeTiling } from '@arrows/geometry-tiling';
 import type { BoardDescription } from '@arrows/geometry-fixtures';
 import { chord, chordsCross, chordsInterleave, mintPlayerId } from '@arrows/contracts';
 import type {
@@ -439,3 +440,68 @@ export type { ArrowId, Chord, GameState, PlayerId, PointId, Traversal };
 /** Undirected diameters of the two fixture boards — a test-author fact (P02). */
 export const MINIMAL_DIAMETER = 1;
 export const SPACIOUS_DIAMETER = 2;
+
+// ── the generated tiling ──────────────────────────────────────────────────────
+
+/**
+ * The **generated** board and the rules over it.
+ *
+ * P05b is the first packet that cannot use a fixture (P02's finiteness measurement,
+ * SPEC §11 items 4, 30 and 36): *enclosed* means **cannot reach infinity**, and a
+ * finite board has no infinity to fail to reach. Every closure and fill scenario runs
+ * here; the P05 suites stay on the fixtures, where a failure prints.
+ */
+export const onTiling = (): Table => {
+  const geometry = makeTiling();
+  return { geometry, rules: makeRules(geometry) };
+};
+
+/** Territory authored as a plain list — the shape `Ground` wants. */
+export const owned = (
+  arrows: readonly ArrowId[],
+  owner: PlayerId,
+): readonly { readonly arrow: ArrowId; readonly owner: PlayerId }[] =>
+  arrows.map((arrow) => ({ arrow, owner }));
+
+/** A claim's two halves as sorted strings, so an assertion compares contents. */
+export const claimKeys = (
+  claim: { readonly path: readonly ArrowId[]; readonly enclosed: readonly ArrowId[] },
+): { path: readonly string[]; enclosed: readonly string[] } => ({
+  path: claim.path.map(String).toSorted(),
+  enclosed: claim.enclosed.map(String).toSorted(),
+});
+
+/**
+ * A directed cycle of three arrows around one vertex, on the tiling.
+ *
+ * §11 item 16: the lattice triangle is the *minimum enclosable territory*, and it
+ * encloses **zero** tiles — its three arrows are the ring. Searched through the port
+ * rather than built from a lattice coordinate, so the test never learns which board it
+ * got (P05b D9).
+ */
+export const aTriangle = (geometry: GeometryPort): readonly [ArrowId, ArrowId, ArrowId] => {
+  const seed = geometry.seedPoint();
+  for (const a of geometry.outArrows(seed)) {
+    for (const b of exitsFrom(geometry, a)) {
+      for (const c of exitsFrom(geometry, b)) {
+        if (exitsFrom(geometry, c).includes(a)) return [a, b, c];
+      }
+    }
+  }
+  throw new Error('setup: the tiling offered no directed 3-cycle at its seed point');
+};
+
+/**
+ * A run of `length` arrows head-to-tail from the tiling's seed, and the territory
+ * arrow that feeds it — the ordinary *depart, wander, come home* shape.
+ *
+ * Returns the departure territory arrow separately because a closure needs one: the
+ * trail must leave ground the player already owns for the walk to have a root there.
+ */
+export const aRunFromHome = (
+  geometry: GeometryPort,
+  length: number,
+): { readonly home: ArrowId; readonly run: readonly ArrowId[] } => {
+  const home = firstOf(geometry.inArrows(geometry.seedPoint()), 'in-arrow at the seed point');
+  return { home, run: pathFrom(geometry, anExitFrom(geometry, home), length) };
+};

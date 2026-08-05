@@ -35,4 +35,4 @@ export {
 export type { BoardWindow, GeometryPort } from './geometry-port';
 
 export type { GameState, Group, MergeOverride } from './game-state';
-export type { AnchorGrade, RulesPort, Traversal } from './rules-port';
+export type { AnchorGrade, Claim, RulesPort, Traversal } from './rules-port';

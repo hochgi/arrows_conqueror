@@ -59,6 +59,9 @@ importers:
       '@arrows/geometry-fixtures':
         specifier: workspace:*
         version: link:../geometry-fixtures
+      '@arrows/geometry-tiling':
+        specifier: workspace:*
+        version: link:../geometry-tiling
       vitest:
         specifier: ^2.1.8
         version: 2.1.9

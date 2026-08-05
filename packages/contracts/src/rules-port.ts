@@ -52,6 +52,24 @@ export interface Traversal {
   readonly exit: ArrowId;
 }
 
+/**
+ * What a closure took: the arrows it walked, and the pocket that walk left ringed
+ * (SPEC §7, §11 item 36).
+ *
+ * Two lists rather than one, because they are found by different means and a reviewer
+ * has to be able to tell them apart: `path` is the trail followed backwards along the
+ * grain from the closing arrow, and `enclosed` is what the claimed ground then rings —
+ * empty whenever the path rings nothing, which is §7's land bridge and not a special
+ * case.
+ *
+ * Both are sorted on arrow id. A claim is an ordered answer derived from a `Set`,
+ * which is exactly where insertion order hides (ADR 0001).
+ */
+export interface Claim {
+  readonly path: readonly ArrowId[];
+  readonly enclosed: readonly ArrowId[];
+}
+
 export interface RulesPort {
   /**
    * Every move the active player may make from this state.
@@ -162,4 +180,49 @@ export interface RulesPort {
    * bug rather than a `dormant` answer.
    */
   anchorGrade(state: GameState, arrow: ArrowId, player: PlayerId): AnchorGrade;
+
+  /**
+   * What a closing step would claim, or `undefined` when the step is not a closure
+   * (SPEC §7).
+   *
+   * A closure is an ordinary step whose destination is **already the mover's own
+   * territory**, taken while the mover is trailing — P05 left exactly that branch of
+   * the safety rule empty and said so. Landing on enemy territory is not one, and
+   * neither is moving inside your own land without a trail behind you.
+   *
+   * The claim is the trail walked **backwards along the grain** from the arrow the step
+   * departed: `Y` precedes `X` when `Y` is in the mover's trail and `target(Y)` is
+   * `origin(X)`. The walk stops at the mover's territory or at an arrow with no trail
+   * predecessor — the stack anchor the trail starts from (§6.1). Everything reached is
+   * claimed, and nothing downstream of the closing arrow is, which is what leaves a
+   * fork's other arm an open trail (§7's pincer) while taking a salvaged fragment
+   * whole.
+   *
+   * A **query**: it computes the claim and changes nothing. `apply` is what commits it.
+   *
+   * @throws ContractViolation if the move is not a legal step at all (P04 D2).
+   */
+  closureOf(state: GameState, move: Move, mover: PlayerId): Claim | undefined;
+
+  /**
+   * The arrows a player's ground rings — every arrow from which **no walk escapes**
+   * (SPEC §7, §11 item 36).
+   *
+   * Not even-odd, and item 36 records why: a claim is bounded by the trail on one side
+   * and by existing territory on the other, so it is not a closed curve to take a
+   * parity of. The wall is the player's ground and the test is reachability, which
+   * needs no probe, no outline arc and no perturbation — there are no coordinates on
+   * `GeometryPort` to perturb with.
+   *
+   * `ground` is the player's territory *including* whatever a closure has just claimed;
+   * arrows in it are never reported. A walk steps between two arrows sharing a point
+   * and is blocked when their chord **interleaves** with one the ground presents there
+   * — §2's chord test, and the one thing that stops a pocket leaking through the seam
+   * between two arrows that touch at a point (§7).
+   *
+   * Order must be stable and independent of how `ground` was built.
+   *
+   * @throws ContractViolation if `ground` holds an arrow the board does not have.
+   */
+  enclosedBy(ground: ReadonlySet<ArrowId>, player: PlayerId): readonly ArrowId[];
 }

@@ -29,6 +29,7 @@ import type {
   SkipMove,
   StepMove,
 } from '@arrows/contracts';
+import { makeClosureRules } from './closure';
 import { compareArrows } from './order';
 import { makeTrailRules } from './trails';
 
@@ -71,6 +72,8 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
   // crossed whom. Movement asks it two questions — `requireBranchAnchors` before a
   // step is written and `markStep` as it is — and exposes the rest unchanged.
   const trails = makeTrailRules(geometry);
+  // P05b's half: what a landing claims, and what the claimed ground rings.
+  const closure = makeClosureRules(geometry);
 
   /**
    * How far the group may go this turn: `speed(heads)`, unless a merge set an
@@ -184,7 +187,19 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
       );
     }
     groups.set(move.exit, landing(movers, move.count, state.groups.get(move.exit)));
-    return { ...state, groups, trails: trails.markStep(state, move, movers.owner) };
+    const stepped: GameState = {
+      ...state,
+      groups,
+      trails: trails.markStep(state, move, movers.owner),
+    };
+    // A closure is an ordinary step onto your own territory (§7, P05b D1), so it is
+    // resolved here rather than behind a move kind of its own. `commit` returns the
+    // state untouched when the step is not one, which keeps this a single expression.
+    //
+    // Handed the *stepped* state on purpose: `move.from` is still in the trail —
+    // marking only ever adds — and the backward walk reads no head positions, so the
+    // claim is identical either side of the move.
+    return closure.commit(stepped, move, movers.owner);
   };
 
   /**
@@ -287,5 +302,7 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     crossesTrail: trails.crossesTrail,
     selfCrosses: trails.selfCrosses,
     anchorGrade: trails.anchorGrade,
+    closureOf: closure.closureOf,
+    enclosedBy: closure.enclosedBy,
   };
 };
