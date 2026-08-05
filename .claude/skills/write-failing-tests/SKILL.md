@@ -25,11 +25,12 @@ skeletons thin enough that nobody mistakes them for an implementation.
 ## Fixture boards
 
 Test against small hand-authored boards with known adjacency, not the real
-tiling (which has not been extracted — SPEC §11 items 1/5/16):
+tiling, which is **unbounded** (SPEC §11 item 4) and so cannot be enumerated,
+printed or diffed whole:
 
 - `single-pinwheel` — one triangle, one vertex; the minimum legal closure
 - `two-pinwheels` — the smallest board with a genuine crossing decision
-- `micro-torus` — smallest wrapping board, for the balance properties
+- `micro-board` — the smallest conformant digraph, for the balance properties
 
 Readable failures, instant runs, and they keep passing unchanged when generated
 geometry lands behind the same port.

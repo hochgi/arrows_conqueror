@@ -51,7 +51,7 @@ are in scope for the packet:
 - a stack reduced to one head; a single head cut and removed
 - a stranded head with no trail at all
 - a head spawning onto a contested arrow (SPEC §11 item 15 — still open)
-- torus wrap at the seam
+- a cell far from the origin, on a board that has no edge (SPEC §11 item 4)
 
 ## EARS invariants
 

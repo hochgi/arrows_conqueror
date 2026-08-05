@@ -79,17 +79,26 @@ different `count` — which is why there is no drop action, no pickup action, an
 no fork action. Any move type beyond these three is a signal that a mechanic has
 been invented rather than expressed.
 
-**D4 — Torus wrap is not on the port.** Wrap is internal to the geometry
-implementation; the port only ever returns already-correct neighbours (§2). A
-`wrap()` method would be a concretion leak and would give the rules code a reason
-to know the board is a torus, which it must not.
+**D4 — The board's extent is not on the port.** ~~Torus wrap is internal to the
+geometry implementation~~ — and since §11 item 4 there is no wrap either. The port
+only ever returns already-correct neighbours (§2). Any method that reported a
+seam, an edge or a size would be a concretion leak and would give the rules code a
+reason to know how the board is represented, which it must not.
 
 **D5 — State is immutable; `apply` returns a new state** and never mutates its
 input (ADR 0001).
 
-**D6 — The port exposes enumeration.** `allPoints()`, `allArrows()`,
-`allVertices()`. Even-odd fill (§7) needs to sweep the board, and it must do so
-without knowing the geometry.
+**D6 — Enumeration is bounded.** ~~`allPoints()`, `allArrows()`,
+`allVertices()`~~ — **superseded by §11 item 4**, which made the board unbounded
+and left those three methods with nothing to return. Enumeration is now
+`window(centre, radius)`, a graph-distance ball, plus `seedPoint()` so a caller
+has somewhere to start.
+
+Even-odd fill (§7) still needs to sweep, and it still must do so without knowing
+the geometry — but a plane fill is bounded by the trail's own extent rather than
+by the board, so it never wanted "all of it" in the first place. The change made
+the port more honest, not less capable: *enumerate the whole board* was a
+statement about a representation, in the one interface built to hide it.
 
 ## Invariants (EARS candidates)
 
@@ -104,10 +113,13 @@ Geometry — these become the conformance suite:
 - **G4** THE SYSTEM SHALL, for every arrow `a`, return exactly 2 flank vertices,
   and `a` SHALL border each of them. (§2 — an arrow touches exactly 4 interesting
   points; 2 spawner vertices is a hard limit, triple-fed is impossible)
-- **G5** THE SYSTEM SHALL satisfy `|arrows| = 3·|points|` and
-  `|vertices| = 2·|points|`. (§2, the incidence counts)
-- **G6** THE SYSTEM SHALL be strongly connected. (§2 — balanced ⇒ Eulerian ⇒
-  strongly connected)
+- **G5** THE SYSTEM SHALL place exactly 3 arrows at each point as their origin,
+  and SHALL place every point on exactly 6 minimal directed cycles. (§2, the
+  incidence counts — restated locally, because §11 item 4 left the board with no
+  totals to compare. Three points per cycle gives `cycles = 2·points`, and the
+  cycle↔vertex bijection of G4 and G7 gives `vertices = 2·points`.)
+- **G6** THE SYSTEM SHALL make every point of a window reachable from every other
+  by forward movement. (§2 — balanced ⇒ Eulerian ⇒ strongly connected)
 - **G7** THE SYSTEM SHALL have girth 3. (§2)
 - **G8** WHEN given two chords at a point, THE SYSTEM SHALL return the same
   crossing verdict regardless of argument order. (§2 — interleave and coincide
@@ -133,10 +145,10 @@ The inventory below is the sketch those were written from, kept for the record.
 
 | Feature | Scenarios |
 |---|---|
-| `geometry-adjacency` | 3-in/3-out at every point; in/out agree with origin/target; enumeration is complete and duplicate-free |
+| `geometry-adjacency` | 3-in/3-out at every point; in/out agree with origin/target; a window is duplicate-free and closed under the incidence a caller follows |
 | `geometry-vertices` | every vertex borders 3 arrows; every arrow flanks exactly 2 vertices; the two relations agree |
-| `geometry-counts` | the 3:1:2 ratio holds for any board the port yields |
-| `geometry-connectivity` | every point reaches every other point; girth is 3 |
+| `geometry-counts` | 3 arrows originate at every point; every point lies on 6 minimal cycles — the 3:1:2 ratio, restated locally for an unbounded board |
+| `geometry-connectivity` | every point of a window reaches every other; girth is 3 |
 | `geometry-chord-test` | interleaving chords cross; coinciding chords cross; a chord turning aside does not; the verdict is order-symmetric |
 | `rational-arithmetic` | `1/9 + 1/12 = 7/36` exactly; normalization; total ordering including equal-value-different-representation |
 | `move-dto` | a step names a source arrow, an exit arrow and a count; `count` = whole stack, partial, and the zero/overdraw rejections; skip and end-turn are representable; a turn is an ordered list |
@@ -209,12 +221,21 @@ ever written. They now assert the specific error type. Any new rejection test
 must do the same.
 
 **The geometry conformance suite is pending, not red.** It is wrapped in a
-`describe.skip` naming P02. Left running it would keep `pnpm verify` failing for
+`describe.skip` naming P03. Left running it would keep `pnpm verify` failing for
 the whole gap between the two packets, and a permanently-failing verify is how
 people stop reading verify. Skipped is the honest state — neither green nor red,
-every test still named in the report. P02 deletes the wrapper, points the factory
-at a fixture board, and the suite must go green *unchanged*; if it needs editing,
-the port leaked something concrete.
+every test still named in the report. P03 deletes the wrapper, points the factory
+at the generated tiling, and the suite must go green *unchanged*; if it needs
+editing, the port leaked something concrete.
+
+**The suite was reworked after P01 shipped, and grew from 28 assertions to 37.**
+SPEC §11 item 4 made the board unbounded, so every assertion moved onto a window
+and the two global ones were restated locally (see D6 and G5). One latent defect
+surfaced while doing it: cycle enumeration finds a 3-cycle once per arrow it
+starts from, so *each vertex has at most one minimal cycle* would have counted
+three and could never have passed. It only escaped notice because the suite was
+pending — which is the standing cost of skipping, and the reason the skip names a
+packet rather than a date.
 
 **Movement allowance left `rational` for `move`.** §3 replaced the harmonic curve
 with `speed(N) = 1 + floor(log₂ N)` — whole steps, nothing banked — so allowance
@@ -244,10 +265,11 @@ they are the places to look for an invented rule:
   portion, so nothing about the board can make it unsatisfiable. This is the one of
   the four that is closest to a judgement call.
 
-**Six skipped tests place a requirement on P02.** The foreign-identifier cases in
-the conformance suite assert `ContractViolation`, so a fixture board must reject an
-id it did not mint rather than returning a plausible-looking answer. They are
-pending, so nothing enforces this until P02 unwraps the suite.
+**Seven skipped tests place a requirement on every implementation.** The
+foreign-identifier cases in the conformance suite assert `ContractViolation`, so a
+board must reject an id it did not mint rather than returning a plausible-looking
+answer — `window` included, since it takes a centre. They are pending, so nothing
+enforces this until P03 unwraps the suite.
 
 **Denominators are bounded by construction, not by a cap.** `add` normalizes via
 gcd on every call, so a denominator never exceeds the lcm of its inputs — 36 for

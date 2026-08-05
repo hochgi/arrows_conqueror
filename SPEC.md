@@ -85,7 +85,7 @@ The chevron artwork is a decoration of a directed edge; the graph underneath is 
 - The **girth-3 pinwheel** is a lattice triangle whose three edges circulate.
 - **That triangle encloses exactly its own centre, which is exactly one spawner vertex.** The atomic unit of conquest and the atomic unit of value are the same object — this is now a theorem, not an observation.
 - **An edge borders exactly two triangles**, so two spawners feeding one arrow is a structural hard cap. Triple-fed arrows do not exist.
-- A **board is the lattice mod `(n·u, m·v)`** — a torus by construction, with `3nm` arrows, `nm` points and `2nm` spawner-eligible vertices, and 3-in/3-out holding everywhere with no rim.
+- The **board is the lattice itself, unbounded** — no quotient, no cut-out, so 3-in/3-out holds everywhere and there is no rim. What is finite is the *interesting* region, not the geometry: §7's spawner force decays with distance from the origin and reaches zero, so all the balance lives inside a disc while adjacency stays total. See *the board is unbounded* below.
 
 **The generator constants, confirmed against the artwork.** Basis `u = (1, 0)`, `v = (½, √3⁄2)`. The three out-directions in lattice coordinates are
 
@@ -129,12 +129,45 @@ The movement graph is directed, which normally risks one-way currents and absorb
 
 **This holds on the infinite tiling only.** Cutting a finite board out of it would leave rim points with missing arrows, breaking balance precisely where camping happens and potentially creating genuine sinks at the edge.
 
-> **The board is therefore a torus.** It wraps in both directions. This is the only topology that keeps every point 3-in/3-out and the connectivity proof intact — and it erases corners, so there is no safe back wall to turtle against and no asymmetry between a central and a peripheral start. Cost: a harder board to render, and a minimap players must learn to read.
+### The board is unbounded — ~~a torus~~ **resolved: the plane**
+
+> **The board is the infinite lattice.** It does not wrap and it does not end. Balance, and with it the connectivity proof, holds at every point because there is no point that is special.
+
+Two finite topologies were considered and both are worse.
+
+**A cut-out rectangle** breaks balance at the rim, which is exactly where camping happens — the failure the paragraph above describes.
+
+**A torus** (`the lattice mod (n·u, m·v)`) fixes the rim and was the answer for most of this document's life. It was **withdrawn because it breaks even-odd fill**, and not only in the girdling case that §11 item 30 had already flagged:
+
+> On a torus every lattice ray is a **closed loop**, so its mod-2 intersection number with any *contractible* curve is zero. A ray cast from a cell inside a small enclosure exits once, wanders the torus, re-enters once, and comes home having crossed twice. **Even parity. Verdict: outside.** Every cell, every time.
+
+Item 30 had caught the trail being non-contractible. The ray is non-contractible too, which is the larger half, and it makes §7's stated fill algorithm return *nothing is enclosed* for every enclosure on the board. A torus fill is still constructible — flood both sides and take the one that is a disc, distinguishable by Euler characteristic — but that is real machinery in place of a ray cast, imposed to support a topology nothing else wanted.
+
+Three things fall out of the plane that the torus had cost:
+
+- **Even-odd fill is correct as written** (§7). The ray escapes, and the classical Jordan argument applies. A closed curve has an inside.
+- **There is a centre**, so §2's map symmetry and §8's contested middle mean what they say, and two players have one frontline rather than two.
+- **No size floor.** The 4×4 minimum existed only because wrap collapsed *girth-3 encloses exactly one vertex* on small tori. Unbounded, that property is local and unconditional, as is strong connectivity: the three out-directions span ℤ² and sum to zero, so every displacement is reachable in non-negative steps.
+
+The costs are real and are paid elsewhere. **Enumeration is no longer total** — `GeometryPort` answers a bounded window rather than "every point", which is a better port anyway, since *enumerate the whole board* was always a representation leak. And **running away is now geometrically possible**, which the torus prevented by construction; §7's radial gradient removes the *reward* for it and §9 owns what remains.
+
 - **Special tiles** are scattered on a sub-lattice of the tiling (see §7).
 
 ### Map symmetry
 
-Special tiles and starting positions are placed with **rotational symmetry about the board center**, so each player's home region has identical special-tile count and distance. A denser contested cluster sits in the center, far from every start. Deterministic — no random map generation. (StarCraft's naturals-plus-contested-center recipe.)
+Special tiles and starting positions are placed **symmetrically about the origin**, so each player's home region has identical special-tile count and distance. A denser contested cluster sits at the centre, far from every start. Deterministic — no random map generation. (StarCraft's naturals-plus-contested-center recipe.)
+
+**Which symmetry, exactly, is not free to choose — the grain constrains it.** A fair map needs an involution that is an automorphism of the *oriented* graph, and the obvious candidate is not one:
+
+| Map | Effect on `OUT` | Verdict |
+|---|---|---|
+| 180° rotation `(i,j) ↦ (−i,−j)` | reverses every direction | **not a symmetry** — an anti-automorphism. Player 2 would get a board running backwards |
+| 120° / 240° rotation | permutes `OUT` | automorphism, **order 3** — serves three players, not two |
+| Reflection `(i,j) ↦ (i+j, −j)` | fixes `A`, swaps `B` and `C` | automorphism **and** involution — this is the one |
+
+> **Two players are placed as mirror images in a line through the origin.** In world coordinates the reflection is the x-axis; it fixes the origin, so it preserves any radial gradient, and it is an exact automorphism of the oriented graph, so every line of play available to one player has an exact counterpart for the other.
+
+The mirror swaps handedness, which is harmless precisely because §2's alternating pattern made the board non-chiral in the first place. Three-player symmetry is the 120° rotation and is deferred with the rest of 3+ (§11 item 11).
 
 ---
 
@@ -441,6 +474,13 @@ This is the hexa.io / splix.io rule, not "any cycle of your own trail."
 
 Closing grants the enclosed tiles **and everything inside them** — enemy heads (converted) and special tiles.
 
+**Even-odd is correct here because the board is a plane** (§2). A ray cast from a candidate tile escapes to infinity and crosses the boundary an odd number of times exactly when the tile is inside — the classical Jordan argument, and it needs the ray to *leave*. This was the deciding argument against a toroidal board: there a ray closes on itself and always crosses a contractible boundary an even number of times, so even-odd reports *outside* for every tile of every enclosure. The rule below reads as it always did; what changed is that it is now true.
+
+Two consequences worth stating, because they are what "unbounded" costs and buys:
+
+- **A closed curve always has an inside.** There is no girdling case, no non-separating loop, and no homology test anywhere in the engine.
+- **Fill is bounded by the trail, not by the board.** A trail of *L* arrows cannot enclose more than `O(L²)` of them, so the sweep is finite even though the board is not — and it is the only place the engine ever needs a bounded region of an unbounded lattice.
+
 ### The pincer
 
 A forked trail whose two branches both land on your territory **is a valid conquest**, and it requires no additional rule. Branches land one at a time: when the first arm lands, the whole drawn path becomes territory, stem included. The second arm is then an open trail hanging off a fork point that is *now territory*, so its landing is an ordinary territory-to-territory closure — and it takes the ground between itself and the now-solid first arm.
@@ -525,11 +565,25 @@ This gives spawner placement a design principle rather than a scatter, and makes
 
 It also dissolves a tension that would otherwise be real. Spawners must be **scarce** — they are the objective, and a board where a third of all arrows produce is a board nobody fights over. But overlap must be **common**, or contested arrows never pay out. Those pull opposite ways under a uniform scatter, and not at all under a clustered one: scarce overall, dense where it matters.
 
-> **MVP defaults, chosen to be playable rather than derived.** Roughly **half** the eligible vertices in the central band carry a spawner, against **an eighth** in the home regions — **a fifth to a quarter of the `2nm`** overall, depending on how wide the centre band is. Centre spawners run at *f* = 1/3, the mid band at 1/9, home regions at 1/12.
+### The radial gradient — and what bounds an unbounded board
+
+The board does not end (§2), so *contestedness* cannot be a band index into a finite rectangle. It is **distance from the origin**, and both levers are functions of it:
+
+> **Force and density both decay with radius, and both reach zero.** A spawner at distance *r* from the origin runs at *f*(*r*), and beyond a **cutoff radius *R*** there are no spawners at all. Everything outside *R* is barren ground: walkable, enclosable, and worth nothing.
+
+The cutoff is what makes an unbounded board playable, and it does the job the torus was doing, better:
+
+- **Scarcity is now definable.** "Spawners are scarce" was previously a fraction of a finite `2nm`; it is now a count inside a disc, and the disc is the tuning parameter. One number, *R*, in place of a board size `(n, m)`.
+- **Fleeing gains nothing.** A player who runs past *R* is running into a region that produces nothing, while the opponent keeps every spawner they hold. Distance stops being shelter and starts being surrender. What the torus achieved by removing the option, the gradient achieves by removing the reward.
+- **The interesting region stays finite** even though the geometry does not, so every balance question — total force, spawner count, opening distance — is asked of a disc and answered the same way it would have been on a finite board.
+
+> **MVP defaults, chosen to be playable rather than derived.** Three bands by radius: a **centre** disc at *f* = 1/3 with roughly **half** its eligible vertices carrying a spawner, a **mid** annulus at 1/9, and a **home** annulus at 1/12 with **an eighth** density. Beyond the outermost annulus, nothing. *R* and the two band radii are set with the opening distance so that each home sits in the outer band and the centre is roughly equidistant from both.
 
 The arithmetic those are aimed at, since every arrow borders exactly two eligible vertices and so has two feed slots. At half density, **three quarters of centre arrows are fed and a third of those are double-fed**, and **seven in eight centre spawners have at least one keystone arrow** — the double-fed ones that wound two spawners when captured. At an eighth, home arrows are mostly single-fed or bare and fill on the scale of decades, which is what the quiet is for.
 
 A starting point for the first playtest, not a result. What they are chosen to produce: a centre that pays out inside ten turns and is therefore worth bleeding for, a home economy that rewards being left alone, and a board where sweeping the specials is not something a player can do.
+
+**Bands rather than a smooth curve, deliberately.** A continuous *f*(*r*) would need a rounding rule to land on a rational, and §7 requires exact rationals with small coprime denominators — the whole coprime-denominator rhythm depends on 1/9 against 1/12 rather than on 1/9 against 0.1083. Bands keep the values authored. Post-MVP jitter is compatible with all of this on one condition: it must be a **pure function of the vertex and a setup seed**, never a draw from an RNG, or it takes determinism (ADR 0001) with it.
 
 ### Placement and force are setup data, not rules
 
@@ -594,7 +648,9 @@ Fixed and symmetric for v1. Each player begins holding:
 - **one spawner** inside it,
 - **one 3-stack** garrisoning it.
 
-Home regions are placed with rotational symmetry about the board center. A denser cluster of specials sits in the contested middle, far from every start.
+Home regions are mirror images of each other in a line through the origin (§2, *map symmetry*) — the one involution that preserves the grain. A denser, faster cluster of spawners sits at the centre, far from both starts, and the spawner field fades to nothing past the cutoff radius *R* (§7, *the radial gradient*).
+
+**Setup is what makes an unbounded board finite.** The board itself has no size (§2); what setup chooses is *R*, the band radii, and how far apart the two homes sit. Those three numbers are the whole map, they are read once, and no rule reads any of them again (§7, *placement and force are setup data*). Board size as a tuning knob has become spawner radius as a tuning knob, which is one number instead of two and has an obvious meaning.
 
 **Starting territory is mandatory, not a convenience.** Under Splix closure (§7) every claim must depart from and land on your own territory, so a player holding none can never claim anything, ever. "Start with a head on bare ground and carve your way up" isn't hard, it's unplayable. The opening position has to be granted.
 
@@ -620,6 +676,17 @@ It also hands the trailing player a real comeback vector: a desperate lasso arou
 
 **Decision: accept it.** Encirclement is considered sufficient. If playtesting shows real stalemates, the drop-in fix is **upkeep** — each special sustains some number of heads, and holding less production than your army needs costs you one head per turn. That turns the turtle's shell into a starvation chamber and reuses pieces already on the board, without adding a subsystem.
 
+### Open risk: the board has no edge to corner someone against
+
+An unbounded board (§2) makes a second non-termination case reachable, and it is the turtle's twin rather than a new problem. A losing player can walk their last heads past the cutoff radius *R* and keep walking.
+
+What is already true and worth stating, because it makes this smaller than it first looks:
+
+- **Fleeing gains nothing.** Past *R* there is no production (§7), so the runner's economy is fixed at zero while the pursuer keeps every spawner. Every turn spent running widens the gap.
+- **Pursuit converges.** `speed(N) = 1 + floor(log₂ N)` (§3), so a 16-stack closes four cells a turn on a lone head. Being faster is not enough on its own — the pursuer must also leave home to do it, and a chase is turns not spent defending.
+
+So it is a *griefing* case, not a strategic one: the runner cannot win, only decline to lose. That is exactly the shape of the turtle stalemate, and it wants the same fix — a condition that lets overwhelming economic dominance end a match without physically reaching every enemy head. **Not decided here.** → §11 item 32.
+
 ---
 
 ## 10. Balance Posture
@@ -643,7 +710,9 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > Item **29** was opened by the P01 review and closed in the same pass: resolving item 1 promoted the orientation pattern from a measurement to a rule, and no invariant enforced it. That is the ordinary way closing one gap opens another, and the reason this list is not deleted when it empties.
 >
-> **Items 30 and 31 are open**, and they share a cause: the board is a **torus**, and §7's fill and §8's setup were both written as though it were a plane. Neither blocks P01, P02 or P03 — the geometry is unaffected — but 30 must be answered before fill is built in P05.
+> **Items 30 and 31 were opened together and closed together, by deleting their cause.** Both said the same thing — §7's fill and §8's setup were written for a plane while the board was a torus. The gap was closed in the direction nobody had considered: **the board became the plane** (item 4, re-resolved). Neither was answered on its own terms, and that is the better outcome; a rule invented to make fill work on a torus would have been a rule the game never needed.
+>
+> **Item 32 is open**, and is the one thing an unbounded board costs: nothing stops a losing player walking away forever. It is the turtle stalemate in another costume and wants the same answer. → §9, → P09.
 >
 > Items are struck through rather than deleted on purpose. Several were resolved twice, and where a decision moved, the reasoning that moved it is usually the most valuable thing on the page. **New gaps belong here, not in the section that discovers them.**
 
@@ -651,7 +720,11 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 1. ~~The orientation pattern at a junction~~ — **resolved: alternating.** The out-set at every point is {up, down-left, down-right}: three directions 120° apart, so the six slots alternate in/out around the hexagon. Self-consistent throughout — the three out-vectors sum to zero, so the directed 3-cycle exists and girth is 3; the in-set is the complement {down, up-left, up-right}; exits from any in-arrow are straight or ±120°, so both handednesses are available and the board is mirror-symmetric rather than chiral. Every §2 consequence that was conditional on alternating now holds outright. **P03 generates rather than measures, and no geometric unknown remains.**
 2. ~~Reachability~~ — **resolved.** Balanced + weakly connected ⇒ Eulerian ⇒ strongly connected. See §2.
 3. ~~Girth~~ — **resolved.** 3, the pinwheel triangle. See §2.
-4. ~~Board topology~~ — **resolved.** Torus, wrapping both ways. Preserves rim balance, kills corner camping. See §2.
+4. ~~Board topology~~ — ~~resolved: torus~~ — **re-resolved: the unbounded plane.** The torus was right about the thing it was chosen for — a cut-out rectangle breaks 3-in/3-out at the rim, and wrapping fixes that — and wrong about a thing nobody had checked. **On a torus every lattice ray is a closed loop, so it crosses any contractible curve an even number of times.** Even-odd fill (§7) therefore reports *outside* for every tile of every enclosure, not merely for the girdling case item 30 had flagged. Fill was the algorithm the whole territory system rests on, and it was silently broken.
+
+    The unbounded lattice keeps everything the torus was bought for — balance everywhere, no rim, no corner to camp in — and pays for fill with the classical Jordan argument instead of a homology test. It also restores a **centre**, which §2 and §8 had both been assuming all along (item 31), and removes the board-size floor entirely (item 29). See §2, *the board is unbounded*.
+
+    Costs, both real and both paid outside the rules: `GeometryPort` can no longer enumerate the whole board and answers a bounded window instead, and running away becomes possible (item 32).
 5. ~~Shortest U-turn loop~~ — **resolved, and now unconditional** (item 1). 3: a stranded head loops back onto its own trail in three moves, which is legal because a trail is a set (§6.1a invariant 2). Retreat is cheap; flagged as a balance watch-point in §2.
 
 **Tuning — none of these block a paper playtest**
@@ -660,10 +733,14 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 8. ~~Fork branch whose head dies~~ — **re-resolved: the state is reachable, and it is fine.** The old answer rested on *every tip carries a head*, which was never true — a plain mid-trail cut leaves the stretch behind it anchored and headless. Headless trail is now ordinary: a wall that claims nothing, charges nothing, and can be walked onto again. See §6.1a.
 9. ~~Converted stack size~~ — **resolved.** Stacks convert intact. See §6.3.
 10. ~~Multi-prong bonus~~ — **re-resolved: there is no bonus, and none is needed.** Under 1:1 attacks, two prongs simply bleed the defender twice as fast. Pooling-and-tie-flip was the price of instantaneous attrition; per-move combat delivers the same reward as arithmetic. See §6.2.
-11. ~~Board size~~ — **resolved as configurable.** A board is the lattice mod `(n, m)`: `3nm` arrows, `nm` points, `2nm` spawner-eligible vertices. Size is tuned by experiment against player count and total spawner force, not decided on paper. **Player count: MVP is 2, alternating** — which every rule above already assumes. 3+ is deferred; it raises kingmaking under elimination and wants its own design pass.
+11. ~~Board size~~ — ~~resolved as configurable: the lattice mod `(n, m)`~~ — **re-resolved: there is no board size.** The board is unbounded (item 4), so the knob is no longer how big the world is but **how big the part worth having is**: the spawner cutoff radius *R*, plus the band radii inside it (§7, *the radial gradient*). One number where there were two, and it has a direct meaning — *R* is the distance past which the map stops paying.
+
+    Still tuned by experiment against player count and total spawner force, not decided on paper. **Player count: MVP is 2, mirror-symmetric** — see §2, *map symmetry*, and note the correction there: the two-player involution is a **reflection**, because 180° rotation reverses every arrow's grain and is not a symmetry of the oriented board at all. 3+ is deferred; the 120° rotation is available for it, and it raises kingmaking under elimination and wants its own design pass.
 12. ~~Spawner density~~ — **resolved: not one number, because it is not uniform.** The criterion as originally stated — *scarce enough that nobody sweeps them, common enough that overlap stays the norm* — cannot be met by a single density: overlap only becomes typical at densities where spawners stop being scarce. Under a **clustered** placement it is met trivially, and clustering is already the §7 principle for force. Dense and fast in the contested centre, sparse and slow at home.
 
-    MVP defaults, chosen to be playable rather than derived: about **half** the eligible vertices in the central band, **an eighth** in home regions, ≈ **1/5 of the `2nm`** overall. See §7, *force should scale with contestedness*. Still in the tuning sweep with item 11 — but it no longer blocks anything, because a fixture board can be built from these today.
+    MVP defaults, chosen to be playable rather than derived: about **half** the eligible vertices in the central disc, **an eighth** in the home annulus, and **none at all past the cutoff radius *R***. See §7, *the radial gradient*. Still in the tuning sweep with item 11 — but it no longer blocks anything, because a fixture board can be built from these today.
+
+    **The bands became radii when the board became unbounded** (item 4). That is a restatement rather than a retune: contestedness was always "distance from the middle", and on a finite rectangle a band index was a way of saying so. The cutoff *R* is genuinely new, and it is what replaces the board edge — see item 32 for the part it does not fix.
 
     **The values are deliberately cheap to change**, and §7 (*placement and force are setup data*) says what that costs the implementation: one table at setup, no rule reading a force's value, no threshold comparing one against a constant. A retune must not be able to change which scenarios pass.
 13. ~~Accrual on unowned arrows / charge surviving capture~~ — **resolved.** An arrow that changes hands starts fresh. See §7.
@@ -732,33 +809,31 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     The **phase is deliberately free** — in-arrows may take the even slots or the odd ones. Slot indices are the port's own labelling, the chord test is rotation-invariant (§2), and pinning the phase would create a fact for a caller to depend on with nothing gained.
 
-    Measured while deciding it, and useful independently: **alternation is not what constrains board size.** The smallest torus satisfying the existing suite is 4×4 — 16 points, 48 arrows, 32 vertices. Smaller ones fail on *girth-3 encloses exactly one vertex*: at 2×2 and 3×3 the wrap collapses the triangle count to 4 and 27 against 8 and 18 vertices, and at any n = 3 three steps of one out-vector wrap to zero and manufacture a straight-line 3-cycle enclosing nothing. So requiring alternation costs a labelling convention and nothing else.
+    Measured while deciding it, and useful independently: **alternation is not what constrains board size.** ~~The smallest torus satisfying the existing suite is 4×4~~ — that floor existed only because wrap collapsed *girth-3 encloses exactly one vertex* on small tori (at 2×2 and 3×3 the triangle count fell to 4 and 27 against 8 and 18 vertices, and at any `n = 3` three steps of one out-vector wrapped to zero and manufactured a straight-line 3-cycle enclosing nothing). **Item 4 removed the wrap, and with it the floor.** On the unbounded lattice both properties are local and hold unconditionally. Requiring alternation still costs a labelling convention and nothing else.
 
-    A fixture board need not be a lattice at all, only satisfy the suite, and counting bounds put that floor near 6 points and 18 arrows — which is why **P02 authors abstract conformant digraphs rather than lattice sub-boards**, and why a fixture stays readable when a rules test fails.
+    A fixture board need not be a lattice at all, only satisfy the suite, and counting bounds put its own floor near 6 points and 18 arrows — which is why **P02 authors abstract conformant digraphs rather than lattice sub-boards**, and why a fixture stays readable when a rules test fails. That reasoning is untouched by item 4: a fixture is finite and enumerable whatever the real board is, which is now the sharpest difference between the two implementations of the port.
 
-**Open — the torus is not a plane, and two sections still read as though it were**
+**~~The torus is not a plane, and two sections still read as though it were~~ — dissolved: the board is the plane**
 
-30. **What does a trail that girdles the board enclose?** On a torus a closed curve does **not** necessarily separate the surface. Depart from your territory, run all the way around the board, and land back on it: cutting a torus along one non-contractible loop yields a *cylinder* — one connected piece, no inside. Even-odd fill (§7) is not merely awkward there, it is undefined, because a ray cast to count crossings wraps round and meets itself, so the parity it reports depends on homology class rather than on containment.
+30. ~~What does a trail that girdles the board enclose?~~ — **resolved by dissolution: there is no girdle.** On a torus a closed curve need not separate the surface, so a trail that ran all the way around and landed home enclosed nothing definable and even-odd fill was undefined for it. Three readings were on the table — land bridge, claim-one-side, illegal — and the answer turned out to be that **the question only existed because the board wrapped** (item 4). On the unbounded plane every closed curve bounds, so the case is unreachable and no rule is needed.
 
-    Reachable in ordinary play, not a curiosity: on a 4×4 board it is sixteen moves in a straight line.
+    Worth recording, because it is what moved item 4: this item had found **half** the problem. It observed that a *non-contractible trail* has no inside. It did not check the *ray*, and the ray is the larger half — every lattice ray on a torus is itself a closed loop, so its mod-2 intersection with any **contractible** curve is zero and even-odd reports *outside* for every ordinary enclosure too. A rule answering item 30 as written would have made girdling well-defined on a board where nothing else filled correctly.
 
-    Three readings:
+31. ~~A torus has no centre, and §2 and §8 both assume one.~~ — **resolved by dissolution: the plane has a centre.** §2's *map symmetry* and §8's contested middle mean what they always meant, two players have one frontline rather than two, and no prose needed reinterpreting — the sections were not wrong, the board was.
 
-    - **A land bridge.** It encloses nothing, so it claims the path and nothing else — §7 already says exactly this for a closure that surrounds no ground, and it needs no new machinery. The cheap answer, and probably the right one.
-    - **Claim one side.** Two parallel girdles *do* cut the torus into two cylinders, so a second girdle could claim the ground between. Consistent, and it makes girdling a real strategy rather than a null move.
-    - **Illegal.** Rejected on sight, but this needs a legality test that knows about homology, which is a great deal of machinery for one case.
+    One thing this item asserted **was wrong and is now corrected in §2**. It said "the 120° rotation survives the quotient only when `n = m`; 180° rotation survives for any `(n, m)`, so a 2-player board is symmetric at any size." That is true of the *sublattice* and false of the *oriented graph*: `(i,j) ↦ (−i,−j)` sends every out-direction to a non-out-direction, so it reverses every arrow. It is an anti-automorphism, and a board built on it would hand player 2 a mirror world running backwards. The grain-preserving involution is a **reflection** — `(i,j) ↦ (i+j, −j)`, which fixes one out-direction and swaps the other two. 120° remains the three-player symmetry. See §2, *map symmetry*.
 
-    Note the first two are not exclusive — one girdle as a land bridge and a second one claiming the strip between them is a single coherent rule. → **P05** (closure and fill), which is where fill is built.
+**Open**
 
-31. **A torus has no centre, and §2 and §8 both assume one.** §2's *map symmetry* places specials "with rotational symmetry about the board center"; §8 puts the contested cluster "in the center, far from every start". Every point of a torus is equivalent, so the "middle" of a rendered board is an artifact of the fundamental domain, which is invisible during play.
+32. **Nothing ends a match against an opponent who simply leaves.** The board is unbounded (item 4), so a losing player can walk their last heads past the cutoff radius *R* and keep walking. §7's gradient removes the *reward* — there is no production out there and the pursuer keeps everything — and §3's speed curve means a large stack does close on a lone head. So the runner cannot win. They can decline to lose, indefinitely, and elimination is the only win condition (§9).
 
-    Most of this is fixable prose — *centre* can mean "the spawner cluster" and *home* "far from it" in graph distance, both well defined on a torus, and §7's density gradient survives unchanged. But one consequence is a genuine design fact nobody has chosen:
+    **This is the turtle stalemate in another costume**, and the two want one answer rather than two. Both are a player who has stopped playing and cannot be reached; both are unreachable specifically because the reaching is physical. Candidates, none chosen:
 
-    > **With two players on a torus there are two frontlines, not one.** Each player can be approached from either way around, so there is no single front to hold and no rear.
+    - **Upkeep** — already named in §9 as the turtle's drop-in fix. Each special sustains some number of heads; hold less production than your army needs and you lose one head per turn. A runner has *zero* production, so it kills the flee case outright and faster than the turtle case. Reuses pieces already on the board and adds no subsystem, which is why it is the front-runner.
+    - **A domination condition** — hold every spawner share, or some fraction of total force, for *N* consecutive turns. Ends the match on the axis the game is actually contested on, and needs no new state.
+    - **Accept it**, as §9 already accepts the turtle. Defensible for a hot-seat MVP where both players can simply agree it is over, and indefensible the moment there is an AI or a ladder.
 
-    That may be better than what §8 describes — it makes turtling harder, which §9 wants. It is not what §8 describes. Decide whether it is intended, then fix the prose in both sections. → **P09** (setup and victory), with the §2 wording fixable sooner.
-
-    Related: the 120° rotation of the lattice survives the quotient **only when `n = m`**; 180° rotation survives for any `(n, m)`. So a 2-player board is symmetric at any size, and a 3-player one would need `n = m`. Bears on item 11.
+    Note the flee case is *strictly easier* than the turtle case — a turtle keeps its economy, a runner has none — so anything that solves the turtle solves this, and it is not worth designing separately. → **P09** (match lifecycle and victory), and it should be decided together with §9's accepted risk rather than bolted beside it.
 
 ---
 

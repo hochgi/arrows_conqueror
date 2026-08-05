@@ -33,9 +33,15 @@ No clocks, no randomness, no I/O, no input mutation anywhere in the core.
 
 **2. Geometry is a port with multiple implementations.**
 
-`GeometryPort` exposes adjacency, arrow direction, the torus wrap, the point
+`GeometryPort` exposes adjacency, arrow direction, bounded enumeration, the point
 lattice, the spawner-vertex lattice, and the chord test. It has at least two
-implementations: hand-authored fixture boards, and the extracted tiling.
+implementations: hand-authored fixture boards, and the generated tiling.
+
+*Amended after SPEC §11 item 4 made the board unbounded.* The port used to hide a
+torus wrap; there is no wrap now, and what it hides instead is that the board has
+no extent at all — enumeration is `window(centre, radius)`, never "all of it".
+The principle is unchanged and the change vindicated it: a port that had exposed
+board size would have needed every caller rewritten.
 
 **3. Accumulators and movement banking use exact rational arithmetic**, not
 floating point.

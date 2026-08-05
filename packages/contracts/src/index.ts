@@ -32,4 +32,4 @@ export {
   speed,
 } from './move';
 
-export type { GeometryPort } from './geometry-port';
+export type { BoardWindow, GeometryPort } from './geometry-port';

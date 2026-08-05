@@ -29,16 +29,16 @@ scheduled early in the first place.
 | # | Packet | Layer | SPEC | Depends on | Gate / risk |
 |---|---|---|---|---|---|
 | P01 | Contracts: ports & DTOs | foundation | §2–7 | — | unblocked — §11 item 19 settled the `Move` DTO: one unit, one step |
-| P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | **no longer owes the green suite — P03 discharges it**, so P02 matches a suite already known satisfiable. Fixtures are **abstract conformant digraphs, not lattice sub-boards** (§11 item 29) — floor near 6 points / 18 arrows against 16/48 for the smallest conformant torus, and readability when a *rules* test fails is the whole point. Slots must **alternate** in/out; the phase is free. No layout: an abstract board has no coordinates |
-| P03 | Tiling generator & torus wrap | foundation | §2 | P01 | **[packet doc written](./packets/P03-tiling.md); taken next, ahead of P02.** A generator, not an extraction, and the maths is already validated against the artwork by a throwaway viewer (14/14 conformance, 14×14 torus). **Discharges the conformance debt** instead of P02 — 28 assertions, unedited. Also owns the renderer's **layout** (a polygon per arrow), which is *not* on `GeometryPort`: item 29 made fixtures abstract digraphs, and those have no coordinates at all. Board floor is **4×4** |
+| P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | **no longer owes the green suite — P03 discharges it**, so P02 matches a suite already known satisfiable. Fixtures are **abstract conformant digraphs, not lattice sub-boards** (§11 item 29) — floor near 6 points / 18 arrows, and readability when a *rules* test fails is the whole point. **A fixture is finite where the real board is not** (§11 item 4), so its window at a large enough radius simply *is* the board — the sharpest remaining difference between the two implementations. Slots must **alternate** in/out; the phase is free. No layout: an abstract board has no coordinates |
+| P03 | Tiling generator | foundation | §2 | P01 | **[packet doc written](./packets/P03-tiling.md); taken next, ahead of P02.** A generator, not an extraction, and the maths is already validated against the artwork by a throwaway viewer. **Discharges the conformance debt** instead of P02 — 37 assertions, unedited. **§11 item 4 shrank this packet**: the board is unbounded, so `makeTiling()` takes no arguments, precomputes nothing, and the whole seam and board-floor surface is gone. Also owns the renderer's **layout** (a polygon per arrow), which is *not* on `GeometryPort`: item 29 made fixtures abstract digraphs, and those have no coordinates at all |
 | P04 | Movement, stacks & the turn loop | rules | §2–4 | P01, P02 | allowance is an **integer** — `speed(N) = 1 + floor(log₂ N)`, nothing carried between turns. No rationals on this path; exact rationals belong to the §7 accumulators (P08) |
-| P05 | Trails, crossings & closure | rules | §2, §5, §7 | P04 | the chord test and even-odd fill are the subtlest logic in the game. Fill must read the trail's **arrow set** and use `chordsInterleave`, not `chordsCross` (§6.1a). A point presents `i × o` chords, not one — extracting them is this packet's job, and `chordsCross` is called once per chord. Also owns §5's branch-anchor legality: a move creating a join or a split must leave a head |
+| P05 | Trails, crossings & closure | rules | §2, §5, §7 | P04 | the chord test and even-odd fill are the subtlest logic in the game. Fill must read the trail's **arrow set** and use `chordsInterleave`, not `chordsCross` (§6.1a). A point presents `i × o` chords, not one — extracting them is this packet's job, and `chordsCross` is called once per chord. **§11 item 4 made fill easier, not harder**: the board is a plane, so a ray escapes, every closed curve bounds, there is no girdling case and no homology anywhere. Fill is bounded by the trail's own extent, never by the board. Also owns §5's branch-anchor legality: a move creating a join or a split must leave a head |
 | P06 | Cuts, evaporation & combat | rules | §6 | P05 | **§6 was rebuilt twice after P01 landed.** Bidirectional evaporation, one kill per front, 1:1 per-move combat — then bare trail, **all-to-all points**, and **per-arrow halting** (a head does *not* shield the point ahead against fire; that range is combat's alone). Two grades of anchor, territory and stack, and conflating them breaks §6.3 |
 | P07 | Territory & encirclement | rules | §7 | P05, P06 | conversion must conserve total heads exactly |
 | P08 | Spawner economy | rules | §7 | P07 | exact rationals only — **the accumulator is the one thing in the game that banks**; blockades halt accrual and cost the share. Accrual takes *a* force per spawner and must never read its value: **no branch on 1/3 vs 1/12, no threshold against a constant** (§7, *placement and force are setup data*). MVP defaults are playtest-first (§11 items 12 and 25) and a retune must not change which scenarios pass |
-| P09 | Match lifecycle, setup & victory | rules | §8, §9 | P07, P08 | the turtle stalemate is an accepted risk (§9) — watch for it here. **Owns the spawner tuning table**: which eligible vertices carry a spawner, band boundaries, force per band — one input read once at setup, not conditions spread through placement (§7) |
+| P09 | Match lifecycle, setup & victory | rules | §8, §9 | P07, P08 | the turtle stalemate is an accepted risk (§9), and **§11 item 32 is its twin** — an unbounded board lets a losing player simply walk away. Decide both together; upkeep answers both. **Owns the spawner tuning table**: which eligible vertices carry a spawner, the band *radii*, force per band, and the cutoff radius *R* past which there are none — one input read once at setup, not conditions spread through placement (§7). Also owns two-player placement, which must use the **reflection** `(i,j) ↦ (i+j,−j)`: 180° rotation reverses every arrow's grain and would hand player 2 a board running backwards |
 | P10 | Replay & determinism harness | cross-cutting | — | P04, P09 | the primary detector of accidental nondeterminism |
-| P11 | Renderer & hot-seat input | adapter | §2, §5, §7 | P03, P09 | the only shipping adapter. Galcon-style source→destination→portion input; trail-vs-territory must be legible at a glance (§5) |
+| P11 | Renderer & hot-seat input | adapter | §2, §5, §7 | P03, P09 | the only shipping adapter. Galcon-style source→destination→portion input; trail-vs-territory must be legible at a glance (§5). **The board is unbounded (§11 item 4), so deciding which arrows are on screen is this packet's central job**, not an afterthought — P03's layout clips nothing and knows no viewport |
 | ~~P12~~ | ~~AI opponent~~ | — | — | — | **out of MVP** (hot-seat). Kept in the graph because P10 exists partly to make it cheap later |
 
 ## Dependency graph
@@ -67,21 +67,22 @@ flowchart TD
 
 **P01–P02 first, and P03 in parallel.** The tiling is fully known — the oriented
 triangular lattice with alternating junctions (§2, §11 item 1) — so P03 generates
-a board from two basis vectors and a modulus rather than tracing an image, and
-there is no measurement left anywhere in the plan. Keeping fixture geometry
-separate still pays: rules packets test against small hand-authored boards with
-known adjacency, which make failures readable, while both implementations answer
-to the same `GeometryPort` and the same conformance suite.
+a board from two basis vectors rather than tracing an image, and there is no
+measurement left anywhere in the plan. Keeping fixture geometry separate still
+pays: rules packets test against small hand-authored boards with known adjacency,
+which make failures readable, while both implementations answer to the same
+`GeometryPort` and the same conformance suite.
 
-It pays by more than it looks, because **the smallest conformant torus is 4×4** —
-16 points and 48 arrows, since anything smaller breaks *girth-3 encloses exactly
-one vertex* under wrap (§11 item 29). A hand-authored abstract digraph has no wrap
-and bottoms out near 6 points and 18 arrows. That is the difference between a
-fixture you can read when a rules test fails and one you cannot, and it is why P02
-authors graphs rather than sub-boards.
+It pays by more than it looks, and §11 item 4 changed *why*. The old argument was
+a size floor — the smallest conformant torus was 4×4, against a hand-authored
+digraph's 6 points and 18 arrows. **The floor went with the wrap**, and what
+replaced it is starker: the real board is now **unbounded**, so it cannot be
+printed, diffed, or held whole in a failing test's output, while a fixture can.
+That is the difference between a fixture you can read when a rules test fails and
+one you cannot, and it is why P02 authors graphs rather than sub-boards.
 
 **P03 is the closest thing to a hard prerequisite, and it used to be P02.** Until
-one of them lands, 28 of P01's tests are pending rather than passing, so the repo
+one of them lands, 37 of P01's tests are pending rather than passing, so the repo
 has no board and no rules packet can be tested against one. P03 is taken first
 because it also produces a **visible** board, and because proving the suite
 against the real tiling is worth more than proving it against a fixture.
@@ -99,31 +100,46 @@ it catches nondeterminism *while the core is still small enough to find it*.
 
 ## Open items this plan inherits
 
-Tracked in [`SPEC.md` §11](../../SPEC.md): **two structural questions and two
+Tracked in [`SPEC.md` §11](../../SPEC.md): **one structural question and two
 tuning knobs.** No geometric measurement remains — items 1, 5, 16 and 29 are all
 resolved, so P03 generates rather than extracts. Nothing blocks P01, P02 or P03.
 
-Items 30 and 31 share a cause worth stating once: **the board is a torus, and §7's
-fill and §8's setup were both written as though it were a plane.**
+**Items 30 and 31 are closed, and they closed by having their cause deleted.**
+Both said the same thing — §7's fill and §8's setup were written for a plane while
+the board was a torus — and **item 4 re-resolved the board to the plane** rather
+than answering either on its terms. The trigger was sharper than item 30 had
+realised: on a torus every lattice ray is a closed loop, so even-odd fill reports
+*outside* for every tile of every enclosure, not merely for a girdling trail. Fill
+was silently broken, not merely undefined at an edge case.
 
-- **item 30** — what a trail that girdles the torus encloses. A closed curve on a
-  torus need not separate it, so even-odd fill is **undefined** for a
-  non-contractible loop — not hard, undefined. Reachable in sixteen moves on a
-  4×4 board. Land bridge is the cheap answer and needs no new machinery, but it
-  is a rule → **P05**, and it must be settled before fill is built
-- **item 31** — a torus has no centre, and §2's map symmetry and §8's contested
-  centre both assume one. Mostly fixable prose, except that **two players on a
-  torus have two frontlines, not one** → **P09**
-- **item 11** — board size `(n, m)`, and MVP player count fixed at 2. Floor is
-  **4×4** (P03); 3-fold symmetry would need `n = m`, 2-fold works at any size →
-  **P09**
+What that costs and pays across the plan:
+
+- **P01** — reworked in place. `allPoints/allArrows/allVertices` became
+  `window(centre, radius)` plus `seedPoint()`, and the two global assertions were
+  restated locally. Suite went 28 → 37, all still pending
+- **P03** — smaller. No `(n, m)`, no 4×4 floor, no seam, no wrap; a stateless
+  generator that takes no arguments
+- **P05** — simpler. Even-odd fill is now correct as written, and there is no
+  homology case to handle
+- **P09** — gains the radial gradient and loses the board size
+
+Still open:
+
+- **item 32** — nothing ends a match against a player who simply walks away. The
+  gradient removes the *reward* for fleeing, not the possibility. **The turtle
+  stalemate in another costume**, and §9 should answer both at once — upkeep is
+  the front-runner because a runner has zero production → **P09**
+- **item 11** — ~~board size `(n, m)`~~ → the spawner cutoff radius *R* and the
+  band radii. MVP player count fixed at 2, placed by **reflection** — 180°
+  rotation reverses the grain and is not a symmetry → **P09**
 - **item 12** — spawner density, resolved as *non-uniform*: dense and fast in the
-  contested centre, sparse and slow at home. MVP defaults are written down and
-  explicitly playtest-first → **P09**
+  contested centre, sparse and slow at home, nothing past *R*. MVP defaults are
+  written down and explicitly playtest-first → **P09**
 
 Items 11 and 12 are a single balance sweep against total spawner force, and want
 a playable game rather than an argument — which is why P09 owns them and why the
-replay harness (P10) lands right behind it.
+replay harness (P10) lands right behind it. Item 32 belongs in the same
+conversation: it is a victory-condition question, and P09 owns §9.
 
 Neither is a blocker, and the reason is a constraint rather than an accident:
 §7's *placement and force are setup data* keeps every one of these numbers on the

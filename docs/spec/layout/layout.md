@@ -1,6 +1,6 @@
 # layout — a polygon per arrow
 
-**Packet:** [P03 — Tiling generator & torus wrap](../../design/packets/P03-tiling.md)
+**Packet:** [P03 — Tiling generator](../../design/packets/P03-tiling.md)
 **SPEC:** §2 (the chevron is a decoration of a directed edge)
 **Features:** [core](./layout.core.feature) · [edge cases](./layout.edge-cases.feature)
 
@@ -37,7 +37,7 @@ which is what earns it a place in this packet rather than in P11.
 | **spoke** | the boundary between two tiles inside one triangle, running from the triangle's centre to one of its corners |
 | **twist** | how far a spoke is rotated about the triangle centre. 0 leaves tiles as rhombi |
 | **bend** | how far along the spoke the rotation is applied, as a fraction |
-| **lattice space** | the coordinate system of SPEC §2's basis. The renderer owns pan, zoom and wrap copies |
+| **lattice space** | the coordinate system of SPEC §2's basis. The renderer owns pan, zoom and culling |
 
 ## The construction
 
@@ -67,6 +67,21 @@ them wrong first:
 So **layout needs a triangle's parity**, not just its centre. That is the one thing
 it needs from the tiling that the port does not expose.
 
+## Why the area test needs no board
+
+Every tile has area **exactly `√3⁄6`**, for any twist and any bend, and that is
+the whole gap-and-overlap check. It follows from the construction rather than
+from measurement: a lattice cell has area `√3⁄2` and holds three arrows, and
+within one triangle the three spokes are bent *identically*, so the triangle's
+3-fold rotational symmetry about its centre makes its three pieces congruent —
+`√3⁄12` each, two per tile.
+
+This matters more since SPEC §11 item 4. The old assertion was "summed tile area
+equals the area of the board", which needed a board with an area. There is no
+such thing now, and the per-tile statement that replaced it is both local and
+stronger: a summed area can be right while individual tiles are wrong in
+compensating directions.
+
 ## Twist and bend are configurable and POC-grade
 
 `twist = 87°`, `bend = 36%`, measured off the reference artwork and confirmed by
@@ -83,10 +98,11 @@ and worth keeping reachable.
 - The system shall place two of a tile's vertices at its arrow's two flank centres.
 - The system shall give the three tiles around a vertex a common vertex at that
   vertex's centre.
-- The system shall produce polygons whose summed area equals the board's area, so
-  that the tiling has neither gap nor overlap.
+- The system shall give every tile an area of exactly `√3⁄6`, whatever the twist
+  and bend, so that the tiling has neither gap nor overlap.
 - The system shall produce the identical spoke path for both tiles that meet along
   it.
+- The system shall return a polygon for any arrow, however far from the origin.
 - The system shall degenerate to a rhombus when twist is zero.
 - The system shall produce a tile that is not centrally symmetric when twist is
   non-zero.

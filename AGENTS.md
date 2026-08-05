@@ -57,7 +57,9 @@ reason to ask, not a licence to decide.
 - **`packages/contracts`** — ports (interfaces) and domain DTOs. The core depends
   on *only* this.
   - `GeometryPort` — the arrow graph: 3-in/3-out adjacency, arrow direction,
-    torus wrap, the point lattice, the spawner-vertex lattice, the chord test.
+    the point lattice, the spawner-vertex lattice, the chord test, and
+    `window(centre, radius)` — **the board is unbounded** (SPEC §11 item 4), so
+    bounded enumeration is the only kind there is.
   - `RulesPort` — legal moves, `apply`, closure and fill resolution.
   - `EconomyPort` — spawner accrual, carry, reset-on-capture.
 - **`packages/rules-core`** — the pure engine behind those ports.

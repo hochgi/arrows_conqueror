@@ -1,11 +1,12 @@
-# P03 — Tiling generator & torus wrap
+# P03 — Tiling generator
 
 > **Phase-1 input.** This doc fixes scope, decisions, invariants and a scenario
 > inventory. The spec-author session turns it into Gherkin + EARS with the human
 > in the loop. It does not itself contain the scenarios in final form.
 >
 > **SPEC coverage:** §2 (the board, the formal definition, the orientation
-> pattern), §7 (specials live on vertices), §11 items 1, 5, 16, 29.
+> pattern, *the board is unbounded*, map symmetry), §7 (specials live on
+> vertices), §11 items 1, 4, 5, 16, 29.
 > **Depends on:** P01. **Unblocks:** a visible board, and P11.
 
 ## Why this is next, ahead of P02
@@ -19,28 +20,35 @@ lifecycle. P11's dependency on P09 is for the hot-seat *game* adapter, which is 
 different deliverable.
 
 **It discharges the conformance debt against the real board.** P01 left
-`runGeometryPortConformance` behind a `describe.skip` with 28 pending assertions,
-and the plan assigned that debt to P02. Proving the suite green against the
-*actual* tiling is worth more than proving it against a hand-authored fixture,
+`runGeometryPortConformance` behind a `describe.skip` with 37 pending assertions,
+and the plan originally assigned that debt to P02. Proving the suite green against
+the *actual* tiling is worth more than proving it against a hand-authored fixture,
 and it leaves P02 matching a suite already known to be satisfiable.
 
 ## Already validated
 
 Unusually for a phase-1 input, the maths here is **measured, not proposed**. A
 throwaway generator plus canvas viewer was built first, ran the conformance
-assertions in-page against a 14×14 torus (**14/14 pass**), and was checked against
-the reference artwork. What follows is the output of that, not a design sketch.
+assertions in-page (**14/14 pass** at the time), and was checked against the
+reference artwork. What follows is the output of that, not a design sketch.
 
 That is also why this packet is smaller than it looks: the risk was the geometry,
 and the geometry is now known.
 
+**What changed since that viewer was built:** SPEC §11 item 4 made the board the
+unbounded plane rather than a torus. That *simplifies* this packet rather than
+invalidating it — the generator's arithmetic is the same modulo dropping the
+`mod (n, m)` step, and the 4×4 floor and the whole seam surface disappear with it.
+The viewer's numbers still stand; they were computed on a 14×14 torus, and every
+property they confirmed is local.
+
 ## In scope
 
-- `packages/geometry-tiling` — a `GeometryPort` implementation generated from
-  `(n, m)`.
+- `packages/geometry-tiling` — a `GeometryPort` implementation over the unbounded
+  oriented triangular lattice.
 - The **layout** the renderer needs: a polygon per arrow. Same package, *not* on
   `GeometryPort` — see D3.
-- Deleting the `describe.skip` wrapper and making all 28 conformance assertions
+- Deleting the `describe.skip` wrapper and making all 37 conformance assertions
   pass **unchanged**. If the suite needs editing, the port leaked something
   concrete and that is the finding.
 
@@ -48,9 +56,11 @@ and the geometry is now known.
 
 - Fixture geometry (P02). Different package, same suite.
 - Any rule. This packet answers *what is adjacent to what*, never *what may move*.
-- The renderer itself (P11). P03 supplies polygons; it draws nothing.
-- Board size and spawner placement — §11 items 11 and 12, owned by P09. P03 takes
-  `(n, m)` as an argument and has no opinion about it.
+- The renderer itself (P11). P03 supplies polygons; it draws nothing, and in
+  particular it does not decide which polygons are on screen.
+- Spawner placement, force, band radii and the cutoff radius *R* — §11 items 11
+  and 12, owned by P09. The generator has no opinion about any of them and must
+  never read one.
 
 ## Decisions this packet fixes
 
@@ -68,10 +78,10 @@ cannot catch this**, which makes it a comment-worthy constant rather than an
 obvious one.
 
 **D2 — A point's two triangles are at `+(⅓,⅓)` and `+(⅔,⅔)`.** One "up", one
-"down"; these are its two spawner vertices, giving `2nm`. An arrow's two flanking
-triangles are always **one up and one down**, never two of a kind — so §7's cap of
-two feed slots per arrow is a consequence of the geometry rather than a rule that
-has to be enforced.
+"down"; these are its two spawner vertices. An arrow's two flanking triangles are
+always **one up and one down**, never two of a kind — so §7's cap of two feed
+slots per arrow is a consequence of the geometry rather than a rule that has to be
+enforced.
 
 **D3 — Layout is not on `GeometryPort`.** The port has no coordinates by
 construction (P01 D1, and the port doc forbids naming a lattice coordinate), so a
@@ -110,70 +120,93 @@ Silhouette values are POC-grade by explicit decision and expected to be retuned.
 They must stay two named constants that nothing branches on — the same discipline
 §7 imposes on spawner force.
 
+**D6 — Two stateless factories, no board object.** This answers the shape question
+phase 1 had left open, and §11 item 4 answered it for us:
+
+```
+makeTiling(): GeometryPort                        // no arguments at all
+makeLayout(params: SilhouetteParams): TilingLayout
+```
+
+The board is unbounded, so there is no size, no modulus and **nothing to
+precompute**. Every answer is arithmetic on the identifier handed in. That makes
+both factories pure functions with no state, which is worth more than it sounds:
+the realistic determinism failure in this repo is iteration order over a
+precomputed collection (ADR 0001), and a generator that precomputes nothing cannot
+have one. Keeping the two factories independent means retuning `twist` does not
+rebuild a board, and the composition root hands the core only the `GeometryPort`.
+
+They share a private id codec, which is how layout gets a triangle's parity
+without the port exposing a coordinate.
+
 ## Invariants (EARS candidates)
 
-The 28 already in `runGeometryPortConformance` carry most of this. New to P03:
+The 37 already in `runGeometryPortConformance` carry most of this. New to P03:
 
-- The system shall generate a board for any `(n, m)` with `n ≥ 4` and `m ≥ 4`.
-- The system shall reject a board size smaller than the smallest conformant torus
-  rather than emitting a board that fails conformance.
-- The system shall place `nm` points, `3nm` arrows and `2nm` vertices.
-- The system shall resolve every adjacency query across the torus seam without
-  exposing where the seam is.
-- The system shall return byte-identical enumerations for two generators built
-  from the same `(n, m)`.
+- The system shall answer adjacency for every cell in ℤ², with none rejected for
+  distance from the origin.
+- The system shall report exactly `3r² + 3r + 1` points in a window of radius `r`.
+- The system shall reject a window radius that is negative or not an integer.
 - The system shall assign in-arrows and out-arrows to alternating slots.
 - The system shall report exactly one up-triangle and one down-triangle as an
   arrow's flanks.
+- The system shall place every point on exactly 6 minimal directed cycles.
+- The system shall hold no mutable state and precompute no collection.
 - The system shall return a closed polygon of 8 vertices for every arrow.
-- The system shall produce polygons that tile without gap or overlap, so that the
-  summed polygon area equals the board area.
+- The system shall give every tile an area of exactly `√3⁄6`, at any twist and
+  bend.
 - The system shall give the three tiles around a vertex a common corner at that
   vertex's centre.
+- The system shall produce congruent tiles for the same direction at any two
+  cells.
 
-## The board-size floor is a real constraint
+## What the unbounded board removed
 
-**The smallest conformant torus is 4×4** — 16 points, 48 arrows, 32 vertices.
-Measured, not estimated. Smaller boards fail on *girth-3 encloses exactly one
-vertex*:
+The previous version of this packet carried a **4×4 board-size floor** and a table
+of the ways smaller tori broke *girth-3 encloses exactly one vertex*. All of it is
+gone with §11 item 4: the floor was an artifact of the wrap, and on the unbounded
+lattice both girth-3 and the one-vertex correspondence are local properties that
+hold everywhere without a condition.
 
-| size | why it fails |
-|---|---|
-| 1×m, m×1 | self-loops and multiple arrows between one ordered pair |
-| 2×2 | wrap collapses the triangle count — 4 triangles against 8 vertices |
-| 3×3 | 27 triangles against 18 vertices; at any `n = 3`, three steps of one out-vector wrap to zero and manufacture a straight-line "triangle" enclosing nothing |
-| 4×4 | conformant |
+Also gone: every seam scenario. There is no wrap, so there is nothing to hide, no
+"is this arrow wrapped" to refuse to answer, and no question about whether layout
+returns clipped polygons at the boundary — the question phase 1 had flagged as *a
+genuine fork*. It resolved by disappearing.
 
-This bounds §11 item 11 from below and is why P02's fixtures are abstract
-digraphs — those have no wrap, and bottom out near 6 points and 18 arrows.
+What replaced the board size is the spawner cutoff radius *R* (§7, *the radial
+gradient*), and it is **not this packet's**. P09 owns it as setup data.
 
 ## Scenario inventory
 
 Counts are a target for phase 1, not a contract.
 
-- **Generation** (≈6) — counts for several `(n, m)`; rejection below the floor;
-  two generators agreeing exactly.
-- **Adjacency** (≈8) — in/out sets; origin and target; the seam resolving
-  invisibly; flank and border mutually inverse; up-and-down flank parity.
+- **Generation** (≈5) — window point counts at several radii; radius rejection;
+  two generators agreeing exactly; statelessness.
+- **Adjacency** (≈8) — in/out sets; origin and target; far-off cells being
+  ordinary; flank and border mutually inverse; up-and-down flank parity.
+- **Unboundedness** (≈3) — long walks in each direction; the zigzag identity; no
+  method reporting an extent.
 - **Slots** (≈4) — six distinct; alternation; the phase being consistent within a
   board; `slotOf` rejecting an arrow not at that point.
+- **Symmetry** (≈3) — 120° preserves the grain, 180° reverses it, the reflection
+  is the usable involution.
 - **Conformance** (1) — the suite, green, unchanged.
-- **Layout** (≈5) — 8-vertex polygons; area summing to the board; three tiles
-  sharing a vertex centre; rhombus at twist 0; up/down parity changing the
-  silhouette.
+- **Layout** (≈7) — 8-vertex polygons; per-tile area `√3⁄6`; three tiles sharing a
+  vertex centre; rhombus at twist 0; up/down parity changing the silhouette;
+  translation invariance; no clipping.
 - **Foreign ids** (≈2) — an id from another board failing loudly.
 
 ## Questions for phase 1
 
 1. Should the layout expose polygons in **lattice space** and let the renderer
    transform, or in a pixel space it is told about? Lattice space keeps the
-   package free of viewport concerns; the renderer then owns pan and zoom.
-2. Does the layout return **wrapped** polygons for arrows crossing the seam — one
-   arrow, two polygons — or unwrapped ones, leaving the renderer to draw copies?
-   This is the only place the torus becomes visible, and it is a genuine fork.
-3. Is `n ≥ 4, m ≥ 4` enforced as a **contract violation**, or does the generator
-   accept smaller and let the conformance suite fail? Rejecting is friendlier;
-   accepting keeps the port honest about being a pure function of `(n, m)`.
+   package free of viewport concerns; the renderer then owns pan, zoom and
+   culling — which on an unbounded board is its central job.
+2. ~~Does the layout return wrapped polygons for arrows crossing the seam?~~ —
+   **moot.** §11 item 4 removed the seam.
+3. ~~Is `n ≥ 4, m ≥ 4` enforced as a contract violation?~~ — **moot.** There is no
+   board size. The equivalent question is now the window radius, and D6 answers
+   it: reject, like every other constructor in `contracts`.
 
 None of these is a rule question — no `SPEC.md` behaviour depends on the answers.
 They are shape decisions, which is what phase 1 is for.
@@ -181,7 +214,9 @@ They are shape decisions, which is what phase 1 is for.
 ## Definition of done
 
 - `pnpm verify` green.
-- All 28 conformance assertions **passing rather than pending**, and unedited.
-- A `(n, m)` board rendering as the arrow tiling, tiles lighting on hover.
-- No `Date`, `Math.random` or iteration-order dependence anywhere in the package.
-- `SPEC.md` §11 items 1, 5, 16 and 29 still marked resolved and still accurate.
+- All 37 conformance assertions **passing rather than pending**, and unedited.
+- A board rendering as the arrow tiling, tiles lighting on hover, pannable in any
+  direction without running out of board.
+- No `Date`, `Math.random` or iteration-order dependence anywhere in the package —
+  and no precomputed collection to iterate in the first place.
+- `SPEC.md` §11 items 1, 4, 5, 16 and 29 still marked resolved and still accurate.

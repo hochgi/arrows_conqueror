@@ -9,6 +9,11 @@ Feature: GeometryPort conformance — the arrow graph
 
   Background:
     Given a board obtained from a conforming GeometryPort
+    And a window grown from the port's seed point
+
+  # The board is unbounded (SPEC §11 item 4), so "every point" always means every
+  # point of that window. Each property below is local, so a window is a fair
+  # sample rather than a compromise.
 
   Rule: Points are 3-in / 3-out
 
@@ -55,10 +60,21 @@ Feature: GeometryPort conformance — the arrow graph
     Derived, not measured. A board violating these is not a lattice, and every
     count the economy quotes depends on them.
 
-    Scenario: Arrows, points and vertices stand in a 3:1:2 ratio
-      When I count the points, arrows and vertices on the board
-      Then there are exactly 3 arrows for every point
-      And there are exactly 2 vertices for every point
+    On an unbounded board these are densities rather than totals, so both halves
+    are asserted locally — which is sharper anyway, since a global count can be
+    right on average while being wrong at every individual point.
+
+    Scenario: Every point owns exactly three arrows
+      When I enumerate every point in the window
+      Then exactly 3 arrows in the window have that point as their origin
+      And no arrow in the window has an origin outside the window and is counted
+
+    Scenario: Every point lies on exactly six minimal cycles
+      When I enumerate every point in the window
+      Then exactly 6 directed 3-cycles pass through it
+      # Three points per cycle, so cycles are twice the points; the cycle-vertex
+      # bijection in the edge cases then gives vertices twice the points. The
+      # 2:1 ratio, with nothing counted globally.
 
   Rule: The graph is strongly connected with girth 3
 
@@ -67,9 +83,12 @@ Feature: GeometryPort conformance — the arrow graph
     spawner.
 
     Scenario: Every point can reach every other point
-      Given any point on the board
+      Given any point in the window
       When I compute the set of points reachable by following arrows forward
-      Then that set contains every point on the board
+      Then that set contains every point in the window
+      # The search is confined to a slightly larger window so that it terminates
+      # on an unbounded board. Girth 3 means a U-turn costs three moves, so a
+      # detour never needs much room — on the generated lattice, none at all.
 
     Scenario: The shortest directed cycle has length three
       When I compute the girth of the arrow graph
@@ -80,18 +99,23 @@ Feature: GeometryPort conformance — the arrow graph
       When I ask which vertices lie inside it
       Then exactly one vertex lies inside it
 
-  Rule: Enumeration is total and duplicate-free
+  Rule: Enumeration is bounded and duplicate-free
 
-    Even-odd fill sweeps the board through this port and must not know how the
-    board is represented.
+    Even-odd fill sweeps a region of the board through this port and must not
+    know how the board is represented. On an unbounded board the region has to be
+    asked for explicitly, which is what a window is.
 
     Scenario Outline: Enumeration yields each element exactly once
-      When I enumerate every <element> on the board
+      When I enumerate every <element> in the window
       Then no <element> appears twice
-      And every <element> named by any adjacency query is in that enumeration
 
       Examples:
         | element |
         | point   |
         | arrow   |
         | vertex  |
+
+    Scenario: A window holds everything its own points reach for
+      When I enumerate every point in the window
+      Then all 6 arrows of each are among the window's arrows
+      And both flank vertices of each of those arrows are among the window's vertices

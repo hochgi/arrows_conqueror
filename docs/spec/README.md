@@ -14,22 +14,28 @@ behaviour is not here, it will not be built.**
 
 | Feature | Packet | SPEC | Scenarios | Deferred | Invariants |
 |---|---|---|---|---|---|
-| [geometry-port](./geometry-port/geometry-port.md) | P01 | §2, §7 | 24 | 1 | 11 |
-| [chord-test](./chord-test/chord-test.md) | P01 | §2 | 18 | — | 8 |
+| [geometry-port](./geometry-port/geometry-port.md) | P01 | §2, §7 | 32 | — | 16 |
+| [chord-test](./chord-test/chord-test.md) | P01 | §2 | 18 | — | 9 |
 | [rational](./rational/rational.md) | P01 | §7 | 19 | 2 | 8 |
 | [move](./move/move.md) | P01 | §3, §4, §5 | 25 | — | 12 |
-| [tiling](./tiling/tiling.md) | P03 | §2 | 28 | — | 11 |
-| [layout](./layout/layout.md) | P03 | §2 | 22 | — | 11 |
+| [tiling](./tiling/tiling.md) | P03 | §2 | 34 | — | 12 |
+| [layout](./layout/layout.md) | P03 | §2 | 24 | — | 12 |
 
-136 scenarios. **83 are in scope for P01**, 3 are tagged `@deferred-P02` /
-`@deferred-P08`, and **50 belong to P03**. 190 concrete cases once `Examples` rows
-are expanded, 61 invariants.
+152 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`, and
+**58 belong to P03**. 216 concrete cases once `Examples` rows are expanded,
+69 invariants.
 
 A `@deferred-<packet>` tag means the behaviour is decided and specified here, but
-its seam falls in another packet — a board constructor is not on the port, and an
-accumulator that knows its owner is not a `Rational`. It is not a `@wip`. **A
-scenario with neither a test nor this tag is a defect**, and eleven of them once
-were.
+its seam falls in another packet — an accumulator that knows its owner is not a
+`Rational`. It is not a `@wip`. **A scenario with neither a test nor this tag is a
+defect**, and eleven of them once were.
+
+> **These counts moved when SPEC §11 item 4 made the board unbounded.**
+> `geometry-port` grew (windows need their own contract), `tiling` grew despite
+> *losing* the whole seam and board-floor surface (unboundedness needs asserting,
+> and so does the symmetry that setup may use), and one `@deferred-P02` scenario —
+> *a board too small to be conformant is rejected* — was deleted outright, because
+> there is no board size to be below.
 
 ## Reading order for P01
 
@@ -49,8 +55,9 @@ Its edge cases carry more weight than its core.
 ## Reading order for P03
 
 `tiling` is the first real `GeometryPort`, so most of what it must satisfy is
-already written — the 28-assertion conformance suite. Its own scenarios cover what
-the suite cannot: the size floor, the invisibility of the seam, and determinism.
+already written — the 37-assertion conformance suite. Its own scenarios cover what
+the suite cannot: unboundedness in every direction, window degeneracies,
+determinism, and which lattice symmetries setup is allowed to use.
 
 **`layout` looks cosmetic and is not.** SPEC §2's out-directions have to sum to
 zero *and* sit 120° apart; a set doing only the first is an isomorphic graph that

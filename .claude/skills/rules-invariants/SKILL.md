@@ -38,9 +38,10 @@ geometry gets them for free:
 - Every point has exactly 3 in-arrows and 3 out-arrows. *Balance is what the
   connectivity proof rests on; if a generated board violates it at even one
   point, heads can become trapped.*
-- The graph is strongly connected. (Implied by balance + weak connectivity, but
-  assert it directly — it is cheap and it catches a broken torus wrap, which is
-  exactly where balance fails.)
+- Every point of a window is reachable from every other. (Implied by balance +
+  weak connectivity, but assert it directly — it is cheap. The board is unbounded
+  (SPEC §11 item 4), so confine the search to a slightly larger window; girth 3
+  means a detour never needs much room.)
 - Girth is 3: the shortest directed cycle is a pinwheel triangle.
 - Every spawner vertex borders exactly 3 arrows, and no vertex is reachable as a
   movement node. *You cannot stand on a vertex — that is structural, not a rule.*
@@ -98,7 +99,7 @@ boards** with known adjacency:
 
 - `single-pinwheel` — one triangle, one vertex. The minimum legal closure.
 - `two-pinwheels` — the smallest board with a real crossing decision.
-- `micro-torus` — smallest board that wraps, for the balance properties.
+- `micro-board` — the smallest conformant digraph, for the balance properties.
 
 They make failures readable, they run instantly, and they keep passing unchanged
 once generated geometry lands behind the same port. Reserve the extracted tiling

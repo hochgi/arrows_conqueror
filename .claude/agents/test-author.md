@@ -40,11 +40,12 @@ which covers the property and replay layers this repo leans on heavily.
 
 ## Fixture boards, not the real tiling
 
-The real tiling has not been extracted yet (SPEC §11 items 1, 5, 16). Write
-tests against **small hand-authored fixture boards** with known adjacency —
-a single pinwheel triangle, two adjacent pinwheels, a minimal torus. They are
-easier to reason about, they make failures readable, and they will keep passing
-unchanged once the generated geometry lands behind the same port.
+The real board is **unbounded** (SPEC §11 item 4) and is generated rather than
+extracted (items 1, 5, 16 are resolved). Write tests against **small
+hand-authored fixture boards** with known adjacency — a single pinwheel triangle,
+two adjacent pinwheels, a small conformant digraph. They are easier to reason
+about, they make failures readable, they are *finite* where the real board is not,
+and they keep passing unchanged behind the same port.
 
 ## Where you must stop rather than decide
 
