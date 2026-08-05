@@ -117,10 +117,13 @@ own heads count: an enemy standing on a strand of your junction is a problem, no
 anchor (§6.1).
 
 This was **§11 item 35**, resolved during P05's review. The alternative — one head per
-strand, from §5's *each mini-trail needs its own anchored end* — costs a fork two and a
-crossover four, contradicting both of §5's numbers and §6.1's list. No scenario above
-discriminates them, because each puts heads on at most one strand per side; the
-invariants carry three properties that do.
+strand, from §5's *each mini-trail needs its own anchored end* — pins each of a
+junction's arrows individually. **Both charge the same to build a branch**, which is
+why the difference hid: forming a crossover costs two heads either way, because the
+arriving strand pays. They part afterwards, when a lagging group or a reinforcement
+reaches one of the strands already paid past — per strand pins it on arrival too, per
+branch does not. No scenario above discriminates them, because each puts heads on at
+most one strand per side; the invariants carry three properties that do.
 
 Locality, not a before-and-after comparison, is what keeps this from freezing the
 board: only the two branches the departing arrow itself belongs to are examined.

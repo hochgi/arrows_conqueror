@@ -312,7 +312,10 @@ rather than translate:
 
 **1 — The implementation priced a fork, and SPEC.md did not (blocker).**
 `unpaidBranch` refused a step whenever the vacated arrow was *any* strand of a
-branch: per strand, so a fork cost one head per arm and a crossover four. §5's
+branch, individually: per strand. Both readings charge the same to *build* a branch —
+forming a crossover costs two heads either way, because the arriving strand pays — so
+the difference only surfaces on a later move, when a lagging group or a reinforcement
+reaches a strand already paid past and is pinned on arrival. §5's
 mandate, §5's *one before, one after* and §6.1's price list all say **one per
 branch**; only §5's *each mini-trail needs its own anchored end* says otherwise.
 The pairing §5's wording reaches for is unrecoverable from a set (§6.1a, item 26),
