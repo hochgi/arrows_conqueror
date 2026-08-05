@@ -29,7 +29,7 @@ scheduled early in the first place.
 | # | Packet | Layer | SPEC | Depends on | Gate / risk |
 |---|---|---|---|---|---|
 | P01 | Contracts: ports & DTOs | foundation | §2–7 | — | unblocked — §11 item 19 settled the `Move` DTO: one unit, one step |
-| P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | **no longer owes the green suite — P03 discharges it**, so P02 matches a suite already known satisfiable. Fixtures are **abstract conformant digraphs, not lattice sub-boards** (§11 item 29) — floor near 6 points / 18 arrows, and readability when a *rules* test fails is the whole point. **A fixture is finite where the real board is not** (§11 item 4), so its window at a large enough radius simply *is* the board — the sharpest remaining difference between the two implementations. Slots must **alternate** in/out; the phase is free. No layout: an abstract board has no coordinates |
+| P02 | Fixture geometry (hand-authored boards) | foundation | §2 | P01 | **[packet doc written](./packets/P02-fixtures.md).** **No longer owes the green suite — P03 discharges it**, so P02 matches a suite already known satisfiable. Fixtures are **abstract conformant digraphs, not lattice sub-boards** (§11 item 29) — floor **7 points / 21 arrows / 14 vertices** (corrected from "near 6 and 18" while writing P02), and readability when a *rules* test fails is the whole point. **A fixture is finite where the real board is not** (§11 item 4), so its window at a large enough radius simply *is* the board — the sharpest remaining difference between the two implementations, and also its one hard limit: **on a finite board every ray closes, so no fixture can host even-odd fill**, and P05's closure half and P07 test against the tiling. Slots must **alternate** in/out; the phase is free. No layout: an abstract board has no coordinates |
 | P03 | Tiling generator | foundation | §2 | P01 | **[packet doc written](./packets/P03-tiling.md); taken next, ahead of P02.** A generator, not an extraction, and the maths is already validated against the artwork by a throwaway viewer. **Discharges the conformance debt** instead of P02 — 37 assertions, unedited. **§11 item 4 shrank this packet**: the board is unbounded, so `makeTiling()` takes no arguments, precomputes nothing, and the whole seam and board-floor surface is gone. Also owns the renderer's **layout** (a polygon per arrow), which is *not* on `GeometryPort`: item 29 made fixtures abstract digraphs, and those have no coordinates at all |
 | P04 | Movement, stacks & the turn loop | rules | §2–4 | P01, P02 | allowance is an **integer** — `speed(N) = 1 + floor(log₂ N)`, nothing carried between turns. No rationals on this path; exact rationals belong to the §7 accumulators (P08) |
 | P05 | Trails, crossings & closure | rules | §2, §5, §7 | P04 | the chord test and even-odd fill are the subtlest logic in the game. Fill must read the trail's **arrow set** and use `chordsInterleave`, not `chordsCross` (§6.1a). A point presents `i × o` chords, not one — extracting them is this packet's job, and `chordsCross` is called once per chord. **§11 item 4 made fill easier, not harder**: the board is a plane, so a ray escapes, every closed curve bounds, there is no girdling case and no homology anywhere. Fill is bounded by the trail's own extent, never by the board. Also owns §5's branch-anchor legality: a move creating a join or a split must leave a head |
@@ -71,11 +71,14 @@ a board from two basis vectors rather than tracing an image, and there is no
 measurement left anywhere in the plan. Keeping fixture geometry separate still
 pays: rules packets test against small hand-authored boards with known adjacency,
 which make failures readable, while both implementations answer to the same
-`GeometryPort` and the same conformance suite.
+`GeometryPort` and the same conformance suite. **With one measured exception:**
+every ray closes on itself on a finite board, so even-odd fill reports *outside*
+everywhere and P05's closure half and P07 test against the tiling (§11 item 29,
+P02 measurement 2).
 
 It pays by more than it looks, and §11 item 4 changed *why*. The old argument was
 a size floor — the smallest conformant torus was 4×4, against a hand-authored
-digraph's 6 points and 18 arrows. **The floor went with the wrap**, and what
+digraph's 7 points and 21 arrows. **The floor went with the wrap**, and what
 replaced it is starker: the real board is now **unbounded**, so it cannot be
 printed, diffed, or held whole in a failing test's output, while a fixture can.
 That is the difference between a fixture you can read when a rules test fails and
