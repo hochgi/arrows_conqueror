@@ -213,6 +213,8 @@ The heads that walked in have already spent their move getting there — they ar
 
 ***Any* is load-bearing.** Once a stack is barred for the turn, a later small arrival cannot un-bar it — otherwise merging big-then-small would launder the restriction, and the order the player chose (§4) would decide the rule rather than the rule deciding.
 
+**The price rides with the heads, not with the arrow.** There is no stack to hang it on — a group is whoever stands on an arrow right now (§11 item 21) — so the override travels with the heads that paid it. A merged group stepping onto empty ground is still at its overridden speed when it arrives, and on a split both parts carry the override exactly as both inherit `spent`. Step onto ground already held and the override is computed **fresh** there, from arrival against joined, so nothing accumulates and big-then-small still cannot launder a bar. The alternative — the override as a fact about the arrow the merge happened on — would let one ordinary step refund the whole price, which is the free mid-turn upgrade this rule exists to close (§11 item 33).
+
 Stated as a speed override rather than a special case, so nothing else needs changing: a constituent that already stepped this turn has therefore already used the merged stack's whole allowance, and the bonus arrives next turn when the stack is no longer *recently merged*.
 
 This prices two exploits at once. Without the speed-1 clause, walking a spare head into a stack would be a free mid-turn speed upgrade and the correct opening move every turn would be to merge before doing anything else. Without the speed-0 clause you get the conveyor below for nothing.
@@ -225,7 +227,7 @@ A **group** is the heads of one player standing on one arrow. Allowance belongs 
 
 Both are whole numbers and neither survives the turn boundary. Two rules make a change of composition behave:
 
-- **On a split, both parts inherit `spent`.** Only the portion that moves pays for the step. The portion that stayed has spent nothing extra and may still act — branching off in another direction, or following the same path a step behind (§6.1a).
+- **On a split, both parts inherit `spent`** — and any merge override with it (above; §11 item 33). Only the portion that moves pays for the step. The portion that stayed has spent nothing extra and may still act — branching off in another direction, or following the same path a step behind (§6.1a).
 - **On a merge, the arrivals' spending is discarded and the destination's is kept**, and the merged group's speed is overridden per the rule above. The arrivals already paid to get there; they are carried, not carrying.
 
 **Splitting needs no penalty of its own, and that asymmetry is not an oversight.** Merging up mid-turn would be a free upgrade if unpriced, because a larger group is strictly faster. Splitting down needs no such guard: inheriting `spent` already prevents the double dip, because a stack that has taken its step cannot split into scouts that have not.
@@ -710,6 +712,8 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > Item **29** was opened by the P01 review and closed in the same pass: resolving item 1 promoted the orientation pattern from a measurement to a rule, and no invariant enforced it. That is the ordinary way closing one gap opens another, and the reason this list is not deleted when it empties.
 >
+> **Item 33 was opened and closed by P04**, and was the ordinary consequence of item 21: §3 priced a merge in terms of *a stack*, and the state deliberately has no stack to hang it on. It blocked nothing but P04's own implementation, and it blocked that squarely. Resolved to *the override travels with the heads*, and §3 now carries the rule rather than leaving it to be read out of a noun. → §3, → P04.
+>
 > **Items 30 and 31 were opened together and closed together, by deleting their cause.** Both said the same thing — §7's fill and §8's setup were written for a plane while the board was a torus. The gap was closed in the direction nobody had considered: **the board became the plane** (item 4, re-resolved). Neither was answered on its own terms, and that is the better outcome; a rule invented to make fill work on a torus would have been a rule the game never needed.
 >
 > **Item 32 is open**, and is the one thing an unbounded board costs: nothing stops a losing player walking away forever. It is the turtle stalemate in another costume and wants the same answer. → §9, → P09.
@@ -838,6 +842,19 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
     - **Accept it**, as §9 already accepts the turtle. Defensible for a hot-seat MVP where both players can simply agree it is over, and indefensible the moment there is an AI or a ladder.
 
     Note the flee case is *strictly easier* than the turtle case — a turtle keeps its economy, a runner has none — so anything that solves the turtle solves this, and it is not worth designing separately. → **P09** (match lifecycle and victory), and it should be decided together with §9's accepted risk rather than bolted beside it.
+
+**~~The merge price had nothing to hang on~~ — resolved: the heads carry it**
+
+33. ~~Does a merge override travel with the heads, or stay on the arrow?~~ — **resolved: with the heads.** §3 said *a stack that merged this turn has speed 1 for that turn*, and item 21 says there is no stack — an arrow holds a count, and a group is whoever stands on an arrow right now. So "that stack" named a referent the state does not carry, and two readings of the same sentence parted ways as soon as the merged group moved:
+
+    - **With the heads** — *chosen.* A merged 4-stack at speed 1 steps once onto empty ground and is still at speed 1 there, with `spent` 1 — it moved once this turn and it is done. On a split, both parts carry the override, the way both parts inherit `spent`. On a further merge the override is recomputed at the destination, so nothing accumulates.
+    - **With the arrow.** The override is a fact about the arrow the merge happened on. The same 4-stack steps off it and is a plain 4-stack at speed 3 with `spent` 1, so it takes two further steps.
+
+    Under the second reading, "merging costs the turn" costs nothing that a single ordinary step does not refund — the override is shed by the very step it was meant to price, and *reinforce, then advance* becomes the free mid-turn speed upgrade §3 says it is pricing away. That is what decided it: the clause exists to make merging cost tempo, and only the first reading charges it. §3 (*merging costs the turn*) now says so in the prose, and *the heads carry the price* is the reading the phrase "that stack" was always reaching for.
+
+    Unreachable in the conveyor (§3): every hop of a conveyor lands on an occupied link, so a fresh override is computed at the destination and both readings agree. It was reachable in the most ordinary play there is — reinforce, then advance — which is why it wanted an answer rather than a note.
+
+    Opened by **P04**'s test phase and closed by **P04**'s implementation phase, which it blocked squarely. No approved P04 *scenario* depends on it — the two readings differ only after the merged group moves again, which no scenario does — so P04's review added the invariant and a property test rather than leaving the decision resting on prose. Both readings pass every scenario in the packet; only the property tells them apart. → **§3** (*merging costs the turn*), → **P04**.
 
 ---
 

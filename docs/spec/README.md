@@ -21,10 +21,11 @@ behaviour is not here, it will not be built.**
 | [tiling](./tiling/tiling.md) | P03 | §2 | 34 | — | 12 |
 | [layout](./layout/layout.md) | P03 | §2 | 24 | — | 12 |
 | [fixtures](./fixtures/fixtures.md) | P02 | §2, §7 | 18 | — | 13 |
+| [movement](./movement/movement.md) | P04 | §3, §4, §2 | 30 | — | 16 |
 
-170 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
-**58 belong to P03**, and **18 to P02**. 244 concrete cases once `Examples` rows
-are expanded, 82 invariants.
+200 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
+**58 belong to P03**, **18 to P02**, and **30 to P04**. 279 concrete cases once
+`Examples` rows are expanded, 98 invariants.
 
 A `@deferred-<packet>` tag means the behaviour is decided and specified here, but
 its seam falls in another packet — an accumulator that knows its owner is not a
@@ -82,9 +83,30 @@ carries no closure, fill or encirclement scenarios — those are structurally
 impossible on any finite board (SPEC §11 item 4) and test against the tiling
 instead. A reader who misses it will think the packet forgot half the port.
 
+## Reading order for P04
+
+`movement` is the first rules behaviour. Read it after `move` (the DTO) and
+`fixtures` (the board the scenarios run on). Trails, combat and territory are
+deliberately absent — a step relocates heads on an occupancy map, and an
+enemy-occupied destination is refused rather than resolved.
+
+**The merge-cost scenarios are the ones to read first.** Minority / equal /
+majority arrivals, and the "later small arrival cannot un-bar" case, are where a
+plausible-but-wrong implementation most often invents a rule. The conveyor
+scenario is the same arithmetic in costume.
+
+The subtlest of them is not a scenario at all but the invariant that the override
+**rides with the heads** (SPEC §11 item 33). Its only witness is a property test,
+because the rejected reading — the override as a fact about the arrow the merge
+happened on — passes every scenario here and lets one ordinary step refund the
+whole merge price.
+
 ## What is deliberately not here
 
-Legality. Whether an exit is really an out-arrow of the source's target point,
-whether a mover has allowance left, whether a crossing is won — all of that is
-P04 and later. A `Then` step in this directory that mentions a rule outcome
-rather than a shape has leaked, and should be moved.
+A `Then` step that asserts a behaviour its packet does not own has leaked.
+
+- **P01** owned shapes, not legality — whether an exit is really an out-arrow, or
+  a crossing is won, lived in later packets.
+- **P04** owns movement legality, not combat or territory — an enemy-occupied
+  destination is refused here; resolving it is P06. Closure, fill, spawners and
+  victory are later still.
