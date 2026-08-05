@@ -696,15 +696,21 @@ Two things about its shape are load-bearing and neither is a tuning choice:
 
 **This does not require upkeep.** Item 32 listed upkeep as the front-runner and domination as the alternative; domination won because it needs no new state and no per-turn bookkeeping — it reads ownership the board already carries. Upkeep remains available as a balance knob if playtesting wants more pressure on a hoarding player, but nothing depends on it.
 
-### Accepted risk: the turtle stalemate
+### The turtle is a losing position, not a stalemate
 
-"You can only be hurt while you're growing" means a player who **stops growing becomes unkillable by cutting**. A losing player can pull every head onto safe ground inside a small enclave and never lay another trail; the only remaining way to *kill* them is to encircle the entire enclave, which may be impractical at a chokepoint. **Domination** above is the clock elimination lacks, but it does not start on its own here: a turtle's spawner shares are inside the enclave, so they must be taken before any turn of the hold window counts.
+"You can only be hurt while you're growing" means a player who **stops growing becomes unkillable by cutting**. A losing player can pull every head onto safe ground inside a small enclave and never lay another trail.
 
-**Decision: accept it, and note that domination narrows it rather than closing it.** Encirclement is still considered sufficient.
+An earlier draft called that a permanent stalemate and accepted it, reasoning that the only way through a shell was to encircle the *entire* enclave — impractical at a chokepoint. **The reasoning had a hidden premise: that the attacker needed the turtle's heads.** Under domination they need the turtle's *production*, and that is a far smaller shape. The shell is proof against fire, and nobody is obliged to burn it.
 
-**Domination does not dissolve this case, and it is worth being precise about why.** A turtle keeps its economy — that is the whole of turtling — so its spawner shares are inside the enclave and the domination clock cannot start until they are taken. What changes is the *price of forcing it*: domination asks for the turtle's **production**, not its last head, and §7 already says an enemy can drive a chain into your territory and close a loop inside it, carving that chunk and any specials in it back out. Carving one spawner out of an enclave is a real operation with real risk (§5: a lasso deep inside enemy territory is brutally hard, because they are on safe ground the whole time and you never are) — but it is strictly smaller than encircling every head behind a chokepoint, which is the thing §9 called impractical. So the stalemate survives only against a turtle who can cut every incursion indefinitely, which is a much narrower player than "anyone who stops growing".
+Three things already in this spec close the case, and none of them is new:
 
-If playtesting shows real stalemates even then, the drop-in fix is still **upkeep** — each special sustains some number of heads, and holding less production than your army needs costs you one head per turn. That turns the turtle's shell into a starvation chamber and reuses pieces already on the board, without adding a subsystem.
+- **A spawner is enclosable at the minimum size the game has.** Ownership is fractional across the three arrows bordering the vertex (§7), and the lattice triangle of exactly those three arrows is *the minimum enclosable territory* (§11 items 16 and 34). So taking a turtle's income is a three-arrow loop, not a siege of the enclave.
+- **Territory is contestable** (§7). An enemy can drive a chain into your territory and close a loop inside it, carving that chunk — and any specials in it — back out. Safe ground is safe from *cutting*, never from *closure*.
+- **Closing around the garrison converts it** (§6.3). Heads standing on the carved tiles are now inside the attacker's territory with no anchored trail, so they convert intact — a 2× swing on the axis that decides the game. The turtle's own garrison is what makes the carve worth attempting.
+
+So a turtle faces a bill either way: garrison the spawner and lose the garrison when it is carved, or leave it thin and lose it cheaply. Meanwhile they cannot grow — that is the definition of turtling — so nothing replaces what they lose, and once the last share is gone the domination clock runs on a player with no income at all.
+
+**Decision: no clock, no upkeep, no rule.** The residue is a turtle with heads enough to cut every incursion into their own ground indefinitely, and that player is losing slowly rather than holding forever. **Upkeep** — each special sustaining some number of heads, with a shortfall costing one head per turn — remains on the shelf as a balance knob if playtesting disagrees, but nothing in the design is waiting on it.
 
 ### Closed: the board has no edge, and it does not need one
 
@@ -717,7 +723,7 @@ Two things were already true, and together they are why this needed a win condit
 
 So the runner cannot win, only decline to lose — and **domination above ends it**, because a player who has left the board's productive region holds no shares at all. The clock starts the moment they run, and it does not depend on catching them. **Resolved** — §11 item 32.
 
-Note the asymmetry with the turtle, since it is easy to read the two as one problem: *anything that solves the turtle solves the runner*, because a turtle keeps its economy and a runner has none. The converse does not hold, and this is the case where it matters.
+The two were always the same problem — a player who has stopped playing and cannot be *reached* — and one condition answers both, because it stops asking to reach them. The runner has no production to take; the turtle's is enclosable at the cheapest size on the board (above). Neither needs a clock bolted beside it.
 
 ---
 
@@ -746,7 +752,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > **Items 30 and 31 were opened together and closed together, by deleting their cause.** Both said the same thing — §7's fill and §8's setup were written for a plane while the board was a torus. The gap was closed in the direction nobody had considered: **the board became the plane** (item 4, re-resolved). Neither was answered on its own terms, and that is the better outcome; a rule invented to make fill work on a torus would have been a rule the game never needed.
 >
-> **Item 32 was the one thing an unbounded board cost, and it is now closed** by a second win condition rather than by a chase mechanic: hold every spawner share for *N* turns and you win. A runner past *R* holds none, so the clock starts when they leave and never depends on catching them. It does *not* close §9's turtle — a turtle keeps its economy — but it narrows it from *encircle every head* to *carve out their production*. → §9 (*domination*), → P09 (*N*).
+> **Item 32 was the one thing an unbounded board cost, and it is now closed** by a second win condition rather than by a chase mechanic: hold every spawner share for *N* turns and you win. A runner past *R* holds none, so the clock starts when they leave and never depends on catching them. It closed §9's turtle as a side effect, by changing what the attacker has to reach: a spawner is enclosable at the minimum size the game has (items 16 and 34), territory is contestable (§7), and closing around a garrison converts it (§6.3) — so **§9 no longer carries an accepted risk at all**. → §9 (*domination*, and the turtle), → P09 (*N*).
 >
 > **Item 35 was opened and closed by P05's review**, and it is the sharpest example on this list of why the review phase exists. §5 charged a branch on the move that creates it, in words that name a pairing a *set* cannot hold — so the implementation had to choose a standing form, chose the larger one, and passed every scenario doing it. Resolved to *one head per branch*; §5 now states the standing form and §6.1's price list is the price. → §5, → §6.1, → P05.
 >
@@ -880,7 +886,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     **Chosen over upkeep**, which had been the front-runner. Upkeep — each special sustains some number of heads, and holding less production than your army needs costs one head a turn — also kills the flee case, but it adds per-turn bookkeeping and a second head-loss channel to reason about, and domination reads ownership the board already carries. Upkeep survives as a balance knob, not as a requirement, and the two compose if playtesting wants both.
 
-    **It does not close §9's turtle, and the asymmetry is the useful part.** *Anything that solves the turtle solves the runner* — a turtle keeps its economy, a runner has none — and the converse does not hold: a turtle's shares are inside the enclave, so the clock cannot start until they are carved out. What domination changes there is the price of forcing it, from *encircle every head behind a chokepoint* to *take their production*, which §7's carve-out already permits. §9 keeps the turtle as an accepted risk and now says why it is a smaller one.
+    **It closed §9's turtle too, which was not the plan.** The turtle was accepted on the reasoning that the only way through a shell was to encircle the entire enclave. That premise was that the attacker needed the turtle's *heads*; domination needs their *production*, and a spawner is enclosable at the minimum size the game has — the three-arrow lattice triangle of items 16 and 34. Territory is contestable (§7), so a shell is proof against cutting and never against closure; and closing around the garrison converts it (§6.3), so the heads defending a share are what make taking it worth attempting. A turtle therefore pays whether it garrisons or not, cannot grow to replace the loss, and ends on the clock with no income. **§9 no longer carries an accepted risk**, and upkeep went from *drop-in fix* to *shelved balance knob*.
 
     Opened by the unbounded-board resolution (item 4) and answered by the human directly. → **§9** (*domination*, and the turtle's revised note), → **P09** (*N*, with the rest of the spawner table).
 
