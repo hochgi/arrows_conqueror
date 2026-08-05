@@ -101,6 +101,38 @@ export const maxVertexShift = (a: readonly Point2[], b: readonly Point2[]): numb
   }, 0);
 };
 
+/** Rotate a point by `degrees` about `centre`. */
+export const rotateAbout = (p: Point2, centre: Point2, degrees: number): Point2 => {
+  const r = (degrees * Math.PI) / 180;
+  const dx = p.x - centre.x;
+  const dy = p.y - centre.y;
+  return {
+    x: centre.x + dx * Math.cos(r) - dy * Math.sin(r),
+    y: centre.y + dx * Math.sin(r) + dy * Math.cos(r),
+  };
+};
+
+/**
+ * Is `b` the rotation of `a` about `centre`, allowing any cyclic re-indexing?
+ *
+ * Vertex order is not comparable directly: the three tiles around a vertex list
+ * their vertices starting from their own arrow's origin, so the same shape
+ * appears at different offsets.
+ */
+export const congruentByRotation = (
+  a: readonly Point2[],
+  b: readonly Point2[],
+  centre: Point2,
+  degrees: number,
+  eps = 1e-7,
+): boolean => {
+  if (a.length !== b.length) return false;
+  const turned = a.map((p) => rotateAbout(p, centre, degrees));
+  return Array.from({ length: b.length }).some((_, shift) =>
+    turned.every((p, k) => samePoint(p, b[(k + shift) % b.length] as Point2, eps)),
+  );
+};
+
 /** World angle of a lattice vector under basis u = (1,0), v = (½, √3⁄2), in degrees. */
 export const worldAngleDegrees = (di: number, dj: number): number => {
   const x = di + dj / 2;

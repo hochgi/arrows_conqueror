@@ -24,6 +24,7 @@ import {
 import type { Point2, TilingLayout } from '../src/index';
 import {
   area,
+  congruentByRotation,
   congruentByTranslation,
   contains,
   hasVertexAt,
@@ -156,10 +157,14 @@ describe('the polygons tile the plane', () => {
     const mine = l.polygon(a);
     expect(hasVertexAt(mine, centre)).toBe(true);
     expect(hasVertexAt(theirs, centre)).toBe(true);
-    // The spoke is the centre plus its bend control point, so at least two
-    // vertices are shared. One would mean they only touch at the centre.
+
+    // Exactly three, and which three is the point: the shared lattice point,
+    // the bend control point, and the triangle centre — the whole path
+    // `point → bend → centre`. Two would mean they meet only at the ends and
+    // the bend disagreed, which is the gap-leaving mistake.
     const common = mine.filter((p) => hasVertexAt(theirs, p));
-    expect(common.length).toBeGreaterThanOrEqual(2);
+    expect(common).toHaveLength(3);
+    expect(common.some((p) => samePoint(p, centre))).toBe(true);
   });
 });
 
@@ -274,6 +279,62 @@ describe('the silhouette parameters are tunable without moving a tile', () => {
       worst = Math.max(worst, maxVertexShift(here, next));
     }
     expect(worst).toBeLessThan(0.02);
+  });
+});
+
+describe('layout is the only check on the out-direction constant', () => {
+  // The scenario this packet exists for, and the ONLY assertion in the repo
+  // that sees the implementation's own basis.
+  //
+  // Everything else is blind to a shear. A basis with the same determinant
+  // preserves every tile's area, every vertex count, translation invariance,
+  // continuity in twist and bend, and the central-symmetry parity — verified by
+  // shearing `world` and watching the suite stay green. The 0/120/240 angle
+  // check in tiling.test.ts does not help either: it computes world angles from
+  // a basis the TEST defines, so it constrains the constant and never the code.
+
+  it('makes the three tiles around a vertex 120 degree rotations of each other', () => {
+    const g = board();
+    const l = measured();
+    for (const v of g.window(ORIGIN, 2).vertices) {
+      const centre = l.vertexPosition(v);
+      const [a, b, c] = g.borderArrows(v);
+      if (a === undefined || b === undefined || c === undefined) {
+        throw new Error('a vertex must border three arrows');
+      }
+      const polys = [l.polygon(a), l.polygon(b), l.polygon(c)];
+      // Some rotation by ±120° carries each tile onto another. Which one depends
+      // on the order `borderArrows` happens to return, which is not pinned.
+      for (const p of polys) {
+        const lands = polys.filter(
+          (q) =>
+            congruentByRotation(p, q, centre, 120) || congruentByRotation(p, q, centre, -120),
+        );
+        expect(lands.length).toBeGreaterThanOrEqual(1);
+      }
+    }
+  });
+
+  it('fails that rotation check for a skewed basis', () => {
+    // The counterfactual, so the assertion above is known to be load-bearing
+    // rather than vacuously satisfiable. Shearing keeps the determinant, so the
+    // tiling is still gapless and every tile still has area √3/6 — and the
+    // rotation check still notices.
+    const g = board();
+    const l = measured();
+    const shear = (p: Point2): Point2 => ({ x: p.x + 0.12 * p.y, y: p.y });
+    const [v] = g.window(ORIGIN, 1).vertices;
+    if (v === undefined) throw new Error('the window must hold a vertex');
+    const centre = shear(l.vertexPosition(v));
+    const polys = g.borderArrows(v).map((a) => l.polygon(a).map(shear));
+    const anyPair = polys.some((p) =>
+      polys.some(
+        (q) =>
+          q !== p &&
+          (congruentByRotation(p, q, centre, 120) || congruentByRotation(p, q, centre, -120)),
+      ),
+    );
+    expect(anyPair).toBe(false);
   });
 });
 

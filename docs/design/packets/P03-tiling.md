@@ -211,12 +211,37 @@ Counts are a target for phase 1, not a contract.
 None of these is a rule question — no `SPEC.md` behaviour depends on the answers.
 They are shape decisions, which is what phase 1 is for.
 
-## Definition of done
+## Definition of done — met
 
-- `pnpm verify` green.
-- All 37 conformance assertions **passing rather than pending**, and unedited.
-- A board rendering as the arrow tiling, tiles lighting on hover, pannable in any
-  direction without running out of board.
-- No `Date`, `Math.random` or iteration-order dependence anywhere in the package —
-  and no precomputed collection to iterate in the first place.
-- `SPEC.md` §11 items 1, 4, 5, 16 and 29 still marked resolved and still accurate.
+- [x] `pnpm verify` green. 216 tests, none skipped.
+- [x] All 37 conformance assertions **passing rather than pending**, and unedited —
+      `git diff` over the phase-3 commit touches nothing under `packages/contracts`.
+- [x] A board rendering as the arrow tiling, one tile lighting per arrow on hover,
+      answering for any cell however far out. Verified against the artwork with a
+      throwaway SVG render; the reproducible viewer is P11's.
+- [x] No `Date`, `Math.random` or iteration-order dependence anywhere in the
+      package — and no precomputed collection to iterate in the first place. The
+      eslint purity guard was widened to `packages/geometry-*`, which it had not
+      covered.
+- [x] `SPEC.md` §11 items 1, 4, 5, 16 and 29 still marked resolved and still
+      accurate.
+
+### What the review caught
+
+**Two approved scenarios had no test, and they were the two that matter most.**
+*The three tiles around a vertex are congruent by 120° rotation* and its
+counterfactual were specified precisely because nothing else can see a skewed
+basis — and phase 2 shipped without them.
+
+Confirmed by breaking it rather than by argument: shearing `world()` to a basis
+with the same determinant left **every other layout test green** — area,
+translation invariance, vertex counts, continuity, twist parity, gap-and-overlap
+sampling. The only thing that noticed was the `same`-convention area check, and
+only because the two triangles' errors stopped cancelling. An accidental catch,
+one edit away from disappearing.
+
+Both scenarios now have tests, and the shear fails them directly.
+
+Also tightened: *neighbouring tiles agree on their shared spoke* asserted "at
+least two shared vertices" where the truth is **exactly three** — the point, the
+bend control point, and the triangle centre, which is the whole shared path.
