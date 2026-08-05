@@ -55,9 +55,19 @@ export default tseslint.config(
     },
   },
   {
-    // The core and its contracts. Adapters (renderer, input) are exempt — they
-    // are where the impure world is supposed to live.
-    files: ['packages/contracts/**/*.ts', 'packages/rules-core/**/*.ts'],
+    // The core, its contracts, and every geometry implementation behind the
+    // port. Adapters (renderer, input) are exempt — they are where the impure
+    // world is supposed to live.
+    //
+    // Geometry belongs here even though it is not "the core": a board that
+    // answered differently on two calls would desync a replay just as surely as
+    // a rule that did, and the generated tiling is a pure function of an
+    // identifier precisely so that it cannot.
+    files: [
+      'packages/contracts/**/*.ts',
+      'packages/rules-core/**/*.ts',
+      'packages/geometry-*/**/*.ts',
+    ],
     rules: {
       'no-restricted-globals': ['error', ...impureGlobals],
       'no-restricted-properties': ['error', ...impureProperties],

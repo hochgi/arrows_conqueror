@@ -32,6 +32,7 @@ import {
   near,
   samePoint,
   vertexCentroid,
+  withoutCollinear,
 } from './support';
 
 const ORIGIN = cellPoint(0, 0);
@@ -166,18 +167,23 @@ describe('twist zero is a rhombus, twist non-zero is an arrow', () => {
   const flat = (): TilingLayout => makeLayout({ twistDegrees: 0, bendFraction: 0.36 });
 
   it('collapses a tile to four distinct corners at twist zero', () => {
+    // The polygon still has eight vertices — at twist 0 the bend points sit ON
+    // their spokes rather than off them, so they are collinear with the corners
+    // they lie between. Drop those and a rhombus is what is left.
     const g = board();
     const l = flat();
     const a = cellArrow(1, 1, 0);
     const poly = l.polygon(a);
-    const distinct = poly.filter((p, k) => poly.findIndex((q) => samePoint(q, p, 1e-9)) === k);
-    expect(distinct).toHaveLength(4);
-    const corners = [
+    expect(poly).toHaveLength(8);
+
+    const corners = withoutCollinear(poly);
+    expect(corners).toHaveLength(4);
+    const expected = [
       l.pointPosition(g.origin(a)),
       l.pointPosition(g.target(a)),
       ...g.flankVertices(a).map((v) => l.vertexPosition(v)),
     ];
-    for (const c of corners) expect(hasVertexAt(poly, c)).toBe(true);
+    for (const c of expected) expect(hasVertexAt(corners, c)).toBe(true);
   });
 
   it('still tiles at twist zero', () => {

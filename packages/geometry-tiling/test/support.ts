@@ -77,6 +77,21 @@ export const congruentByTranslation = (
   });
 };
 
+/**
+ * Drop vertices that lie on the straight line between their neighbours.
+ *
+ * At twist 0 the bend points sit *on* their spokes rather than off them, so the
+ * polygon still has eight vertices while the shape it bounds is a rhombus with
+ * four corners. This is what "the 8 vertices lie on 4 distinct corners" means.
+ */
+export const withoutCollinear = (poly: readonly Point2[], eps = 1e-9): Point2[] =>
+  poly.filter((p, k) => {
+    const prev = poly[(k - 1 + poly.length) % poly.length] as Point2;
+    const next = poly[(k + 1) % poly.length] as Point2;
+    const cross = (p.x - prev.x) * (next.y - prev.y) - (p.y - prev.y) * (next.x - prev.x);
+    return Math.abs(cross) > eps;
+  });
+
 /** The largest distance any vertex moved between two polygons of equal length. */
 export const maxVertexShift = (a: readonly Point2[], b: readonly Point2[]): number => {
   if (a.length !== b.length) return Number.POSITIVE_INFINITY;

@@ -36,6 +36,7 @@ export {
   cellArrow,
   cellPoint,
   cellVertex,
+  vertexParity,
   type Direction,
   type LatticeVector,
   type TriangleParity,

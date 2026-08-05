@@ -17,11 +17,17 @@
  * Phase 2: signatures only. Every method throws.
  */
 
+import { ContractViolation } from '@arrows/contracts';
 import type { ArrowId, PointId, VertexId } from '@arrows/contracts';
-
-const notImplemented = (method: string): never => {
-  throw new Error(`geometry-tiling: layout ${method} is not implemented (P03 phase 3)`);
-};
+import {
+  OUT_DIRECTIONS,
+  TRIANGLE_OFFSET,
+  arrowCell,
+  arrowFlanks,
+  pointCell,
+  vertexCell,
+} from './cells';
+import type { Cell, VertexCell } from './cells';
 
 /** A position in **lattice space**. The renderer owns pan, zoom and culling. */
 export interface Point2 {
@@ -82,16 +88,104 @@ export interface TilingLayout {
   vertexPosition(vertex: VertexId): Point2;
 }
 
+const ROOT3_OVER_2 = Math.sqrt(3) / 2;
+
+/** Lattice coordinates to world, over basis `u = (1, 0)`, `v = (½, √3⁄2)`. */
+const world = (i: number, j: number): Point2 => ({ x: i + j / 2, y: j * ROOT3_OVER_2 });
+
+const triangleCentre = ({ i, j, parity }: VertexCell): Point2 => {
+  const f = TRIANGLE_OFFSET[parity];
+  return world(i + f, j + f);
+};
+
+/**
+ * The bend control point on the spoke from a triangle's centre `g` to one of
+ * its corners.
+ *
+ * **The spoke belongs to the (triangle, corner) pair, not to a tile.** Both
+ * tiles meeting along it must use the identical bent path or the plane stops
+ * being tiled — the mistake that produced the first broken chevron, and the
+ * reason `sign` is decided by the triangle's parity rather than by the arrow.
+ */
+const bend = (g: Point2, corner: Point2, twistRadians: number, depth: number): Point2 => {
+  const dx = corner.x - g.x;
+  const dy = corner.y - g.y;
+  const cos = Math.cos(twistRadians);
+  const sin = Math.sin(twistRadians);
+  return {
+    x: g.x + depth * (dx * cos - dy * sin),
+    y: g.y + depth * (dx * sin + dy * cos),
+  };
+};
+
 /**
  * @throws ContractViolation if `bendFraction` is outside the open interval
  *   `(0, 1)`: at 0 the spoke collapses to the triangle centre, at 1 onto the
  *   corner, and past 1 tiles self-intersect.
  */
-export const makeLayout = (_params: SilhouetteParams = MEASURED_SILHOUETTE): TilingLayout => ({
-  get params(): Required<SilhouetteParams> {
-    return notImplemented('params');
-  },
-  polygon: (_arrow: ArrowId): readonly Point2[] => notImplemented('polygon'),
-  pointPosition: (_point: PointId): Point2 => notImplemented('pointPosition'),
-  vertexPosition: (_vertex: VertexId): Point2 => notImplemented('vertexPosition'),
-});
+export const makeLayout = (params: SilhouetteParams = MEASURED_SILHOUETTE): TilingLayout => {
+  const { twistDegrees, bendFraction } = params;
+  if (!(bendFraction > 0 && bendFraction < 1)) {
+    throw new ContractViolation(
+      `bend must lie strictly between 0 and 1, not ${String(bendFraction)}`,
+    );
+  }
+  const resolved: Required<SilhouetteParams> = {
+    twistDegrees,
+    bendFraction,
+    twistParity: params.twistParity ?? 'opposite',
+  };
+  const twist = (twistDegrees * Math.PI) / 180;
+
+  /**
+   * Up and down triangles twist **oppositely**.
+   *
+   * Twisting them the same way still tiles the plane exactly, with the same
+   * vertex count and the same per-tile area — it merely makes the tile
+   * centrally symmetric about its edge midpoint, giving two identical points
+   * and no arrowhead. No area or gap test can see the difference, which is why
+   * the wrong value stays representable and has a scenario of its own.
+   */
+  const signOf = (parity: VertexCell['parity']): number =>
+    resolved.twistParity === 'same' || parity === 'up' ? 1 : -1;
+
+  const positionOfPoint = (point: PointId): Point2 => {
+    const { i, j }: Cell = pointCell(point);
+    return world(i, j);
+  };
+
+  return {
+    params: resolved,
+
+    pointPosition: positionOfPoint,
+
+    vertexPosition: (vertex: VertexId): Point2 => triangleCentre(vertexCell(vertex)),
+
+    polygon: (arrow: ArrowId): readonly Point2[] => {
+      const cell = arrowCell(arrow);
+      const step = OUT_DIRECTIONS[cell.d];
+      const a = world(cell.i, cell.j);
+      const b = world(cell.i + step.di, cell.j + step.dj);
+      const [flank1, flank2] = arrowFlanks(cell);
+      const g1 = triangleCentre(flank1);
+      const g2 = triangleCentre(flank2);
+      const t1 = twist * signOf(flank1.parity);
+      const t2 = twist * signOf(flank2.parity);
+      const depth = bendFraction;
+
+      // Round the tile: out along one triangle's two spokes, across to the far
+      // point, back along the other triangle's two spokes. The arrow's own edge
+      // is interior to the tile and never appears.
+      return [
+        a,
+        bend(g1, a, t1, depth),
+        g1,
+        bend(g1, b, t1, depth),
+        b,
+        bend(g2, b, t2, depth),
+        g2,
+        bend(g2, a, t2, depth),
+      ];
+    },
+  };
+};

@@ -19,6 +19,7 @@ import {
   cellPoint,
   cellVertex,
   makeTiling,
+  vertexParity,
 } from '../src/index';
 import type { Direction, LatticeVector } from '../src/index';
 import { worldAngleDegrees } from './support';
@@ -93,7 +94,10 @@ describe('adjacency follows the three out-directions', () => {
 });
 
 describe('a cell owns two triangles, and they are its spawner vertices', () => {
-  const parityOf = (v: VertexId): string => (String(v).endsWith(':up') ? 'up' : 'down');
+  // Via the package's own accessor rather than by sniffing the id string: the
+  // encoding is private and an assertion that reads it is testing the codec,
+  // not the geometry.
+  const parityOf = (v: VertexId): string => vertexParity(v);
 
   it('flanks every arrow with one up-triangle and one down-triangle', () => {
     // SPEC §7's cap of two feed slots per arrow is geometry, not a rule, and
