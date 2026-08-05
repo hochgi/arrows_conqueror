@@ -20,10 +20,11 @@ behaviour is not here, it will not be built.**
 | [move](./move/move.md) | P01 | §3, §4, §5 | 25 | — | 12 |
 | [tiling](./tiling/tiling.md) | P03 | §2 | 34 | — | 12 |
 | [layout](./layout/layout.md) | P03 | §2 | 24 | — | 12 |
+| [fixtures](./fixtures/fixtures.md) | P02 | §2, §7 | 18 | — | 13 |
 
-152 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`, and
-**58 belong to P03**. 217 concrete cases once `Examples` rows are expanded,
-69 invariants.
+170 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
+**58 belong to P03**, and **18 to P02**. 244 concrete cases once `Examples` rows
+are expanded, 82 invariants.
 
 A `@deferred-<packet>` tag means the behaviour is decided and specified here, but
 its seam falls in another packet — an accumulator that knows its owner is not a
@@ -65,6 +66,21 @@ passes every conformance assertion and renders skewed. Layout holds the only
 executable check on that, and on the up/down twist parity — a mistake there still
 tiles the plane perfectly and just quietly deletes the arrowhead. Both failure
 modes are invisible to every other test in the repo.
+
+## Reading order for P02
+
+`fixtures` is the *second* real `GeometryPort`, so like `tiling` it inherits the
+whole 37-assertion conformance suite unedited — passing it against a board built a
+different way is the packet's main claim. Its own scenarios cover what is peculiar
+to *authoring* a board: construction-time validation that names the offending
+point or arrow, vertices derived from cycles rather than authored, and finite-board
+windows.
+
+**The one scenario to read first is `Every straight-ahead ray closes on itself`.**
+It is the finite-board limit made executable, and it is the reason `fixtures`
+carries no closure, fill or encirclement scenarios — those are structurally
+impossible on any finite board (SPEC §11 item 4) and test against the tiling
+instead. A reader who misses it will think the packet forgot half the port.
 
 ## What is deliberately not here
 

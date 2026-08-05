@@ -150,9 +150,10 @@ It used to be the invariant that **constrained board size** — the smallest tor
 satisfying this suite was 4×4, because wrap collapsed or manufactured triangles
 below that. **SPEC §11 item 4 removed the wrap and with it the floor**: on the
 unbounded lattice the property is local and holds unconditionally. What survives
-is the reason P02 authors abstract digraphs rather than lattice sub-boards — a
-conformant abstract graph bottoms out near 6 points and 18 arrows, and a fixture
-you can read is the entire point (§11 item 29).
+is the reason P02 authors abstract digraphs rather than lattice sub-boards — the
+smallest conformant graph is **7 points, 21 arrows, 14 vertices** (the tournament
+on ℤ/7, unique up to isomorphism), and a fixture you can read is the entire point
+(§11 item 29).
 
 ## Stable ordering is a determinism requirement
 
