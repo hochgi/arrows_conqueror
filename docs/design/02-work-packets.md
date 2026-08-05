@@ -140,7 +140,7 @@ What that costs and pays across the plan:
   P05 in two
 - **P09** — gains the radial gradient and loses the board size
 
-Still open — **numbers only, no behaviour:**
+Parked — **numbers only, and not open questions:**
 
 - **item 11** — ~~board size `(n, m)`~~ → the spawner cutoff radius *R*, the band
   radii, force per band, and **item 32's *N***. MVP player count fixed at 2, placed
@@ -159,6 +159,11 @@ Closed since the last revision of this doc:
   attacker must reach: a spawner is enclosable at the minimum size the game has, a
   shell is proof against cutting but not against closure, and closing around a
   garrison converts it → **P09** owns *N* and the victory check
+- **item 36** — §7 said *even-odd fill*, and even-odd needs a closed curve that a
+  claim is not. **Resolved: the wall is the player's ground and *enclosed* means
+  cannot reach infinity** — no parity, no outline arc, no degenerate probe. A
+  self-loop therefore claims its inside even without territory at both ends →
+  **P05b**
 - **item 35** — §5 and §6.1 priced a branch at two different numbers, and the
   memoryless trail could not tell them apart. **Resolved: one head per branch**,
   opened and closed by P05's review → **P05**

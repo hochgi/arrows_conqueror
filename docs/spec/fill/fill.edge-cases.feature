@@ -1,7 +1,7 @@
 # language: en
 # Overview: docs/spec/fill/fill.md
-# SPEC §7 (even-odd, land bridges), §2 (a trail owns points, not just arrows),
-# §6.1a invariant 3, §11 items 4, 26, 34
+# SPEC §7, §2 (a trail owns points, not just arrows), §6.1a invariant 3,
+# §11 items 4, 26, 34, 36
 
 Feature: Fill — the leaks, the degeneracies and the determinism
   As the author of the rules engine
@@ -10,82 +10,57 @@ Feature: Fill — the leaks, the degeneracies and the determinism
 
   Background:
     Given the generated tiling behind GeometryPort
-    And a closed boundary of arrows with territory at both ends
+    And a set of arrows held by player A as territory
 
-  Rule: A boundary is a curve through points, so it cannot be threaded
+  Rule: Concave, nested and multiply-ringed shapes
 
-    §2: a trail owns the points it passes through, not merely its arrows. Two arrows
-    touching at a single point do not leave a gap — that is the diagonal-leak problem
-    from flood fill, and under a "did you land on a boundary tile" rule an enemy could
-    thread between two boundary arrows without touching either, making every
-    enclosure in the game leak.
-
-    Scenario: A probe cannot escape between two boundary arrows meeting at a point
-      Given a boundary whose two arrows meet at point P without being tile-adjacent
-      And a candidate inside the boundary whose probe transits P
-      When I ask whether that candidate is enclosed
-      Then it is enclosed
-      And the transit of P counted as a crossing
-      # The scenario that separates this implementation from a tile-only flood fill.
-      # If it fails, every enclosure on the board leaks and nothing else reports it.
-
-    Scenario: A probe that turns aside at a boundary point does not cross there
-      Given a boundary presenting one chord at point P
-      And a probe that transits P without interleaving with it
-      When I count that transit
-      Then it is not a crossing
-      # §2's other half: a chord that stays on one side is turning aside rather than
-      # through. Without it, a probe running alongside the curve would count crossings
-      # it never made.
-
-  Rule: Concave and nested shapes
-
-    Scenario: A concave region encloses its whole interior
-      Given a boundary with an inward-pointing lobe
+    Scenario: A concave pocket is enclosed to its last arrow
+      Given player A's claim rings a pocket with an inward-pointing lobe
       When I ask which arrows it encloses
-      Then every arrow of the interior is enclosed, including those in the lobe's shadow
-      # Where a straight-probe implementation with a fixed direction would go wrong,
-      # and where parity does not.
+      Then every arrow of the pocket is enclosed, including those in the lobe's shadow
+      # Where a fixed-direction probe would have gone wrong and reachability does not.
 
-    Scenario: An arrow inside a hole inside a region is not enclosed
-      Given a boundary that encircles a region and then encircles a hole within it
+    Scenario: An arrow in a hole ringed inside a pocket is not enclosed
+      Given player A's claim rings a pocket, and a second ring inside it fences off a hole
+      And the hole's ground is not player A's
       When I ask whether an arrow in the hole is enclosed
       Then it is not enclosed
-      And its escaping probe crossed the boundary twice
+      # It cannot reach infinity through the outer ring, but it is not surrounded *by
+      # player A's ground* — the inner ring is what bounds it, and that ring is A's, so
+      # the hole is a pocket of its own. Read the scenario against the invariant, not
+      # against intuition: the two rings are separate walls.
 
-  Rule: A boundary that is not closed has no interior
+  Rule: A claim that rings nothing encloses nothing
 
-    Scenario Outline: An open boundary encloses nothing
-      Given a boundary that is <shape>
+    Scenario Outline: An unclosed claim encloses nothing
+      Given player A's claim is <shape>
       When I ask which arrows it encloses
       Then it encloses none
 
       Examples:
-        | shape                                                  |
-        | a path with one end on territory and one end dangling  |
-        | a path with neither end on territory                   |
-        | a single arrow                                         |
+        | shape                                     |
+        | a single arrow                            |
+        | a straight run of arrows                  |
+        | a run with a spur, closing nothing        |
 
-      # A land bridge never reaches this file at all — closure's walk dead-ended, so
-      # there is no closed curve to take a parity of. The question is not askable
-      # rather than the answer being empty, and these cases exist so that an
-      # implementation handed one fails loudly instead of guessing.
+      # §7's land bridge, and it needs no branch of its own: the path is claimed by
+      # closure either way, and fill simply finds nothing surrounded.
 
   Rule: Queries only
 
     Scenario: Asking for a verdict changes nothing
-      Given a boundary and a state
-      When I ask the verdict for every arrow in the boundary's window
+      Given a claim and a state
+      When I ask the verdict for every arrow in the claim's window
       Then the state is unchanged
 
-    Scenario: The verdict does not depend on the order the boundary set was built
-      Given two boundary sets containing the same arrows inserted in opposite orders
+    Scenario: The verdict does not depend on the order the claim was built
+      Given two claims containing the same arrows inserted in opposite orders
       When I fill each
       Then the two results contain the same arrows
       And they enumerate in the same order
-      # ADR 0001. The boundary is a Set and the result is an ordered answer derived
-      # from one, which is exactly where insertion order hides — it passes every
-      # example above and surfaces only as replay drift.
+      # ADR 0001. The claim is a Set and the result is an ordered answer derived from
+      # one, which is exactly where insertion order hides — it passes every example
+      # above and surfaces only as replay drift.
 
     Scenario: No vertex is enumerated
       Given any fill on the generated tiling
@@ -105,12 +80,12 @@ Feature: Fill — the leaks, the degeneracies and the determinism
 
   Rule: This suite cannot run on a fixture board
 
-    Scenario: A finite board reports nothing enclosed, and that is the theorem
+    Scenario: A finite board has no infinity to fail to reach
       Given a fixture board instead of the tiling
-      And a boundary on it that plainly encircles an arrow
+      And a claim on it that plainly rings an arrow
       When I ask whether that arrow is enclosed
-      Then no escaping probe exists, because straight-ahead is a bijection on a finite board
+      Then the question is not answerable, because the board has no outside
       # Recorded as a scenario rather than a comment because it is the reason this
-      # packet's harness differs from every earlier one (§11 items 4 and 30, and P02's
-      # finiteness measurement). It is also a live guard: if someone later points this
-      # suite at a fixture to make it faster, this is what tells them why not.
+      # packet's harness differs from every earlier one (§11 items 4, 30 and 36, and
+      # P02's finiteness measurement). It is also a live guard: if someone later points
+      # this suite at a fixture to make it faster, this is what tells them why not.

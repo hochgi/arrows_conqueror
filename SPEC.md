@@ -473,8 +473,9 @@ This is the hexa.io / splix.io rule, not "any cycle of your own trail."
 
 - **An unanchored loop is nothing.** A trail severed from your realm claims no territory under any circumstance. There are no islands, no garrison forts, no founding.
 - **A path that encloses nothing becomes a thin strip.** Travel from one holding of yours to another without surrounding anything and you have built a **land bridge** — the arrow chain itself becomes territory, one tile wide.
-- **A stack anchor pays a land bridge and nothing more.** A fragment that survived a cut is anchored on its own stack (§6.1). Drive it into your territory and you claim **the path itself** — a land bridge — but it encloses nothing, because enclosure requires territory at *both* ends. This is what makes salvage worth attempting, and what stops a stack parked in open ground from becoming a founding site.
-- **Self-crossings invert.** Crossing your own trail doesn't close anything on the spot; it flips which lobes count as enclosed when you finally land. Formally: even-odd fill. Figure-eights resolve without a special case.
+- **A stack anchor pays the path, and only what the path itself rings.** A fragment that survived a cut is anchored on its own stack (§6.1). Drive it into your territory and you claim **the path itself** — a land bridge. Ordinarily it encloses nothing: a strip has no inside. What it cannot do is *found* territory out of open ground, because the claim is still only the arrows walked plus whatever those arrows surround — and that is what makes salvage worth attempting without making a parked stack a founding site (§7 forbids that outright).
+- **Self-crossings claim what they ring.** Crossing your own trail doesn't close anything on the spot. It matters when you land: the path becomes territory, and a loop the path made is then a ring of *your own ground* with a bounded inside — so that inside is yours too. Figure-eights and crossovers resolve without a special case, and an open trail that would have been a bare bridge can loop onto itself to claim something.
+- **The test is reachability, not parity.** After the path is claimed, any pocket of non-territory that cannot reach infinity is enclosed and becomes yours. An earlier draft said *even-odd fill* and that was wrong twice over: a claim is bounded by the trail on one side and by your existing territory on the other, so it is not a closed curve to take a parity of — and where the two do differ, on a trail that rings a region with two separate loops, parity would report the core *outside* while it is plainly surrounded. See §11 item 36.
 
 **Which arrows the landing claims: walk the trail backwards along the grain.**
 
@@ -497,7 +498,9 @@ Two consequences worth stating, because the shares rule is easy to read as being
 - **The minimal closure takes a whole spawner.** Three arrows around one vertex enclose no tile, so a closure clause that granted "the specials inside" would hand the minimum enclosable territory (§11 item 16) nothing at all. Under shares it takes all three, and the minimum really is one: three arrows, three steps, one spawner. That is the game's cheapest objective and it is meant to be — a three-arrow closure is also the most cuttable thing on the board and claims nothing besides.
 - **An interior vertex comes free, and a surrounded spawner is never unowned.** A vertex strictly inside a filled region has all three borders claimed by the fill already, so it is wholly owned without a second pass. The reading is identical for an enclosure, a land bridge and a carve-out.
 
-**Even-odd is correct here because the board is a plane** (§2). A ray cast from a candidate tile escapes to infinity and crosses the boundary an odd number of times exactly when the tile is inside — the classical Jordan argument, and it needs the ray to *leave*. This was the deciding argument against a toroidal board: there a ray closes on itself and always crosses a contractible boundary an even number of times, so even-odd reports *outside* for every tile of every enclosure. The rule below reads as it always did; what changed is that it is now true.
+**The fill needs a plane, and that is what decided the board** (§2). *Enclosed* means **cannot reach infinity**, so there has to be an infinity to fail to reach: a pocket of non-territory is yours exactly when no walk from it escapes your ground. On a torus there is no escaping and no outside, so the notion is not merely wrong there — it is undefined, which is why the board is the unbounded plane (§11 items 4 and 30).
+
+**A pocket does not leak at a point.** Reachability is over arrows, and two of your arrows meeting at a single point form a barrier even though no tile sits in the gap — that is §2's chord test, and without it every enclosure in the game would leak through the seam between two trail arrows.
 
 Two consequences worth stating, because they are what "unbounded" costs and buys:
 
@@ -768,9 +771,9 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > **Item 35 was opened and closed by P05's review**, and it is the sharpest example on this list of why the review phase exists. §5 charged a branch on the move that creates it, in words that name a pairing a *set* cannot hold — so the implementation had to choose a standing form, chose the larger one, and passed every scenario doing it. Resolved to *one head per branch*; §5 now states the standing form and §6.1's price list is the price. → §5, → §6.1, → P05.
 >
-> **Item 36 is open, and P05b is blocked on it.** §7 says *even-odd fill*, and even-odd needs a closed curve — but a claim is bounded by the trail on one side and by the player's existing territory on the other, so the curve is only half drawn. The two available discretizations disagree on one shape (a trail that rings a region twice with two separate loops), and that shape is a rules question. → §7, → P05b.
+> **Item 36 was opened and closed by P05b**, and it is the second time this list has caught the *spec's own* phase-1 output rather than an implementation. §7 said *even-odd fill*; even-odd needs a closed curve and a claim is not one. Resolved by removing the curve instead of closing it — the wall is the player's ground and *enclosed* means **cannot reach infinity**. → §7 (three clauses corrected), → P05b.
 >
-> Apart from it, §11 carries no open structural question. The rest is the tuning table of item 11 — *R*, the band radii, force per band, and *N* — which is P09's to set by playing, not by deriving.
+> **§11 now carries no open question.** What remains is a **parked tuning table**, not a gap: item 11's *R*, the band radii, force per band, and item 32's *N* are numbers only playtesting can set, and P09 owns setting them. Nothing is blocked on any of them, and none of them changes a rule.
 >
 > **Item 34 was opened and closed by P05, and it was never a gap.** §7's closure clause granted "special tiles", which §7's *own next subsection* forbids — specials are vertices, owned in thirds by their bordering arrows, and a vertex is never enclosed. The answer was three subsections from the question, which is the failure mode a spec this cross-referential invites; the item stays as a reminder to look before opening one. → §7 (corrected), → P05b, → P08.
 >
@@ -904,22 +907,25 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     Opened by the unbounded-board resolution (item 4) and answered by the human directly. → **§9** (*domination*, and the turtle's revised note), → **P09** (*N*, with the rest of the spawner table).
 
-**Open**
+**~~"Even-odd fill" had no closed curve to run on~~ — resolved: the test is reachability, not parity**
 
-36. **§7 says "even-odd fill" and even-odd needs a closed curve, but a claim is only half of one.** The enclosed region is bounded by the trail on one side and by the player's **existing territory** on the other. So a probe cast from an enclosed arrow can escape through the territory side having crossed the trail zero times, and even-odd reports it *outside*. Adding territory to the boundary does not repair it: territory is a thick **region**, not a curve, so a probe that enters and leaves it crosses twice and reads even. Every enclosure would be reported empty, which is the same failure mode the torus had (item 4) arriving from a different direction.
+36. ~~What is the fill's boundary, given that a claim is bounded by the trail on one side and by existing territory on the other?~~ — **resolved: the wall is a region, not a curve.** §7 said *even-odd fill*, and even-odd needs a closed curve. A claim is not one: a probe cast from an enclosed arrow can escape through the territory side having crossed the trail **zero** times, so every enclosure reads empty — the same failure the torus had (item 4), arriving from a different direction. Putting territory into the boundary does not repair it either, because territory is a thick region and a probe that enters and leaves crosses twice.
 
-    Opened by **P05b's test phase**, against the spec **P05b's own phase 1 wrote** — `fill.md` says "the boundary is the claim", and the claim is the trail alone.
+    **The answer removes the curve rather than closing it**, in two passes:
 
-    Two discretizations are available and they are not equivalent:
+    1. **Claim the path.** From the closing arrow, follow the trail backwards along the grain until it reaches your territory **or the stack anchor the trail starts from** — a prefix evaporated up to an anchor is the ordinary way that happens (§6.1). Every arrow walked is claimed.
+    2. **Claim what the claimed ground rings.** With the path now territory, any pocket of non-territory that **cannot reach infinity** is enclosed and claimed too.
 
-    - **Close the curve through the territory outline.** Take the arc of `∂T` between the landing point and the departure point on the enclosing side, append it to the path, and run even-odd against the result. Faithful to §7 as written. Costs a boundary-tracing pass, and the phrase *"on the enclosing side"* needs its own definition when the territory is not simply connected.
-    - **Flood from outside, with chord-test walls.** An arrow is enclosed when it cannot reach infinity without crossing the path or entering the player's territory, where "crossing" is §2's chord test so the diagonal gap does not leak. No outline, no arc, one sweep — and it is what every splix-family implementation does.
+    So there is no parity, no territory-outline arc to trace, and no degenerate ray to perturb — which matters, because `GeometryPort` exposes no coordinate to perturb *with*. What survives unchanged is §2's chord test: reachability is over arrows, and two of your arrows meeting at one point form a barrier though no tile sits in the gap, or every enclosure leaks through the seam.
 
-    **The two agree on every simple closure and part company on nested loops.** They have to be told apart by a real shape, and re-traversal is not one: a trail is a set, so walking the same ring twice leaves the same arrows (§6.1a invariant 2) and cannot wind anything twice. What *can* is **two distinct concentric loops** in one un-landed trail — a spiral. Even-odd puts the core *outside* (two crossings, even), flood-from-outside puts it *inside* (unreachable). So:
+    **It also changes an answer, which is why it is recorded rather than treated as a clarification.** The two readings differ on a trail that rings a region with **two separate loops** — re-walking one ring cannot produce that shape, since a trail is a set and re-traversal adds nothing (§6.1a invariant 2). Parity calls the core *outside*, two crossings being even. Reachability calls it *yours*, because it is plainly surrounded. Reachability is the answer, and the shape a player would predict.
 
-    > **Does a trail that encircles a region twice, with two separate rings, claim the middle?**
+    Two consequences worth stating, both now in §7:
 
-    That is a rules question, not an implementation detail, and it decides which algorithm is correct rather than merely convenient. It is also rare enough to be worth deciding on feel rather than on principle. → **§7** (*even-odd*, which needs the discretization stated), → **P05b**, which is blocked on it: the fill suite cannot be written until it is answered, though [closure](../docs/spec/closure/closure.md)'s backward walk is unaffected and fully specified.
+    - **A self-loop claims its inside even without territory at both ends.** An open trail that would have been a bare bridge can cross itself and take what the loop rings, because the loop is a ring of the player's own ground the moment the path is claimed. §7's old justification — *enclosure requires territory at both ends* — was a proxy for *the curve must close*, and the ring closes it.
+    - **The plane is still load-bearing, by a cleaner argument.** *Enclosed* means cannot reach infinity, so there must be an infinity to fail to reach. On a torus the notion is undefined rather than merely wrong.
+
+    Opened by **P05b's test phase** against the spec **P05b's own phase 1 wrote**, and answered by the human. → **§7** (*closure*, corrected: the self-crossing clause, the stack-anchor clause, and the fill argument), → **P05b**.
 
 **~~What does the minimal closure claim at its centre?~~ — not a gap: §7 already answered it, in a different subsection than the one that asked**
 

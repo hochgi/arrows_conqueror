@@ -98,10 +98,10 @@ Feature: Closure — coming home, and what that takes with you
       # s1 is an in-arrow of a point the walk transits, so it is upstream. Being a
       # dead end does not exempt it — that is what makes salvage work.
 
-  Rule: Territory at both ends encloses; one end is a land bridge
+  Rule: The path is claimed either way, and fill finds what it rings
 
-    §7: enclosure requires territory at both ends. The backward walk is what tests
-    it, so there is no separate grade lookup.
+    §11 item 36: there is no enclose-or-strip branch. The walk claims the path; a
+    pocket that cannot reach infinity is claimed with it, and a strip rings nothing.
 
     Scenario: A loop from territory back to territory claims its interior
       Given player A's trail departs their territory, encircles at least one arrow, and returns
@@ -126,8 +126,9 @@ Feature: Closure — coming home, and what that takes with you
       When the stack lands on player A's territory
       Then the whole stretch and the fresh trail are player A's territory
       And no arrow that was not on that path changed hands
-      # §7: a stack anchor pays a land bridge and nothing more. The walk dead-ends at
-      # the fragment's far end, so there is no second end and no parity to take.
+      # §7: a stack anchor pays the path. The walk stops at the fragment's anchor, and
+      # a bare strip rings nothing — but if that path had crossed itself, the loop's
+      # inside would be claimed too (§11 item 36).
 
   Rule: A closure moves ground, whoever held it
 

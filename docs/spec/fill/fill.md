@@ -1,164 +1,115 @@
-# fill — what a closed curve contains
+# fill — the pockets your own ground rings
 
 **Packet:** [P05b — Closure, fill & land bridges](../../design/packets/P05b-closure-fill.md)
-**SPEC:** §7 (*even-odd is correct here because the board is a plane*, self-crossings
-invert), §2 (the plane, the chord test), §6.1a invariant 3, §11 items 4, 16, 30
+**SPEC:** §7 (*the fill needs a plane*, self-crossings claim what they ring), §2 (the
+chord test), §6.1a invariant 3, §11 items 4, 16, 30, **36**
 **Features:** [core](./fill.core.feature) · [edge cases](./fill.edge-cases.feature)
-**Sibling:** [closure](../closure/closure.md) — which arrows the curve *is*
-**Builds on:** [chord-test](../chord-test/chord-test.md) and
-[crossings](../crossings/crossings.md) — the predicate and the extraction, unchanged
+**Sibling:** [closure](../closure/closure.md) — which arrows get claimed first
 
 ## Purpose
 
 **This is the subtlest logic in the game**, and the one place where a
-wrong-but-plausible implementation produces a wrong answer rather than a crash.
-§6.1a says so outright:
+wrong-but-plausible implementation produces a wrong answer rather than a crash
+(§6.1a). It is also, after §11 item 36, much simpler than it was:
 
-> This is why fill must read the arrow set and never the move list. Under a
-> re-tracing prohibition that was automatic. It is now an assertion, and it is the
-> one place where getting the representation wrong would silently produce a wrong
-> answer instead of a crash.
+> **A pocket of non-territory that cannot reach infinity is enclosed.**
 
-[closure](../closure/closure.md) hands this file a **closed curve** — the arrows the
-backward walk claimed, with the mover's own territory at both ends. This file answers
-one question about it: *which arrows are inside?*
+[closure](../closure/closure.md) claims the walked path first. This file then asks
+one question of the board: *what did that leave surrounded?*
 
-## Scope
+## Not even-odd — and the correction matters
 
-In: even-odd parity over arrows, the escaping probe, the crossing test, and the bound
-on how far the sweep looks.
+§7 used to say *even-odd fill*, and item 36 records why that was wrong twice over.
 
-Out: **which arrows form the curve** — [closure](../closure/closure.md). **What
-being inside grants** — also closure, and P07 for the heads standing there. This file
-is a pure query: given a boundary and a board, which arrows are enclosed.
+Even-odd needs a **closed curve**. A claim is not one: it is bounded by the trail on
+one side and by the player's existing territory on the other, so a probe cast from an
+enclosed arrow can escape through the territory side having crossed the trail **zero**
+times, and every enclosure reads empty. Adding territory to the boundary does not
+repair it, because territory is a thick **region** — a probe that enters and leaves
+crosses twice.
 
-**Tests run against the generated tiling and cannot run against a fixture.** That is
-a theorem, not a preference — see below.
+So the curve is removed rather than closed. The wall is the player's **ground**, and
+the test is **reachability**:
 
-## Terms
+| | even-odd (withdrawn) | reachability (chosen) |
+|---|---|---|
+| the wall | a curve through the trail's chords | the player's territory, after the path is claimed |
+| the test | parity of crossings along a probe | can any walk escape to infinity? |
+| degenerate probe | needs perturbing, and there are no coordinates to perturb | does not arise |
+| two separate rings around one region | core is **outside** — two crossings, even | core is **yours** — plainly surrounded |
 
-| Term | Means |
-|---|---|
-| **the boundary** | the arrows [closure](../closure/closure.md) claimed, together with the chords they present at every point (§2). A closed curve, because the walk reached territory at both ends |
-| **candidate** | an arrow that is not on the boundary, and whose side is being decided |
-| **probe** | a walk of arrows from a candidate that escapes the boundary's reach |
-| **crossing** | a point where the probe's chord and a boundary chord **interleave** |
-| **enclosed** | a candidate whose probe crosses an odd number of times |
-| **escapes** | leaves a window big enough that no further crossing is possible |
+The last row is what made this a rules question rather than a discretization choice.
+Re-walking one ring cannot produce that shape — a trail is a set and re-traversal adds
+nothing (§6.1a invariant 2) — so it takes two distinct loops, and reachability gives
+the answer a player would predict.
 
-*point*, *slot*, *chord*, *interleave* keep their [chord-test](../chord-test/chord-test.md)
-meanings. *straight-ahead* is §2's: arrive on slot `s`, leave on slot `s + 3`.
+## The plane is still load-bearing
 
-## Even-odd, in three parts
+*Enclosed* means **cannot reach infinity**, so there has to be an infinity to fail to
+reach. On a torus there is no escaping and no outside, so the notion is not merely
+wrong there but **undefined** — which is the argument that made the board the
+unbounded plane (§11 items 4 and 30), now in a cleaner form than the ray parity it
+replaces.
 
-```mermaid
-flowchart TD
-  C["a candidate arrow, not on the boundary"] --> P["walk a probe outwards,<br/>avoiding boundary arrows"]
-  P --> Q{"at each point the probe transits:<br/>does its chord interleave with<br/>any boundary chord there?"}
-  Q -- yes --> X["count one crossing"]
-  Q -- no --> Y["count nothing #59; coincidence is<br/>running along, not through"]
-  X --> Z
-  Y --> Z{"has the probe escaped<br/>the boundary's window?"}
-  Z -- no --> P
-  Z -- "yes" --> O{"crossings odd?"}
-  Z -- "no escape exists" --> I["enclosed"]
-  O -- yes --> I
-  O -- no --> U["outside"]
-```
+It also still means **this suite cannot run on a fixture board.** A fixture is
+finite, so nothing on it can fail to escape for the right reason, and the theorem
+P02 measured — *straight-ahead is a bijection on a finite board* — is the same fact
+seen from the other side.
 
-**Why the plane is load-bearing.** §7: a ray escapes to infinity and crosses the
-boundary an odd number of times exactly when the tile is inside — the classical
-Jordan argument, and *it needs the ray to leave*. On a torus every lattice ray is a
-closed loop, so its mod-2 intersection number with a contractible curve is zero and
-even-odd reports **outside for every tile of every enclosure** (§11 items 4 and 30).
-That is what withdrew the torus, and it is what makes this the first packet a fixture
-board cannot host: a fixture is finite, and *straight-ahead* is a bijection on a
-finite board, so every ray closes there too.
+## A pocket does not leak at a point
 
-**Why the crossing test is `chordsInterleave` and never `chordsCross`.** Coincidence
-means the probe and the boundary share an arrow at that point — the probe is running
-*along* the curve, not through it, which is the degenerate ray every even-odd
-implementation has to handle. §6.1a puts it in terms of the game: re-traversing an
-arrow the trail already holds leaves the set unchanged, so there is nothing for
-parity to flip. [crossings](../crossings/crossings.md) shipped both predicates
-separately for exactly this caller.
+Reachability is over arrows: a walk steps between two arrows that share a point. Two
+of the player's arrows meeting at a single point form a **barrier**, even though no
+tile sits in the gap. That is §2's chord test, and it is the one piece of the old
+formulation that survives intact:
 
-**Why the probe does not have to be straight.** Parity is a topological invariant: two
-paths from the same candidate to infinity differ by a closed loop, and a closed loop
-crosses a closed curve an even number of times. So the probe may **route around**
-boundary arrows rather than perturb coordinates it does not have — `GeometryPort`
-exposes none by design. Straight-ahead is the natural default and the only direction
-notion on the port; when it would run along the boundary, another route gives the
-same answer. A candidate with *no* escaping route is enclosed, which is the right
-answer and needs no rule.
+> Two arrows touching at a single point do not form a barrier — that is the
+> diagonal-leak problem from flood fill, and under a "did you land on a trail tile"
+> rule an enemy could thread through the gap between two trail arrows without
+> touching either, **making every enclosure in the game leak**.
 
-> **BLOCKED — SPEC §11 item 36.** This file says the boundary is the claim, and the
-> claim is the trail alone. That is not a closed curve: the enclosed region is bounded
-> by the trail on one side and by the player's **existing territory** on the other, so
-> a probe can escape through the territory side having crossed the trail zero times.
-> Adding territory to the boundary does not fix it — territory is a thick region, and
-> a probe entering and leaving crosses twice. The discretization has to be decided
-> before this suite can be written; [closure](../closure/closure.md) is unaffected.
+So a step from arrow `X` to arrow `Y` through point `P` is blocked when the chord
+`(X, Y)` **interleaves** with a chord the player's ground presents at `P`. Coincidence
+cannot arise: `X` and `Y` are both non-territory, so they share no slot with a
+territory chord — which is why `chordsInterleave` and `chordsCross` agree here and the
+narrow one is used for consistency with §7's other caller.
 
-## The boundary is the claim, not the trail
+## Bounded by the claim, never by the board
 
-A dangling arm is not part of the boundary, and this is not an optimisation.
+§7: *fill is bounded by the trail, not by the board.* A claimed path of *L* arrows
+cannot surround more than `O(L²)` arrows, so the sweep needs a `window()` sized from
+the claim — and there is no board extent to read instead (§11 item 4).
 
-Even-odd is only defined against a **closed** curve. A dangling arm is a slit: a
-probe can cross it and come back, so parity against a curve containing one is not
-path-independent and the answer would depend on which probe was chosen. That is why
-[closure](../closure/closure.md)'s backward walk runs *first* — it does not merely
-decide what is claimed, it produces the only object this file can be asked about.
-
-Two consequences worth stating:
-
-- **A land bridge never reaches this file.** Its walk dead-ended, so there is no
-  second end, no closed curve and no parity — §7 says it encloses nothing, and the
-  reason is that the question is not askable rather than that the answer is empty.
-- **An unclaimed arm cannot leak the fill.** It is trail, it is not boundary, and its
-  arrows are ordinary candidates like any other.
-
-## Bounded by the trail, never by the board
-
-§7: *fill is bounded by the trail, not by the board. A trail of L arrows cannot
-enclose more than `O(L²)` of them, so the sweep is finite even though the board is
-not — and it is the only place the engine ever needs a bounded region of an unbounded
-lattice.*
-
-So the sweep's `window()` radius is derived from the claimed path's own size, and the
-derivation lives in **one** place with its bound stated. A window one step too small
-is a silently wrong answer, which is this file's whole failure mode.
+The radius derivation lives in **one** place with its bound stated. A window one step
+too small does not crash; it reports a pocket as escaping. That is this file's whole
+failure mode, and the reason the bound is an invariant rather than a comment.
 
 ## Invariants
 
-- The system shall report a candidate enclosed when an escaping probe crosses the
-  boundary an odd number of times, and outside when it crosses an even number.
-- The system shall count a crossing only where the probe's chord and a boundary chord
-  interleave, and never where they merely coincide.
-- The system shall report the same verdict for every escaping probe from the same
-  candidate.
-- The system shall report a candidate enclosed when no escaping probe exists.
-- The system shall test the probe against every chord the boundary presents at a
-  point, not only the first.
-- When the boundary passes through one point more than once, the system shall report
-  the parity that inversion produces, and shall need no special case for it.
-- The system shall report every arrow of a region enclosed, and no arrow outside it.
-- The system shall report nothing enclosed for a boundary that is not closed.
-- The system shall bound its sweep by the boundary's own extent and shall read no
-  board extent.
+- The system shall report an arrow enclosed when no walk from it over non-territory
+  arrows escapes the claimed ground, and not enclosed when one does.
+- The system shall block a walk between two arrows sharing a point when their chord
+  interleaves with a chord the player's ground presents at that point.
+- The system shall report every arrow of an enclosed pocket enclosed, and no arrow of
+  an escaping region.
+- The system shall report the same verdict however the walk is routed.
+- When the claimed ground rings a region with more than one loop, the system shall
+  report the whole interior enclosed.
+- The system shall report nothing enclosed for a claim that rings nothing.
+- The system shall bound its sweep by the claim's own extent and shall read no board
+  extent.
 - The system shall derive every chord through `slotOf`, and shall infer no slot from
   an arrow identifier.
 - The system shall enumerate no vertex.
-- The system shall return equal results for equal inputs, whatever order the boundary
-  set was built in, and shall change no state.
+- The system shall return equal results for equal inputs, whatever order the claim was
+  built in, and shall change no state.
 
 ## What this file deliberately does not decide
 
-- **Which arrows are the boundary** — [closure](../closure/closure.md). Handing this
-  file the whole trail instead of the claim would give it an open curve and an
-  undefined answer.
+- **Which arrows are claimed first** — [closure](../closure/closure.md). This file is
+  asked only about ground that is already the player's.
 - **What happens to what is inside** — closure claims the tiles, P07 converts the
-  heads.
-- **How the sweep is implemented.** Per-candidate probes and a single outward parity
-  sweep give the same answer; the invariant *the same verdict for every escaping
-  probe* is what makes them interchangeable, and it is asserted rather than assumed.
+  heads (§6.3).
+- **How the sweep is implemented.** An outward flood from the window's fringe and a
+  per-pocket escape search give the same answer; *the same verdict however the walk is
+  routed* is the invariant that makes them interchangeable, and it is asserted.

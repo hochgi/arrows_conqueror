@@ -4,7 +4,7 @@
 **SPEC:** §7 (closure, *which arrows the landing claims*, the land bridge, the pincer,
 territory is contestable), §6.1a (a trail is a set, all-to-all points), §11 items 16, 26, 34
 **Features:** [core](./closure.core.feature) · [edge cases](./closure.edge-cases.feature)
-**Sibling:** [fill](../fill/fill.md) — what the closed curve *contains*
+**Sibling:** [fill](../fill/fill.md) — what the claimed ground *rings*
 
 ## Purpose
 
@@ -22,15 +22,16 @@ Three ideas, in dependency order:
 2. **What it claims is the trail walked backwards along the grain** from the arrow it
    departed. The trail records no path (§6.1a) and does not need to — the grain
    recovers it.
-3. **The same walk decides whether anything is enclosed.** Reach ground you already
-   own and the curve has two ends, so there is an inside. Dead-end and there is not.
+3. **What the claimed ground then rings is claimed too.** Once the path is territory,
+   any pocket that cannot reach infinity is surrounded — so a self-loop takes its
+   inside, and a bare strip takes nothing (§11 item 36).
 
 ## Scope
 
 In: the closure trigger, the backward walk, the claim, the land bridge, the pincer
 (as two ordinary landings), the carve-out of enemy ground, and what leaves the trail.
 
-Out: **the interior** — [fill](../fill/fill.md) owns even-odd and the probe.
+Out: **the interior** — [fill](../fill/fill.md) owns reachability and the pockets.
 **Conversion** — §7 grants the enclosed tiles *and everything standing on them*, and
 this packet claims the tiles and leaves the heads standing (P07). **Evaporation** —
 an enemy trail on a claimed arrow survives, because removing it is a cut (P06).
@@ -38,7 +39,7 @@ an enemy trail on a claimed arrow survives, because removing it is a cut (P06).
 reset yet. **Vertices** — nothing here enumerates one (§11 item 34).
 
 Tests run against the **generated tiling**, not a fixture. That is not a preference:
-on a finite board every ray closes, so no fixture can host [fill](../fill/fill.md),
+a finite board has no infinity to fail to reach, so no fixture can host [fill](../fill/fill.md),
 and the two halves of a closure are not worth testing on different boards.
 
 ## Terms
@@ -50,8 +51,8 @@ and the two halves of a closure are not worth testing on different boards.
 | **backward walk** | trail arrows reachable from the closing arrow against the grain. `Y` precedes `X` when `Y` is trail and `target(Y)` is `origin(X)` |
 | **the claim** | every arrow the backward walk reaches. It becomes the mover's territory |
 | **upstream / downstream** | of the closing arrow, along the grain. The claim is exactly the upstream part |
-| **anchored end** | a reached arrow that departs the mover's own territory — a point one of their territory arrows feeds |
-| **land bridge** | a claim whose walk dead-ended. The path becomes territory, one tile wide, and encloses nothing (§7) |
+| **the walk's root** | where the backward walk stops: the mover's own territory, or the **stack anchor** the trail starts from — a prefix evaporated up to an anchor is the ordinary way that happens (§6.1) |
+| **land bridge** | a claim that rings nothing. The path becomes territory, one tile wide, and needs no branch of its own (§7) |
 | **carve-out** | a closure that claims ground another player held. Territory is contestable (§7) |
 | **pincer** | a forked trail whose arms land one at a time. Not a rule — two ordinary closures (§7) |
 
@@ -64,19 +65,22 @@ and the two halves of a closure are not worth testing on different boards.
 flowchart TD
   S["a step lands on the mover's own territory"] --> T{"is the departed arrow<br/>in the mover's trail?"}
   T -- no --> N["nothing #59; free movement inside<br/>your own land (§5)"]
-  T -- yes --> W["walk the trail backwards along the grain<br/>from the departed arrow"]
-  W --> M{"did the walk reach an arrow that<br/>departs the mover's own territory?"}
-  M -- "yes — territory at both ends" --> F["claim the walked path<br/>AND its interior (fill)"]
-  M -- "no — the walk dead-ended" --> B["claim the walked path only<br/>— a land bridge (§7)"]
-  F --> R["claimed arrows leave the mover's trail"]
-  B --> R
+  T -- yes --> W["walk the trail backwards along the grain<br/>until territory or the trail's stack anchor"]
+  W --> C["claim every arrow walked"]
+  C --> P["ask fill what the claimed ground now rings<br/>— pockets that cannot reach infinity"]
+  P --> R["claim those too #59; claimed arrows<br/>leave the mover's trail"]
 ```
 
-One walk answers both questions, which is why there is no second gate. The
-alternative — ask [trails](../trails/trails.md)' `anchorGrade` whether the stretch is
-territory grade — is *almost* the same test and deliberately not used: grade is
-**undirected**, because §6.1 re-attaches a fragment against the direction it was
-laid, whereas a claim has the direction the closing head actually travelled.
+**There is no enclose-or-strip gate.** The path is claimed either way, and whether
+anything else falls out is [fill](../fill/fill.md)'s question — a pocket of
+non-territory that cannot reach infinity is enclosed, and a strip simply rings nothing
+(§11 item 36). §7's *land bridge* is therefore a description of an outcome rather than
+a branch in the rules.
+
+[trails](../trails/trails.md)' `anchorGrade` is deliberately **not** consulted. It is
+almost the same question and it is undirected — §6.1 re-attaches a fragment against
+the direction it was laid — whereas a claim has the direction the closing head actually
+travelled.
 
 ## Why backwards, and why it is not "the whole stretch"
 
@@ -117,9 +121,11 @@ the claim being made: *nothing was added for it.*
   following the trail with the grain.
 - At a point where the claimed trail has more than one in-arrow, the system shall
   claim every one of them.
-- When the walk reaches an arrow that departs one of the mover's own territory arrows,
-  the system shall claim the enclosed region as well as the walked path.
-- When the walk reaches no such arrow, the system shall claim the walked path and
+- The system shall stop the walk at the mover's own territory, and at an arrow with no
+  trail predecessor — the stack anchor the trail starts from.
+- The system shall claim, in addition to the walked path, every arrow the claimed
+  ground then rings (see [fill](../fill/fill.md)).
+- When the claimed ground rings nothing, the system shall claim the walked path and
   nothing else.
 - The system shall claim a walked or enclosed arrow whichever player held it before,
   and shall record exactly one owner per arrow.

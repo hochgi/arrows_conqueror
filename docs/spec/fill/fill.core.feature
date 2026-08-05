@@ -1,123 +1,120 @@
 # language: en
 # Overview: docs/spec/fill/fill.md
-# SPEC §7 (even-odd is correct because the board is a plane, self-crossings invert),
-# §2 (the chord test), §6.1a invariant 3, §11 items 4, 16, 30
+# SPEC §7 (the fill needs a plane, self-crossings claim what they ring), §2 (the chord
+# test), §6.1a invariant 3, §11 items 4, 16, 30, 36
 
-Feature: Fill — which arrows a closed curve contains
+Feature: Fill — the pockets your own ground rings
   As the author of the rules engine
-  I want even-odd parity taken against the claimed curve alone
-  So that a self-crossing inverts without a special case and no enclosure ever leaks
+  I want enclosure decided by whether a pocket can reach infinity
+  So that a self-loop claims what it rings and no enclosure leaks at a point
 
   Background:
     Given the generated tiling behind GeometryPort
-    And a closed boundary of arrows with territory at both ends
+    And a set of arrows held by player A as territory
 
-  Rule: A candidate is enclosed when an escaping probe crosses oddly
+  Rule: Enclosed means cannot reach infinity
 
-    §7's Jordan argument, and it needs the probe to *leave* — which is why this suite
-    cannot run on a fixture board (§11 items 4 and 30).
+    §11 item 36. The wall is the player's ground, not a curve through it — which is
+    why there is no parity, no outline arc and no degenerate probe.
 
-    Scenario: An arrow inside a loop is enclosed
-      Given a boundary that encircles at least one arrow
-      When I ask whether an encircled arrow is enclosed
-      Then it is enclosed
-      And its escaping probe crossed the boundary an odd number of times
+    Scenario: An arrow ringed by territory is enclosed
+      Given player A's territory forms a ring around at least one arrow
+      When I ask which arrows it encloses
+      Then the ringed arrow is enclosed
 
-    Scenario: An arrow outside a loop is not enclosed
-      Given a boundary that encircles at least one arrow
-      When I ask whether an arrow well clear of it is enclosed
-      Then it is not enclosed
-      And its escaping probe crossed the boundary an even number of times
-
-    Scenario: The minimal closure encloses no arrow at all
-      Given the three arrows bordering one vertex, forming a directed cycle, as the boundary
+    Scenario: An arrow beside an open arc is not enclosed
+      Given player A's territory forms an arc that does not close
       When I ask which arrows it encloses
       Then it encloses none
+      # A strip has no inside. This is §7's land bridge from fill's side: nothing was
+      # ringed, so nothing is claimed beyond the path itself.
+
+    Scenario: Every arrow of a pocket is enclosed, and nothing outside it
+      Given player A's territory rings a pocket of several arrows
+      When I ask the verdict for every arrow within the claim's window
+      Then exactly the arrows of that pocket are enclosed
+
+    Scenario: The minimal closure rings no arrow at all
+      Given the three arrows bordering one vertex, forming a directed cycle, are player A's territory
+      When I ask which arrows they enclose
+      Then they enclose none
       # §11 item 16: the lattice triangle is the *minimum enclosable territory* and its
-      # three arrows **are** the path. Zero tiles inside is the correct answer, and §7
-      # is what makes it still worth taking — the spawner comes from the three
-      # bordering arrows in thirds, not from anything inside (§11 item 34).
+      # three arrows **are** the ring — zero tiles inside is correct. §7 is what makes
+      # it worth taking anyway: the spawner comes from the three bordering arrows in
+      # thirds, and nothing here enumerates the vertex to find that out (§11 item 34).
 
-    Scenario: Every arrow of a region is enclosed, and nothing beyond it
-      Given a boundary enclosing a region of several arrows
-      When I ask the verdict for every arrow within the boundary's window
-      Then exactly the arrows of that region are enclosed
+  Rule: A pocket does not leak at a point
 
-  Rule: A crossing is an interleave, never a coincidence
+    §2's chord test, and the one piece of the withdrawn even-odd formulation that
+    survives intact. Without it every enclosure in the game leaks.
 
-    Coincidence means the probe is running *along* the curve rather than through it.
-    crossings shipped the two predicates separately for this caller, and §6.1a says
-    why: re-traversal leaves the arrow set unchanged, so there is nothing to flip.
+    Scenario: A walk cannot escape between two territory arrows meeting at a point
+      Given two of player A's territory arrows meet at point P without being tile-adjacent
+      And an arrow inside the ring whose only route out transits P
+      When I ask whether that arrow is enclosed
+      Then it is enclosed
+      # **The scenario that separates this from a tile-only flood fill.** If it fails,
+      # every enclosure leaks through the seam between two trail arrows and nothing
+      # else in the suite reports it.
 
-    Scenario: A probe that shares an arrow with the boundary counts no crossing there
-      Given a boundary and a candidate whose straight-ahead probe would enter a boundary arrow
-      When I ask whether that candidate is enclosed
-      Then the verdict is the one an escaping probe that avoids the boundary gives
-      # The degenerate ray of every even-odd implementation. There are no coordinates
-      # to perturb (GeometryPort exposes none), so the probe routes around instead —
-      # which is sound because parity is a topological invariant.
+    Scenario: A walk may pass a territory point it does not cross
+      Given player A's territory presents one chord at point P
+      And a walk that transits P without interleaving with it
+      When I take that step
+      Then it is not blocked
+      # §2's other half: a chord that stays on one side is turning aside rather than
+      # through. Without it a pocket would be sealed by ground it merely runs past.
 
-    Scenario: The probe is tested against every chord the boundary presents
-      Given a boundary that passes through one point twice, presenting four chords there
-      And a probe that transits that point
-      When I ask whether it crossed
-      Then the verdict accounts for every chord, not only the first
-      # The failure crossings exists to catch: an engine that tested one chord passes
-      # every spine and quietly fails every knot.
+  Rule: A self-loop claims what it rings
 
-  Rule: Self-crossings invert, with no special case
+    §7, corrected by §11 item 36: crossing your own trail doesn't close anything on
+    the spot, but once the path is claimed the loop is a ring of the player's own
+    ground with a bounded inside.
 
-    §7: crossing your own trail doesn't close anything on the spot — it flips which
-    lobes count as enclosed when you finally land. Formally: even-odd. Figure-eights
-    resolve without a rule of their own.
-
-    Scenario: A figure-eight claims the lobes parity says it claims
-      Given a boundary that departs territory, crosses itself once, and returns
+    Scenario: A crossover on an otherwise bare bridge claims the loop
+      Given player A's claim runs from one holding to another and crosses itself once
       When I ask which arrows it encloses
-      Then each lobe's verdict is the parity of its own escaping probe
-      And no clause anywhere named the crossing as a case
+      Then the arrows the loop rings are enclosed
+      # The consequence that decided item 36. Under the withdrawn parity reading this
+      # trail was a bare strip; under reachability the loop is ground and the inside
+      # is surrounded.
 
-    Scenario: A boundary of two concentric rings encloses only the ring between them
-      Given a boundary of two separate concentric loops around the same region, in one trail
+    Scenario: Two separate rings around one region claim the whole interior
+      Given player A's claim rings the same region with two separate loops
       When I ask whether an arrow in that region is enclosed
-      Then it is not enclosed
-      And its escaping probe crossed the boundary twice
-      # **The scenario that decides the algorithm — SPEC §11 item 36, open.** Even-odd
-      # puts the core outside (two crossings); flood-from-outside puts it inside
-      # (unreachable). Re-walking one ring cannot produce this shape, because a trail is
-      # a set and re-traversal adds nothing (§6.1a invariant 2) — it takes two distinct
-      # rings. Do not write this test until the item is answered.
+      Then it is enclosed
+      # **The shape that told the two readings apart.** Parity called this core
+      # *outside* — two crossings, even — and reachability calls it surrounded, which
+      # is what a player would predict. Re-walking one ring cannot produce the shape:
+      # a trail is a set and re-traversal adds nothing (§6.1a invariant 2).
 
-  Rule: The verdict does not depend on the probe
+  Rule: The verdict does not depend on the route
 
-    Parity is a topological invariant: two probes from one candidate differ by a
-    closed loop, which crosses a closed curve an even number of times.
+    Scenario: Two different escape attempts agree
+      Given an arrow outside player A's claim
+      When I search for an escape by two different routes
+      Then both find one
 
-    Scenario: Two different escaping probes agree
-      Given a candidate inside a boundary
-      When I take its verdict along two different escaping routes
-      Then the two verdicts are equal
-
-    Scenario: A candidate with no escaping route is enclosed
-      Given a boundary whose every crossing point is saturated by the boundary's own arrows
-      When I ask whether an arrow inside it is enclosed
+    Scenario: An arrow with no route out is enclosed
+      Given a pocket whose every exit point is sealed by player A's own arrows
+      When I ask whether an arrow in it is enclosed
       Then it is enclosed
       # Saturation is already impassable by arithmetic (crossings): all six slots are
-      # the curve's, so no probe can transit at all. Enclosed is the right answer and
+      # the claim's, so no walk can transit at all. Enclosed is the right answer and
       # no rule had to say so.
 
-  Rule: The sweep is bounded by the boundary, not by the board
+  Rule: The sweep is bounded by the claim, not by the board
 
-    Scenario: The sweep looks no further than the boundary can reach
-      Given a boundary of L arrows
+    Scenario: The sweep looks no further than the claim can ring
+      Given a claim of L arrows
       When it is filled
       Then the region examined is bounded by a window derived from L
       And no board extent was read
-      # §7: a trail of L arrows cannot enclose more than O(L²), so the sweep is finite
+      # §7: a claim of L arrows cannot surround more than O(L²), so the sweep is finite
       # though the board is not — and §11 item 4 means there is no extent to read.
 
-    Scenario: An arrow far outside a small boundary is never examined
-      Given a boundary of three arrows
+    Scenario: An arrow far outside a small claim is never examined
+      Given a claim of three arrows
       When it is filled
       Then an arrow many steps away is not enclosed
       And it was not examined
