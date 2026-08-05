@@ -33,3 +33,6 @@ export {
 } from './move';
 
 export type { BoardWindow, GeometryPort } from './geometry-port';
+
+export type { GameState, Group, MergeOverride } from './game-state';
+export type { RulesPort } from './rules-port';
