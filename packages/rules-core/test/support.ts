@@ -90,6 +90,10 @@ export interface Ground {
   readonly accumulators?: readonly (readonly [ArrowId, Rational])[];
   /** Authored spawners (P08). */
   readonly spawners?: readonly (readonly [VertexId, Spawner])[];
+  readonly dominationStreak?: number;
+  readonly dominationHolder?: PlayerId;
+  readonly dominationN?: number;
+  readonly winner?: PlayerId;
 }
 
 const trailsOf = (ground: Ground): GameState['trails'] =>
@@ -111,6 +115,10 @@ export const stateOf = (
   territory: new Map((ground.territory ?? []).map((t) => [t.arrow, t.owner] as const)),
   accumulators: new Map(ground.accumulators ?? []),
   spawners: new Map(ground.spawners ?? []),
+  dominationStreak: ground.dominationStreak ?? 0,
+  dominationHolder: ground.dominationHolder,
+  dominationN: ground.dominationN ?? 5,
+  winner: ground.winner,
 });
 
 // ── observing a state ─────────────────────────────────────────────────────────
@@ -192,6 +200,10 @@ export const snapshot = (
   territory: readonly { arrow: string; owner: string }[];
   accumulators: readonly { arrow: string; num: number; den: number }[];
   spawners: readonly { vertex: string; num: number; den: number; phase: number }[];
+  dominationStreak: number;
+  dominationHolder: string | undefined;
+  dominationN: number;
+  winner: string | undefined;
 } => ({
   activePlayer: state.activePlayer,
   players: [...state.players],
@@ -218,6 +230,10 @@ export const snapshot = (
       phase: s.phase,
     }))
     .toSorted((left, right) => (left.vertex < right.vertex ? -1 : 1)),
+  dominationStreak: state.dominationStreak,
+  dominationHolder: state.dominationHolder === undefined ? undefined : String(state.dominationHolder),
+  dominationN: state.dominationN,
+  winner: state.winner === undefined ? undefined : String(state.winner),
 });
 
 /** The legal steps out of one arrow, as the port reports them. */

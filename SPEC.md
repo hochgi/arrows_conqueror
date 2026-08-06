@@ -634,7 +634,13 @@ The cutoff is what makes an unbounded board playable, and it does the job the to
 - **Fleeing gains nothing.** A player who runs past *R* is running into a region that produces nothing, while the opponent keeps every spawner they hold. Distance stops being shelter and starts being surrender. What the torus achieved by removing the option, the gradient achieves by removing the reward.
 - **The interesting region stays finite** even though the geometry does not, so every balance question — total force, spawner count, opening distance — is asked of a disc and answered the same way it would have been on a finite board.
 
-> **MVP defaults, chosen to be playable rather than derived.** Three bands by radius: a **centre** disc at *f* = 1/3 with roughly **half** its eligible vertices carrying a spawner, a **mid** annulus at 1/9, and a **home** annulus at 1/12 with **an eighth** density. Beyond the outermost annulus, nothing. *R* and the two band radii are set with the opening distance so that each home sits in the outer band and the centre is roughly equidistant from both.
+> **MVP defaults (P09 PoC, configurable).** Cutoff *R* = **7** (graph distance).
+> Force at distance *r* is **`1/3^r`** for *r* ∈ `[1, R]` — each step out
+> diminishes by a factor of three. Homes sit at a reflected pair with
+> `homeOffset = 5`. Domination *N* = **5** full rounds. Every vertex inside *R*
+> carries a spawner for the first playable; thin later if the board feels dense.
+> All of these live in `MatchConfig` / `DEFAULT_MATCH_CONFIG` and are setup data
+> only — the core never branches on them (§7, *placement and force are setup data*).
 
 The arithmetic those are aimed at, since every arrow borders exactly two eligible vertices and so has two feed slots. At half density, **three quarters of centre arrows are fed and a third of those are double-fed**, and **seven in eight centre spawners have at least one keystone arrow** — the double-fed ones that wound two spawners when captured. At an eighth, home arrows are mostly single-fed or bare and fill on the scale of decades, which is what the quiet is for.
 

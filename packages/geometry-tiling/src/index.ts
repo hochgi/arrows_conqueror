@@ -19,6 +19,9 @@
  */
 
 export { makeTiling } from './tiling';
+export { makeMatch, reflectCell } from './setup';
+export { DEFAULT_MATCH_CONFIG, forceAtRadius } from '@arrows/contracts';
+export type { MatchConfig } from '@arrows/contracts';
 export {
   MEASURED_SILHOUETTE,
   TILE_AREA,

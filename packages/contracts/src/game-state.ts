@@ -141,4 +141,18 @@ export interface GameState {
    * authors them. Accrual ticks once per full round (§11 item 41).
    */
   readonly spawners: ReadonlyMap<VertexId, Spawner>;
+  /**
+   * Consecutive full rounds the current domination holder has held every
+   * spawner share (§9 / P09). Zero when nobody holds all shares.
+   */
+  readonly dominationStreak: number;
+  /** Who is currently holding every share, if anyone. */
+  readonly dominationHolder: PlayerId | undefined;
+  /** Domination threshold *N* (full rounds). Setup data — default 5 (P09). */
+  readonly dominationN: number;
+  /**
+   * Match outcome. Absent / `playing` while the match runs; set by elimination
+   * or domination (§9).
+   */
+  readonly winner: PlayerId | undefined;
 }

@@ -36,6 +36,7 @@ import { convertEncircled } from './encirclement';
 import { accrueRound } from './economy';
 import { compareArrows } from './order';
 import { makeTrailRules } from './trails';
+import { applyElimination, tickDomination } from './victory';
 
 /**
  * Refuse a move. An illegal move is never a plausible no-op (P04 D2, D9): a
@@ -254,7 +255,7 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     const afterClosure = closure.commit(afterCut, move, movers.owner);
     // P07: combat → cut → closure → conversion. State predicate over the post-claim
     // board — territory-grade trail still protects (§6.3 / item 40).
-    return convertEncircled(afterClosure, trails.anchorGrade);
+    return applyElimination(convertEncircled(afterClosure, trails.anchorGrade));
   };
 
   /**
@@ -292,7 +293,10 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
         [...state.groups].map(([arrow, group]) => [arrow, asGroup(group.owner, group.heads, 0)]),
       ),
     };
-    return next === state.players[0] ? accrueRound(handed, geometry) : handed;
+    if (next !== state.players[0]) return handed;
+    // Full round: accrue, then domination streak (§9 / P08 item 41 boundary).
+    const accrued = accrueRound(handed, geometry);
+    return applyElimination(tickDomination(accrued, geometry));
   };
 
   /**
