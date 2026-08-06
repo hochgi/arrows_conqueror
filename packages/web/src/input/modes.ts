@@ -3,41 +3,49 @@
  *
  * Galcon: source → destination → portion.
  * HoMM-style: source → destination (preview) → confirm click → portion.
+ *
+ * A destination is anywhere the stack can get **this turn**, not just one step away
+ * (see `reach.ts`). §3 buys distance with heads, so the portion picker opens at the
+ * fewest heads that can make the trip rather than at 1 — asking for a portion that
+ * cannot arrive is the fastest way to make a correct rule look broken.
  */
 
-import { endTurn, skip, step } from '@arrows/contracts';
-import type { ArrowId, GameState, Move, RulesPort } from '@arrows/contracts';
+import { endTurn, skip } from '@arrows/contracts';
+import type { ArrowId, GameState, GeometryPort, Move, RulesPort } from '@arrows/contracts';
+import { planMoves, reachFrom } from '../reach';
+import type { Reach, ReachEntry } from '../reach';
 
 export type InputPhase =
   | { readonly kind: 'idle' }
   | { readonly kind: 'source'; readonly from: ArrowId }
-  | {
-      readonly kind: 'blocked';
-      readonly from: ArrowId;
-    }
-  | {
-      readonly kind: 'preview';
-      readonly from: ArrowId;
-      readonly exit: ArrowId;
-    }
+  | { readonly kind: 'blocked'; readonly from: ArrowId }
+  | { readonly kind: 'preview'; readonly from: ArrowId; readonly exit: ArrowId }
   | {
       readonly kind: 'portion';
       readonly from: ArrowId;
       readonly exit: ArrowId;
+      /** Fewest heads that arrive — the slider's floor, not 1. */
+      readonly min: number;
       readonly max: number;
+      /** How many steps the trip takes, for the dialog to say so. */
+      readonly steps: number;
+      /** Portions that actually arrive, ascending. Normally `min..max`. */
+      readonly allowed: readonly number[];
     };
 
 export interface InputHighlights {
   readonly selected?: ArrowId;
   readonly targets: ReadonlySet<ArrowId>;
   readonly preview?: ArrowId;
+  /** Everything the selected stack can reach, with distance and price. */
+  readonly reach?: Reach;
 }
 
 export interface InputSnapshot {
   readonly phase: InputPhase;
   readonly highlights: InputHighlights;
-  /** Ready move waiting for the host to apply (after portion chosen). */
-  readonly pending?: Move;
+  /** Moves waiting for the host to apply, in order. A trip may be several steps. */
+  readonly pending?: readonly Move[];
 }
 
 export interface InputMode {
@@ -59,57 +67,21 @@ const idle = (): InputSnapshot => ({
   highlights: emptyHighlights(),
 });
 
-const legalStepsFrom = (
-  rules: RulesPort,
-  state: GameState,
-  from: ArrowId,
-): readonly Extract<Move, { kind: 'step' }>[] =>
-  rules
-    .legalMoves(state)
-    .filter((m): m is Extract<Move, { kind: 'step' }> => m.kind === 'step' && m.from === from);
-
-const exitsOf = (steps: readonly Extract<Move, { kind: 'step' }>[]): Set<ArrowId> =>
-  new Set(steps.map((m) => m.exit));
-
-const maxCountFor = (
-  steps: readonly Extract<Move, { kind: 'step' }>[],
-  exit: ArrowId,
-): number => {
-  let max = 0;
-  for (const m of steps) {
-    if (m.exit === exit && m.count > max) max = m.count;
-  }
-  return max;
-};
-
-const sourceSelected = (
-  from: ArrowId,
-  state: GameState,
-  rules: RulesPort,
-): InputSnapshot => {
-  const steps = legalStepsFrom(rules, state, from);
-  const targets = exitsOf(steps);
-  if (targets.size === 0) {
-    // §5 branch toll (or only skip left): selecting looks like a soft-lock if we
-    // ask for a destination that will never appear.
-    return {
-      phase: { kind: 'blocked', from },
-      highlights: { selected: from, targets: new Set() },
-    };
-  }
-  return {
-    phase: { kind: 'source', from },
-    highlights: { selected: from, targets },
-  };
-};
+const isOwn = (arrow: ArrowId, state: GameState): boolean =>
+  state.groups.get(arrow)?.owner === state.activePlayer;
 
 abstract class BaseMode implements InputMode {
   abstract readonly id: string;
   abstract readonly label: string;
 
   protected snap: InputSnapshot = idle();
+  /** The reach of the current selection, kept so a click does not recompute it. */
+  protected reach: Reach = new Map();
+
+  constructor(protected readonly geometry: GeometryPort) {}
 
   reset(): InputSnapshot {
+    this.reach = new Map();
     this.snap = idle();
     return this.snap;
   }
@@ -118,39 +90,88 @@ abstract class BaseMode implements InputMode {
     return this.reset();
   }
 
+  /** Select `from`, or report it stuck when nothing is reachable (§5's branch toll). */
+  protected select(from: ArrowId, state: GameState, rules: RulesPort): InputSnapshot {
+    this.reach = reachFrom(this.geometry, rules, state, from);
+    const targets = new Set(this.reach.keys());
+    this.snap =
+      targets.size === 0
+        ? { phase: { kind: 'blocked', from }, highlights: { selected: from, targets } }
+        : {
+            phase: { kind: 'source', from },
+            highlights: { selected: from, targets, reach: this.reach },
+          };
+    return this.snap;
+  }
+
+  /** The portion dialog for a reachable exit, floored at what actually arrives. */
+  protected openPortion(from: ArrowId, exit: ArrowId, entry: ReachEntry): InputSnapshot {
+    this.snap = {
+      phase: {
+        kind: 'portion',
+        from,
+        exit,
+        min: entry.minCount,
+        max: entry.maxCount,
+        steps: entry.distance,
+        allowed: [...entry.plans.keys()].toSorted((l, r) => l - r),
+      },
+      highlights: {
+        selected: from,
+        targets: new Set(this.reach.keys()),
+        preview: exit,
+        reach: this.reach,
+      },
+    };
+    return this.snap;
+  }
+
   choosePortion(count: number): InputSnapshot {
     const { phase } = this.snap;
     if (phase.kind !== 'portion') return this.snap;
-    if (!Number.isInteger(count) || count < 1 || count > phase.max) return this.snap;
+    if (!phase.allowed.includes(count)) return this.snap;
+    const plan = this.reach.get(phase.exit)?.plans.get(count);
+    if (plan === undefined) return this.snap;
     this.snap = {
       phase: { kind: 'idle' },
       highlights: emptyHighlights(),
-      pending: step(phase.from, phase.exit, count),
+      pending: planMoves(phase.from, plan, count),
     };
+    this.reach = new Map();
     return this.snap;
   }
 
   requestSkip(state: GameState, rules: RulesPort): InputSnapshot {
-    const phase = this.snap.phase;
+    const { phase } = this.snap;
     if (phase.kind === 'idle') return this.snap;
-    const from = phase.from;
-    const legal = rules.legalMoves(state).some((m) => m.kind === 'skip' && m.from === from);
-    if (!legal) return this.snap;
-    this.snap = {
-      phase: { kind: 'idle' },
-      highlights: emptyHighlights(),
-      pending: skip(from),
-    };
+    const { from } = phase;
+    if (!rules.legalMoves(state).some((m) => m.kind === 'skip' && m.from === from)) {
+      return this.snap;
+    }
+    this.snap = { phase: { kind: 'idle' }, highlights: emptyHighlights(), pending: [skip(from)] };
+    this.reach = new Map();
     return this.snap;
   }
 
   requestEndTurn(): InputSnapshot {
-    this.snap = {
-      phase: { kind: 'idle' },
-      highlights: emptyHighlights(),
-      pending: endTurn(),
-    };
+    this.snap = { phase: { kind: 'idle' }, highlights: emptyHighlights(), pending: [endTurn()] };
+    this.reach = new Map();
     return this.snap;
+  }
+
+  /**
+   * The clicks every mode shares: pick up one of your own stacks, drop the selection
+   * by clicking it again, and ignore anything that is neither.
+   */
+  protected common(
+    arrow: ArrowId,
+    state: GameState,
+    rules: RulesPort,
+    from: ArrowId | undefined,
+  ): InputSnapshot | undefined {
+    if (from !== undefined && arrow === from) return this.reset();
+    if (isOwn(arrow, state)) return this.select(arrow, state, rules);
+    return undefined;
   }
 
   abstract onArrowClick(arrow: ArrowId, state: GameState, rules: RulesPort): InputSnapshot;
@@ -163,51 +184,19 @@ export class GalconInput extends BaseMode {
 
   override onArrowClick(arrow: ArrowId, state: GameState, rules: RulesPort): InputSnapshot {
     const { phase } = this.snap;
-    if (phase.kind === 'idle' || phase.kind === 'portion' || phase.kind === 'blocked') {
-      const group = state.groups.get(arrow);
-      if (group === undefined || group.owner !== state.activePlayer) {
-        this.snap = idle();
-        return this.snap;
-      }
-      if (phase.kind === 'blocked' && arrow === phase.from) {
-        this.snap = idle();
-        return this.snap;
-      }
-      this.snap = sourceSelected(arrow, state, rules);
-      return this.snap;
-    }
     if (phase.kind === 'source') {
-      if (arrow === phase.from) {
-        this.snap = idle();
-        return this.snap;
+      const entry = this.reach.get(arrow);
+      if (entry !== undefined && arrow !== phase.from) {
+        return this.openPortion(phase.from, arrow, entry);
       }
-      const steps = legalStepsFrom(rules, state, phase.from);
-      const max = maxCountFor(steps, arrow);
-      if (max < 1) {
-        // Re-select if clicking another of own groups.
-        const group = state.groups.get(arrow);
-        if (group !== undefined && group.owner === state.activePlayer) {
-          this.snap = sourceSelected(arrow, state, rules);
-          return this.snap;
-        }
-        return this.snap;
-      }
-      this.snap = {
-        phase: { kind: 'portion', from: phase.from, exit: arrow, max },
-        highlights: {
-          selected: phase.from,
-          targets: exitsOf(steps),
-          preview: arrow,
-        },
-      };
-      return this.snap;
     }
-    return this.snap;
+    const from = phase.kind === 'idle' ? undefined : phase.from;
+    return this.common(arrow, state, rules, from) ?? this.snap;
   }
 }
 
 /**
- * HoMM-ish: first destination click previews; second click on the same exit
+ * HoMM-ish: first destination click previews the trip, second click on the same exit
  * opens the portion picker. Easy to replace — only this class owns the confirm.
  */
 export class HommInput extends BaseMode {
@@ -216,80 +205,26 @@ export class HommInput extends BaseMode {
 
   override onArrowClick(arrow: ArrowId, state: GameState, rules: RulesPort): InputSnapshot {
     const { phase } = this.snap;
-    if (phase.kind === 'idle' || phase.kind === 'portion' || phase.kind === 'blocked') {
-      const group = state.groups.get(arrow);
-      if (group === undefined || group.owner !== state.activePlayer) {
-        this.snap = idle();
-        return this.snap;
-      }
-      if (phase.kind === 'blocked' && arrow === phase.from) {
-        this.snap = idle();
-        return this.snap;
-      }
-      this.snap = sourceSelected(arrow, state, rules);
-      return this.snap;
+    if (phase.kind === 'preview' && arrow === phase.exit) {
+      const entry = this.reach.get(arrow);
+      if (entry !== undefined) return this.openPortion(phase.from, arrow, entry);
     }
-    if (phase.kind === 'source') {
-      if (arrow === phase.from) {
-        this.snap = idle();
-        return this.snap;
-      }
-      const steps = legalStepsFrom(rules, state, phase.from);
-      if (!exitsOf(steps).has(arrow)) {
-        const group = state.groups.get(arrow);
-        if (group !== undefined && group.owner === state.activePlayer) {
-          this.snap = sourceSelected(arrow, state, rules);
-          return this.snap;
-        }
-        return this.snap;
-      }
-      this.snap = {
-        phase: { kind: 'preview', from: phase.from, exit: arrow },
-        highlights: {
-          selected: phase.from,
-          targets: exitsOf(steps),
-          preview: arrow,
-        },
-      };
-      return this.snap;
-    }
-    // phase.kind === 'preview'
-    if (arrow !== phase.exit) {
-      if (arrow === phase.from) {
-        this.snap = idle();
-        return this.snap;
-      }
-      const steps = legalStepsFrom(rules, state, phase.from);
-      if (exitsOf(steps).has(arrow)) {
+    if ((phase.kind === 'source' || phase.kind === 'preview') && arrow !== phase.from) {
+      if (this.reach.has(arrow)) {
         this.snap = {
           phase: { kind: 'preview', from: phase.from, exit: arrow },
           highlights: {
             selected: phase.from,
-            targets: exitsOf(steps),
+            targets: new Set(this.reach.keys()),
             preview: arrow,
+            reach: this.reach,
           },
         };
         return this.snap;
       }
-      const group = state.groups.get(arrow);
-      if (group !== undefined && group.owner === state.activePlayer) {
-        this.snap = sourceSelected(arrow, state, rules);
-        return this.snap;
-      }
-      return this.snap;
     }
-    const steps = legalStepsFrom(rules, state, phase.from);
-    const max = maxCountFor(steps, phase.exit);
-    if (max < 1) return this.snap;
-    this.snap = {
-      phase: { kind: 'portion', from: phase.from, exit: phase.exit, max },
-      highlights: {
-        selected: phase.from,
-        targets: exitsOf(steps),
-        preview: phase.exit,
-      },
-    };
-    return this.snap;
+    const from = phase.kind === 'idle' ? undefined : phase.from;
+    return this.common(arrow, state, rules, from) ?? this.snap;
   }
 }
 
@@ -298,7 +233,5 @@ export const INPUT_MODE_OPTIONS: readonly { readonly id: string; readonly label:
   { id: 'homm', label: 'HoMM preview' },
 ];
 
-export const createInputMode = (id: string): InputMode => {
-  if (id === 'homm') return new HommInput();
-  return new GalconInput();
-};
+export const createInputMode = (id: string, geometry: GeometryPort): InputMode =>
+  id === 'homm' ? new HommInput(geometry) : new GalconInput(geometry);

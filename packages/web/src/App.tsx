@@ -22,13 +22,27 @@ const rules = makeRules(geometry);
 const beginMatch = (playerCount: number): GameState =>
   makeMatch({ ...DEFAULT_MATCH_CONFIG, playerCount });
 
+/**
+ * Apply a whole trip, one step at a time.
+ *
+ * A reach destination several steps away is several `step` moves — the engine has one
+ * move kind and this adapter does not get to invent a compound one, which is also what
+ * keeps a replay honest (P10). If a step is refused the trip stops there and the heads
+ * stay where they got to: the reach preview was computed by simulating this same engine,
+ * so that should not happen, and swallowing it silently would hide it if it did.
+ */
 const applyPending = (state: GameState, snap: InputSnapshot): GameState => {
   if (snap.pending === undefined || state.winner !== undefined) return state;
-  try {
-    return passIfExhausted(rules, rules.apply(state, snap.pending));
-  } catch {
-    return state;
+  let at = state;
+  for (const move of snap.pending) {
+    if (at.winner !== undefined) break;
+    try {
+      at = rules.apply(at, move);
+    } catch {
+      break;
+    }
   }
+  return passIfExhausted(rules, at);
 };
 
 const idleSnap = (): InputSnapshot => ({
@@ -39,7 +53,7 @@ const idleSnap = (): InputSnapshot => ({
 export const App = (): ReactElement => {
   const [playerCount, setPlayerCount] = useState(DEFAULT_MATCH_CONFIG.playerCount);
   const [state, setState] = useState<GameState | undefined>(undefined);
-  const [mode, setMode] = useState<InputMode>(() => createInputMode('galcon'));
+  const [mode, setMode] = useState<InputMode>(() => createInputMode('galcon', geometry));
   const [snap, setSnap] = useState<InputSnapshot>(idleSnap);
   const [viewport, setViewport] = useState<Viewport>(() => createViewport(800, 600));
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
@@ -117,7 +131,7 @@ export const App = (): ReactElement => {
   );
 
   const switchMode = (id: string): void => {
-    const next = createInputMode(id);
+    const next = createInputMode(id, geometry);
     setMode(next);
     setSnap(next.reset());
   };
@@ -219,7 +233,8 @@ export const App = (): ReactElement => {
         />
         {snap.phase.kind === 'portion' ? (
           <PortionSlider
-            max={snap.phase.max}
+            allowed={snap.phase.allowed}
+            steps={snap.phase.steps}
             onConfirm={(n) => {
               commitSnap(mode.choosePortion(n));
             }}

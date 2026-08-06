@@ -11,7 +11,7 @@ describe('Galcon input', () => {
     const geometry = makeTiling();
     const rules = makeRules(geometry);
     const state = makeMatch();
-    const mode = new GalconInput();
+    const mode = new GalconInput(geometry);
     const from = activeGroup(state);
     expect(from).toBeDefined();
     if (from === undefined) return;
@@ -28,11 +28,19 @@ describe('Galcon input', () => {
     expect(afterDest.phase.kind).toBe('portion');
     if (afterDest.phase.kind !== 'portion') return;
 
+    // A trip is a *list* of steps now — one step per arrow crossed (reach.ts) — so the
+    // last move must land on the exit and the first must leave the source.
     const committed = mode.choosePortion(afterDest.phase.max);
-    expect(committed.pending?.kind).toBe('step');
-    if (committed.pending?.kind !== 'step') return;
-    expect(committed.pending.from).toBe(from);
-    expect(committed.pending.exit).toBe(exit);
+    const plan = committed.pending ?? [];
+    expect(plan.length).toBeGreaterThan(0);
+    const first = plan[0];
+    const last = plan[plan.length - 1];
+    expect(first?.kind).toBe('step');
+    expect(last?.kind).toBe('step');
+    if (first?.kind !== 'step' || last?.kind !== 'step') return;
+    expect(first.from).toBe(from);
+    expect(last.exit).toBe(exit);
+    expect(plan.length).toBe(afterDest.phase.steps);
   });
 
   it('marks a branch-stuck stack as blocked instead of empty destinations', () => {
@@ -68,7 +76,7 @@ describe('Galcon input', () => {
       ]),
       trails: new Map([[A, trailA]]),
     };
-    const mode = new GalconInput();
+    const mode = new GalconInput(geometry);
     const blocked = mode.onArrowClick(arrow('tiling:a:5,1,0'), state, rules);
     expect(blocked.phase.kind).toBe('blocked');
     expect(blocked.highlights.targets.size).toBe(0);
@@ -84,7 +92,7 @@ describe('HoMM input', () => {
     const geometry = makeTiling();
     const rules = makeRules(geometry);
     const state = makeMatch();
-    const mode = new HommInput();
+    const mode = new HommInput(geometry);
     const from = activeGroup(state);
     expect(from).toBeDefined();
     if (from === undefined) return;

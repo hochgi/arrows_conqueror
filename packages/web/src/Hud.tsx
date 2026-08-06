@@ -23,7 +23,9 @@ const phaseHint = (phase: InputPhase, modeLabel: string, movableCount: number): 
       }
       return `${modeLabel}: click a gold-outlined stack`;
     case 'source':
-      return 'Click a blue destination';
+      // The fade is the price: §3 buys one step with one head and four with eight, so a
+      // paler arrow needs a bigger portion. The number on it is that portion.
+      return 'Click anywhere blue · fainter = further · the number is the heads it takes';
     case 'blocked':
       return 'Branch toll — this stack cannot leave. Click another gold stack';
     case 'preview':
@@ -93,8 +95,10 @@ export const Hud = ({
       </label>
 
       <p className="help">
-        Drag to pan · wheel to zoom · gold = can move · blue = destination · turn
-        passes automatically when nothing can step · End turn ends early
+        Drag to pan · wheel to zoom · gold outline = can move · blue = reachable this
+        turn, fading with distance · solid fill = territory, thin fill = open trail ·
+        ringed dots are spawners, each arc one share filling toward a head · turn passes
+        automatically when nothing can step
       </p>
     </aside>
   );

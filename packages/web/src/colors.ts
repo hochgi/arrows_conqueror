@@ -1,51 +1,77 @@
 /**
- * Player palette — trail uses the same hue at 50% opacity (§5 / P11 D4).
+ * The board palette — dark ground, warm players, cool interface.
+ *
+ * The hues come from the first tiling render (`.scratch/tiling/board.svg`), which
+ * alternated `#e0b050` gold against `#50a0e0` blue on a near-black navy. That reading
+ * is kept for two reasons beyond taste: a dark ground lets **trail** sit at low alpha
+ * and still be unmistakable against **territory** (§5 says that distinction is the
+ * question a player asks most often), and it leaves the two brightest things on the
+ * board — gold and cyan — free for *selection* and *reach* rather than spending them on
+ * a player.
  */
 
 import type { PlayerId } from '@arrows/contracts';
 
 export interface PlayerStyle {
+  /** Closed territory: solid (§7). */
   readonly fill: string;
+  /** Open trail: same hue, thinned — cuttable, and visibly so (§5). */
   readonly trailFill: string;
   readonly stroke: string;
+  /** Numerals drawn over `fill`, chosen so the count always reads. */
+  readonly ink: string;
   readonly label: string;
 }
 
 const rgba = (r: number, g: number, b: number, a: number): string =>
   `rgba(${String(r)}, ${String(g)}, ${String(b)}, ${String(a)})`;
 
-const entry = (
-  label: string,
-  r: number,
-  g: number,
-  b: number,
-): PlayerStyle => ({
+/**
+ * Perceived lightness, so head counts stay legible on gold *and* on violet without
+ * anyone hand-picking sixteen text colours.
+ */
+const luminance = (r: number, g: number, b: number): number =>
+  (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+const entry = (label: string, r: number, g: number, b: number): PlayerStyle => ({
   fill: `rgb(${String(r)}, ${String(g)}, ${String(b)})`,
-  trailFill: rgba(r, g, b, 0.5),
-  stroke: `rgb(${String(Math.round(r * 0.55))}, ${String(Math.round(g * 0.55))}, ${String(Math.round(b * 0.55))})`,
+  trailFill: rgba(r, g, b, 0.32),
+  stroke: rgba(Math.round(r * 0.45 + 30), Math.round(g * 0.45 + 30), Math.round(b * 0.45 + 30), 0.95),
+  ink: luminance(r, g, b) > 0.58 ? '#141a21' : '#f4efe4',
   label,
 });
 
 const PALETTE: Record<string, PlayerStyle> = {
-  A: entry('Player A', 26, 122, 109),
-  B: entry('Player B', 184, 74, 46),
-  C: entry('Player C', 42, 111, 151),
-  D: entry('Player D', 154, 91, 19),
-  E: entry('Player E', 92, 107, 47),
-  F: entry('Player F', 139, 58, 74),
-  G: entry('Player G', 61, 90, 128),
-  H: entry('Player H', 109, 76, 65),
+  A: entry('Player A', 224, 176, 80),
+  B: entry('Player B', 80, 160, 224),
+  C: entry('Player C', 232, 115, 74),
+  D: entry('Player D', 127, 196, 127),
+  E: entry('Player E', 185, 139, 217),
+  F: entry('Player F', 224, 90, 122),
+  G: entry('Player G', 79, 195, 176),
+  H: entry('Player H', 201, 163, 122),
 };
 
 export const styleFor = (player: PlayerId): PlayerStyle => {
   const key = String(player);
-  return PALETTE[key] ?? entry(key, 74, 85, 104);
+  return PALETTE[key] ?? entry(key, 150, 158, 170);
 };
 
-export const EMPTY_FILL = 'rgba(232, 226, 214, 0.35)';
-export const EMPTY_STROKE = 'rgba(90, 78, 60, 0.35)';
-export const HIGHLIGHT_STROKE = '#c9a227';
-export const PREVIEW_STROKE = '#3b82c4';
-export const TARGET_FILL = 'rgba(59, 130, 196, 0.45)';
-export const MOVABLE_STROKE = '#c9a227';
-export const BOARD_BG = '#e8e2d6';
+/** The board itself. Neutral ground is a hair lighter than the void behind it. */
+export const BOARD_BG = '#0e141b';
+export const EMPTY_FILL = 'rgba(89, 110, 133, 0.16)';
+export const EMPTY_STROKE = 'rgba(150, 176, 202, 0.22)';
+
+/** Selection and reach. The two brightest things on the board, deliberately. */
+export const HIGHLIGHT_STROKE = '#f0c96a';
+export const MOVABLE_STROKE = 'rgba(240, 201, 106, 0.55)';
+export const PREVIEW_STROKE = '#8fd6ff';
+export const REACH_FILL = '#6cc0ff';
+export const REACH_INK = 'rgba(214, 238, 255, 0.92)';
+
+/** A spawner's ring: unowned share, and the cursor showing which accrues next. */
+export const SPAWNER_TRACK = 'rgba(150, 176, 202, 0.15)';
+export const SPAWNER_IDLE = 'rgba(154, 176, 196, 0.75)';
+export const SPAWNER_HUB_IDLE = 'rgba(154, 176, 196, 0.4)';
+export const SPAWNER_RIM = '#0b1016';
+export const SPAWNER_CURSOR = '#f0c96a';
