@@ -634,19 +634,39 @@ The cutoff is what makes an unbounded board playable, and it does the job the to
 - **Fleeing gains nothing.** A player who runs past *R* is running into a region that produces nothing, while the opponent keeps every spawner they hold. Distance stops being shelter and starts being surrender. What the torus achieved by removing the option, the gradient achieves by removing the reward.
 - **The interesting region stays finite** even though the geometry does not, so every balance question — total force, spawner count, opening distance — is asked of a disc and answered the same way it would have been on a finite board.
 
-> **MVP defaults (P09 PoC, configurable).** Cutoff *R* = **7** (graph distance).
-> Force at distance *r* is **`1/3^r`** for *r* ∈ `[1, R]` — each step out
-> diminishes by a factor of three. Homes sit at a reflected pair with
-> `homeOffset = 5`. Domination *N* = **5** full rounds. Every vertex inside *R*
-> carries a spawner for the first playable; thin later if the board feels dense.
-> All of these live in `MatchConfig` / `DEFAULT_MATCH_CONFIG` and are setup data
-> only — the core never branches on them (§7, *placement and force are setup data*).
+> **MVP defaults (configurable).** Cutoff *R* = **7** (graph distance). Homes sit
+> at a reflected pair with `homeOffset = 5`. Domination *N* = **5** full rounds.
+> Force and density are **authored bands** of *r*, and they are the same table:
+>
+> | *r* | force | density | ≈ spawners | one head every |
+> |---|---|---|---|---|
+> | 0–1 | 1/3 | all | 14 | 3 rounds |
+> | 2–3 | 1/9 | ½ | 30 | 9 rounds |
+> | 4–5 | 1/12 | ¼ | 27 | 12 rounds |
+> | 6–7 | 1/12 | ⅛ | 30 | 12 rounds |
+>
+> ~~Force at distance *r* is `1/3^r` for *r* ∈ `[1, R]`, and every vertex inside
+> *R* carries a spawner.~~ — **retuned after the first playtest.** `1/3^r` ran the
+> rim at **1/2187**, which is not slow but *nothing*, against 1/3 at the centre: a
+> **729:1** ratio, so whoever reached the middle first had won and every other
+> spawner on the board was scenery. The bands above are exactly the three values
+> §7's force table names and nothing between them, at **4:1**. The band totals are
+> deliberately close — with ~14 eligible vertices inside *r* = 1 against ~264 beyond
+> *r* = 3, each band carries roughly the same total force. **The centre is
+> concentrated, not richer**: it is worth bleeding for because it pays out between
+> flips, not because everywhere else is barren. Un-thinned density also put 338
+> spawners on the disc, which made the board unreadable before it made it
+> unbalanced; the bands leave ~101. All of these live in `MatchConfig` /
+> `SPAWNER_BANDS` and are setup data only — the core never branches on them
+> (§7, *placement and force are setup data*).
 
 The arithmetic those are aimed at, since every arrow borders exactly two eligible vertices and so has two feed slots. At half density, **three quarters of centre arrows are fed and a third of those are double-fed**, and **seven in eight centre spawners have at least one keystone arrow** — the double-fed ones that wound two spawners when captured. At an eighth, home arrows are mostly single-fed or bare and fill on the scale of decades, which is what the quiet is for.
 
 A starting point for the first playtest, not a result. What they are chosen to produce: a centre that pays out inside ten turns and is therefore worth bleeding for, a home economy that rewards being left alone, and a board where sweeping the specials is not something a player can do.
 
 **Bands rather than a smooth curve, deliberately.** A continuous *f*(*r*) would need a rounding rule to land on a rational, and §7 requires exact rationals with small coprime denominators — the whole coprime-denominator rhythm depends on 1/9 against 1/12 rather than on 1/9 against 0.1083. Bands keep the values authored. Post-MVP jitter is compatible with all of this on one condition: it must be a **pure function of the vertex and a setup seed**, never a draw from an RNG, or it takes determinism (ADR 0001) with it.
+
+**And that condition is already load-bearing, because density below 1 needs it.** A band that keeps half its vertices has to decide *which* half, and there is no authored table for that — the disc holds hundreds. Setup therefore takes a **pure hash of the vertex's own coordinates and a `spawnerSeed`**, which satisfies the rule above rather than bending it: two calls on one vertex agree forever, so a replay cannot drift, and two adjacent vertices do not, so the survivors cluster irregularly instead of landing on a sublattice. That irregular clustering is what produces double-fed arrows, which is the second half of §7's density argument — a regular thinning would space spawners out and destroy the overlap it was supposed to preserve. Changing the seed reshuffles which vertices carry one without changing how many, so it is a *map*, not a balance knob.
 
 ### Placement and force are setup data, not rules
 
@@ -893,6 +913,8 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
     So the contest re-formed as **turns denied against heads accrued**, and the interesting consequence is that *the victim chooses the currency*: run bare and cuts cost trail, garrison and they cost heads you had already spent by parking them. MVP values are **1/3 centre, 1/9 mid, 1/12 home** (§7, *what the spawn rate implies about victory*).
 
     Explicitly a **playtest-first number**, and one the implementation must keep cheap to move — see item 12 and §7, *placement and force are setup data*. These are chosen to be playable, not derived, and the human owns the refinement once the game can actually be played. The one structural claim worth keeping is that conversion, not chip damage, is now unambiguously how a player is reduced — which is what §9 wanted anyway.
+
+    **First playtest moved it once already, and the code had not been carrying these values.** P09 shipped a `1/3^r` placeholder rather than the table above; at *R* = 7 that ran the rim at 1/2187 and made the centre the only economy on the board. The bands are now the authored values, ratio 4:1 (§7, *the radial gradient*). **Still item 25**: what the first real games say about 4:1, and about a home band that pays a head every 12 rounds, is exactly the refinement the human owns.
 
 26. ~~Which in-arrow pairs with which out-arrow at a point the trail uses twice?~~ — **resolved: none of them, and the question was wrong.** Two in-arrows and two out-arrows admit three readings — two passages, two crossed passages, or a join then a fork — and they leave the identical arrow set, so the set determines no pairing. The hole was real: a crossing test that assumed a pairing gave opposite verdicts on the same board state, and evaporation had nowhere defined to route.
 

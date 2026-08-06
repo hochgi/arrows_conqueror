@@ -2,10 +2,10 @@
  * Hit-test lattice polygons against a screen click.
  */
 
-import type { ArrowId } from '@arrows/contracts';
+import type { ArrowId, VertexId } from '@arrows/contracts';
 import type { Point2, TilingLayout } from '@arrows/geometry-tiling';
 import type { Viewport } from './viewport';
-import { toLattice } from './viewport';
+import { toLattice, toScreen } from './viewport';
 
 /** Ray-cast point-in-polygon (lattice space). */
 export const pointInPolygon = (x: number, y: number, poly: readonly Point2[]): boolean => {
@@ -54,6 +54,40 @@ export const hitArrow = (
     if (d < bestDist) {
       bestDist = d;
       best = arrow;
+    }
+  }
+  return best;
+};
+
+/**
+ * Nearest spawner vertex to the cursor, within `radius` screen pixels.
+ *
+ * A vertex is not a tile and has no polygon to be inside (§7 — that is the whole reason
+ * specials live there), so hovering one is a proximity test in **screen** space rather
+ * than a hit test in lattice space. Screen space is also the right frame for the tolerance:
+ * the target should stay the same size under the cursor at every zoom level.
+ *
+ * `candidates` must be the **spawner** vertices, not every vertex in view: nearest-vertex
+ * over all of them lets a bare pinwheel centre a few pixels closer steal the hover from the
+ * spawner the cursor is on.
+ */
+export const hitSpawnerVertex = (
+  layout: TilingLayout,
+  viewport: Viewport,
+  screenX: number,
+  screenY: number,
+  candidates: Iterable<VertexId>,
+  radius: number,
+): VertexId | undefined => {
+  let best: VertexId | undefined;
+  let bestDist = radius * radius;
+  for (const vertex of candidates) {
+    const pos = layout.vertexPosition(vertex);
+    const s = toScreen(viewport, pos.x, pos.y);
+    const d = (s.x - screenX) ** 2 + (s.y - screenY) ** 2;
+    if (d <= bestDist) {
+      bestDist = d;
+      best = vertex;
     }
   }
   return best;

@@ -10,6 +10,7 @@ import {
   DEFAULT_MATCH_CONFIG,
   MAX_PLAYERS,
   MIN_PLAYERS,
+  densityAtRadius,
   forceAtRadius,
   mintPlayerId,
   rational,
@@ -31,7 +32,7 @@ import {
   vertexBorders,
   vertexCell,
 } from './cells';
-import type { Cell } from './cells';
+import type { Cell, VertexCell } from './cells';
 import { makeTiling } from './tiling';
 
 /** Grain-preserving reflection `(i,j) ↦ (i+j, −j)` (§2). Kept for tests. */
@@ -150,12 +151,38 @@ const garrison = (owner: PlayerId, arrow: ArrowId): readonly [ArrowId, Group] =>
 ];
 
 /**
+ * A vertex's place in `[0, 1)` — the deterministic thinning sample.
+ *
+ * §7 allows spawner density below 1 but constrains *how*: it "must be a **pure function
+ * of the vertex and a setup seed**, never a draw from an RNG, or it takes determinism
+ * (ADR 0001) with it." So this is an integer avalanche over the vertex's own lattice
+ * coordinates. Two calls on the same vertex agree forever; two vertices one cell apart
+ * do not, which is what makes the surviving spawners cluster irregularly instead of
+ * landing on a sublattice — the *deterministic irregularity* §7 asks for, arrived at
+ * without authoring a single per-vertex datum.
+ */
+export const thinningSample = ({ i, j, parity }: VertexCell, seed: number): number => {
+  let h = Math.imul(Math.trunc(seed) ^ 0x9e3779b9, 0x85ebca6b);
+  h = Math.imul(h ^ Math.trunc(i), 0xc2b2ae35);
+  h = Math.imul(h ^ Math.trunc(j), 0x27d4eb2f);
+  h = Math.imul(h ^ (parity === 'up' ? 0x165667b1 : 0x9e3779b1), 0x85ebca77);
+  h ^= h >>> 15;
+  return (h >>> 0) / 0x1_0000_0000;
+};
+
+/**
  * Build the opening position on the generated tiling.
  *
  * - Homes on a hexagon of radius `homeOffset` (see {@link homeCellsFor}).
  * - Each home: 3-arrow pinwheel + 3-stack (§8).
- * - Spawners on every vertex within graph distance *R* of the origin, force
- *   `1/3^r` (P09 PoC gradient).
+ * - Spawners inside graph distance *R*, thinned and paced by the radial bands
+ *   (`SPAWNER_BANDS`) — full density and 1/3 at the centre, an eighth and 1/12 at
+ *   the rim. Which vertices survive the thinning is {@link thinningSample}.
+ *
+ * **A home vertex always carries one, thinning or not.** A seat that opened with no
+ * income at all is not a harder start, it is a different game, and the thinning is a
+ * density target rather than a rule — nothing downstream may read the count (§7,
+ * *placement and force are setup data*).
  */
 export const makeMatch = (config: MatchConfig = DEFAULT_MATCH_CONFIG): GameState => {
   const geometry = makeTiling();
@@ -187,8 +214,12 @@ export const makeMatch = (config: MatchConfig = DEFAULT_MATCH_CONFIG): GameState
   const spawners = new Map<VertexId, Spawner>();
   const win = geometry.window(geometry.seedPoint(), config.R + 1);
   for (const vertex of [...win.vertices].toSorted((a, b) => compareIds(String(a), String(b)))) {
-    const r = Math.max(1, Math.round(cellDistance(vertexCell(vertex))));
+    const cell = vertexCell(vertex);
+    const r = Math.round(cellDistance(cell));
     if (r > config.R) continue;
+    const density = densityAtRadius(r, config.R);
+    // Exact rational comparison rather than a float ratio: `sample * den < num`.
+    if (thinningSample(cell, config.spawnerSeed) * density.den >= density.num) continue;
     const { num, den } = forceAtRadius(r, config.R);
     spawners.set(vertex, { force: rational(num, den), phase: 0 });
   }
@@ -196,7 +227,7 @@ export const makeMatch = (config: MatchConfig = DEFAULT_MATCH_CONFIG): GameState
     const vertex = homeVertices[i];
     const home = homes[i];
     if (vertex === undefined || home === undefined) continue;
-    const r = Math.max(1, Math.min(config.R, Math.round(cellDistance(home))));
+    const r = Math.min(config.R, Math.round(cellDistance(home)));
     const { num, den } = forceAtRadius(r, config.R);
     spawners.set(vertex, { force: rational(num, den), phase: 0 });
   }

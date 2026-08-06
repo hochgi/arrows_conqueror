@@ -295,3 +295,108 @@ body,
 .portion-range {
   accent-color: var(--cool);
 }
+
+/* ── the spawner hover read-out ──────────────────────────────────────────────
+   Follows the cursor, so it is `pointer-events: none` throughout — a tip that can be
+   hovered steals the move events that keep it alive and flickers. */
+.tip {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+  padding: 0.55rem 0.65rem 0.6rem;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: rgba(15, 22, 30, 0.96);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.tip p {
+  margin: 0;
+}
+
+.tip-title {
+  font-size: 0.8rem;
+}
+
+.tip-title strong {
+  color: var(--accent);
+}
+
+.tip-sub {
+  color: var(--muted);
+  margin-bottom: 0.45rem !important;
+}
+
+.tip-shares {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.tip-share {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+
+.tip-share.unclaimed {
+  opacity: 0.62;
+}
+
+.tip-swatch {
+  width: 7px;
+  height: 7px;
+  margin-top: 0.28rem;
+  border-radius: 2px;
+  flex: none;
+}
+
+.tip-share-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.tip-next {
+  color: var(--accent);
+  font-style: normal;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tip-bar {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(150, 176, 202, 0.18);
+  overflow: hidden;
+}
+
+.tip-bar-fill {
+  display: block;
+  height: 100%;
+}
+
+.tip-share-note {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.tip-share.blockaded .tip-share-note {
+  color: #e05a7a;
+}
+
+.tip-held {
+  margin-top: 0.5rem !important;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+}

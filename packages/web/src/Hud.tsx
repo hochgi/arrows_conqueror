@@ -97,8 +97,14 @@ export const Hud = ({
       <p className="help">
         Drag to pan · wheel to zoom · gold outline = can move · blue = reachable this
         turn, fading with distance · solid fill = territory, thin fill = open trail ·
-        ringed dots are spawners, each arc one share filling toward a head · turn passes
-        automatically when nothing can step
+        turn passes automatically when nothing can step
+      </p>
+      <p className="help">
+        Ringed dots are spawners — three arcs, one per bordering arrow, each filling
+        toward a head. <strong>Hover one for its force, its shares and who holds them.</strong>{' '}
+        A share only pays once you hold its arrow as territory, so a spawner in open
+        ground is worth nothing until you close around it. The centre runs four times
+        faster than the rim and is packed far denser.
       </p>
     </aside>
   );

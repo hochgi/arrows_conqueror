@@ -69,9 +69,13 @@ export const PREVIEW_STROKE = '#8fd6ff';
 export const REACH_FILL = '#6cc0ff';
 export const REACH_INK = 'rgba(214, 238, 255, 0.92)';
 
-/** A spawner's ring: unowned share, and the cursor showing which accrues next. */
-export const SPAWNER_TRACK = 'rgba(150, 176, 202, 0.15)';
-export const SPAWNER_IDLE = 'rgba(154, 176, 196, 0.75)';
-export const SPAWNER_HUB_IDLE = 'rgba(154, 176, 196, 0.4)';
+/**
+ * A spawner's three arcs. Quieter than the players and quieter than reach, on purpose:
+ * there are around a hundred of them on the board and the detail moved to hover.
+ */
+export const SPAWNER_TRACK = 'rgba(160, 188, 214, 0.34)';
+export const SPAWNER_IDLE = 'rgba(160, 188, 214, 0.78)';
+export const SPAWNER_HUB_IDLE = 'rgba(160, 188, 214, 0.55)';
 export const SPAWNER_RIM = '#0b1016';
+/** The ring drawn round the spawner under the cursor. */
 export const SPAWNER_CURSOR = '#f0c96a';

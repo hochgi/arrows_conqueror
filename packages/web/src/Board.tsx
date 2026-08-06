@@ -19,6 +19,7 @@ import {
 } from './colors';
 import type { InputHighlights } from './input/modes';
 import { reachOpacity } from './reach';
+import { spawnerInfoAt, spawnerProminence } from './spawnerInfo';
 import type { Viewport } from './viewport';
 import { toScreen } from './viewport';
 
@@ -32,6 +33,8 @@ export interface BoardProps {
   readonly highlights: InputHighlights;
   /** Stacks of the active player that still have a legal step. */
   readonly movable: ReadonlySet<ArrowId>;
+  /** The spawner under the cursor, if any — ringed here, detailed in `SpawnerTip`. */
+  readonly hoveredSpawner?: VertexId;
   readonly onPointerDown: (e: PointerEvent<SVGSVGElement>) => void;
   readonly onPointerMove: (e: PointerEvent<SVGSVGElement>) => void;
   readonly onPointerUp: (e: PointerEvent<SVGSVGElement>) => void;
@@ -96,9 +99,9 @@ const shareOwner = (
   return bestN >= 2 ? best : undefined;
 };
 
-// ── the spawner gauge ─────────────────────────────────────────────────────────
+// ── the spawner mark ──────────────────────────────────────────────────────────
 
-const GAP_DEG = 14;
+const GAP_DEG = 22;
 
 const arcPath = (
   cx: number,
@@ -117,25 +120,29 @@ const arcPath = (
 };
 
 /**
- * A spawner as three arcs: one per bordering arrow, filled by that share's
- * accumulator, tinted by whoever holds the arrow.
+ * A spawner as three short arcs — one per bordering arrow, tinted by whoever holds it and
+ * filled by that share's accumulator — around a hub showing who holds the majority.
  *
- * Three rather than one because §7 owns a special **in thirds** — each of the three
- * bordering arrows carries one share, with its own accumulator that carries its own
- * remainder and resets alone on capture. A single gauge would have to average that, and
- * averaging is exactly the thing a player must not be shown: shaving one arrow off a
- * rival cuts their income by a third, and the board should make that legible.
+ * Three rather than one because §7 owns a special **in thirds**: each bordering arrow
+ * carries its own accumulator, which carries its own remainder and resets alone on
+ * capture. A single averaged ring would hide the thing that decides play — shaving one
+ * arrow off a rival cuts their income by a third.
  *
- * The arcs are ordered by arrow id, which is what `Spawner.phase` indexes, so the gold
- * cursor really does point at the share that accrues next.
+ * **Deliberately less than it knows.** An earlier version drew the phase cursor and a full
+ * track on every spawner; at a hundred spawners that is a field of targets rather than a
+ * board. Force, banked fractions, the round-robin cursor and the difference between
+ * *unclaimed* and *blockaded* now live in {@link SpawnerTip} on hover, and the mark keeps
+ * only what is worth reading at a glance. The arcs are ordered by arrow id, which is what
+ * `Spawner.phase` indexes, so the hover cursor lines up with the arcs here.
  */
-const SpawnerGauge = ({
+const SpawnerMark = ({
   geometry,
   state,
   vertex,
   cx,
   cy,
   r,
+  hovered,
 }: {
   geometry: GeometryPort;
   state: GameState;
@@ -143,67 +150,46 @@ const SpawnerGauge = ({
   cx: number;
   cy: number;
   r: number;
+  hovered: boolean;
 }): ReactElement => {
-  const spawner = state.spawners.get(vertex);
-  const shares = [...geometry.borderArrows(vertex)].toSorted((l, r2) =>
-    String(l) < String(r2) ? -1 : 1,
-  );
+  const info = spawnerInfoAt(geometry, state, vertex);
   const owner = shareOwner(geometry, state, vertex);
   const hub = owner !== undefined ? styleFor(owner).fill : SPAWNER_HUB_IDLE;
-  const next = spawner === undefined ? -1 : spawner.phase % shares.length;
-  // An untouched spawner on neutral ground is *background*: there are hundreds of them
-  // and a bright ring on each turns the board into a field of targets. It brightens as
-  // soon as it is worth looking at — owned, or carrying a share part-way to a head.
-  const live =
-    owner !== undefined ||
-    shares.some((a) => state.territory.get(a) !== undefined) ||
-    shares.some((a) => {
-      const acc = state.accumulators.get(a);
-      return acc !== undefined && acc.num > 0;
-    });
+  const shares = info?.shares ?? [];
+  const width = Math.max(1.4, r * 0.3);
 
   return (
-    <g style={{ pointerEvents: 'none' }} opacity={live ? 1 : 0.5}>
-      {shares.map((arrow, k) => {
+    <g style={{ pointerEvents: 'none' }} opacity={hovered ? 1 : (info ? spawnerProminence(info) : 0.4)}>
+      {hovered ? (
+        <circle cx={cx} cy={cy} r={r * 1.7} fill="none" stroke={SPAWNER_CURSOR} strokeWidth={1.2} />
+      ) : null}
+      {shares.map((share, k) => {
         const from = k * 120 + GAP_DEG / 2;
         const to = (k + 1) * 120 - GAP_DEG / 2;
-        const acc = state.accumulators.get(arrow);
-        const loaded =
-          acc === undefined ? 0 : Math.max(0, Math.min(1, acc.num / acc.den));
-        const held = state.territory.get(arrow);
-        const tint = held !== undefined ? styleFor(held).fill : SPAWNER_IDLE;
+        const tint = share.owner === undefined ? SPAWNER_IDLE : styleFor(share.owner).fill;
         return (
-          <g key={String(arrow)}>
+          <g key={String(share.arrow)}>
             <path
               d={arcPath(cx, cy, r, from, to)}
               fill="none"
-              stroke={SPAWNER_TRACK}
-              strokeWidth={Math.max(1.5, r * 0.34)}
+              stroke={share.owner === undefined ? SPAWNER_TRACK : tint}
+              strokeOpacity={share.owner === undefined ? 1 : 0.34}
+              strokeWidth={width}
               strokeLinecap="butt"
             />
-            {loaded > 0.001 ? (
+            {share.loaded > 0.001 ? (
               <path
-                d={arcPath(cx, cy, r, from, from + (to - from) * loaded)}
+                d={arcPath(cx, cy, r, from, from + (to - from) * share.loaded)}
                 fill="none"
                 stroke={tint}
-                strokeWidth={Math.max(1.5, r * 0.34)}
+                strokeWidth={width}
                 strokeLinecap="butt"
-              />
-            ) : null}
-            {k === next && live ? (
-              // Which share accrues next turn (§7's round-robin). Only worth drawing on a
-              // spawner someone is actually contesting.
-              <circle
-                cx={cx + r * 1.42 * Math.cos((((from + to) / 2 - 90) * Math.PI) / 180)}
-                cy={cy + r * 1.42 * Math.sin((((from + to) / 2 - 90) * Math.PI) / 180)}
-                r={Math.max(1, r * 0.16)}
-                fill={SPAWNER_CURSOR}
               />
             ) : null}
           </g>
         );
       })}
-      <circle cx={cx} cy={cy} r={r * 0.44} fill={hub} stroke={SPAWNER_RIM} strokeWidth={1} />
+      <circle cx={cx} cy={cy} r={r * 0.4} fill={hub} stroke={SPAWNER_RIM} strokeWidth={0.9} />
     </g>
   );
 };
@@ -219,6 +205,7 @@ export const Board = ({
   vertices,
   highlights,
   movable,
+  hoveredSpawner,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -333,14 +320,15 @@ export const Board = ({
       const pos = layout.vertexPosition(vertex);
       const s = toScreen(viewport, pos.x, pos.y);
       return (
-        <SpawnerGauge
+        <SpawnerMark
           key={String(vertex)}
           geometry={geometry}
           state={state}
           vertex={vertex}
           cx={s.x}
           cy={s.y}
-          r={Math.max(4.5, viewport.scale * 0.17)}
+          r={Math.max(4, viewport.scale * 0.15)}
+          hovered={hoveredSpawner === vertex}
         />
       );
     })}
