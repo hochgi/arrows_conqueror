@@ -12,17 +12,27 @@ export interface MatchConfig {
   /** Spawner cutoff radius in graph distance from the origin (§7). Default 7. */
   readonly R: number;
   /**
-   * Lattice offset for homes along a reflected pair. Default 5 — far enough
-   * from the origin that the centre stays contested, inside *R*.
+   * Graph distance of home corners from the origin. Default 5 — far enough that
+   * the centre stays contested, inside *R*.
    */
   readonly homeOffset: number;
+  /**
+   * How many seats to place (2–8). Homes sit on a hexagon about the origin:
+   * opposite corners (2), alternating corners (3), four corners leaving one
+   * opposite pair free (4), all six corners (6), equal angular span otherwise.
+   */
+  readonly playerCount: number;
 }
 
 export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   dominationN: 5,
   R: 7,
   homeOffset: 5,
+  playerCount: 2,
 };
+
+export const MIN_PLAYERS = 2;
+export const MAX_PLAYERS = 8;
 
 /**
  * Force at graph distance *r* from the origin: `1 / 3^r` for *r* in `1..R`

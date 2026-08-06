@@ -6,7 +6,9 @@ import {
   EMPTY_FILL,
   EMPTY_STROKE,
   HIGHLIGHT_STROKE,
+  MOVABLE_STROKE,
   PREVIEW_STROKE,
+  TARGET_FILL,
   styleFor,
 } from './colors';
 import type { InputHighlights } from './input/modes';
@@ -21,9 +23,12 @@ export interface BoardProps {
   readonly arrows: readonly ArrowId[];
   readonly vertices: ReadonlySet<VertexId>;
   readonly highlights: InputHighlights;
+  /** Stacks of the active player that still have a legal step. */
+  readonly movable: ReadonlySet<ArrowId>;
   readonly onPointerDown: (e: PointerEvent<SVGSVGElement>) => void;
   readonly onPointerMove: (e: PointerEvent<SVGSVGElement>) => void;
   readonly onPointerUp: (e: PointerEvent<SVGSVGElement>) => void;
+  readonly onPointerLeave: (e: PointerEvent<SVGSVGElement>) => void;
   readonly onWheel: (e: WheelEvent<SVGSVGElement>) => void;
 }
 
@@ -91,9 +96,11 @@ export const Board = ({
   arrows,
   vertices,
   highlights,
+  movable,
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onPointerLeave,
   onWheel,
 }: BoardProps): ReactElement => (
   <svg
@@ -104,21 +111,25 @@ export const Board = ({
     onPointerDown={onPointerDown}
     onPointerMove={onPointerMove}
     onPointerUp={onPointerUp}
-    onPointerLeave={onPointerUp}
+    onPointerLeave={onPointerLeave}
     onWheel={onWheel}
   >
     {arrows.map((arrow) => {
       const poly = layout.polygon(arrow);
-      const { fill, stroke } = fillFor(arrow, state);
+      const base = fillFor(arrow, state);
       const isSelected = highlights.selected === arrow;
       const isTarget = highlights.targets.has(arrow);
       const isPreview = highlights.preview === arrow;
-      const strokeWidth = isSelected || isPreview ? 2.5 : isTarget ? 2 : 0.8;
+      const isMovable = movable.has(arrow) && !isSelected;
+      const fill = isTarget || isPreview ? TARGET_FILL : base.fill;
+      const strokeWidth = isSelected || isPreview ? 2.5 : isTarget || isMovable ? 2 : 0.8;
       const strokeColor = isSelected
         ? HIGHLIGHT_STROKE
         : isPreview || isTarget
           ? PREVIEW_STROKE
-          : stroke;
+          : isMovable
+            ? MOVABLE_STROKE
+            : base.stroke;
       const c = centroidScreen(viewport, poly);
       const group = state.groups.get(arrow);
       return (

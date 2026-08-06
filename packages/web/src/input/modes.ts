@@ -12,6 +12,10 @@ export type InputPhase =
   | { readonly kind: 'idle' }
   | { readonly kind: 'source'; readonly from: ArrowId }
   | {
+      readonly kind: 'blocked';
+      readonly from: ArrowId;
+    }
+  | {
       readonly kind: 'preview';
       readonly from: ArrowId;
       readonly exit: ArrowId;
@@ -84,9 +88,18 @@ const sourceSelected = (
   rules: RulesPort,
 ): InputSnapshot => {
   const steps = legalStepsFrom(rules, state, from);
+  const targets = exitsOf(steps);
+  if (targets.size === 0) {
+    // §5 branch toll (or only skip left): selecting looks like a soft-lock if we
+    // ask for a destination that will never appear.
+    return {
+      phase: { kind: 'blocked', from },
+      highlights: { selected: from, targets: new Set() },
+    };
+  }
   return {
     phase: { kind: 'source', from },
-    highlights: { selected: from, targets: exitsOf(steps) },
+    highlights: { selected: from, targets },
   };
 };
 
@@ -150,9 +163,13 @@ export class GalconInput extends BaseMode {
 
   override onArrowClick(arrow: ArrowId, state: GameState, rules: RulesPort): InputSnapshot {
     const { phase } = this.snap;
-    if (phase.kind === 'idle' || phase.kind === 'portion') {
+    if (phase.kind === 'idle' || phase.kind === 'portion' || phase.kind === 'blocked') {
       const group = state.groups.get(arrow);
       if (group === undefined || group.owner !== state.activePlayer) {
+        this.snap = idle();
+        return this.snap;
+      }
+      if (phase.kind === 'blocked' && arrow === phase.from) {
         this.snap = idle();
         return this.snap;
       }
@@ -199,9 +216,13 @@ export class HommInput extends BaseMode {
 
   override onArrowClick(arrow: ArrowId, state: GameState, rules: RulesPort): InputSnapshot {
     const { phase } = this.snap;
-    if (phase.kind === 'idle' || phase.kind === 'portion') {
+    if (phase.kind === 'idle' || phase.kind === 'portion' || phase.kind === 'blocked') {
       const group = state.groups.get(arrow);
       if (group === undefined || group.owner !== state.activePlayer) {
+        this.snap = idle();
+        return this.snap;
+      }
+      if (phase.kind === 'blocked' && arrow === phase.from) {
         this.snap = idle();
         return this.snap;
       }

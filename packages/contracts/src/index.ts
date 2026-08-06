@@ -36,5 +36,10 @@ export type { BoardWindow, GeometryPort } from './geometry-port';
 
 export type { GameState, Group, MergeOverride, Spawner } from './game-state';
 export type { MatchConfig } from './match-config';
-export { DEFAULT_MATCH_CONFIG, forceAtRadius } from './match-config';
+export {
+  DEFAULT_MATCH_CONFIG,
+  forceAtRadius,
+  MAX_PLAYERS,
+  MIN_PLAYERS,
+} from './match-config';
 export type { AnchorGrade, Claim, CombatLosses, RulesPort, Traversal } from './rules-port';

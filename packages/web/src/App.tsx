@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent, ReactElement, WheelEvent } from 'react';
+import { DEFAULT_MATCH_CONFIG, type GameState } from '@arrows/contracts';
 import { makeLayout, makeMatch, makeTiling } from '@arrows/geometry-tiling';
-import type { GameState } from '@arrows/contracts';
 import { makeRules } from '@arrows/rules-core';
+import { hasLegalStep, passIfExhausted } from './autoEndTurn';
 import { Board } from './Board';
 import { cullArrows, cullVertices } from './cull';
 import { hitArrow } from './hit';
 import { Hud } from './Hud';
 import type { InputMode, InputSnapshot } from './input/modes';
 import { createInputMode } from './input/modes';
+import { Lobby } from './Lobby';
+import { PortionSlider } from './PortionSlider';
 import type { Viewport } from './viewport';
 import { createViewport, panBy, resize, zoomAt } from './viewport';
 
@@ -16,12 +19,13 @@ const geometry = makeTiling();
 const layout = makeLayout();
 const rules = makeRules(geometry);
 
-const startMatch = (): GameState => makeMatch();
+const beginMatch = (playerCount: number): GameState =>
+  makeMatch({ ...DEFAULT_MATCH_CONFIG, playerCount });
 
 const applyPending = (state: GameState, snap: InputSnapshot): GameState => {
   if (snap.pending === undefined || state.winner !== undefined) return state;
   try {
-    return rules.apply(state, snap.pending);
+    return passIfExhausted(rules, rules.apply(state, snap.pending));
   } catch {
     return state;
   }
@@ -33,7 +37,8 @@ const idleSnap = (): InputSnapshot => ({
 });
 
 export const App = (): ReactElement => {
-  const [state, setState] = useState<GameState>(startMatch);
+  const [playerCount, setPlayerCount] = useState(DEFAULT_MATCH_CONFIG.playerCount);
+  const [state, setState] = useState<GameState | undefined>(undefined);
   const [mode, setMode] = useState<InputMode>(() => createInputMode('galcon'));
   const [snap, setSnap] = useState<InputSnapshot>(idleSnap);
   const [viewport, setViewport] = useState<Viewport>(() => createViewport(800, 600));
@@ -53,18 +58,63 @@ export const App = (): ReactElement => {
     return () => {
       ro.disconnect();
     };
-  }, []);
+  }, [state]);
 
-  const arrows = useMemo(() => cullArrows(geometry, viewport), [viewport]);
-  const vertices = useMemo(() => cullVertices(geometry, viewport), [viewport]);
-
-  const commitSnap = useCallback((next: InputSnapshot) => {
-    setSnap(next);
-    if (next.pending !== undefined) {
-      setState((s) => applyPending(s, next));
-      setSnap(mode.reset());
+  const softLockKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (state === undefined) return;
+    if (state.winner !== undefined) {
+      softLockKey.current = null;
+      return;
     }
-  }, [mode]);
+    if (snap.phase.kind === 'portion') return;
+    if (hasLegalStep(rules, state)) {
+      softLockKey.current = null;
+      return;
+    }
+    const next = passIfExhausted(rules, state);
+    if (Object.is(next, state)) return;
+    if (!hasLegalStep(rules, next) && next.winner === undefined) {
+      const key = `${String(next.activePlayer)}:${String(next.groups.size)}:${String(next.dominationStreak)}`;
+      if (softLockKey.current === key) return;
+      softLockKey.current = key;
+    } else {
+      softLockKey.current = null;
+    }
+    setState(next);
+    setSnap(mode.reset());
+  }, [state, snap.phase.kind, mode]);
+
+  const arrows = useMemo(
+    () => (state === undefined ? [] : cullArrows(geometry, viewport)),
+    [state, viewport],
+  );
+  const vertices = useMemo(
+    () =>
+      state === undefined
+        ? new Set<import('@arrows/contracts').VertexId>()
+        : cullVertices(geometry, viewport),
+    [state, viewport],
+  );
+  const movable = useMemo(() => {
+    const set = new Set<import('@arrows/contracts').ArrowId>();
+    if (state === undefined) return set;
+    for (const m of rules.legalMoves(state)) {
+      if (m.kind === 'step') set.add(m.from);
+    }
+    return set;
+  }, [state]);
+
+  const commitSnap = useCallback(
+    (next: InputSnapshot) => {
+      setSnap(next);
+      if (next.pending !== undefined) {
+        setState((s) => (s === undefined ? s : applyPending(s, next)));
+        setSnap(mode.reset());
+      }
+    },
+    [mode],
+  );
 
   const switchMode = (id: string): void => {
     const next = createInputMode(id);
@@ -72,7 +122,27 @@ export const App = (): ReactElement => {
     setSnap(next.reset());
   };
 
+  const returnToLobby = (): void => {
+    setState(undefined);
+    setSnap(mode.reset());
+    softLockKey.current = null;
+  };
+
+  if (state === undefined) {
+    return (
+      <Lobby
+        playerCount={playerCount}
+        onPlayerCount={setPlayerCount}
+        onStart={() => {
+          setState(beginMatch(playerCount));
+          setSnap(mode.reset());
+        }}
+      />
+    );
+  }
+
   const onPointerDown = (e: PointerEvent<SVGSVGElement>): void => {
+    if (snap.phase.kind === 'portion') return;
     e.currentTarget.setPointerCapture(e.pointerId);
     drag.current = { x: e.clientX, y: e.clientY, moved: false };
   };
@@ -89,8 +159,10 @@ export const App = (): ReactElement => {
 
   const onPointerUp = (e: PointerEvent<SVGSVGElement>): void => {
     const wasDrag = drag.current?.moved === true;
+    const hadPointer = drag.current !== null;
     drag.current = null;
-    if (wasDrag || state.winner !== undefined) return;
+    if (!hadPointer || wasDrag || state.winner !== undefined) return;
+    if (snap.phase.kind === 'portion') return;
     const rect = e.currentTarget.getBoundingClientRect();
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
@@ -100,6 +172,10 @@ export const App = (): ReactElement => {
       return;
     }
     commitSnap(mode.onArrowClick(arrow, state, rules));
+  };
+
+  const onPointerLeave = (): void => {
+    drag.current = null;
   };
 
   const onWheel = (e: WheelEvent<SVGSVGElement>): void => {
@@ -115,6 +191,7 @@ export const App = (): ReactElement => {
         state={state}
         mode={mode}
         phase={snap.phase}
+        movableCount={movable.size}
         onModeChange={switchMode}
         onEndTurn={() => {
           commitSnap(mode.requestEndTurn());
@@ -122,13 +199,7 @@ export const App = (): ReactElement => {
         onSkip={() => {
           commitSnap(mode.requestSkip(state, rules));
         }}
-        onPortion={(n) => {
-          commitSnap(mode.choosePortion(n));
-        }}
-        onNewMatch={() => {
-          setState(startMatch());
-          setSnap(mode.reset());
-        }}
+        onNewMatch={returnToLobby}
       />
       <div className="stage" ref={shellRef}>
         <Board
@@ -139,11 +210,24 @@ export const App = (): ReactElement => {
           arrows={arrows}
           vertices={vertices}
           highlights={snap.highlights}
+          movable={movable}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
+          onPointerLeave={onPointerLeave}
           onWheel={onWheel}
         />
+        {snap.phase.kind === 'portion' ? (
+          <PortionSlider
+            max={snap.phase.max}
+            onConfirm={(n) => {
+              commitSnap(mode.choosePortion(n));
+            }}
+            onCancel={() => {
+              commitSnap(mode.reset());
+            }}
+          />
+        ) : null}
       </div>
     </div>
   );

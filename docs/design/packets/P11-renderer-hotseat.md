@@ -12,8 +12,8 @@
 - Pan + limited zoom; cull via `GeometryPort.window` around the viewport centre.
 - Trail at **50% opacity**, territory **full colour** (§5).
 - Pluggable input modes (swap without touching the board): **Galcon**
-  (source → dest → portion) and **HoMM-style** (source → dest preview → second
-  click commits → portion). Easy to replace later.
+  (source → dest → slider popup) and **HoMM-style** (source → dest preview →
+  second click → slider). Easy to replace later.
 - Hot-seat loop over `makeMatch` + `makeRules` + `legalMoves` / `apply`.
 
 ## Out of scope

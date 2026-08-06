@@ -19,7 +19,13 @@
  */
 
 export { makeTiling } from './tiling';
-export { makeMatch, reflectCell } from './setup';
+export {
+  makeMatch,
+  reflectCell,
+  hexCorners,
+  homeCellsFor,
+  mintPlayers,
+} from './setup';
 export { DEFAULT_MATCH_CONFIG, forceAtRadius } from '@arrows/contracts';
 export type { MatchConfig } from '@arrows/contracts';
 export {

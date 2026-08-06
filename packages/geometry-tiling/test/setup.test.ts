@@ -1,14 +1,14 @@
 /**
- * P09 — match setup on the tiling (reflection homes, radial spawners).
+ * P09 — match setup on the tiling (hexagon homes, radial spawners).
  */
 
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_MATCH_CONFIG, forceAtRadius, rational } from '@arrows/contracts';
-import { makeMatch, makeTiling, reflectCell } from '../src/index';
+import { hexCorners, homeCellsFor, makeMatch, makeTiling, reflectCell } from '../src/index';
 import { cellPoint, pointCell, vertexCell } from '../src/cells';
 
 describe('match setup', () => {
-  it('places mirrored homes with 3-stacks and pinwheel territory', () => {
+  it('places two homes on opposite hexagon corners with 3-stacks', () => {
     const state = makeMatch();
     expect(state.players).toHaveLength(2);
     expect(state.dominationN).toBe(5);
@@ -20,19 +20,38 @@ describe('match setup', () => {
       expect(group.heads).toBe(3);
       expect(group.spent).toBe(0);
     }
-    // Each home owns exactly three territory arrows (the pinwheel).
     const byOwner = new Map<string, number>();
     for (const owner of state.territory.values()) {
       byOwner.set(String(owner), (byOwner.get(String(owner)) ?? 0) + 1);
     }
-    expect([...byOwner.values()]).toEqual([3, 3]);
+    expect([...byOwner.values()].toSorted((a, b) => a - b)).toEqual([3, 3]);
+
+    const D = DEFAULT_MATCH_CONFIG.homeOffset;
+    expect(homeCellsFor(2, D)).toEqual([hexCorners(D)[0], hexCorners(D)[3]]);
   });
 
-  it('uses the grain-preserving reflection for homes', () => {
-    const homeA = { i: DEFAULT_MATCH_CONFIG.homeOffset, j: 2 };
+  it('places three homes on alternating corners', () => {
+    const state = makeMatch({ ...DEFAULT_MATCH_CONFIG, playerCount: 3 });
+    expect(state.players.map(String)).toEqual(['A', 'B', 'C']);
+    expect(state.groups.size).toBe(3);
+    expect(homeCellsFor(3, 5)).toEqual([
+      { i: 5, j: 0 },
+      { i: -5, j: 5 },
+      { i: 0, j: -5 },
+    ]);
+  });
+
+  it('places six homes on every hexagon corner', () => {
+    const state = makeMatch({ ...DEFAULT_MATCH_CONFIG, playerCount: 6, homeOffset: 4 });
+    expect(state.players).toHaveLength(6);
+    expect(state.groups.size).toBe(6);
+    expect(homeCellsFor(6, 4)).toEqual(hexCorners(4));
+  });
+
+  it('keeps the grain-preserving reflection as an involution', () => {
+    const homeA = { i: 5, j: 0 };
     const homeB = reflectCell(homeA);
     expect(reflectCell(homeB)).toEqual(homeA);
-    expect(homeB).not.toEqual(homeA);
   });
 
   it('places spawners within R with force 1/3^r', () => {

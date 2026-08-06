@@ -2,14 +2,14 @@
  * Victory — elimination and domination (§9 / P09).
  *
  * Domination advances on the same full-round boundary as accrual (P08 / item 41):
- * when `endTurn` returns the seat to `players[0]`. Holding means owning every
+ * when the seat wraps to the first living player. Holding means owning every
  * spawner share as territory — blockade does not count.
  */
 
 import type { GameState, GeometryPort, PlayerId } from '@arrows/contracts';
 import { compareArrows, compareVertices } from './order';
 
-const headsOf = (state: GameState, player: PlayerId): number => {
+export const headsOf = (state: GameState, player: PlayerId): number => {
   let total = 0;
   for (const group of state.groups.values()) {
     if (group.owner === player) total += group.heads;
@@ -17,15 +17,23 @@ const headsOf = (state: GameState, player: PlayerId): number => {
   return total;
 };
 
-/** Elimination: a player with zero heads loses; the other wins. */
+/** First living seat in turn order — the full-round boundary marker. */
+export const firstAlive = (state: GameState): PlayerId | undefined => {
+  for (const player of state.players) {
+    if (headsOf(state, player) > 0) return player;
+  }
+  return undefined;
+};
+
+/** Elimination: last player with any heads wins. */
 export const applyElimination = (state: GameState): GameState => {
   if (state.winner !== undefined) return state;
-  const [first, second] = state.players;
-  const h1 = headsOf(state, first);
-  const h2 = headsOf(state, second);
-  if (h1 === 0 && h2 === 0) return state; // both empty — leave undecided (degenerate)
-  if (h1 === 0) return { ...state, winner: second };
-  if (h2 === 0) return { ...state, winner: first };
+  const alive = state.players.filter((player) => headsOf(state, player) > 0);
+  if (alive.length === 1) {
+    const winner = alive[0];
+    if (winner === undefined) return state;
+    return { ...state, winner };
+  }
   return state;
 };
 
@@ -45,17 +53,18 @@ const ownsAllShares = (
 
 /**
  * One full-round domination tick. Call after accrual when the seat returns to
- * `players[0]`.
+ * the first living player.
  */
 export const tickDomination = (state: GameState, geometry: GeometryPort): GameState => {
   if (state.winner !== undefined) return state;
 
-  const [first, second] = state.players;
-  const holder: PlayerId | undefined = ownsAllShares(state, first, geometry)
-    ? first
-    : ownsAllShares(state, second, geometry)
-      ? second
-      : undefined;
+  let holder: PlayerId | undefined;
+  for (const player of state.players) {
+    if (ownsAllShares(state, player, geometry)) {
+      holder = player;
+      break;
+    }
+  }
 
   if (holder === undefined) {
     if (state.dominationStreak === 0 && state.dominationHolder === undefined) return state;

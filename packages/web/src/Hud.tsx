@@ -8,23 +8,28 @@ export interface HudProps {
   readonly state: GameState;
   readonly mode: InputMode;
   readonly phase: InputPhase;
+  readonly movableCount: number;
   readonly onModeChange: (id: string) => void;
   readonly onEndTurn: () => void;
   readonly onSkip: () => void;
-  readonly onPortion: (count: number) => void;
   readonly onNewMatch: () => void;
 }
 
-const phaseHint = (phase: InputPhase, modeLabel: string): string => {
+const phaseHint = (phase: InputPhase, modeLabel: string, movableCount: number): string => {
   switch (phase.kind) {
     case 'idle':
-      return `${modeLabel}: click one of your stacks`;
+      if (movableCount === 0) {
+        return 'No steps left — passing…';
+      }
+      return `${modeLabel}: click a gold-outlined stack`;
     case 'source':
-      return 'Click a highlighted destination';
+      return 'Click a blue destination';
+    case 'blocked':
+      return 'Branch toll — this stack cannot leave. Click another gold stack';
     case 'preview':
       return 'Click the destination again to confirm';
     case 'portion':
-      return `Send how many heads? (1–${String(phase.max)})`;
+      return 'Choose how many heads to send';
   }
 };
 
@@ -32,10 +37,10 @@ export const Hud = ({
   state,
   mode,
   phase,
+  movableCount,
   onModeChange,
   onEndTurn,
   onSkip,
-  onPortion,
   onNewMatch,
 }: HudProps): ReactElement => {
   const active = styleFor(state.activePlayer);
@@ -53,33 +58,21 @@ export const Hud = ({
             : null}
         </p>
       )}
-      <p className="hint">{phaseHint(phase, mode.label)}</p>
-
-      {phase.kind === 'portion' ? (
-        <div className="portion">
-          {Array.from({ length: phase.max }, (_, i) => i + 1).map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => {
-                onPortion(n);
-              }}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <p className="hint">{phaseHint(phase, mode.label, movableCount)}</p>
 
       <div className="actions">
-        <button type="button" onClick={onSkip} disabled={phase.kind === 'idle'}>
+        <button
+          type="button"
+          onClick={onSkip}
+          disabled={phase.kind === 'idle'}
+        >
           Skip group
         </button>
         <button type="button" onClick={onEndTurn} disabled={winner !== undefined}>
           End turn
         </button>
         <button type="button" onClick={onNewMatch}>
-          New match
+          Lobby
         </button>
       </div>
 
@@ -100,7 +93,8 @@ export const Hud = ({
       </label>
 
       <p className="help">
-        Drag to pan · wheel to zoom · trail is half-opacity, territory is solid
+        Drag to pan · wheel to zoom · gold = can move · blue = destination · turn
+        passes automatically when nothing can step · End turn ends early
       </p>
     </aside>
   );

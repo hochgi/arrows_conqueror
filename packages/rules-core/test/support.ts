@@ -41,7 +41,7 @@ import { makeRules } from '../src/index';
 
 export const A: PlayerId = mintPlayerId('A');
 export const B: PlayerId = mintPlayerId('B');
-export const PLAYERS: readonly [PlayerId, PlayerId] = [A, B];
+export const PLAYERS: readonly PlayerId[] = [A, B];
 
 /** A board and the rules over it. */
 export interface Table {

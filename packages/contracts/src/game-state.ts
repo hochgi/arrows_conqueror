@@ -84,11 +84,10 @@ export interface Group {
  */
 export interface GameState {
   /**
-   * The two players, in turn order. MVP is 2, hot-seat (§4); 3+ is deferred with
-   * its own design pass (SPEC §11 item 11), so the pair is written into the type
-   * rather than a length being assumed of a list.
+   * Players in turn order (§4). Length ≥ 2; seat 0 is the full-round marker while
+   * alive (P08). Setup places them on a hexagon about the origin (§2 / §8).
    */
-  readonly players: readonly [PlayerId, PlayerId];
+  readonly players: readonly PlayerId[];
   /** Whose turn it is. Only this player's groups may step or skip (§4). */
   readonly activePlayer: PlayerId;
   /**

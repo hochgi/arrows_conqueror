@@ -268,12 +268,18 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     return state;
   };
 
-  /** MVP is two players in turn order (§4); a foreign active player fails loudly. */
+  /** Next seat in turn order (§4). Empty seats still receive the chair — they
+   * can only `endTurn`, and the hot-seat adapter auto-passes them. */
   const nextPlayer = (state: GameState): PlayerId => {
-    const [first, second] = state.players;
-    if (state.activePlayer === first) return second;
-    if (state.activePlayer === second) return first;
-    return reject(`${String(state.activePlayer)} is not one of this match's players`);
+    const start = state.players.indexOf(state.activePlayer);
+    if (start < 0) {
+      return reject(`${String(state.activePlayer)} is not one of this match's players`);
+    }
+    const next = state.players[(start + 1) % state.players.length];
+    if (next === undefined) {
+      return reject('match has no players');
+    }
+    return next;
   };
 
   /**
@@ -293,7 +299,8 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
         [...state.groups].map(([arrow, group]) => [arrow, asGroup(group.owner, group.heads, 0)]),
       ),
     };
-    if (next !== state.players[0]) return handed;
+    const roundStart = handed.players[0];
+    if (roundStart === undefined || next !== roundStart) return handed;
     // Full round: accrue, then domination streak (§9 / P08 item 41 boundary).
     const accrued = accrueRound(handed, geometry);
     return applyElimination(tickDomination(accrued, geometry));

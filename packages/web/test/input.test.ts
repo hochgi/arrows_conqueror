@@ -34,6 +34,49 @@ describe('Galcon input', () => {
     expect(committed.pending.from).toBe(from);
     expect(committed.pending.exit).toBe(exit);
   });
+
+  it('marks a branch-stuck stack as blocked instead of empty destinations', () => {
+    const geometry = makeTiling();
+    const rules = makeRules(geometry);
+    const opening = makeMatch();
+    const A = opening.players[0];
+    const B = opening.players[1];
+    expect(A).toBeDefined();
+    expect(B).toBeDefined();
+    if (A === undefined || B === undefined) return;
+    const arrow = (s: string) => s as import('@arrows/contracts').ArrowId;
+    const trailA = new Set(
+      [
+        'tiling:a:4,2,0',
+        'tiling:a:5,1,0',
+        'tiling:a:5,1,1',
+        'tiling:a:5,1,2',
+        'tiling:a:5,2,2',
+        'tiling:a:6,0,1',
+        'tiling:a:6,1,2',
+        'tiling:a:6,2,2',
+      ].map(arrow),
+    );
+    const state = {
+      ...opening,
+      activePlayer: A,
+      groups: new Map([
+        [arrow('tiling:a:5,2,2'), { owner: A, heads: 1, spent: 0 }],
+        [arrow('tiling:a:5,1,0'), { owner: A, heads: 1, spent: 0 }],
+        [arrow('tiling:a:5,1,2'), { owner: A, heads: 1, spent: 0 }],
+        [arrow('tiling:a:6,-1,0'), { owner: B, heads: 3, spent: 0 }],
+      ]),
+      trails: new Map([[A, trailA]]),
+    };
+    const mode = new GalconInput();
+    const blocked = mode.onArrowClick(arrow('tiling:a:5,1,0'), state, rules);
+    expect(blocked.phase.kind).toBe('blocked');
+    expect(blocked.highlights.targets.size).toBe(0);
+
+    const movable = mode.onArrowClick(arrow('tiling:a:5,1,2'), state, rules);
+    expect(movable.phase.kind).toBe('source');
+    expect(movable.highlights.targets.size).toBeGreaterThan(0);
+  });
 });
 
 describe('HoMM input', () => {
