@@ -8,11 +8,12 @@
   },
   "scripts": {
     "build": "tsc --build",
-    "typecheck": "tsc --build --force",
+    "typecheck": "tsc --build --force && pnpm --filter @arrows/web typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test"
+    "verify": "pnpm typecheck && pnpm lint && pnpm test",
+    "dev:web": "pnpm --filter @arrows/web dev"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

@@ -1,0 +1,141 @@
+:root {
+  color-scheme: light;
+  --ink: #1c1814;
+  --panel: #f3eee4;
+  --line: #c9bda8;
+  --accent: #1a7a6d;
+  font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  color: var(--ink);
+  background: #d9d0c0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  height: 100%;
+}
+
+.hud {
+  padding: 1.25rem 1rem;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow: auto;
+}
+
+.hud h1 {
+  margin: 0;
+  font-family: 'IBM Plex Serif', Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.banner {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border: 2px solid var(--line);
+  border-radius: 4px;
+  background: #fffaf0;
+}
+
+.banner.win {
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  opacity: 0.85;
+}
+
+.portion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.portion button,
+.actions button {
+  font: inherit;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.portion button:hover,
+.actions button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.mode select {
+  font: inherit;
+  padding: 0.35rem;
+}
+
+.help {
+  margin-top: auto;
+  font-size: 0.75rem;
+  opacity: 0.7;
+  line-height: 1.4;
+}
+
+.stage {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.board {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 720px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .hud {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    max-height: 40vh;
+  }
+}

@@ -32,7 +32,9 @@ const impureProperties = [
 ];
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/*.d.ts'] },
+  {
+    ignores: ['**/dist/**', '**/node_modules/**', '**/*.d.ts', 'packages/web/dist/**'],
+  },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {
@@ -40,7 +42,7 @@ export default tseslint.config(
       parserOptions: {
         projectService: {
           // Root tooling config lives outside any package's tsconfig.
-          allowDefaultProject: ['vitest.config.ts'],
+          allowDefaultProject: ['vitest.config.ts', 'packages/web/vite.config.ts'],
         },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -76,7 +78,7 @@ export default tseslint.config(
   {
     // Root tooling config. Type-aware linting buys nothing here and these files
     // sit outside every package's tsconfig by design.
-    files: ['**/*.js', 'vitest.config.ts'],
+    files: ['**/*.js', 'vitest.config.ts', 'packages/web/vite.config.ts'],
     ...tseslint.configs.disableTypeChecked,
   },
 );
