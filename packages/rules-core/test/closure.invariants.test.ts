@@ -143,7 +143,7 @@ describe('commit writes territory, strips the mover’s trail, and leaves the re
     expect(isTrail(after, B, arrowAt(run, 0))).toBe(true);
   });
 
-  it('overwrites whoever held a claimed arrow and leaves heads standing', () => {
+  it('overwrites whoever held a claimed arrow and converts unprotected heads', () => {
     const table = onTiling();
     const ring = aRingWithAnInside(table.geometry);
     const tip = arrowAt(ring.wall, 5);
@@ -170,7 +170,7 @@ describe('commit writes territory, strips the mover’s trail, and leaves the re
     const after = table.rules.apply(state, step(tip, landing, 1));
 
     expect(territoryOf(after, occupied)).toBe(A);
-    expect(after.groups.get(occupied)?.owner).toBe(B);
+    expect(after.groups.get(occupied)?.owner).toBe(A);
     expect(after.groups.get(occupied)?.heads).toBe(2);
   });
 

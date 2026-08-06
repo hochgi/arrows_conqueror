@@ -478,7 +478,11 @@ Conversion triggers on **state, not on event**:
 
 > **An enemy head inside your territory with no anchored trail is encircled, and converts.**
 
-Closing a shape around enemy heads is the common case, not a separate rule — the closure simply puts them inside your territory and severs them at once. **Stacks convert intact:** encircle a 3-stack and you gain a 3-stack, not three singles and not a token survivor.
+"Anchored" here means **territory grade** (§6.1 / §11 item 28). Stack-grade and dormant do not protect. Closing a shape around enemy heads is the common case, not a separate rule — the closure simply puts them inside your territory and severs them at once. **Stacks convert intact:** encircle a 3-stack and you gain a 3-stack, not three singles and not a token survivor.
+
+A group that still has a territory-grade trail (a path of its trail reaching its own territory) is **not** encircled. You cannot capture a trail-connected raider by claim alone: a cut must first evaporate up to their anchor and drop the grade (§6.1). Trail cleanup is the cut's job; conversion does not strip trail (§11 item 40).
+
+On convert, the stack flips owner at the same head count, with **`spent` reset to 0 and any merge override dropped** (§11 item 40). Converted groups sit on the claimer's territory — co-location with a pre-existing friendly group on the same arrow does not arise from claim encirclement (contact combat already forbids shared occupancy with enemies).
 
 Two consequences that are easy to miss:
 
@@ -803,6 +807,8 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > **Item 38 was opened by P06's review and closed by the human:** stay-behind on attack (lone head cannot attack); fight to wipe in one `apply` (no interrupt); mark destination only if the attacker lands; bounce leaves the stay-behind as tip. → §6.2, → P06.
 >
+> **Item 40 was opened and closed by P07:** on convert, reset `spent` and drop merge override; trail cleanup is not conversion's job (a territory-grade trail must already have been cut); same-arrow merge with a friendly group is unreachable under claim encirclement. → §6.3, → P07.
+>
 > **§11 now carries no open rules question.** What remains is a **parked tuning table**, not a gap: item 11's *R*, the band radii, force per band, and item 32's *N* are numbers only playtesting can set, and P09 owns setting them. Item **39** parks a territory-combat idea without blocking. Nothing else is blocked, and none of the tuning items changes a rule.
 >
 > **Item 34 was opened and closed by P05, and it was never a gap.** §7's closure clause granted "special tiles", which §7's *own next subsection* forbids — specials are vertices, owned in thirds by their bordering arrows, and a vertex is never enclosed. The answer was three subsections from the question, which is the failure mode a spec this cross-referential invites; the item stays as a reminder to look before opening one. → §7 (corrected), → P05b, → P08.
@@ -982,6 +988,16 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 **Parked: territory combat modifiers**
 
 39. ~~Boost defender / nerf invader on claimed territory?~~ — **parked, not a gap.** Idea for later playtest: on the defender's territory, contact might cost the defender heads only and mark the arrow in the invader's trail. Not MVP; no rule until revisited. → **P06** (noted), later balance pass.
+
+**Conversion bookkeeping — resolved by P07**
+
+40. ~~What happens to `spent` / trail / co-location on convert?~~ — **resolved.** Three precision calls, one item:
+
+    1. **Reset.** Converted stacks keep head count, set `spent` to 0, and drop any merge override.
+    2. **Trail.** Conversion does not strip trail. A territory-grade trail already prevents conversion; capturing a trail-connected raider requires a cut that evaporates up to their anchor first (§6.1). Q2 is moot as a conversion rule.
+    3. **Co-location.** Claim encirclement puts converted units on the claimer's territory; sharing an arrow with a pre-existing friendly group does not arise (and contact forbids enemy co-occupancy beforehand). Out of scope.
+
+    → **§6.3**, → **P07**.
 
 **~~What does the minimal closure claim at its centre?~~ — not a gap: §7 already answered it, in a different subsection than the one that asked**
 

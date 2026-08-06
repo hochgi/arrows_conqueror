@@ -25,8 +25,8 @@
  * bordering arrows (§7, §11 item 34), so a fill that touched one would be a second
  * copy of a fact it is supposed to derive.
  *
- * **P07 seam:** enclosed enemy heads are not converted here — claiming the tile
- * leaves the head standing (§6.3 is P07's).
+ * **P07 seam (closed):** enclosed enemy heads convert when they lack a
+ * territory-grade trail (§6.3) — `convertEncircled` runs after `commit`.
  *
  * @see docs/spec/closure/closure.md
  * @see docs/spec/fill/fill.md

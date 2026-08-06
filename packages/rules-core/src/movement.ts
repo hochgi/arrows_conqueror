@@ -32,6 +32,7 @@ import type {
 import { makeCombatRules, resolveBattle } from './combat';
 import { makeClosureRules } from './closure';
 import { makeCutRules } from './cuts';
+import { convertEncircled } from './encirclement';
 import { compareArrows } from './order';
 import { makeTrailRules } from './trails';
 
@@ -79,6 +80,7 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
   // P06: contact-combat losses (query) and cut evaporation after a step.
   const combat = makeCombatRules(geometry);
   const cuts = makeCutRules(geometry);
+  // P07: conversion after the rest of the step (§6.3).
 
   /**
    * How far the group may go this turn: `speed(heads)`, unless a merge set an
@@ -248,7 +250,10 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     // marking only ever adds — and the backward walk reads no head positions, so the
     // claim is identical either side of the move. A cut mid-closure is the victim's
     // problem on the cutter's turn, not a reorder here.
-    return closure.commit(afterCut, move, movers.owner);
+    const afterClosure = closure.commit(afterCut, move, movers.owner);
+    // P07: combat → cut → closure → conversion. State predicate over the post-claim
+    // board — territory-grade trail still protects (§6.3 / item 40).
+    return convertEncircled(afterClosure, trails.anchorGrade);
   };
 
   /**

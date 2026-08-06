@@ -305,10 +305,9 @@ describe('a closure moves ground, whoever held it', () => {
     expect(isTrail(after, B, arrowAt(run, 0))).toBe(true);
   });
 
-  it('leaves an enemy head standing on a claimed arrow', () => {
-    // **The P07 seam.** §7 grants "everything standing on them — enemy heads,
-    // converted (§6.3)", and conversion is P07's. Claiming the tile and leaving the
-    // head is deliberately visible rather than quietly approximated.
+  it('converts an enemy head standing on a claimed arrow', () => {
+    // **P07.** §7 grants "everything standing on them — enemy heads, converted
+    // (§6.3)". Claiming the tile converts when the stack has no territory-grade trail.
     const table = onTiling();
     const { home, run } = aRunFromHome(table.geometry, 3);
     const occupied = arrowAt(run, 0);
@@ -326,8 +325,9 @@ describe('a closure moves ground, whoever held it', () => {
     const after = table.rules.apply(state, step(last, landing, 1));
 
     expect(territoryOf(after, occupied)).toBe(A);
-    expect(after.groups.get(occupied)?.owner).toBe(B);
+    expect(after.groups.get(occupied)?.owner).toBe(A);
     expect(after.groups.get(occupied)?.heads).toBe(2);
+    expect(after.groups.get(occupied)?.spent).toBe(0);
   });
 });
 

@@ -28,10 +28,11 @@ behaviour is not here, it will not be built.**
 | [fill](./fill/fill.md) | P05b | §7, §2 | 22 | — | 12 |
 | [cuts](./cuts/cuts.md) | P06 | §6.1, §6.1a | 18 | — | 10 |
 | [combat](./combat/combat.md) | P06 | §6.2, §11 item 37 | 14 | — | 10 |
+| [encirclement](./encirclement/encirclement.md) | P07 | §6.3, §11 item 40 | 16 | — | 10 |
 
-339 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
+355 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
 **58 belong to P03**, **18 to P02**, **30 to P04**, **58 to P05**, **49 to P05b**,
-and **32 to P06**.
+**32 to P06**, and **16 to P07**.
 395 concrete cases once `Examples` rows are expanded (combat Examples add more),
 173 invariants.
 
