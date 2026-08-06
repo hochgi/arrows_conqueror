@@ -575,11 +575,12 @@ Three things follow:
 
 ### Spawner logic
 
-- A spawner has a **force** *f*, a rational fraction ≤ 1/3. **1/3 is a very rare maximum**; typical values are **1/9 or 1/12**. Total output is *f* heads per turn.
-- **Each turn, one adjacent arrow gains *f***, cycling round-robin. Post-MVP, other distributions per spawner type.
+- A spawner has a **force** *f*, a rational fraction ≤ 1/3. **1/3 is a very rare maximum**; typical values are **1/9 or 1/12**. Total output is *f* heads per **full round** (both players have taken a turn — §11 item 41).
+- **Each full round, one adjacent arrow gains *f***, cycling round-robin. Post-MVP, other distributions per spawner type. Accrual runs when `endTurn` returns the active seat to `players[0]` — not on every player `endTurn`.
 - Each **accumulator belongs to the arrow, not the player.** When one reaches 1, a head appears on that arrow — merging into any stack already there — and the accumulator **carries the remainder** rather than resetting to zero. Nothing is wasted, which matters once two spawners feed one arrow and overshoot is routine. **This is the only place in the game that banks anything** — §3 deliberately does not, since tempo you did not spend is tempo you gave away, whereas a spawner's trickle has to accumulate to be worth anything at all.
+- **Spawned heads do not pay the §3 merge override.** A birth is not a spent move; merging into a friendly stack leaves `spent` and `speedOverride` as they were (§11 item 41).
 - **An arrow that changes hands starts fresh.** Its accumulator resets to zero on capture — the one case where progress is destroyed rather than carried.
-- **An enemy head standing on the arrow halts accrual.** The accumulator neither advances nor resets; it holds at whatever it had reached and resumes when the intruder leaves. Nothing spawns into an occupied arrow.
+- **An enemy head standing on the arrow halts accrual.** The accumulator neither advances nor resets; it holds at whatever it had reached and resumes when the intruder leaves. Nothing spawns into an enemy-occupied arrow. A **friendly** stack on the arrow does not halt: accrual runs and a spawn merges in with no merge-cost penalty.
 
 **A blockade costs the spawner that share's output.** The round-robin still lands on the frozen arrow; the fraction simply does not accrue and is gone. Total output drops by a third per blockaded arrow. The rotation is a fixed cycle that never varies with board state, which keeps the deterministic rhythm players count on.
 
@@ -809,6 +810,8 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > **Item 40 was opened and closed by P07:** on convert, reset `spent` and drop merge override; trail cleanup is not conversion's job (a territory-grade trail must already have been cut); same-arrow merge with a friendly group is unreachable under claim encirclement. → §6.3, → P07.
 >
+> **Item 41 was opened and closed by P08:** accrual ticks once per **full round** (not every `endTurn`); friendly occupation accrues and merges with **no** §3 merge override (birth is not a spent move); enemy occupation still halts. → §7, → P08.
+>
 > **§11 now carries no open rules question.** What remains is a **parked tuning table**, not a gap: item 11's *R*, the band radii, force per band, and item 32's *N* are numbers only playtesting can set, and P09 owns setting them. Item **39** parks a territory-combat idea without blocking. Nothing else is blocked, and none of the tuning items changes a rule.
 >
 > **Item 34 was opened and closed by P05, and it was never a gap.** §7's closure clause granted "special tiles", which §7's *own next subsection* forbids — specials are vertices, owned in thirds by their bordering arrows, and a vertex is never enclosed. The answer was three subsections from the question, which is the failure mode a spec this cross-referential invites; the item stays as a reminder to look before opening one. → §7 (corrected), → P05b, → P08.
@@ -998,6 +1001,16 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
     3. **Co-location.** Claim encirclement puts converted units on the claimer's territory; sharing an arrow with a pre-existing friendly group does not arise (and contact forbids enemy co-occupancy beforehand). Out of scope.
 
     → **§6.3**, → **P07**.
+
+**Spawner accrual timing and spawn-merge — resolved by P08**
+
+41. ~~When does accrual tick, and does a birth pay merge cost?~~ — **resolved.**
+
+    1. **Full round.** Every spawner advances one round-robin step once per **full round** — when `endTurn` returns the active seat to `players[0]` — not on every player `endTurn`.
+    2. **Friendly occupation.** Accrue and spawn; the new head merges into the standing stack.
+    3. **No merge override.** A spawned head has not spent a move; births do not set `speedOverride`. Enemy occupation still halts accrual (item 15).
+
+    → **§7**, → **P08**.
 
 **~~What does the minimal closure claim at its centre?~~ — not a gap: §7 already answered it, in a different subsection than the one that asked**
 

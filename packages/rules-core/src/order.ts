@@ -12,10 +12,17 @@
  * parse them.
  */
 
-import type { ArrowId } from '@arrows/contracts';
+import type { ArrowId, VertexId } from '@arrows/contracts';
 
 /** A total order on arrows, so an ordered answer never rests on map or set order. */
 export const compareArrows = (left: ArrowId, right: ArrowId): number => {
+  if (String(left) < String(right)) return -1;
+  if (String(left) > String(right)) return 1;
+  return 0;
+};
+
+/** Same total order for spawner vertices (P08 round-robin / tick order). */
+export const compareVertices = (left: VertexId, right: VertexId): number => {
   if (String(left) < String(right)) return -1;
   if (String(left) > String(right)) return 1;
   return 0;

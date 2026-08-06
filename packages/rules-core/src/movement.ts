@@ -33,6 +33,7 @@ import { makeCombatRules, resolveBattle } from './combat';
 import { makeClosureRules } from './closure';
 import { makeCutRules } from './cuts';
 import { convertEncircled } from './encirclement';
+import { accrueRound } from './economy';
 import { compareArrows } from './order';
 import { makeTrailRules } from './trails';
 
@@ -278,14 +279,21 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
    * The turn ends only here (D6). Nothing survives the boundary: every `spent`
    * counter is zeroed and every merge override is dropped (§3, §11 item 20).
    * Ending with allowance unspent is ordinary play, so no exhaustion is required.
+   *
+   * P08: when the next seat is `players[0]`, a full round has closed and every
+   * spawner accrues one round-robin step (§7 / §11 item 41).
    */
-  const applyEndTurn = (state: GameState): GameState => ({
-    ...state,
-    activePlayer: nextPlayer(state),
-    groups: new Map(
-      [...state.groups].map(([arrow, group]) => [arrow, asGroup(group.owner, group.heads, 0)]),
-    ),
-  });
+  const applyEndTurn = (state: GameState): GameState => {
+    const next = nextPlayer(state);
+    const handed: GameState = {
+      ...state,
+      activePlayer: next,
+      groups: new Map(
+        [...state.groups].map(([arrow, group]) => [arrow, asGroup(group.owner, group.heads, 0)]),
+      ),
+    };
+    return next === state.players[0] ? accrueRound(handed, geometry) : handed;
+  };
 
   /**
    * The active player's groups that still have a whole step left, in arrow-id

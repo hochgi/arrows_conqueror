@@ -45,6 +45,7 @@ import type {
   PointId,
   StepMove,
 } from '@arrows/contracts';
+import { resetAccumulatorsOnCapture } from './economy';
 import { compareArrows } from './order';
 
 const reject = (message: string): never => {
@@ -319,7 +320,8 @@ export const makeClosureRules = (geometry: GeometryPort): ClosureRules => {
       if (kept.length > 0) trails.set(mover, canonical(kept));
     }
 
-    return { ...state, territory, trails };
+    const accumulators = resetAccumulatorsOnCapture(state, taken, state.territory, mover);
+    return { ...state, territory, trails, accumulators };
   };
 
   return { closureOf, enclosedBy, commit };

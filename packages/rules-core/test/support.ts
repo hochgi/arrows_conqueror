@@ -30,9 +30,12 @@ import type {
   MergeOverride,
   PlayerId,
   PointId,
+  Rational,
   RulesPort,
+  Spawner,
   StepMove,
   Traversal,
+  VertexId,
 } from '@arrows/contracts';
 import { makeRules } from '../src/index';
 
@@ -83,6 +86,10 @@ export interface Ground {
   readonly trail?: Readonly<Partial<Record<'A' | 'B', readonly ArrowId[]>>>;
   /** Arrows of closed ground, one owner each. */
   readonly territory?: readonly { readonly arrow: ArrowId; readonly owner: PlayerId }[];
+  /** Per-arrow accumulators (P08). Absent entries are zero. */
+  readonly accumulators?: readonly (readonly [ArrowId, Rational])[];
+  /** Authored spawners (P08). */
+  readonly spawners?: readonly (readonly [VertexId, Spawner])[];
 }
 
 const trailsOf = (ground: Ground): GameState['trails'] =>
@@ -102,6 +109,8 @@ export const stateOf = (
   groups: new Map(placements.map((p) => [p.arrow, groupOf(p)] as const)),
   trails: trailsOf(ground),
   territory: new Map((ground.territory ?? []).map((t) => [t.arrow, t.owner] as const)),
+  accumulators: new Map(ground.accumulators ?? []),
+  spawners: new Map(ground.spawners ?? []),
 });
 
 // ── observing a state ─────────────────────────────────────────────────────────
@@ -181,6 +190,8 @@ export const snapshot = (
   groups: readonly { arrow: string; owner: string; heads: number; spent: number; speedOverride?: MergeOverride }[];
   trails: readonly { player: string; arrows: readonly string[] }[];
   territory: readonly { arrow: string; owner: string }[];
+  accumulators: readonly { arrow: string; num: number; den: number }[];
+  spawners: readonly { vertex: string; num: number; den: number; phase: number }[];
 } => ({
   activePlayer: state.activePlayer,
   players: [...state.players],
@@ -196,6 +207,17 @@ export const snapshot = (
   territory: [...state.territory.entries()]
     .map(([arrow, owner]) => ({ arrow: String(arrow), owner: String(owner) }))
     .toSorted((left, right) => (left.arrow < right.arrow ? -1 : 1)),
+  accumulators: [...state.accumulators.entries()]
+    .map(([arrow, r]) => ({ arrow: String(arrow), num: r.num, den: r.den }))
+    .toSorted((left, right) => (left.arrow < right.arrow ? -1 : 1)),
+  spawners: [...state.spawners.entries()]
+    .map(([vertex, s]) => ({
+      vertex: String(vertex),
+      num: s.force.num,
+      den: s.force.den,
+      phase: s.phase,
+    }))
+    .toSorted((left, right) => (left.vertex < right.vertex ? -1 : 1)),
 });
 
 /** The legal steps out of one arrow, as the port reports them. */

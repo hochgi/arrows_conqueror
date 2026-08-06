@@ -11,14 +11,15 @@
  * P01 deliberately deferred this: a state shape guessed before a rule needed it
  * would have invented trails, territory and closure in type form. What is here
  * is exactly what movement (P04) and trails (P05) read. Later packets grow it — an
- * accumulator per arrow (P08) — and the absence of those fields is a statement
- * about scope, not an oversight.
+ * accumulator per arrow and authored spawners (P08) — and the absence of those
+ * fields before P08 was a statement about scope, not an oversight.
  *
  * @see docs/spec/movement/movement.md
  * @see docs/spec/trails/trails.md
  */
 
-import type { ArrowId, PlayerId } from './ids';
+import type { ArrowId, PlayerId, VertexId } from './ids';
+import type { Rational } from './rational';
 
 /**
  * The §3 price of merging mid-turn, as a speed override for the rest of the turn.
@@ -32,6 +33,19 @@ import type { ArrowId, PlayerId } from './ids';
  * that allowance arithmetic stays `spent < effectiveSpeed` everywhere (P04 D4).
  */
 export type MergeOverride = 0 | 1;
+
+/**
+ * An authored spawner on a vertex (§7). Force and initial phase are setup data
+ * (P09 owns the radial table; tests author these directly).
+ *
+ * `phase` is the index into the vertex's bordering arrows sorted by arrow id —
+ * the round-robin cursor (P08 / §11 item 41).
+ */
+export interface Spawner {
+  readonly force: Rational;
+  /** 0..2 into `borderArrows(vertex)` sorted by {@link ArrowId}. */
+  readonly phase: number;
+}
 
 /**
  * A **group**: the heads of one player standing on one arrow (§3).
@@ -55,7 +69,8 @@ export interface Group {
   readonly spent: number;
   /**
    * Set only by a merge, and only for the rest of the turn (§3). Absent is the
-   * ordinary case and means `speed(heads)`.
+   * ordinary case and means `speed(heads)`. Spawn births do **not** set this
+   * (§11 item 41).
    */
   readonly speedOverride?: MergeOverride;
 }
@@ -115,4 +130,15 @@ export interface GameState {
    * vertex ownership is a *reading* of this map and never a second copy of it.
    */
   readonly territory: ReadonlyMap<ArrowId, PlayerId>;
+  /**
+   * Per-arrow production counters (§7). Absent means {@link ZERO}. Reset to
+   * zero when the arrow's territory owner changes (capture). Exact rationals
+   * only — never float (ADR 0001).
+   */
+  readonly accumulators: ReadonlyMap<ArrowId, Rational>;
+  /**
+   * Spawners on vertices, keyed by vertex. Empty until setup (P09) or a test
+   * authors them. Accrual ticks once per full round (§11 item 41).
+   */
+  readonly spawners: ReadonlyMap<VertexId, Spawner>;
 }
