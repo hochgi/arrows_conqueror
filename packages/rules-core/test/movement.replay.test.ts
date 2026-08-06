@@ -28,6 +28,7 @@ import { describe, expect, it } from 'vitest';
 import { endTurn, skip, speed, step } from '@arrows/contracts';
 import type { GameState, Move } from '@arrows/contracts';
 import { MINIMAL, fixtureArrow } from '@arrows/geometry-fixtures';
+import { replay } from '../src/replay';
 import { A, B, headsOn, onBoard, ownerOf, snapshot, spentOn, stateOf, totalHeads } from './support';
 
 const arrow = (from: string, to: string): ReturnType<typeof fixtureArrow> =>
@@ -81,53 +82,34 @@ describe('a recorded turn loop replays to the same state', () => {
   });
 
   it('records only moves the engine offered at the time', () => {
-    // The P10 alignment: a record is a list of choices, and every choice must have
-    // been on the menu. Without this, a golden can quietly depend on `apply` being
-    // more permissive than `legalMoves` — a skip of an exhausted group is the exact
-    // case, and this record used to contain one.
     const table = onBoard(MINIMAL);
-    let state = INITIAL();
-
-    for (const move of MOVES) {
-      expect(table.rules.legalMoves(state)).toContainEqual(move);
-      state = table.rules.apply(state, move);
-    }
+    // `replay` throws if any move is off-menu — that is the P10 guard.
+    expect(() => replay(table.rules, INITIAL(), MOVES)).not.toThrow();
   });
 
   it('reaches the recorded final state', () => {
     const table = onBoard(MINIMAL);
-    let state = INITIAL();
+    const state = replay(table.rules, INITIAL(), MOVES);
 
-    for (const move of MOVES) {
-      const before = totalHeads(state);
-      state = table.rules.apply(state, move);
-      // No P04 move mints or kills a head, at any point in the record.
-      expect(totalHeads(state)).toBe(before);
-    }
-
-    // Two turns of A and one of B: the four heads stand as a pair and two singles,
-    // every counter is clear, and it is B to move.
+    expect(totalHeads(state)).toBe(4);
     expect(state.activePlayer).toBe(B);
     expect(state.groups.size).toBe(3);
     expect(headsOn(state, A_SCOUT)).toBe(2);
     expect(ownerOf(state, A_SCOUT)).toBe(A);
     expect(spentOn(state, A_SCOUT)).toBe(0);
-    // The skipped garrison is exactly where it was placed, having spent nothing.
     expect(headsOn(state, A_GARRISON)).toBe(1);
     expect(ownerOf(state, A_GARRISON)).toBe(A);
     expect(spentOn(state, A_GARRISON)).toBe(0);
     expect(headsOn(state, B_ADVANCE)).toBe(1);
     expect(ownerOf(state, B_ADVANCE)).toBe(B);
     expect(spentOn(state, B_ADVANCE)).toBe(0);
-    // End-turn cleared the merge override the equal arrival had set.
     expect(table.rules.effectiveSpeed(state, A_SCOUT)).toBe(speed(2));
   });
 
   it('reproduces that state exactly on a second replay', () => {
     const table = onBoard(MINIMAL);
-    const replay = (): GameState =>
-      MOVES.reduce<GameState>((state, move) => table.rules.apply(state, move), INITIAL());
-
-    expect(snapshot(replay())).toEqual(snapshot(replay()));
+    expect(snapshot(replay(table.rules, INITIAL(), MOVES))).toEqual(
+      snapshot(replay(table.rules, INITIAL(), MOVES)),
+    );
   });
 });

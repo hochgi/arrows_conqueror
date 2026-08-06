@@ -16,3 +16,5 @@
  */
 
 export { makeRules } from './movement';
+export { replay, replayIsDeterministic } from './replay';
+export type { ReplayOptions } from './replay';
