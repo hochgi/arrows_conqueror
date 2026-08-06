@@ -126,8 +126,9 @@ never the right to stand beside it.
 
 - **What a crossing costs.** Evaporation, its fronts and its kills are P06 (§6.1);
   the 1:1 exchange at the point is P06 (§6.2).
-- **What a self-crossing claims.** Lobe inversion under even-odd is P05b (§7).
-  Here it is reported and nothing more.
+- **What a self-crossing claims.** What the loop rings once the path is claimed is
+  P05b's (§7, §11 item 36 — reachability, so there is no lobe inversion to report).
+  Here the crossing is reported and nothing more.
 - **Whether the crossing move is legal.** It is — that is §2's whole point about
   crossing being a decision. Legality lives in [trails](../trails/trails.md) and
   P04; this file answers *did it cross*, not *may it*.

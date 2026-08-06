@@ -58,8 +58,8 @@ and a victory bug at once:
 
 - A trail is a tree rooted at territory, or it is unanchored. It is never a
   disconnected mess of both.
-- Closure fill is even-odd correct: a region is claimed iff it cannot reach the
-  outside without crossing the boundary set.
+- Closure fill is reachability-correct (§11 item 36, **not** even-odd): a region is
+  claimed iff no walk from it escapes the claiming player's ground.
 - An unanchored trail claims nothing, ever.
 - Evaporation only ever removes arrows forward of the cut, along the grain.
 

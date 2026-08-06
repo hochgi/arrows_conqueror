@@ -2,8 +2,8 @@
 
 Tool-agnostic conventions for this repo. Every developer and every AI coding tool
 (Claude Code, Cursor, Codex, …) follows these regardless of IDE. Tool-specific
-notes live in each tool's own file (`CLAUDE.md`, …) and import this one as the
-shared base.
+notes live in each tool's own file (`CLAUDE.md`, `CURSOR.md`, …) and import this
+one as the shared base.
 
 ## What this repo is
 

@@ -29,7 +29,9 @@ import type {
   SkipMove,
   StepMove,
 } from '@arrows/contracts';
+import { makeCombatRules, resolveBattle } from './combat';
 import { makeClosureRules } from './closure';
+import { makeCutRules } from './cuts';
 import { compareArrows } from './order';
 import { makeTrailRules } from './trails';
 
@@ -74,6 +76,9 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
   const trails = makeTrailRules(geometry);
   // P05b's half: what a landing claims, and what the claimed ground rings.
   const closure = makeClosureRules(geometry);
+  // P06: contact-combat losses (query) and cut evaporation after a step.
+  const combat = makeCombatRules(geometry);
+  const cuts = makeCutRules(geometry);
 
   /**
    * How far the group may go this turn: `speed(heads)`, unless a merge set an
@@ -107,17 +112,8 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     geometry.outArrows(geometry.target(arrow));
 
   /**
-   * May the active player's heads land here? Empty ground or their own group —
-   * an opponent-held arrow is refused, because contact is combat (P06, §6.2) and
-   * not a movement rule.
-   */
-  const canLand = (state: GameState, exit: ArrowId): boolean => {
-    const standing = state.groups.get(exit);
-    return standing === undefined || standing.owner === state.activePlayer;
-  };
-
-  /**
-   * What stands on the destination once the step has landed.
+   * What stands on the destination once the step has landed on empty ground or
+   * the mover's own group.
    *
    * Empty ground: the movers carry their own `spent`, one more for this step, and
    * they carry any merge override **with them** — an override travels with the
@@ -139,6 +135,9 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
   /**
    * The group a step moves, or a refusal — every reason P04 D2 gives, in one
    * place, so no caller can take a step past a check by accident.
+   *
+   * Enemy-occupied destinations are legal here: contact combat (§6.2) resolves
+   * them inside `applyStep` rather than refusing the step.
    */
   const moversFor = (state: GameState, move: StepMove): Group => {
     const movers = requireActive(state, move.from);
@@ -158,48 +157,98 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
         `the group on ${String(move.from)} has spent ${String(movers.spent)} of its ${String(allowance)}`,
       );
     }
-    if (!canLand(state, move.exit)) {
-      reject(`${String(move.exit)} is held by the opponent — contact is P06, not movement`);
-    }
     return movers;
   };
 
   /**
-   * A step: occupancy, then the mark it leaves.
+   * §6.2 / item 38: an attack may not empty `from` — stay-behind ≥ 1. A lone
+   * head therefore cannot attack. Refuse rather than silently capping.
+   */
+  const requireStayBehind = (movers: Group, move: StepMove, contact: Group): void => {
+    if (movers.heads < 2 || move.count > movers.heads - 1) {
+      reject(
+        `attack from ${String(move.from)} onto ${String(contact.owner)} on ${String(move.exit)} must leave at least one head behind (heads=${String(movers.heads)}, count=${String(move.count)})`,
+      );
+    }
+  };
+
+  /**
+   * Write the split remainder on `from` after `count` heads leave (or die).
+   */
+  const leaveRemainder = (
+    groups: Map<ArrowId, Group>,
+    from: ArrowId,
+    movers: Group,
+    count: number,
+  ): void => {
+    const remainder = movers.heads - count;
+    if (remainder === 0) {
+      groups.delete(from);
+    } else {
+      groups.set(from, asGroup(movers.owner, remainder, movers.spent, movers.speedOverride));
+    }
+  };
+
+  /**
+   * A step: occupancy (ordinary or contact combat), then the mark it leaves,
+   * then cut evaporation, then closure.
    *
    * The branch mandate is asked **before** anything is written, against the trail
    * the move would leave (§5, P05 D6) — an illegal move is never a plausible no-op
    * (P04 D2), so a step that cannot pay for a branch must not have moved anything.
+   *
+   * P06 D6: combat (when contact) first, then cut against the trail set, then
+   * closure. `evaporate` / `commit` are no-ops when the step is neither.
    */
   const applyStep = (state: GameState, move: StepMove): GameState => {
     const movers = moversFor(state, move);
     trails.requireBranchAnchors(state, move, movers.owner);
     const groups = new Map(state.groups);
-    const remainder = movers.heads - move.count;
-    // A split leaves the remainder its parent's `spent` and its parent's override,
-    // and only the movers pay for the step (§3; SPEC §11 item 33).
-    if (remainder === 0) {
-      groups.delete(move.from);
+    const standing = state.groups.get(move.exit);
+    const contact =
+      standing !== undefined && standing.owner !== movers.owner ? standing : undefined;
+
+    let landed = true;
+    if (contact !== undefined) {
+      // §6.2 / item 38: stay-behind, fight-to-wipe, mark only on land.
+      requireStayBehind(movers, move, contact);
+      const { aRem, dRem } = resolveBattle(move.count, contact.heads);
+      leaveRemainder(groups, move.from, movers, move.count);
+      if (dRem === 0) {
+        // Attacker lands with A remaining — ordinary occupancy on emptied ground.
+        landed = true;
+        if (aRem === 0) {
+          groups.delete(move.exit);
+        } else {
+          groups.set(move.exit, asGroup(movers.owner, aRem, movers.spent + 1, movers.speedOverride));
+        }
+      } else {
+        // Attacker wiped — stay-behind is the tip; do not mark the destination.
+        landed = false;
+        groups.set(move.exit, asGroup(contact.owner, dRem, contact.spent, contact.speedOverride));
+      }
     } else {
-      groups.set(
-        move.from,
-        asGroup(movers.owner, remainder, movers.spent, movers.speedOverride),
-      );
+      // A split leaves the remainder its parent's `spent` and its parent's override,
+      // and only the movers pay for the step (§3; SPEC §11 item 33).
+      leaveRemainder(groups, move.from, movers, move.count);
+      groups.set(move.exit, landing(movers, move.count, standing));
     }
-    groups.set(move.exit, landing(movers, move.count, state.groups.get(move.exit)));
+
     const stepped: GameState = {
       ...state,
       groups,
-      trails: trails.markStep(state, move, movers.owner),
+      trails: landed ? trails.markStep(state, move, movers.owner) : state.trails,
     };
+    const afterCut = cuts.evaporate(stepped, move, movers.owner);
     // A closure is an ordinary step onto your own territory (§7, P05b D1), so it is
     // resolved here rather than behind a move kind of its own. `commit` returns the
     // state untouched when the step is not one, which keeps this a single expression.
     //
-    // Handed the *stepped* state on purpose: `move.from` is still in the trail —
+    // Handed the *post-cut* state on purpose: `move.from` is still in the trail —
     // marking only ever adds — and the backward walk reads no head positions, so the
-    // claim is identical either side of the move.
-    return closure.commit(stepped, move, movers.owner);
+    // claim is identical either side of the move. A cut mid-closure is the victim's
+    // problem on the cutter's turn, not a reorder here.
+    return closure.commit(afterCut, move, movers.owner);
   };
 
   /**
@@ -269,8 +318,11 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     const moves: Move[] = [];
     for (const [arrow, group] of movable(state)) {
       for (const exit of exitsFrom(arrow)) {
-        if (!canLand(state, exit)) continue;
-        for (let count = 1; count <= group.heads; count += 1) {
+        // Enemy-occupied exits: stay-behind (§6.2 / item 38) — offer 1..heads-1 only.
+        const standing = state.groups.get(exit);
+        const isAttack = standing !== undefined && standing.owner !== group.owner;
+        const maxCount = isAttack ? group.heads - 1 : group.heads;
+        for (let count = 1; count <= maxCount; count += 1) {
           const candidate = step(arrow, exit, count);
           if (trails.unpaidBranch(state, candidate, group.owner) !== undefined) continue;
           moves.push(candidate);
@@ -304,5 +356,6 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     anchorGrade: trails.anchorGrade,
     closureOf: closure.closureOf,
     enclosedBy: closure.enclosedBy,
+    combatLosses: combat.combatLosses,
   };
 };

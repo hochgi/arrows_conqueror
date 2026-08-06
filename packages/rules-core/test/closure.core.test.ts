@@ -17,6 +17,7 @@ import { step } from '@arrows/contracts';
 import {
   A,
   B,
+  aRingWithAnInside,
   aRunFromHome,
   anExitFrom,
   arrowAt,
@@ -242,11 +243,51 @@ describe('the path is claimed either way, and fill finds what it rings', () => {
     expect(claim?.path.map(String).toSorted()).toEqual(fragment.map(String).toSorted());
     expect(claim?.enclosed).toEqual([]);
   });
+
+  it('claims the interior a loop rings', () => {
+    // §11 item 36: the path becomes ground and fill finds the pocket.
+    const table = onTiling();
+    const ring = aRingWithAnInside(table.geometry);
+    const tip = arrowAt(ring.wall, 5);
+    const landing = anExitFrom(table.geometry, tip);
+    const home = pick(
+      table.geometry.inArrows(table.geometry.origin(arrowAt(ring.wall, 0))),
+      0,
+    );
+    const state = stateOf([{ arrow: tip, owner: A, heads: 1 }], A, {
+      trail: { A: [...ring.wall] },
+      territory: owned([home, landing], A),
+    });
+
+    const after = table.rules.apply(state, step(tip, landing, 1));
+
+    expect(territoryOf(after, ring.inside)).toBe(A);
+    for (const arrow of ring.wall) expect(territoryOf(after, arrow)).toBe(A);
+  });
 });
 
 // ── Rule: a closure moves ground, whoever held it ─────────────────────────────
 
 describe('a closure moves ground, whoever held it', () => {
+  it('carves a chunk out of enemy territory', () => {
+    const table = onTiling();
+    const ring = aRingWithAnInside(table.geometry);
+    const tip = arrowAt(ring.wall, 5);
+    const landing = anExitFrom(table.geometry, tip);
+    const home = pick(
+      table.geometry.inArrows(table.geometry.origin(arrowAt(ring.wall, 0))),
+      0,
+    );
+    const state = stateOf([{ arrow: tip, owner: A, heads: 1 }], A, {
+      trail: { A: [...ring.wall] },
+      territory: [...owned([home, landing], A), { arrow: ring.inside, owner: B }],
+    });
+
+    const after = table.rules.apply(state, step(tip, landing, 1));
+
+    expect(territoryOf(after, ring.inside)).toBe(A);
+  });
+
   it('leaves an enemy trail on a claimed arrow alone', () => {
     // Removing it would be evaporation, and evaporation is P06. Trails overlap.
     const table = onTiling();
@@ -293,7 +334,25 @@ describe('a closure moves ground, whoever held it', () => {
 // ── Rule: claimed arrows leave the claiming player's trail ────────────────────
 
 describe('claimed arrows leave the claiming player’s trail', () => {
-  it('empties the trail it claimed and keeps what it did not', () => {
+  it('empties the trail of every arrow it claimed', () => {
+    // trails' invariant: an arrow is never both a player's own territory and their own
+    // trail. A closure is the first thing in the engine that removes trail.
+    const table = onTiling();
+    const { home, run } = aRunFromHome(table.geometry, 3);
+    const last = arrowAt(run, 2);
+    const landing = anExitFrom(table.geometry, last);
+    const state = stateOf([{ arrow: last, owner: A, heads: 1 }], A, {
+      trail: { A: [...run] },
+      territory: owned([home, landing], A),
+    });
+
+    const after = table.rules.apply(state, step(last, landing, 1));
+
+    for (const arrow of run) expect(isTrail(after, A, arrow)).toBe(false);
+    expect(trailOf(after, A)).toEqual([]);
+  });
+
+  it('leaves the arm it did not claim in the trail', () => {
     const table = onTiling();
     const { home, run } = aRunFromHome(table.geometry, 2);
     const stem = arrowAt(run, 0);

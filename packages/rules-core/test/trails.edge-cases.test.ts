@@ -222,23 +222,25 @@ describe('two players’ trails may share an arrow', () => {
     expect(isTrail(after, B, x1)).toBe(true);
   });
 
-  it('still refuses a step onto an arrow the enemy occupies', () => {
-    // "An arrow in two trails is still one arrow of occupancy". P04's rule is
-    // untouched — contact is combat (P06), and marking does not make an occupied
-    // arrow enterable.
+  it('resolves combat when stepping onto an arrow the enemy occupies', () => {
+    // "An arrow in two trails is still one arrow of occupancy". Contact is
+    // combat (P06 §6.2) — stay-behind required; 1v1 lands with count 1 of 2.
     const table = onBoard();
     const n1 = anArrow(table.geometry);
     const x1 = anExitFrom(table.geometry, n1);
     const before = stateOf(
       [
-        { arrow: n1, owner: B, heads: 1 },
+        { arrow: n1, owner: B, heads: 2 },
         { arrow: x1, owner: A, heads: 1 },
       ],
       B,
       { trail: { A: [x1], B: [n1, x1] } },
     );
 
-    expect(() => table.rules.apply(before, step(n1, x1, 1))).toThrow(ContractViolation);
+    const after = table.rules.apply(before, step(n1, x1, 1));
+    expect(after.groups.get(x1)?.owner).toBe(B);
+    expect(after.groups.get(x1)?.heads).toBe(1);
+    expect(after.groups.get(n1)?.heads).toBe(1);
   });
 });
 

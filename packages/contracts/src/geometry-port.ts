@@ -79,8 +79,8 @@ export interface GeometryPort {
   seedPoint(): PointId;
 
   /**
-   * Enumerate a bounded region. Even-odd fill (SPEC §7) sweeps a region of the
-   * board through this port and must not know how the board is represented.
+   * Enumerate a bounded region. Fill (SPEC §7) sweeps a region of the board
+   * through this port and must not know how the board is represented.
    *
    * Order must be stable across calls, and two ports built from the same
    * description must return identical windows. ADR 0001 names ordering — not

@@ -12,7 +12,7 @@ chord test), §6.1a invariant 3, §11 items 4, 16, 30, **36**
 wrong-but-plausible implementation produces a wrong answer rather than a crash
 (§6.1a). It is also, after §11 item 36, much simpler than it was:
 
-> **A pocket of non-territory that cannot reach infinity is enclosed.**
+> **A pocket that cannot reach infinity past the player's own ground is enclosed.**
 
 [closure](../closure/closure.md) claims the walked path first. This file then asks
 one question of the board: *what did that leave surrounded?*
@@ -74,20 +74,29 @@ cannot arise: `X` and `Y` are both non-territory, so they share no slot with a
 territory chord — which is why `chordsInterleave` and `chordsCross` agree here and the
 narrow one is used for consistency with §7's other caller.
 
-## Bounded by the claim, never by the board
+## Bounded by the ground that rings, never by the board
 
-§7: *fill is bounded by the trail, not by the board.* A claimed path of *L* arrows
-cannot surround more than `O(L²)` arrows, so the sweep needs a `window()` sized from
-the claim — and there is no board extent to read instead (§11 item 4).
+§7: *fill is bounded by the ground doing the ringing, not by the board.* A closed run
+of *L* arrows cannot surround more than `O(L²)`, so the sweep needs a `window()` sized
+from that run — and there is no board extent to read instead (§11 item 4).
 
-The radius derivation lives in **one** place with its bound stated. A window one step
-too small does not crash; it reports a pocket as escaping. That is this file's whole
+**The run, not the freshly walked path.** Existing territory is part of the wall, so a
+one-arrow closure across the mouth of a C-shaped holding rings everything that holding
+curls around. And the other way about: a second holding elsewhere on the board rings
+nothing here, so it must not size or centre the sweep. Both follow from taking the
+wall a pocket is *actually* ringed by — a run of the player's arrows that touch —
+rather than the ground set entire.
+
+The derivation lives in **one** place with its bound stated. A window one step too
+small does not crash; it reports a pocket as escaping. That is this file's whole
 failure mode, and the reason the bound is an invariant rather than a comment.
 
 ## Invariants
 
-- The system shall report an arrow enclosed when no walk from it over non-territory
-  arrows escapes the claimed ground, and not enclosed when one does.
+- The system shall report an arrow enclosed when no walk from it over arrows that are
+  not the player's own escapes the claimed ground, and not enclosed when one does.
+  Another player's territory walls nothing: it is walked over, and it is claimed
+  (§7, *territory is contestable*).
 - The system shall block a walk between two arrows sharing a point when their chord
   interleaves with a chord the player's ground presents at that point.
 - The system shall report every arrow of an enclosed pocket enclosed, and no arrow of
@@ -96,8 +105,8 @@ failure mode, and the reason the bound is an invariant rather than a comment.
 - When the claimed ground rings a region with more than one loop, the system shall
   report the whole interior enclosed.
 - The system shall report nothing enclosed for a claim that rings nothing.
-- The system shall bound its sweep by the claim's own extent and shall read no board
-  extent.
+- The system shall bound its sweep by the extent of the ground that does the ringing,
+  and shall read no board extent. Ground that rings nothing shall not widen it.
 - The system shall derive every chord through `slotOf`, and shall infer no slot from
   an arrow identifier.
 - The system shall enumerate no vertex.

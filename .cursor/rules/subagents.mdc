@@ -1,0 +1,23 @@
+---
+description: Cursor-specific subagent model and launch rules for arrows-conqueror
+alwaysApply: true
+---
+
+# Cursor subagents
+
+Project subagents live in `.cursor/agents/` (`coder`, `reviewer`, `spec-author`,
+`test-author`). Each pins **`model: cursor-grok-4.5-high`** — the current Grok
+high tier. When Cursor ships a newer Grok slug, bump those four frontmatters
+together.
+
+`.claude/agents/` remains for Claude Code (`model: opus`). Cursor prefers
+`.cursor/agents/` when both exist.
+
+## Launching via Task
+
+- **Omit the `model` argument** unless the human explicitly named a model.
+  Passing a slug overrides frontmatter and is how a phase silently lands on the
+  wrong tier (`CLAUDE.md` / `CURSOR.md`).
+- No phase here is a cheap-tier phase — do not pass `fast` / low Grok for
+  spec, tests, code, or review.
+- Skills stay under `.claude/skills/`; agents reference those paths.

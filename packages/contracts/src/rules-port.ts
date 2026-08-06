@@ -92,12 +92,13 @@ export interface RulesPort {
    *
    * @throws ContractViolation if the move is illegal — the wrong player's stack,
    * an exit that is not an out-arrow of the source's target, more heads than the
-   * source holds, no allowance left, an enemy-occupied destination, or an
-   * identifier the board does not have (P04 D2, D9). An illegal move is never a
-   * plausible no-op: a wrong step must not become a silent wrong board state.
+   * source holds, no allowance left, or an identifier the board does not have
+   * (P04 D2, D9). An illegal move is never a plausible no-op: a wrong step must
+   * not become a silent wrong board state.
    *
-   * Stepping onto an enemy-occupied arrow is refused **here** because combat is
-   * P06 (§6.2), not because heads destroy each other on contact.
+   * Stepping onto an enemy-occupied arrow is **contact combat** (P06, §6.2 /
+   * §11 item 37): losses follow the threat-weighted floor rule, then any cut the
+   * traversal also causes. P04 refused that destination; P06 resolves it.
    */
   apply(state: GameState, move: Move): GameState;
 
@@ -155,9 +156,9 @@ export interface RulesPort {
   /**
    * Does this traversal cross `mover`'s **own** trail at the point it transits?
    *
-   * The **narrow** verdict — `chordsInterleave` only — which is what §7's even-odd
-   * takes. Coincidence cannot invert anything: re-traversing an arrow already in
-   * the set leaves the set unchanged (§6.1a), so there is nothing for fill to flip.
+   * The **narrow** verdict — `chordsInterleave` only — which is what §7's fill takes
+   * for its walls (§11 item 36). Coincidence cannot block anything: re-traversing an
+   * arrow already in the set leaves the set unchanged (§6.1a).
    *
    * Deliberately a second method rather than `crossesTrail` with the mover as
    * victim. The predicate is shared and the question is not, and the two are one
@@ -225,4 +226,30 @@ export interface RulesPort {
    * @throws ContractViolation if `ground` holds an arrow the board does not have.
    */
   enclosedBy(ground: ReadonlySet<ArrowId>, player: PlayerId): readonly ArrowId[];
+
+  /**
+   * Contact-combat losses for an attack of `attackerCount` heads against
+   * `defenderHeads` on the destination (SPEC §6.2, §11 item 37).
+   *
+   * Pure arithmetic: threat-weighted floor rule, exact (integer / rational), no
+   * float and no randomness (ADR 0001). Equivalent integer weights:
+   * *wa*∶*wd* = *D*² ∶ *A*(*A*+*D*).
+   *
+   * A **query** — it computes the losses and changes nothing. `apply` is what
+   * spends them on the board.
+   *
+   * @throws ContractViolation if either count is not a positive integer.
+   */
+  combatLosses(attackerCount: number, defenderHeads: number): CombatLosses;
+}
+
+/**
+ * Heads each side loses in one contact exchange (§6.2).
+ *
+ * Both are whole numbers after flooring (and the both-floors-0 tie-break). Caps
+ * keep `attacker ≤ A` and `defender ≤ D`.
+ */
+export interface CombatLosses {
+  readonly attacker: number;
+  readonly defender: number;
 }

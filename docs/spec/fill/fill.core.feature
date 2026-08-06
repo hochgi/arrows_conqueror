@@ -103,15 +103,25 @@ Feature: Fill — the pockets your own ground rings
       # the claim's, so no walk can transit at all. Enclosed is the right answer and
       # no rule had to say so.
 
-  Rule: The sweep is bounded by the claim, not by the board
+  Rule: The sweep is bounded by the ground that rings, not by the board
 
-    Scenario: The sweep looks no further than the claim can ring
+    Scenario: The sweep looks no further than the ring can reach
       Given a claim of L arrows
       When it is filled
-      Then the region examined is bounded by a window derived from L
+      Then the region examined is bounded by a window derived from that run of L
       And no board extent was read
-      # §7: a claim of L arrows cannot surround more than O(L²), so the sweep is finite
-      # though the board is not — and §11 item 4 means there is no extent to read.
+      # §7: a closed run of L arrows cannot surround more than O(L²), so the sweep is
+      # finite though the board is not — and §11 item 4 means there is no extent to read.
+
+    Scenario: A holding elsewhere on the board does not move the sweep
+      Given player A's ground rings a pocket
+      And player A also holds an arrow far away, which rings nothing
+      When I ask which arrows it encloses
+      Then the pocket is still enclosed
+      # The bound belongs to the run of arrows that actually rings the pocket. Sizing and
+      # centring one window on the player's whole ground instead let a distant second
+      # holding drag the sweep off the closure, and the pocket read as escaping — a wrong
+      # answer rather than a crash, which is this rule's whole reason for existing.
 
     Scenario: An arrow far outside a small claim is never examined
       Given a claim of three arrows

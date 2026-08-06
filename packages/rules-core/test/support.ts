@@ -179,11 +179,22 @@ export const snapshot = (
   activePlayer: string;
   players: readonly string[];
   groups: readonly { arrow: string; owner: string; heads: number; spent: number; speedOverride?: MergeOverride }[];
+  trails: readonly { player: string; arrows: readonly string[] }[];
+  territory: readonly { arrow: string; owner: string }[];
 } => ({
   activePlayer: state.activePlayer,
   players: [...state.players],
   groups: [...state.groups.entries()]
     .map(([arrow, group]) => ({ arrow: String(arrow), ...group, owner: String(group.owner) }))
+    .toSorted((left, right) => (left.arrow < right.arrow ? -1 : 1)),
+  trails: [...state.trails.entries()]
+    .map(([player, arrows]) => ({
+      player: String(player),
+      arrows: [...arrows].map(String).toSorted(),
+    }))
+    .toSorted((left, right) => (left.player < right.player ? -1 : 1)),
+  territory: [...state.territory.entries()]
+    .map(([arrow, owner]) => ({ arrow: String(arrow), owner: String(owner) }))
     .toSorted((left, right) => (left.arrow < right.arrow ? -1 : 1)),
 });
 
@@ -504,4 +515,176 @@ export const aRunFromHome = (
 ): { readonly home: ArrowId; readonly run: readonly ArrowId[] } => {
   const home = firstOf(geometry.inArrows(geometry.seedPoint()), 'in-arrow at the seed point');
   return { home, run: pathFrom(geometry, anExitFrom(geometry, home), length) };
+};
+
+/**
+ * A ring of arrows with at least one arrow strictly inside it, plus an arrow far
+ * outside — the shape every positive fill scenario needs.
+ *
+ * Deliberately **not** built from a lattice coordinate: the rules core receives ids
+ * from the port and passes them back (P01 D1), and a test that computed a hexagon from
+ * `cellArrow` would be testing the tiling's arithmetic rather than the fill. So the
+ * ring is grown through the port, and the scenario asserts against whatever it found.
+ *
+ * Girth is 3, and a 3-cycle rings nothing (§11 item 16). The shortest ring with an
+ * inside is a directed 6-cycle; the interior is arrows whose two endpoints are both
+ * ring points but which are not on the ring.
+ */
+export const aRingWithAnInside = (
+  geometry: GeometryPort,
+): {
+  readonly wall: readonly ArrowId[];
+  readonly inside: ArrowId;
+  readonly interior: readonly ArrowId[];
+  readonly far: ArrowId;
+} => {
+  const start = pick(geometry.outArrows(geometry.seedPoint()), 0);
+  const exits = (a: ArrowId): readonly ArrowId[] => exitsFrom(geometry, a);
+
+  const ring = ((): readonly ArrowId[] | undefined => {
+    const walk = (path: readonly ArrowId[]): readonly ArrowId[] | undefined => {
+      const last = arrowAt(path, path.length - 1);
+      if (path.length === 6) return exits(last).includes(start) ? path : undefined;
+      for (const next of exits(last)) {
+        if (path.includes(next)) continue;
+        const found = walk([...path, next]);
+        if (found !== undefined) return found;
+      }
+      return undefined;
+    };
+    return walk([start]);
+  })();
+  if (ring === undefined) {
+    throw new Error('setup: the tiling offered no directed 6-cycle from its seed point');
+  }
+
+  const points = new Set(
+    ring.flatMap((a) => [String(geometry.origin(a)), String(geometry.target(a))]),
+  );
+  const inside = [...new Set(ring.flatMap((a) => geometry.outArrows(geometry.target(a))))]
+    .filter((a) => !ring.includes(a))
+    .filter(
+      (a) => points.has(String(geometry.origin(a))) && points.has(String(geometry.target(a))),
+    )
+    .toSorted((l, r) => (String(l) < String(r) ? -1 : 1));
+  const first = inside[0];
+  if (first === undefined) throw new Error('setup: that ring has no interior arrow');
+
+  return {
+    wall: ring,
+    inside: first,
+    interior: inside,
+    far: arrowAt(pathFrom(geometry, start, 20, ring), 19),
+  };
+};
+
+/**
+ * An arrow that touches the ring's points from *outside* it — neither wall nor
+ * interior.
+ *
+ * What the "a walk may pass a point it does not cross" scenario needs: it shares points
+ * with the wall, so a fill that blocked every transit at a wall point would seal it in
+ * along with the pocket, and §2's *turning aside* case would be silently gone.
+ */
+export const justOutside = (
+  geometry: GeometryPort,
+  ring: { readonly wall: readonly ArrowId[]; readonly interior: readonly ArrowId[] },
+): ArrowId => {
+  for (const arrow of ring.wall) {
+    for (const point of [geometry.origin(arrow), geometry.target(arrow)]) {
+      for (const other of [...geometry.inArrows(point), ...geometry.outArrows(point)]) {
+        if (!ring.wall.includes(other) && !ring.interior.includes(other)) return other;
+      }
+    }
+  }
+  throw new Error('setup: every arrow touching that ring is the ring or its inside');
+};
+
+/**
+ * An arrow whose every neighbour is territory — the saturated point of fill.core.
+ *
+ * Both its endpoints have all six slots held, so no walk can transit at all and
+ * *enclosed* is arithmetic rather than a rule.
+ */
+export const anArrowWithNoRouteOut = (
+  geometry: GeometryPort,
+): { readonly arrow: ArrowId; readonly wall: readonly ArrowId[] } => {
+  const arrow = anArrow(geometry);
+  const wall = [geometry.origin(arrow), geometry.target(arrow)]
+    .flatMap((point) => [...geometry.inArrows(point), ...geometry.outArrows(point)])
+    .filter((other) => other !== arrow);
+  return { arrow, wall: [...new Set(wall)] };
+};
+
+/**
+ * A thick annulus of arrows around the tiling's seed — a wall no walk crosses.
+ *
+ * `window(k).arrows` is every arrow with an endpoint within `k` of the centre, so the
+ * band `window(r + 1) \ window(r - 1)` holds exactly the arrows whose nearest endpoint
+ * is `r` or `r + 1`. An arrow inside it has an endpoint at `r - 1` or nearer, one
+ * outside has none nearer than `r + 2`, and two arrows that share a point cannot be
+ * three apart — so inside and outside never touch and the band seals. Asked of the
+ * port, so no test learns a coordinate (P05b D9).
+ */
+export const aSealedBand = (geometry: GeometryPort, radius: number): readonly ArrowId[] => {
+  const centre = geometry.seedPoint();
+  const inner = new Set(geometry.window(centre, radius - 1).arrows);
+  return geometry.window(centre, radius + 1).arrows.filter((arrow) => !inner.has(arrow));
+};
+
+/**
+ * An arrow well clear of `near` whose identifier sorts **below** all of them.
+ *
+ * A second holding somewhere else on the board, in the position that used to drag a
+ * sweep's window off the closure: `compareArrows` orders on the identifier's string
+ * form, so the lowest-sorting arrow of a ground set is the one a single-window sweep
+ * centred itself on. Ids are compared, never parsed (P01 D1).
+ */
+export const aDistantHolding = (
+  geometry: GeometryPort,
+  near: readonly ArrowId[],
+): ArrowId => {
+  const floor = near.map(String).toSorted()[0] ?? '';
+  const shielded = new Set(
+    geometry.window(geometry.origin(arrowAt(near, 0)), 8).arrows.map(String),
+  );
+  const found = geometry
+    .window(geometry.seedPoint(), 20)
+    .arrows.find((arrow) => String(arrow) < floor && !shielded.has(String(arrow)));
+  if (found === undefined) throw new Error('setup: no distant arrow sorts below that claim');
+  return found;
+};
+
+/**
+ * A GeometryPort that counts vertex reads — used to assert §11 item 34 (fill and
+ * closure enumerate no vertex).
+ */
+export const countingVertices = (
+  geometry: GeometryPort,
+): { readonly geometry: GeometryPort; readonly vertexReads: () => number } => {
+  let reads = 0;
+  const wrapped: GeometryPort = {
+    seedPoint: () => geometry.seedPoint(),
+    window: (centre, radius) => {
+      const win = geometry.window(centre, radius);
+      // The window *lists* vertices for completeness of the port, but reading that
+      // list is not enumerating them as ownership — only flankVertices / borderArrows
+      // are the queries fill must not make. Count those.
+      return win;
+    },
+    inArrows: (point) => geometry.inArrows(point),
+    outArrows: (point) => geometry.outArrows(point),
+    origin: (arrow) => geometry.origin(arrow),
+    target: (arrow) => geometry.target(arrow),
+    flankVertices: (arrow) => {
+      reads += 1;
+      return geometry.flankVertices(arrow);
+    },
+    borderArrows: (vertex) => {
+      reads += 1;
+      return geometry.borderArrows(vertex);
+    },
+    slotOf: (point, arrow) => geometry.slotOf(point, arrow),
+  };
+  return { geometry: wrapped, vertexReads: () => reads };
 };

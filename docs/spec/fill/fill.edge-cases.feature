@@ -20,15 +20,17 @@ Feature: Fill — the leaks, the degeneracies and the determinism
       Then every arrow of the pocket is enclosed, including those in the lobe's shadow
       # Where a fixed-direction probe would have gone wrong and reachability does not.
 
-    Scenario: An arrow in a hole ringed inside a pocket is not enclosed
+    Scenario: An arrow in a hole ringed inside a pocket is enclosed as well
       Given player A's claim rings a pocket, and a second ring inside it fences off a hole
       And the hole's ground is not player A's
       When I ask whether an arrow in the hole is enclosed
-      Then it is not enclosed
-      # It cannot reach infinity through the outer ring, but it is not surrounded *by
-      # player A's ground* — the inner ring is what bounds it, and that ring is A's, so
-      # the hole is a pocket of its own. Read the scenario against the invariant, not
-      # against intuition: the two rings are separate walls.
+      Then it is enclosed
+      And every arrow of the pocket between the two rings is enclosed
+      # Both rings are player A's ground, so no walk out of the hole escapes — the inner
+      # ring stops it before the outer one is reached, and *enclosed* asks nothing else
+      # (§11 item 36). This is the same shape as fill.core's "two separate rings around
+      # one region": the withdrawn even-odd reading called the hole *outside* on the
+      # second crossing, and that reading is exactly what item 36 removed.
 
   Rule: A claim that rings nothing encloses nothing
 

@@ -51,13 +51,13 @@ This single test covers both real cases: threading between two of red's arrows (
 - A defender can **hold a contested point** without committing to a fight.
 - Two trails can **race in parallel** through the same corridor, mutually aware and mutually unobligated — until one of them turns.
 
-All three survive §6.2's contested-crossing rule only because **declining is always legal**. Skip is a first-class move (§4), so adjacency never forces a fight. What an enemy stack denies you is passage *through* the point — never the right to stand beside it.
+All three survive contact combat (§6.2) only because **declining is always legal**. Skip is a first-class move (§4), so adjacency never forces a fight. Two stacks that merely share a point ahead do not fight; what costs heads is *stepping onto* an enemy-occupied arrow — never the right to stand beside it.
 
 Three things then unify under one definition:
 
 - **Enemy cut** — an opponent traverses a point your trail passes through (§6.1).
 - **Self-crossing** — *you* revisit a point your own trail already uses. Only an **interleave** inverts the enclosed lobes (§7). Coincidence cannot: fill reads the trail's arrow *set* (§6.1a), and re-traversing an arrow you already hold leaves that set unchanged. So the predicate is shared but §7 asks the narrower question.
-- **Combat** — resolved at that point, which is where §6.2 already puts it, with its three approaches.
+- **Combat** — resolved on the **destination arrow** when that arrow holds an enemy group (§6.2 / §11 item 37). Contested-point 1:1 is withdrawn; the chord test decides cuts and self-crossings, not fights.
 
 It subsumes the tile rule for free: an enemy cannot stand on your trail arrow without entering through its tail point, which your trail also uses.
 
@@ -426,23 +426,49 @@ Branching is priced rather than restricted: §5 charges a head before a join and
 
 > An earlier draft proved this the hard way, from 3-in/3-out plus no-re-trace: each visit to a point consumes one in-arrow and one out-arrow, so after *k* arrivals at most *k−1* exits are used and one is always free. **That proof is true for a path and false for a tree.** A split makes one arrival fund several departures — fan a 3-stack out of a point onto all three of its out-arrows and the accounting goes negative, stranding anything that arrives there afterwards, including the sentry the player was told to leave. The proof is not patched here because invariant 2 removes the premise it needed.
 
-### 6.2 Contested crossings
+### 6.2 Contact combat
 
-Crossings resolve at points, and a stack contests the point **it points into**. That range is combat's alone — evaporation halts per arrow, not per point (§6.1), so a head guards the point ahead against an *enemy* and its own arrow against *fire*.
+~~**Contested-point combat** — *when two stacks point into the same point, a move against that point is a 1:1 attack* — **withdrawn.**~~ Shadowing and waiting beside an enemy without stepping onto them are ordinary play (§2, §4); merely sharing a point ahead is not a fight. See §11 item 37.
 
-> **When two players' stacks point into the same point, a move against that point is an attack rather than a step. Both sides lose one head.**
+Combat has one trigger:
 
-That is the entire rule. No attrition table, no tie-break, no bonus constant.
+> **An attack is an ordinary step whose destination arrow is occupied by an enemy group.**
 
-- **An attack costs a move**, spent from the attacking group's allowance (§3) like any other step. A 2-stack gets one attack a turn; a 4-stack gets two.
-- **Declining is always legal.** Skip is first-class (§4), so a stack may stand beside an enemy indefinitely. What it may not do is walk *through* the contested point without fighting for it. This is what keeps §2's promise intact — shadowing, parallel racing and holding a contested point all survive, because none of them requires passing through.
-- **Combat is interruptible.** A fight is a sequence of moves rather than one resolution, so reinforcements can arrive mid-fight and either side can disengage between rounds. A large stack can no longer grind a defender down inside a single turn; it can only out-bleed them over several, in the open, where the loser can see it coming.
+That is the only combat trigger. No battle slots, no secret allocation, no RNG.
 
-**Multi-prong is now emergent.** Two of your stacks pointing into one enemy-held point each attack for one, so the defender bleeds at twice the rate while each of yours bleeds at once. The reward for the genuinely hard thing — splitting your force and coordinating its arrival — falls out of rate arithmetic rather than a special case. This is what the previous draft was buying with a tie-flip, bought instead with nothing.
+**Stay-behind (Risk-style).** An attack may not empty the source arrow: at least one of the attacker's heads must remain on `from`. A lone head therefore **cannot attack**. That is intentional — singles are vulnerable to cuts and cannot contest occupied arrows, which pushes play toward fewer, larger groups (§11 item 38).
 
-**Sentries have two distinct jobs, and they sit on different axes.** A sentry **gates** the point ahead of it against an enemy step, and **absorbs** evaporation arriving along its own arrow from either side. Different threats, different ranges — one per point, one per arrow — so *where* along a trail you place them stays a real decision rather than one undifferentiated blob of defence.
+**Resolve (one move, fight to wipe, deterministic).** Let *A* be the number of attacking heads stepping (the step's `count`, with `count ≤ heads − 1`) and *D* the defender heads on the destination. The battle resolves **fully inside that step** — no mid-fight interrupts, no reinforcements, no other actions (HoMM-style). Retreat between rounds is deferred.
 
-An earlier draft unified the two ranges, on the grounds that a stack shields the point it points into against fire as well as against enemies. It cannot: a front that reaches a point has already come *through* one of that point's arrows, and letting a head on some *other* arrow retroactively bar it produces answers that contradict the ordinary cases. Per-arrow is the local rule, and locality is what keeps evaporation total.
+Each **round** uses the threat-weighted floor rule; rounds repeat until *A* or *D* is 0:
+
+1. **Threats:** *tA* = *D*/(*A*+*D*), *tD* = *A*/(*A*+*D*).
+2. **Loss weights** (attacker∶defender): *wa*∶*wd* = *tA*² ∶ *tD* (integer form *D*² ∶ *A*(*A*+*D*)).
+3. **Magnitude:** scale so max(atk_loss, def_loss) = *D*, preserving *wa*∶*wd*; then cap atk_loss ≤ *A* and def_loss ≤ *D*.
+4. **Integerize** with floor. If both floors are 0 but the weights are positive, deal 1 loss to the side with the larger weight (ties → defender takes the 1).
+5. Subtract losses; if both sides still have heads, repeat from (1) with the new *A*, *D*.
+
+**Outcomes**
+
+- *D* = 0: the attacker **lands** on the destination with remaining *A* (ordinary occupancy). Mark the destination as trail (§5) — a head stands there. The stay-behind remains on `from` and may later merge.
+- *A* = 0: the attacker **does not land** and **does not mark** the destination (§11 item 38). The stay-behind on `from` is the tip of their trail. The defender keeps remaining *D* on the arrow.
+
+Under the current magnitude step, a single round always wipes one side for positive integer *A*, *D*; the loop states the HoMM intent if the table is ever retuned.
+
+The attack **costs one step of allowance** for the whole battle (§3).
+
+**Equals favour the attacker** in a round where *A* = *D* (e.g. one round of 3v3 → attacker 2, defender 0). Do **not** special-case defender-wins-ties. Minimum contact is *A* ≥ 1 with a stay-behind, so a 1-stack cannot open equals.
+
+**Floor may yield zero attacker loss** in a round when *A* is moderately larger than *D* (e.g. 5v3). Accepted PoC — no min-1 unless playtesting asks.
+
+- **Declining is always legal.** Skip is first-class (§4); standing beside an enemy without stepping onto them fights nothing.
+- ~~**Combat is interruptible.**~~ — **withdrawn.** The battle ends only by wipe (retreat-between-rounds is a later optional).
+- **Cut and combat on one step.** If the destination is enemy-occupied *and* the traversal crosses that player's trail (`chordsCross`), resolve **combat first**, then **cut** against the trail set — trail is independent of heads (§6.1a). Evaporation is a cut on **trail**, not a wipe side-effect on bare or territory occupancy.
+- **Parked:** territory combat modifiers (defender-only loss / invader trail mark on claimed ground) — not MVP; see §11 item 39.
+
+**Sentries have two distinct jobs, and they sit on different axes.** A sentry **holds its arrow** against contact combat, and **absorbs** evaporation arriving along that arrow from either side (§6.1). Different threats, different ranges — contact is per arrow, fire is per arrow, and the withdrawn point-gating rule is not revived here. *Where* along a trail you place them stays a real decision.
+
+An earlier draft unified evaporation's halt with a point-wide shield. It cannot: a front that reaches a point has already come *through* one of that point's arrows, and letting a head on some *other* arrow retroactively bar it produces answers that contradict the ordinary cases. Per-arrow is the local rule, and locality is what keeps evaporation total.
 
 No randomness anywhere. A six-turn enclosure never dies to a bad roll; it dies to being outplayed.
 
@@ -487,7 +513,7 @@ The trail is a set with no memory (§6.1a), so "the path you walked" is not reco
 - **A cut fragment driven home is upstream, so all of it is claimed**, dead end included. That is the land bridge two bullets up, and it is why fighting a stranded stack home is worth the trip.
 - **At a merge, every trail in-arrow is claimed.** The set holds no pairing to prefer one by (§6.1a, §11 item 26), and a point is all-to-all in this direction for the same reason it is for evaporation.
 
-**The same walk says whether the landing encloses anything.** If it reaches ground you already own, the curve has territory at both ends, and there is an inside to fill. If it dead-ends, there is no second end and no parity to take — so the path becomes a strip and nothing more. That is *enclosure requires territory at both ends*, read off one traversal instead of a separate test.
+~~**The same walk says whether the landing encloses anything.**~~ — **withdrawn with even-odd (§11 item 36).** There is **no enclose-or-strip gate**: the walk claims the path either way, and what the claimed ground then rings is asked separately and answered by reachability above. A walk that dead-ends claims a strip because *a strip rings nothing*, not because a second test refused it — and a dead-ending walk that crossed itself on the way home claims the loop's inside all the same. The old wording justified "encloses nothing" by *enclosure requires territory at both ends*, which was a proxy for *the curve must close*, and a self-loop closes it.
 
 Closing grants the enclosed tiles **and everything standing on them** — enemy heads, converted (§6.3).
 
@@ -498,14 +524,14 @@ Two consequences worth stating, because the shares rule is easy to read as being
 - **The minimal closure takes a whole spawner.** Three arrows around one vertex enclose no tile, so a closure clause that granted "the specials inside" would hand the minimum enclosable territory (§11 item 16) nothing at all. Under shares it takes all three, and the minimum really is one: three arrows, three steps, one spawner. That is the game's cheapest objective and it is meant to be — a three-arrow closure is also the most cuttable thing on the board and claims nothing besides.
 - **An interior vertex comes free, and a surrounded spawner is never unowned.** A vertex strictly inside a filled region has all three borders claimed by the fill already, so it is wholly owned without a second pass. The reading is identical for an enclosure, a land bridge and a carve-out.
 
-**The fill needs a plane, and that is what decided the board** (§2). *Enclosed* means **cannot reach infinity**, so there has to be an infinity to fail to reach: a pocket of non-territory is yours exactly when no walk from it escapes your ground. On a torus there is no escaping and no outside, so the notion is not merely wrong there — it is undefined, which is why the board is the unbounded plane (§11 items 4 and 30).
+**The fill needs a plane, and that is what decided the board** (§2). *Enclosed* means **cannot reach infinity**, so there has to be an infinity to fail to reach: a pocket is yours exactly when no walk from it escapes **your** ground. Only your own ground walls the walk — whose the pocket was does not enter into it, which is *territory is contestable* below and what makes a carve-out one rule rather than two. On a torus there is no escaping and no outside, so the notion is not merely wrong there — it is undefined, which is why the board is the unbounded plane (§11 items 4 and 30).
 
 **A pocket does not leak at a point.** Reachability is over arrows, and two of your arrows meeting at a single point form a barrier even though no tile sits in the gap — that is §2's chord test, and without it every enclosure in the game would leak through the seam between two trail arrows.
 
 Two consequences worth stating, because they are what "unbounded" costs and buys:
 
 - **A closed curve always has an inside.** There is no girdling case, no non-separating loop, and no homology test anywhere in the engine.
-- **Fill is bounded by the trail, not by the board.** A trail of *L* arrows cannot enclose more than `O(L²)` of them, so the sweep is finite even though the board is not — and it is the only place the engine ever needs a bounded region of an unbounded lattice.
+- **Fill is bounded by the ground doing the ringing, not by the board.** A pocket is ringed by one closed run of arrows you hold, and a run of *L* arrows cannot ring more than `O(L²)` of them — so the sweep is finite even though the board is not, and it is the only place the engine ever needs a bounded region of an unbounded lattice. The bound belongs to the **ring**, not to the trail just walked: a one-arrow closure across the mouth of a C-shaped holding rings everything that holding curls around, and a second holding elsewhere on the board bounds nothing and must not widen the sweep.
 
 ### The pincer
 
@@ -634,7 +660,7 @@ So the comparison is no longer heads-destroyed against heads-produced. It is **t
 
 - A destroyed region of *R* arrows cost its owner *R* moves to lay, plus whatever the enclosure it was building would have been worth.
 - A spawner accrues one head every 1/*f* turns, and a head is worth roughly its remaining reach.
-- Heads only actually die in two places: **§6.2 combat**, one apiece per exchange, and **§6.3 conversion**, wholesale.
+- Heads only actually die in two places: **§6.2 contact combat**, threat-weighted losses per exchange (often more than one head), and **§6.3 conversion**, wholesale.
 
 **The victim picks which currency they pay in**, which is the sharpest consequence of the bare-trail default. Run bare and fast, and cuts cost you trail and time but no heads. Garrison, and cuts cost heads instead — but you paid those heads up front by parking them. There is no dominant answer on paper, and finding out which is right is most of what the first playtest is for.
 
@@ -751,7 +777,7 @@ Known pressure points and their built-in counterweights:
 | Safe movement inside territory is free, so a large empire repositions instantly | A large empire has an enormous perimeter it cannot garrison everywhere |
 | More specials → more heads | Specials are physical locations that can be attacked, and only produce while enclosed |
 | Big stacks win fights | Big stacks are slow and throughput-negative; splitting is genuinely competitive |
-| Leader can cut every enemy chain | Cutting requires leaving safety — the cutter becomes trailed and cuttable itself, and pays a head of its own for every exchange at a point the defender gates (§6.2) |
+| Leader can cut every enemy chain | Cutting requires leaving safety — the cutter becomes trailed and cuttable itself, and contact combat (§6.2) makes stepping onto a garrisoned arrow cost heads on both sides |
 
 The decoy play this enables: bait an attacker into committing to a cut, and counterattack the now-exposed cutter with a flanking stack. If they refuse the bait, the decoy changes course and joins the flank to close the shape. This emerges from the rules rather than being designed in.
 
@@ -771,9 +797,13 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > **Item 35 was opened and closed by P05's review**, and it is the sharpest example on this list of why the review phase exists. §5 charged a branch on the move that creates it, in words that name a pairing a *set* cannot hold — so the implementation had to choose a standing form, chose the larger one, and passed every scenario doing it. Resolved to *one head per branch*; §5 now states the standing form and §6.1's price list is the price. → §5, → §6.1, → P05.
 >
-> **Item 36 was opened and closed by P05b**, and it is the second time this list has caught the *spec's own* phase-1 output rather than an implementation. §7 said *even-odd fill*; even-odd needs a closed curve and a claim is not one. Resolved by removing the curve instead of closing it — the wall is the player's ground and *enclosed* means **cannot reach infinity**. → §7 (three clauses corrected), → P05b.
+> **Item 36 was opened and closed by P05b**, and it is the second time this list has caught the *spec's own* phase-1 output rather than an implementation. §7 said *even-odd fill*; even-odd needs a closed curve and a claim is not one. Resolved by removing the curve instead of closing it — the wall is the player's ground and *enclosed* means **cannot reach infinity**. → §7 (five clauses corrected: three when the item closed, and two more found by P05b's **review** — the enclose-or-strip gate was still standing a subsection later, and the sweep's `O(L²)` bound was still attributed to the trail rather than to the ring that does the enclosing), → P05b.
 >
-> **§11 now carries no open question.** What remains is a **parked tuning table**, not a gap: item 11's *R*, the band radii, force per band, and item 32's *N* are numbers only playtesting can set, and P09 owns setting them. Nothing is blocked on any of them, and none of them changes a rule.
+> **Item 37 was opened and closed by P06**, replacing contested-point 1:1 combat with **contact combat**: an attack is a step onto an enemy-occupied arrow; losses follow a threat-weighted floor rule; equals favour the attacker; merely pointing into the same point is not a fight. → §6.2, → P06.
+>
+> **Item 38 was opened by P06's review and closed by the human:** stay-behind on attack (lone head cannot attack); fight to wipe in one `apply` (no interrupt); mark destination only if the attacker lands; bounce leaves the stay-behind as tip. → §6.2, → P06.
+>
+> **§11 now carries no open rules question.** What remains is a **parked tuning table**, not a gap: item 11's *R*, the band radii, force per band, and item 32's *N* are numbers only playtesting can set, and P09 owns setting them. Item **39** parks a territory-combat idea without blocking. Nothing else is blocked, and none of the tuning items changes a rule.
 >
 > **Item 34 was opened and closed by P05, and it was never a gap.** §7's closure clause granted "special tiles", which §7's *own next subsection* forbids — specials are vertices, owned in thirds by their bordering arrows, and a vertex is never enclosed. The answer was three subsections from the question, which is the failure mode a spec this cross-referential invites; the item stays as a reminder to look before opening one. → §7 (corrected), → P05b, → P08.
 >
@@ -791,11 +821,11 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 5. ~~Shortest U-turn loop~~ — **resolved, and now unconditional** (item 1). 3: a stranded head loops back onto its own trail in three moves, which is legal because a trail is a set (§6.1a invariant 2). Retreat is cheap; flagged as a balance watch-point in §2.
 
 **Tuning — none of these block a paper playtest**
-6. ~~Crossing target~~ — **re-resolved.** The two-step gate-and-charge is gone. A contested crossing is a 1:1 attack costing a move, and evaporation charges whichever stack halts it. Gating range narrowed with it: a stack contests only the point it *points into*, rather than any of that point's six arrows. Evaporation does **not** share that range — it halts per arrow (see item 27). See §6.2 and §6.1. *(The original answer — deterministic attrition, defender wins ties, charge to the nearest stack — survived from the first draft until the §6.1 rewrite made both halves redundant.)*
+6. ~~Crossing target~~ — ~~re-resolved as contested-point 1:1~~ — **re-resolved again: contact combat.** The two-step gate-and-charge is gone, and so is the intervening *stacks pointing into the same point fight 1:1* reading. An attack is an ordinary step onto an enemy-occupied arrow; losses follow the threat-weighted floor rule in §6.2; equals favour the attacker; merely sharing a point ahead is not a fight. Evaporation still halts per arrow (item 27) and is a separate axis. See §6.2, §11 item 37. *(Original: deterministic attrition, defender wins ties. Then: contested-point 1:1. Now: contact.)*
 7. ~~Merging cost~~ — **resolved.** Free and automatic on contact. See §3.
 8. ~~Fork branch whose head dies~~ — **re-resolved: the state is reachable, and it is fine.** The old answer rested on *every tip carries a head*, which was never true — a plain mid-trail cut leaves the stretch behind it anchored and headless. Headless trail is now ordinary: a wall that claims nothing, charges nothing, and can be walked onto again. See §6.1a.
 9. ~~Converted stack size~~ — **resolved.** Stacks convert intact. See §6.3.
-10. ~~Multi-prong bonus~~ — **re-resolved: there is no bonus, and none is needed.** Under 1:1 attacks, two prongs simply bleed the defender twice as fast. Pooling-and-tie-flip was the price of instantaneous attrition; per-move combat delivers the same reward as arithmetic. See §6.2.
+10. ~~Multi-prong bonus~~ — **re-resolved: there is no bonus, and none is needed.** Under contact combat (§6.2 / item 37), coordinating two stacks means two separate contact steps over time (or against different arrows) — each resolves on its own *A*∶*D*. Pooling-and-tie-flip was the price of instantaneous attrition; there is still no special-case bonus constant. See §6.2.
 11. ~~Board size~~ — ~~resolved as configurable: the lattice mod `(n, m)`~~ — **re-resolved: there is no board size.** The board is unbounded (item 4), so the knob is no longer how big the world is but **how big the part worth having is**: the spawner cutoff radius *R*, plus the band radii inside it (§7, *the radial gradient*). One number where there were two, and it has a direct meaning — *R* is the distance past which the map stops paying.
 
     Still tuned by experiment against player count and total spawner force, not decided on paper. **Player count: MVP is 2, mirror-symmetric** — see §2, *map symmetry*, and note the correction there: the two-player involution is a **reflection**, because 180° rotation reverses every arrow's grain and is not a symmetry of the oriented board at all. 3+ is deferred; the 120° rotation is available for it, and it raises kingmaking under elimination and wants its own design pass.
@@ -926,6 +956,32 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
     - **The plane is still load-bearing, by a cleaner argument.** *Enclosed* means cannot reach infinity, so there must be an infinity to fail to reach. On a torus the notion is undefined rather than merely wrong.
 
     Opened by **P05b's test phase** against the spec **P05b's own phase 1 wrote**, and answered by the human. → **§7** (*closure*, corrected: the self-crossing clause, the stack-anchor clause, and the fill argument), → **P05b**.
+
+**~~Contested-point combat~~ — resolved: contact combat on the destination arrow**
+
+37. ~~When do two stacks fight, and how are losses computed?~~ — **resolved: contact combat.** An earlier reading (§6.2 / item 6) said two stacks that point into the same point fight 1:1 on a move against that point. That made shadowing illegal in spirit and conflated gating with contact. **Withdrawn.**
+
+    **Trigger:** an ordinary step whose destination arrow holds an enemy group. That is the only trigger. Two stacks that merely point into the same point do not fight; skip still declines advancing.
+
+    **Resolve** (deterministic, exact, no RNG, no secret bids; stay-behind and fight-to-wipe in item **38**): with *A* = attacking step count (`count ≤ heads − 1`) and *D* = defender heads on the destination — loop the threat-weighted floor rule until *A* or *D* is 0. Per round: threats *tA* = *D*/(*A*+*D*), *tD* = *A*/(*A*+*D*); loss weights *wa*∶*wd* = *tA*² ∶ *tD*; scale so max(atk_loss, def_loss) = *D* preserving the ratio, then cap atk ≤ *A*, def ≤ *D*; floor; if both floors are 0 and weights > 0, deal 1 to the larger weight (ties → defender). If *D* remaining is 0 the attacker lands with *A* remaining and marks; if *A* remaining is 0 the attacker does not land and does not mark. Equals (*A* = *D*) favour the attacker (e.g. 3v3 → 2∶0). Floor may yield 0 attacker loss when *A* is moderately larger than *D* (e.g. 5v3) — accepted PoC, no min-1.
+
+    **Cut + combat on one step:** combat first, then cut against the trail set (trail is independent of heads).
+
+    Opened by the P06 battle-mechanics side quest and answered by the human. → **§6.2**, → **P06**.
+
+**Does a bounced attack still mark trail? — resolved with stay-behind and fight-to-wipe**
+
+38. ~~When the attacker does not land, is the destination still marked as their trail?~~ — **resolved: no, and attacks leave a stay-behind.** Three decisions, one item:
+
+    1. **Stay-behind.** An attack (destination enemy-occupied) may not empty `from` — at least one head remains. A lone head cannot attack. Intentional: singles are cut-vulnerable and cannot contest, so players keep larger groups.
+    2. **Fight to wipe.** Contact resolves fully inside one `apply` — loop the floor rule until *A* or *D* is 0. No mid-fight interrupt, no reinforcements. (Retreat-between-rounds deferred.)
+    3. **Mark only on land.** If *D* = 0 the attacker lands and marks; if *A* = 0 they do not land and do not mark — the stay-behind is the tip on `from`.
+
+    Evaporation remains a **cut on trail** only, not a wipe side-effect. → **§6.2**, → **§5** (*marking*), → **P06**.
+
+**Parked: territory combat modifiers**
+
+39. ~~Boost defender / nerf invader on claimed territory?~~ — **parked, not a gap.** Idea for later playtest: on the defender's territory, contact might cost the defender heads only and mark the arrow in the invader's trail. Not MVP; no rule until revisited. → **P06** (noted), later balance pass.
 
 **~~What does the minimal closure claim at its centre?~~ — not a gap: §7 already answered it, in a different subsection than the one that asked**
 

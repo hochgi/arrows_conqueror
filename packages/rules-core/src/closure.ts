@@ -1,15 +1,9 @@
 /**
- * Closure and fill — **skeleton only.**
+ * Closure and fill.
  *
  * SPEC §7 (closure, *which arrows the landing claims*, the land bridge, the pincer,
  * territory is contestable), §6.1a (a trail is a set, all-to-all points), §2 (the
  * chord test), §11 items 16, 34, 36. P05b decisions D1–D9.
- *
- * Phase 2 lands the signatures and nothing else. Every function here throws a
- * **plain `Error`**, deliberately: the refusal tests assert
- * `toThrow(ContractViolation)`, so a stub that threw *that* type would go falsely
- * green and the suite would report a passing rule that does not exist. Phase 3
- * replaces these bodies; it must not retype the throw as a shortcut.
  *
  * Two passes, and keeping them apart is the point (§11 item 36):
  *
@@ -31,22 +25,35 @@
  * bordering arrows (§7, §11 item 34), so a fill that touched one would be a second
  * copy of a fact it is supposed to derive.
  *
+ * **P07 seam:** enclosed enemy heads are not converted here — claiming the tile
+ * leaves the head standing (§6.3 is P07's).
+ *
  * @see docs/spec/closure/closure.md
  * @see docs/spec/fill/fill.md
  */
 
+import { ContractViolation, chord, chordsInterleave } from '@arrows/contracts';
 import type {
   ArrowId,
+  BoardWindow,
   Claim,
+  Chord,
   GameState,
   GeometryPort,
   Move,
   PlayerId,
+  PointId,
+  StepMove,
 } from '@arrows/contracts';
+import { compareArrows } from './order';
 
-const unimplemented = (): never => {
-  throw new Error('not implemented');
+const reject = (message: string): never => {
+  throw new ContractViolation(message);
 };
+
+/** Rebuild a trail set sorted, so iteration order never rests on insertion luck. */
+const canonical = (arrows: readonly ArrowId[]): ReadonlySet<ArrowId> =>
+  new Set([...new Set(arrows)].toSorted(compareArrows));
 
 /** The two `RulesPort` methods P05b adds, plus the hook `apply` needs. */
 export interface ClosureRules {
@@ -73,28 +80,247 @@ export interface ClosureRules {
   readonly commit: (state: GameState, move: Move, mover: PlayerId) => GameState;
 }
 
+/** The most a window is ever grown before the wall has to be inside it (see below). */
+const radiusCeiling = (wallSize: number): number => 2 * wallSize;
+
 /**
  * Build the closure rules over a board.
  *
  * The board arrives as a `GeometryPort` and nothing else. `window()` is the only way
- * to enumerate a bounded region of an unbounded lattice (§11 item 4), and the radius
- * the sweep uses must be **derived from the claim** with its bound stated in one place
- * — a window one step too small does not crash, it reports a ringed pocket as
- * escaping, which is this packet's whole failure mode.
+ * to enumerate a bounded region of an unbounded lattice (§11 item 4).
  */
-export const makeClosureRules = (_geometry: GeometryPort): ClosureRules => ({
-  closureOf: unimplemented,
-  enclosedBy: unimplemented,
+export const makeClosureRules = (geometry: GeometryPort): ClosureRules => {
+  const chordAt = (point: PointId, into: ArrowId, out: ArrowId): Chord =>
+    chord(geometry.slotOf(point, into), geometry.slotOf(point, out));
+
   /**
-   * **Phase-2 passthrough, and the one stub here that does not throw.**
-   *
-   * `apply` calls this on every step, so a throwing stub would fail all 143 P04 and
-   * P05 tests — a red suite must leave the packets it builds on green. Returning the
-   * state untouched is the honest no-op: the closure scenarios then go red on their own
-   * assertions (no territory was claimed, no trail was emptied) rather than on a stack
-   * trace, which is what they should be asserting anyway.
-   *
-   * Phase 3 replaces this. If it is forgotten, thirteen closure tests say so.
+   * Chords the player's ground presents at a point — `i × o`, every in feeding every
+   * out (§6.1a). Same shape as trail chords; coincidence cannot arise for a walk on
+   * non-ground, so `chordsInterleave` is the block predicate (§7).
    */
-  commit: (state: GameState): GameState => state,
-});
+  const groundChordsAt = (point: PointId, ground: ReadonlySet<ArrowId>): readonly Chord[] => {
+    const ins = geometry.inArrows(point).filter((a) => ground.has(a));
+    const outs = geometry.outArrows(point).filter((a) => ground.has(a));
+    return ins.flatMap((into) => outs.map((out) => chordAt(point, into, out)));
+  };
+
+  /**
+   * Blocked when the walk chord interleaves with a ground chord.
+   *
+   * `chordsInterleave`, not `chordsCross`: coincidence cannot arise for a walk on
+   * non-ground (fill.md), so the two agree here — the narrow predicate is kept for
+   * consistency with §7's other caller. A behavioural mutation to `chordsCross`
+   * therefore passes the suite; that is the documented equivalence, not a gap.
+   */
+  const blocked = (
+    from: ArrowId,
+    to: ArrowId,
+    point: PointId,
+    ground: ReadonlySet<ArrowId>,
+  ): boolean => {
+    const drawn = chord(geometry.slotOf(point, from), geometry.slotOf(point, to));
+    return groundChordsAt(point, ground).some((wall) => chordsInterleave(drawn, wall));
+  };
+
+  /** Non-ground arrows reachable from `arrow` in one unblocked step. */
+  const neighbours = (arrow: ArrowId, ground: ReadonlySet<ArrowId>): readonly ArrowId[] => {
+    const next: ArrowId[] = [];
+    for (const point of [geometry.origin(arrow), geometry.target(arrow)]) {
+      for (const other of [...geometry.inArrows(point), ...geometry.outArrows(point)]) {
+        if (other === arrow || ground.has(other)) continue;
+        if (!blocked(arrow, other, point, ground)) next.push(other);
+      }
+    }
+    return next;
+  };
+
+  /**
+   * Trail arrows reachable from `root` against the grain: `Y` precedes `X` when `Y`
+   * is trail and `target(Y) === origin(X)`. At a merge, every in-arrow — the set
+   * holds no pairing (§11 item 26).
+   */
+  const walkBack = (root: ArrowId, trail: ReadonlySet<ArrowId>): readonly ArrowId[] => {
+    const reached = new Set<ArrowId>();
+    const pending: ArrowId[] = [root];
+    for (let here = pending.pop(); here !== undefined; here = pending.pop()) {
+      if (reached.has(here)) continue;
+      reached.add(here);
+      for (const pred of geometry.inArrows(geometry.origin(here))) {
+        if (trail.has(pred) && !reached.has(pred)) pending.push(pred);
+      }
+    }
+    return [...reached].toSorted(compareArrows);
+  };
+
+  const moverGround = (state: GameState, mover: PlayerId): Set<ArrowId> => {
+    const owned = new Set<ArrowId>();
+    for (const [arrow, owner] of state.territory) {
+      if (owner === mover) owned.add(arrow);
+    }
+    return owned;
+  };
+
+  /**
+   * The player's ground split into walls that touch — arrows sharing a point.
+   *
+   * A pocket is ringed by **one** closed run of ground: two runs that share no point
+   * have a gap between them for a walk to leave by. So each wall gets its own window,
+   * sized and centred on itself. Sweeping the whole set in one window instead let a
+   * distant second holding drag the centre away from the closure that had just
+   * happened, and a plainly ringed pocket then read as escaping.
+   */
+  const wallsOf = (ground: ReadonlySet<ArrowId>): readonly (readonly ArrowId[])[] => {
+    const seen = new Set<ArrowId>();
+    const walls: ArrowId[][] = [];
+    for (const seed of [...ground].toSorted(compareArrows)) {
+      if (seen.has(seed)) continue;
+      seen.add(seed);
+      const wall: ArrowId[] = [];
+      const pending: ArrowId[] = [seed];
+      for (let here = pending.pop(); here !== undefined; here = pending.pop()) {
+        wall.push(here);
+        for (const point of [geometry.origin(here), geometry.target(here)]) {
+          for (const other of [...geometry.inArrows(point), ...geometry.outArrows(point)]) {
+            if (!ground.has(other) || seen.has(other)) continue;
+            seen.add(other);
+            pending.push(other);
+          }
+        }
+      }
+      walls.push(wall.toSorted(compareArrows));
+    }
+    return walls;
+  };
+
+  /**
+   * The smallest window that holds the whole wall, plus one step.
+   *
+   * **The sweep's bound, derived here and nowhere else** (§7: *fill is bounded by the
+   * trail, not by the board* — there is no board extent to read, §11 item 4). The
+   * window is grown until the wall is inside it rather than sized from a formula,
+   * because the only extent the port will answer is membership.
+   *
+   * Enough: everything the wall rings is inside that window. An arrow further out than
+   * the whole wall can walk away from the centre and never meet it, so it escapes and
+   * is not ringed — the Jordan argument §7 leans on, and the reason the plane is
+   * load-bearing. Too small a window does not crash; it reports a ringed pocket as
+   * escaping, which is this file's whole failure mode (fill.md).
+   *
+   * Terminates: two arrows sharing a point have endpoints at most 2 points apart, so a
+   * wall held together by *n* arrows is inside radius `2n`.
+   */
+  const windowAround = (wall: readonly ArrowId[], centre: PointId): BoardWindow => {
+    const ceiling = radiusCeiling(wall.length);
+    for (let radius = 1; radius < ceiling; radius += 1) {
+      const arrows = new Set(geometry.window(centre, radius).arrows);
+      if (wall.every((arrow) => arrows.has(arrow))) return geometry.window(centre, radius + 1);
+    }
+    return geometry.window(centre, ceiling + 1);
+  };
+
+  /**
+   * The arrows one wall rings — every non-ground arrow of its window that the escape
+   * flood never reaches. The wall is `ground` entire, because a walk is stopped by any
+   * of the player's arrows and not only by the wall being swept.
+   */
+  const ringedBy = (
+    wall: readonly ArrowId[],
+    ground: ReadonlySet<ArrowId>,
+  ): readonly ArrowId[] => {
+    const first = wall[0];
+    if (first === undefined) return [];
+    const win = windowAround(wall, geometry.origin(first));
+    const inWindow = new Set(win.arrows);
+
+    // Escape: flood from every non-ground window arrow that can step *outside* the
+    // window. Whatever the flood never reaches cannot reach infinity.
+    const escaped = new Set<ArrowId>();
+    const pending: ArrowId[] = [];
+    for (const arrow of win.arrows) {
+      if (ground.has(arrow)) continue;
+      for (const n of neighbours(arrow, ground)) {
+        if (!inWindow.has(n)) {
+          escaped.add(arrow);
+          pending.push(arrow);
+          break;
+        }
+      }
+    }
+    for (let here = pending.pop(); here !== undefined; here = pending.pop()) {
+      for (const n of neighbours(here, ground)) {
+        if (ground.has(n) || escaped.has(n) || !inWindow.has(n)) continue;
+        escaped.add(n);
+        pending.push(n);
+      }
+    }
+
+    return win.arrows
+      .filter((a) => !ground.has(a) && !escaped.has(a))
+      .toSorted(compareArrows);
+  };
+
+  const enclosedBy = (
+    ground: ReadonlySet<ArrowId>,
+    _player: PlayerId,
+  ): readonly ArrowId[] => {
+    if (ground.size === 0) return [];
+
+    // Refuse unknown arrows loudly (P04 D9) — `origin` throws ContractViolation.
+    for (const arrow of [...ground].toSorted(compareArrows)) {
+      geometry.origin(arrow);
+    }
+
+    const ringed = new Set<ArrowId>();
+    for (const wall of wallsOf(ground)) {
+      for (const arrow of ringedBy(wall, ground)) ringed.add(arrow);
+    }
+    return [...ringed].toSorted(compareArrows);
+  };
+
+  const asStep = (move: Move): StepMove => {
+    if (move.kind !== 'step') {
+      return reject(`closureOf expects a step, got ${move.kind}`);
+    }
+    return move;
+  };
+
+  const closureOf = (state: GameState, move: Move, mover: PlayerId): Claim | undefined => {
+    const stepMove = asStep(move);
+    // D1: destination must already be the mover's own territory.
+    if (state.territory.get(stepMove.exit) !== mover) return undefined;
+    // And the departed arrow must be trail — free movement inside land claims nothing.
+    const trail = state.trails.get(mover);
+    if (trail === undefined || !trail.has(stepMove.from)) return undefined;
+
+    const path = walkBack(stepMove.from, trail);
+    const ground = moverGround(state, mover);
+    for (const arrow of path) ground.add(arrow);
+    return { path, enclosed: enclosedBy(ground, mover) };
+  };
+
+  const commit = (state: GameState, move: Move, mover: PlayerId): GameState => {
+    const claim = closureOf(state, move, mover);
+    if (claim === undefined) return state;
+
+    const taken = new Set<ArrowId>([...claim.path, ...claim.enclosed]);
+
+    const territory = new Map(state.territory);
+    for (const arrow of [...taken].toSorted(compareArrows)) {
+      territory.set(arrow, mover);
+    }
+
+    const trails = new Map<PlayerId, ReadonlySet<ArrowId>>();
+    for (const [player, arrows] of state.trails) {
+      if (player !== mover) {
+        trails.set(player, arrows);
+        continue;
+      }
+      const kept = [...arrows].filter((a) => !taken.has(a));
+      if (kept.length > 0) trails.set(mover, canonical(kept));
+    }
+
+    return { ...state, territory, trails };
+  };
+
+  return { closureOf, enclosedBy, commit };
+};

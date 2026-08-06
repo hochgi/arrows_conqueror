@@ -23,15 +23,19 @@ P05 was *local* and testable on a 7-point fixture. Nothing here is:
 
 So this is the first packet that **cannot use a fixture board**. It tests against
 `geometry-tiling` (P03), and that is a property of the mathematics rather than a
-preference: a fixture is finite, and fill needs a ray that escapes.
+preference: a fixture is finite, and fill needs somewhere to escape to.
+
+§11 item 36 later replaced the parity route with reachability (D4 below), which
+leaves the conclusion above standing by a shorter road: *enclosed* means **cannot
+reach infinity**, and a finite board has no infinity to fail to reach.
 
 ## In scope
 
 - **`packages/contracts`** — the closure result on `RulesPort`, and whatever
   `GameState` needs that P05 did not already land. `territory` already exists.
-- **`packages/rules-core`** — what a landing claims (the backward walk), even-odd
-  fill over the enclosed region, the land bridge, the pincer, and the carve-out of
-  enemy territory.
+- **`packages/rules-core`** — what a landing claims (the backward walk), reachability
+  fill over the pockets the claim rings, the land bridge, the pincer, and the carve-out
+  of enemy territory.
 - Tests against the **generated tiling**. Fixture boards keep the P05 suite green
   and host nothing new here.
 
@@ -84,50 +88,44 @@ anything. *Claim only paths between two anchored ends* deletes salvage, because 
 fragment is one long dangle. *Claim dangles that carry no head* satisfies both but
 makes what you own depend on where your heads happen to be.
 
-**D3 — The same walk decides whether the landing encloses or only strips.**
-No second gate, no separate grade lookup:
+~~**D3 — The same walk decides whether the landing encloses or only strips.**~~
+**Withdrawn: there is no enclose-or-strip gate** (§11 item 36, opened by phase 2
+against this doc and closed by the human). The walk claims the path either way; a
+strip claims only itself because *a strip rings nothing*, and a walk that crossed
+itself claims the loop's inside even when it dead-ends. `anchorGrade` is still
+deliberately not consulted, for the reason this decision gave: grade is undirected
+because §6.1 re-attaches a fragment against the direction it was laid, whereas a
+claim has the direction the closing head travelled.
 
-- The backward-reachable set **reaches ground the mover already owns** — some
-  reached arrow departs a point one of their own territory arrows feeds — so the
-  curve closes at both ends. **Fill runs.** Claim the interior *and* the path (§7).
-- It **dead-ends**. There is no second end, so there is nothing for even-odd to be
-  the parity of. **Claim the path only** — §7's land bridge, and the reason a
-  stranded stack is worth fighting home.
+~~**D4 — Fill is even-odd, the ray is straight-ahead, and the crossing test is the
+narrow predicate.**~~
+**Re-decided: fill is reachability** (§11 item 36). Even-odd needs a closed curve and
+a claim is not one — it is bounded by the trail on one side and by the player's
+existing territory, a thick *region*, on the other. So the curve was removed rather
+than closed: **the wall is the player's ground, and an arrow is enclosed when no walk
+from it reaches infinity.** Of D4's three parts, one survives and two are gone:
 
-That is §7's *enclosure requires territory at both ends*, read off one traversal.
-It coincides with P05's **territory grade** in every ordinary position and is
-deliberately the narrower thing: grade is undirected because §6.1 re-attaches a
-fragment against the direction it was laid, whereas a *claim* has a direction — the
-one the closing head actually travelled.
+- ~~**The ray.**~~ There is no probe and so no parity — which also disposes of the
+  degenerate-ray problem that `GeometryPort` exposes no coordinate to perturb.
+- **The crossing test survives intact.** A walk steps between two arrows sharing a
+  point and is **blocked** when their chord `chordsInterleave` with one the player's
+  ground presents there — never `chordsCross`. This is what stops a pocket leaking
+  through the seam between two arrows that merely touch (§2), and it is the one piece
+  of the withdrawn formulation the reachability reading still needs.
+- **The two readings part company on nested loops**, and that is why this was a rules
+  question: parity calls the core of two separate rings *outside*, reachability calls
+  it surrounded. Reachability is the answer.
 
-**D4 — Fill is even-odd, the ray is straight-ahead, and the crossing test is the
-narrow predicate.**
-Three parts, each already determined by something:
+**D5 — Fill is bounded by the ground that rings, never by the board.**
+A closed run of *L* arrows cannot ring more than `O(L²)` (§7), so the sweep takes a
+`window()` sized from that run and not from any board extent — there is no board
+extent (§11 item 4). The radius must be **derived and justified in one place**,
+because a window one step too small is a silently wrong answer rather than a crash.
 
-- **The ray.** *Straight-ahead* — arrive at a point on slot `s`, leave on slot
-  `s + 3` — is the only notion of direction `GeometryPort` exposes, it is
-  geometrically straight (§11 item 1: the three out-directions are 120° apart, so
-  `s + 3` is the opposite slot), and on the plane it escapes (§11 item 4). It is the
-  same walk P02 used to prove finiteness, which is what makes a fixture board
-  useless here.
-- **The crossing test.** At each point the probe transits it draws a chord, and the
-  boundary presents its own (P05's `trailChordsAt`). A crossing is
-  **`chordsInterleave`** — never `chordsCross`. Coincidence means the probe is
-  running *along* the boundary rather than through it, which is the degenerate ray
-  of every even-odd implementation ever written, and §6.1a says outright that
-  coincidence cannot invert anything.
-- **The degeneracy.** Parity is a topological invariant, so the probe does not have
-  to be straight — any escaping path gives the same answer. So the sweep routes
-  **around** boundary arrows instead of perturbing coordinates it does not have. A
-  region with no escaping path at all is enclosed, which is the right answer and
-  needs no rule.
-
-**D5 — Fill is bounded by the trail, never by the board.**
-A claimed path of *L* arrows cannot enclose more than `O(L²)` (§7), so the sweep
-takes a `window()` sized from the path and not from any board extent — there is no
-board extent (§11 item 4). The radius must be **derived and justified in one
-place**, because a window one step too small is a silently wrong answer rather than
-a crash.
+Corrected by phase 4: the bound belongs to the **ring**, not to the freshly walked
+path. Existing territory is part of the wall, so a one-arrow closure can seal a large
+holding's mouth — while a *second* holding elsewhere rings nothing and must not be
+allowed to size or centre the sweep.
 
 **D6 — A closure claims what it encloses regardless of who held it.**
 §7, *territory is contestable*: an enemy can drive a chain into your territory and
@@ -160,16 +158,14 @@ that reading and not because fill found the vertex (§11 items 16 and 34).
   trail against the grain.
 - The system shall claim no trail arrow that is reachable only by following the
   trail *with* the grain from the departed arrow.
-- When the walk reaches a point fed by one of the mover's own territory arrows, the
-  system shall fill the enclosed region and claim it.
-- When the walk dead-ends without reaching the mover's territory, the system shall
-  claim the walked path and nothing more.
+- The system shall claim the walked path whether or not it rings anything, and shall
+  claim in addition every arrow the claimed ground then rings.
 - At a point where the claimed trail has more than one in-arrow, the system shall
   claim every one of them.
-- The system shall report a tile enclosed when an escaping probe crosses the claimed
-  boundary an odd number of times, and shall count a crossing only where the chords
-  interleave.
-- The system shall give the same verdict for every escaping probe from the same tile.
+- The system shall report an arrow enclosed when no walk from it over non-territory
+  arrows escapes the claimed ground, and shall block a walk only where its chord
+  interleaves with one the ground presents at the shared point.
+- The system shall give the same verdict however the walk is routed.
 - The system shall claim an enclosed arrow whichever player held it, and shall leave
   at most one owner per arrow.
 - The system shall remove every claimed arrow from the claiming player's trail, and
@@ -178,8 +174,8 @@ that reading and not because fill found the vertex (§11 items 16 and 34).
 - The system shall enumerate no vertex.
 - The system shall not mutate the input state, and shall return equal outputs for
   equal inputs.
-- The system shall bound the fill by the claimed path's own extent and shall read no
-  board extent.
+- The system shall bound the fill by the extent of the ground that does the ringing and
+  shall read no board extent.
 
 ## Scenario inventory
 
@@ -194,9 +190,9 @@ Counts are a target for phase 1, not a contract.
   upstreams; a crossover claims both; a spur upstream of the landing is claimed and
   one downstream is not.
 - **Fill** (≈7) — the minimal three-arrow closure; a region with an interior tile; a
-  figure-eight, where the self-crossing inverts which lobe is claimed; a probe that
-  would run along the boundary; a concave shape; an interior tile of an interior
-  hole.
+  self-crossing claim, whose loop rings its inside (**not** a figure-eight lobe
+  inversion — that was even-odd's, §11 item 36); two separate rings around one region;
+  a concave shape; a hole ringed inside a pocket.
 - **Land bridges** (≈4) — a stack-grade fragment driven home claims the path only; it
   encloses nothing even when the path looks like a loop; a land bridge between two
   holdings; a land bridge that later becomes the departure point of a real closure.
@@ -221,18 +217,34 @@ is the reading that makes both of §7's sentences true at once.
 
 ## Definition of done
 
-- [ ] `pnpm verify` green.
-- [ ] `packages/rules-core` still depends only on `@arrows/contracts`.
-- [ ] The fill suite runs against `geometry-tiling`, and its scenarios are the ones a
+- [x] `pnpm verify` green.
+- [x] `packages/rules-core` still depends only on `@arrows/contracts`. `geometry-tiling`
+      is a **dev** dependency, for the suites only; `src/` imports it nowhere.
+- [x] The fill suite runs against `geometry-tiling`, and its scenarios are the ones a
       fixture board provably cannot host.
-- [ ] No conversion, no evaporation, no accumulator, no victory check — those packets'
+- [x] No conversion, no evaporation, no accumulator, no victory check — those packets'
       scenarios do not start passing "for free".
-- [ ] No `Date`, `Math.random`, or insertion-order dependence. Fill enumerates a
+- [x] No `Date`, `Math.random`, or insertion-order dependence. Fill enumerates a
       window and a trail `Set`; both are ordered answers derived from unordered
-      collections, and both must sort on a total key.
-- [ ] Every scenario in the approved spec has a test; every EARS invariant has an
+      collections, and both sort on `compareArrows`.
+- [x] Every scenario in the approved spec has a test; every EARS invariant has an
       assertion.
-- [ ] **No vertex is enumerated anywhere in fill** (§11 item 34).
-- [ ] The window radius the sweep uses is derived in one place, with the bound stated.
-- [ ] The P07 seam — enclosed enemy heads are not converted here — is documented where
+- [x] **No vertex is enumerated anywhere in fill** (§11 item 34) — asserted through a
+      `GeometryPort` that counts `flankVertices` and `borderArrows` calls.
+- [x] The window the sweep uses is derived in one place, with the bound stated.
+- [x] The P07 seam — enclosed enemy heads are not converted here — is documented where
       a reader will hit it, not only in this doc.
+
+**Phase 4 found two of these unmet and fixed them**, and the second is the reason this
+list asks for the bound in writing:
+
+- The sweep took **one** window for the player's whole ground, sized from that set and
+  centred on whichever arrow sorted first. A second holding anywhere else therefore
+  moved the window off the closure and a plainly ringed pocket reported as escaping —
+  a wrong answer, and reachable from any ordinary mid-game state. Now the ground is
+  split into the runs of arrows that touch, and each is swept in a window grown until
+  it contains that run. The scenario that would have caught it had no test; it has one.
+- Three fill.core scenarios had no test at all (the turning-aside walk, the saturated
+  pocket, the sweep bound), and two more were authored against shapes that did not
+  hold them — the nested hole and the two-ring core were both a single ring plus a
+  spur. They now build a sealing band through the port.

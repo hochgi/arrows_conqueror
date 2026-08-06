@@ -13,13 +13,19 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { makeRules } from '../src/index';
 import {
   A,
+  aDistantHolding,
+  aRingWithAnInside,
   aRunFromHome,
+  aSealedBand,
   aTriangle,
+  anArrowWithNoRouteOut,
   anExitFrom,
   arrowAt,
   exitsFrom,
+  justOutside,
   onTiling,
   pathFrom,
   pick,
@@ -54,7 +60,7 @@ describe('enclosed means cannot reach infinity', () => {
   it('encloses the pocket a ring of ground surrounds', () => {
     // The load-bearing positive case: a ring big enough to have an inside.
     const table = onTiling();
-    const ring = aRingWithAnInside(table);
+    const ring = aRingWithAnInside(table.geometry);
 
     const enclosed = table.rules.enclosedBy(ground(ring.wall), A);
 
@@ -63,7 +69,7 @@ describe('enclosed means cannot reach infinity', () => {
 
   it('encloses every arrow of a pocket and nothing outside it', () => {
     const table = onTiling();
-    const ring = aRingWithAnInside(table);
+    const ring = aRingWithAnInside(table.geometry);
 
     const enclosed = table.rules.enclosedBy(ground(ring.wall), A);
 
@@ -75,12 +81,27 @@ describe('enclosed means cannot reach infinity', () => {
 // ── Rule: a pocket does not leak at a point ────────────────────────────────────
 
 describe('a pocket does not leak at a point', () => {
+  it('lets a walk pass a ground point it does not cross', () => {
+    // §2's other half: a chord that stays on one side is turning aside rather than
+    // through. An arrow that touches the ring's points from outside must still escape —
+    // if every transit at a wall point were blocked, the ring would seal its outside in
+    // along with its pocket and no other scenario here would notice.
+    const table = onTiling();
+    const ring = aRingWithAnInside(table.geometry);
+    const outside = justOutside(table.geometry, ring);
+
+    const enclosed = table.rules.enclosedBy(ground(ring.wall), A);
+
+    expect(keys(enclosed)).toContain(String(ring.inside));
+    expect(keys(enclosed)).not.toContain(String(outside));
+  });
+
   it('does not let a walk escape between two ground arrows meeting at a point', () => {
     // **The scenario that separates this from a tile-only flood fill** (§2). If it
     // fails, every enclosure on the board leaks through the seam between two trail
     // arrows and nothing else in the suite reports it.
     const table = onTiling();
-    const ring = aRingWithAnInside(table);
+    const ring = aRingWithAnInside(table.geometry);
 
     // The wall is one arrow wide, so its consecutive arrows meet only at points —
     // every escape route from the inside has to transit one of them.
@@ -98,7 +119,7 @@ describe('a self-loop claims what it rings', () => {
     // was a bare strip; under reachability the loop is ground and its inside is
     // surrounded.
     const table = onTiling();
-    const ring = aRingWithAnInside(table);
+    const ring = aRingWithAnInside(table.geometry);
     // A tail hanging off the ring: still a self-crossing claim, and the ring's inside
     // must be enclosed regardless of the tail.
     const tail = pathFrom(
@@ -112,6 +133,21 @@ describe('a self-loop claims what it rings', () => {
 
     expect(keys(enclosed)).toContain(String(ring.inside));
   });
+
+  it('encloses the core when two separate rings surround it', () => {
+    // **The shape that told the two readings apart** (§11 item 36). Parity called this
+    // core *outside* — two crossings, even — and reachability calls it surrounded, which
+    // is what a player would predict. Re-walking one ring cannot produce the shape (a
+    // trail is a set, §6.1a invariant 2), so the two loops are genuinely distinct: the
+    // 6-cycle, and a band of ground around it that no walk crosses.
+    const table = onTiling();
+    const ring = aRingWithAnInside(table.geometry);
+    const band = aSealedBand(table.geometry, 3);
+
+    const enclosed = table.rules.enclosedBy(ground([...ring.wall, ...band]), A);
+
+    expect(keys(enclosed)).toContain(String(ring.inside));
+  });
 });
 
 // ── Rule: the verdict does not depend on the route ────────────────────────────
@@ -119,18 +155,29 @@ describe('a self-loop claims what it rings', () => {
 describe('the verdict does not depend on the route', () => {
   it('reports an arrow well clear of the ground as escaping', () => {
     const table = onTiling();
-    const ring = aRingWithAnInside(table);
+    const ring = aRingWithAnInside(table.geometry);
 
     expect(keys(table.rules.enclosedBy(ground(ring.wall), A))).not.toContain(
       String(ring.far),
     );
   });
 
+  it('encloses an arrow with no route out at all', () => {
+    // Saturation is impassable by arithmetic: every slot at both of the arrow's points
+    // belongs to the ground, so no walk can transit and *enclosed* needed no rule.
+    const table = onTiling();
+    const sealed = anArrowWithNoRouteOut(table.geometry);
+
+    const enclosed = table.rules.enclosedBy(ground(sealed.wall), A);
+
+    expect(keys(enclosed)).toContain(String(sealed.arrow));
+  });
+
   it('gives the same answer however the ground set was built', () => {
     // ADR 0001. The ground is a Set and the result is an ordered answer derived from
     // one, which is exactly where insertion order hides.
     const table = onTiling();
-    const ring = aRingWithAnInside(table);
+    const ring = aRingWithAnInside(table.geometry);
 
     const forwards = table.rules.enclosedBy(ground(ring.wall), A);
     const backwards = table.rules.enclosedBy(ground([...ring.wall].reverse()), A);
@@ -142,6 +189,46 @@ describe('the verdict does not depend on the route', () => {
 // ── Rule: the sweep is bounded by the claim, not by the board ─────────────────
 
 describe('the sweep is bounded by the claim, not by the board', () => {
+  it('looks no further than the ring can reach, and reads no board extent', () => {
+    // §7: a closed run of L arrows cannot surround more than O(L²). `window` is the only
+    // method that enumerates anything, so every radius it is asked for is the bound —
+    // and there is no board extent to read instead (§11 item 4).
+    const base = onTiling().geometry;
+    const radii: number[] = [];
+    const geometry = {
+      ...base,
+      window: (
+        centre: Parameters<typeof base.window>[0],
+        radius: Parameters<typeof base.window>[1],
+      ) => {
+        radii.push(radius);
+        return base.window(centre, radius);
+      },
+    };
+    const ring = aRingWithAnInside(base);
+
+    makeRules(geometry).enclosedBy(ground(ring.wall), A);
+
+    expect(radii.length).toBeGreaterThan(0);
+    for (const radius of radii) expect(radius).toBeLessThanOrEqual(2 * ring.wall.length);
+  });
+
+
+  it('still encloses the pocket when the player also holds ground far away', () => {
+    // §7: the sweep is bounded by the claim's own extent, and a holding on the other
+    // side of the board is not part of it. **Regression:** one window for the whole of
+    // the player's ground, centred on whichever arrow sorted first, put the sweep
+    // nowhere near the closure — and a plainly ringed pocket read as escaping, which is
+    // a wrong answer rather than a crash (fill.md).
+    const table = onTiling();
+    const ring = aRingWithAnInside(table.geometry);
+    const elsewhere = aDistantHolding(table.geometry, ring.wall);
+
+    const enclosed = table.rules.enclosedBy(ground([...ring.wall, elsewhere]), A);
+
+    expect(keys(enclosed)).toContain(String(ring.inside));
+  });
+
   it('does not enclose an arrow many steps outside a three-arrow ring', () => {
     // §7: a claim of L arrows cannot surround more than O(L²), so the sweep is finite
     // though the board is not — and §11 item 4 means there is no extent to read.
@@ -157,63 +244,3 @@ describe('the sweep is bounded by the claim, not by the board', () => {
     );
   });
 });
-
-/**
- * A ring of arrows with at least one arrow strictly inside it, plus an arrow far
- * outside — the shape every positive fill scenario needs.
- *
- * Deliberately **not** built from a lattice coordinate: the rules core receives ids
- * from the port and passes them back (P01 D1), and a test that computed a hexagon from
- * `cellArrow` would be testing the tiling's arithmetic rather than the fill. So the
- * ring is grown through the port, and the scenario asserts against whatever it found.
- *
- * Phase 3 note: if no such ring can be grown this way, that is a *setup* failure and
- * must be reported as one — never as a fill that found nothing.
- */
-const aRingWithAnInside = (
-  table: ReturnType<typeof onTiling>,
-): { wall: readonly ArrowId[]; inside: ArrowId; far: ArrowId } => {
-  const { geometry } = table;
-  const start = pick(geometry.outArrows(geometry.seedPoint()), 0);
-  const exits = (a: ArrowId): readonly ArrowId[] => exitsFrom(geometry, a);
-
-  // Girth is 3, and a 3-cycle rings nothing — its arrows *are* the triangle (§11 item
-  // 16). The shortest ring with an inside is 6, which the lattice does offer, so the
-  // search is for a directed cycle of exactly that length.
-  const ring = ((): readonly ArrowId[] | undefined => {
-    const walk = (path: readonly ArrowId[]): readonly ArrowId[] | undefined => {
-      const last = arrowAt(path, path.length - 1);
-      if (path.length === 6) return exits(last).includes(start) ? path : undefined;
-      for (const next of exits(last)) {
-        if (path.includes(next)) continue;
-        const found = walk([...path, next]);
-        if (found !== undefined) return found;
-      }
-      return undefined;
-    };
-    return walk([start]);
-  })();
-  if (ring === undefined) {
-    throw new Error('setup: the tiling offered no directed 6-cycle from its seed point');
-  }
-
-  // The ring's own inside: arrows whose two endpoints are both ring points but which are
-  // not on the ring. On a 6-cycle that is the inner triangle — three arrows.
-  const points = new Set(
-    ring.flatMap((a) => [String(geometry.origin(a)), String(geometry.target(a))]),
-  );
-  const inside = [...new Set(ring.flatMap((a) => geometry.outArrows(geometry.target(a))))]
-    .filter((a) => !ring.includes(a))
-    .filter(
-      (a) => points.has(String(geometry.origin(a))) && points.has(String(geometry.target(a))),
-    )
-    .toSorted((l, r) => (String(l) < String(r) ? -1 : 1));
-  const first = inside[0];
-  if (first === undefined) throw new Error('setup: that ring has no interior arrow');
-
-  return {
-    wall: ring,
-    inside: first,
-    far: arrowAt(pathFrom(geometry, start, 20, ring), 19),
-  };
-};

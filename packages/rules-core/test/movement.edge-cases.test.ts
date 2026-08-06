@@ -81,19 +81,20 @@ describe('illegal steps are refused with a contract violation', () => {
     expect(() => table.rules.apply(before, step(a1, e1, 1))).toThrow(ContractViolation);
   });
 
-  it('refuses a step onto an opponent-occupied arrow', () => {
-    // "A step onto an opponent-occupied arrow is refused". Combat on contact is
-    // P06 (§6.2). P04 refuses the step; it does not resolve an attack, and heads
-    // do not destroy each other here.
+  it('resolves contact combat on an opponent-occupied arrow', () => {
+    // P06 (§6.2 / item 38): stay-behind; 1v1 lands with count 1 of 2.
     const table = onBoard();
     const a1 = anArrow(table.geometry);
     const e1 = anExitFrom(table.geometry, a1);
     const before = stateOf([
-      { arrow: a1, owner: A, heads: 1 },
+      { arrow: a1, owner: A, heads: 2 },
       { arrow: e1, owner: B, heads: 1 },
     ]);
 
-    expect(() => table.rules.apply(before, step(a1, e1, 1))).toThrow(ContractViolation);
+    const after = table.rules.apply(before, step(a1, e1, 1));
+    expect(after.groups.get(e1)?.owner).toBe(A);
+    expect(after.groups.get(e1)?.heads).toBe(1);
+    expect(after.groups.get(a1)?.heads).toBe(1);
   });
 
   it('refuses a step with no allowance left', () => {

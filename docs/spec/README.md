@@ -26,10 +26,14 @@ behaviour is not here, it will not be built.**
 | [crossings](./crossings/crossings.md) | P05 | §2, §6.1a | 24 | — | 11 |
 | [closure](./closure/closure.md) | P05b | §7, §6.1a | 27 | — | 13 |
 | [fill](./fill/fill.md) | P05b | §7, §2 | 22 | — | 12 |
+| [cuts](./cuts/cuts.md) | P06 | §6.1, §6.1a | 18 | — | 10 |
+| [combat](./combat/combat.md) | P06 | §6.2, §11 item 37 | 14 | — | 10 |
 
-307 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
-**58 belong to P03**, **18 to P02**, **30 to P04**, **58 to P05**, and **49 to P05b**.
-395 concrete cases once `Examples` rows are expanded, 153 invariants.
+339 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
+**58 belong to P03**, **18 to P02**, **30 to P04**, **58 to P05**, **49 to P05b**,
+and **32 to P06**.
+395 concrete cases once `Examples` rows are expanded (combat Examples add more),
+173 invariants.
 
 A `@deferred-<packet>` tag means the behaviour is decided and specified here, but
 its seam falls in another packet — an accumulator that knows its owner is not a
@@ -153,17 +157,34 @@ consulted here even though it looks like the obvious test.
 where a wrong representation produces a *wrong answer* rather than a crash. Three
 scenarios carry it:
 
-- *A probe cannot escape between two boundary arrows meeting at a point* — the
+- *A walk cannot escape between two boundary arrows meeting at a point* — the
   diagonal leak. If it fails, every enclosure on the board leaks and nothing else
   reports it.
-- *A doubly wound loop encloses nothing* — where even-odd and flood-fill-from-outside
-  part company. §7 chose even-odd, so the inversion is the mechanic.
-- *A finite board reports nothing enclosed, and that is the theorem* — the reason this
-  is the first suite that cannot use a fixture board.
+- *Two separate rings around one region claim the whole interior* — where even-odd and
+  reachability part company. **§7 chose reachability** (§11 item 36): parity would call
+  that core *outside*, and it is plainly surrounded.
+- *A finite board has no infinity to fail to reach* — the reason this is the first
+  suite that cannot use a fixture board.
 
 Neither directory converts a head. §7 grants the enclosed tiles "and everything
 standing on them — enemy heads, converted", and the conversion half is P07's; the
 seam is a named scenario so a surviving enemy head is not read as a rule.
+
+## Reading order for P06
+
+Two directories: `cuts` is evaporation (§6.1); `combat` is contact on an
+enemy-occupied arrow (§6.2 / §11 item 37). Read `cuts` first if you care about
+trail destruction; read `combat` first if you care about the P04 seam.
+
+**In `combat`, the rule to read first is the trigger.** Contested-point 1:1 is
+withdrawn — two stacks that merely point into the same point do not fight.
+Stepping onto the enemy group is the only fight. Equals favour the attacker;
+floor may zero the attacker's loss when moderately larger (accepted PoC).
+
+**In `cuts`, read firebreaks and all-to-all next.** One kill per front; halt per
+arrow; territory is a wall; survivors demote to stack grade. Conversion is P07.
+
+When the same step is both contact and a cut: **combat first, then cut**.
 
 ## What is deliberately not here
 
@@ -172,8 +193,8 @@ A `Then` step that asserts a behaviour its packet does not own has leaked.
 - **P01** owned shapes, not legality — whether an exit is really an out-arrow, or
   a crossing is won, lived in later packets.
 - **P04** owns movement legality, not combat or territory — an enemy-occupied
-  destination is refused here; resolving it is P06. Closure, fill, spawners and
-  victory are later still.
+  destination was refused here as a seam; **P06** now resolves it as contact
+  combat (§6.2). Closure, fill, spawners and victory are later still.
 - **P05b** owns what a landing claims and what a closed curve contains — not what
   happens to the heads standing on it. Conversion is P07, evaporation is P06, and
   an accumulator resetting on capture is P08. No scenario here enumerates a

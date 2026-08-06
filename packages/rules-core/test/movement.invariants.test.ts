@@ -332,27 +332,45 @@ describe('merging overrides the merged group’s speed for the turn', () => {
   });
 });
 
-// ── enemy occupancy is refused, not resolved ─────────────────────────────────
+// ── enemy occupancy is contact combat (P06) ──────────────────────────────────
 
-describe('a step onto an opponent-occupied arrow is refused', () => {
-  it('refuses every exit the opponent stands on, whatever the counts', () => {
-    // The P06 seam (§6.2): P04 refuses contact, it does not resolve it. Sizes on
-    // both sides vary so that no reading of "the bigger stack wins" can pass.
+describe('a step onto an opponent-occupied arrow is contact combat', () => {
+  it('resolves every exit the opponent stands on, whatever the counts', () => {
+    // The P06 seam (§6.2 / item 38): stay-behind required. Outcomes vary with A,D.
     const table = onBoard();
     const src = anArrow(table.geometry);
     for (const exit of exitsFrom(table.geometry, src)) {
-      for (const [mine, theirs] of [
-        [1, 1],
-        [1, 3],
-        [4, 1],
-      ] as const) {
+      // 1v1 with stay-behind → attacker lands with 1
+      {
         const state = stateOf([
-          { arrow: src, owner: A, heads: mine },
-          { arrow: exit, owner: B, heads: theirs },
+          { arrow: src, owner: A, heads: 2 },
+          { arrow: exit, owner: B, heads: 1 },
         ]);
-        expect(() => table.rules.apply(state, step(src, exit, mine))).toThrow(
-          ContractViolation,
-        );
+        const after = table.rules.apply(state, step(src, exit, 1));
+        expect(after.groups.get(exit)?.owner).toBe(A);
+        expect(after.groups.get(exit)?.heads).toBe(1);
+        expect(after.groups.get(src)?.heads).toBe(1);
+      }
+      // stay-behind 1, step 1 vs 3 → attacker wiped; defender keeps remainder
+      {
+        const state = stateOf([
+          { arrow: src, owner: A, heads: 2 },
+          { arrow: exit, owner: B, heads: 3 },
+        ]);
+        const after = table.rules.apply(state, step(src, exit, 1));
+        expect(after.groups.get(exit)?.owner).toBe(B);
+        expect(after.groups.get(exit)?.heads).toBeGreaterThan(0);
+        expect(after.groups.get(src)?.heads).toBe(1);
+      }
+      // 3 of 4 vs 1 → defender wiped; attacker lands; stay-behind remains
+      {
+        const state = stateOf([
+          { arrow: src, owner: A, heads: 4 },
+          { arrow: exit, owner: B, heads: 1 },
+        ]);
+        const after = table.rules.apply(state, step(src, exit, 3));
+        expect(after.groups.get(exit)?.owner).toBe(A);
+        expect(after.groups.get(src)?.heads).toBe(1);
       }
     }
   });
