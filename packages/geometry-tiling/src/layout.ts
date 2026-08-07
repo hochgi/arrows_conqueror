@@ -98,10 +98,23 @@ const ROOT3_OVER_2 = Math.sqrt(3) / 2;
  * down, so the map is `(x, y) ↦ (y, −x)`. Graph topology is unchanged — only
  * which way the chevrons point on the monitor.
  */
-const world = (i: number, j: number): Point2 => {
+export const world = (i: number, j: number): Point2 => {
   const x = i + j / 2;
   const y = j * ROOT3_OVER_2;
   return { x: y, y: -x };
+};
+
+/**
+ * Inverse of {@link world}: drawable-plane coordinates → nearest lattice cell.
+ *
+ * Cull / hit must use this after the 90° layout turn — snapping with the raw
+ * `u,v` basis centres the window on the wrong place and clips tiles at the
+ * screen edge while panning.
+ */
+export const cellNearWorld = (x: number, y: number): Cell => {
+  const j = Math.round(x / ROOT3_OVER_2);
+  const i = Math.round(-y - j / 2);
+  return { i, j };
 };
 
 const triangleCentre = ({ i, j, parity }: VertexCell): Point2 => {

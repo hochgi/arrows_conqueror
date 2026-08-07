@@ -31,7 +31,9 @@ export type { MatchConfig } from '@arrows/contracts';
 export {
   MEASURED_SILHOUETTE,
   TILE_AREA,
+  cellNearWorld,
   makeLayout,
+  world,
   type Point2,
   type SilhouetteParams,
   type TilingLayout,

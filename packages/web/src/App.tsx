@@ -32,7 +32,7 @@ import { pathForDestination } from './reach';
 import { spawnerInfoAt } from './spawnerInfo';
 import { SpawnerTip } from './SpawnerTip';
 import type { Viewport } from './viewport';
-import { createViewport, panBy, resize, zoomAt } from './viewport';
+import { ZOOM, createViewport, panBy, resize, zoomAt } from './viewport';
 
 const geometry = makeTiling();
 const layout = makeLayout();
@@ -109,6 +109,11 @@ export const App = (): ReactElement => {
   const [hoverPath, setHoverPath] = useState<ReadonlySet<ArrowId> | undefined>(undefined);
   const [botBusy, setBotBusy] = useState(false);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  /** Active pointers for pinch-zoom (phone has no wheel). */
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<
+    { dist: number; midX: number; midY: number; moved: boolean } | null
+  >(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const botSeatRef = useRef<PlayerId | undefined>(undefined);
   const botEpoch = useRef(0);
@@ -126,7 +131,14 @@ export const App = (): ReactElement => {
       const entry = entries[0];
       if (entry === undefined) return;
       const { width, height } = entry.contentRect;
-      setViewport((v) => resize(v, Math.max(320, width), Math.max(240, height)));
+      const w = Math.max(320, width);
+      const h = Math.max(240, height);
+      setViewport((v) => {
+        // Phone stage is short — start a bit zoomed out so homes fit.
+        const scale =
+          h < 520 && v.scale === ZOOM.default ? Math.min(v.scale, 34) : v.scale;
+        return { ...resize(v, w, h), scale };
+      });
     });
     ro.observe(el);
     return () => {
@@ -370,18 +382,69 @@ export const App = (): ReactElement => {
     state.winner !== undefined;
 
   const onPointerDown = (e: PointerEvent<SVGSVGElement>): void => {
-    if (snap.phase.kind === 'portion' || inputLocked) return;
+    if (snap.phase.kind === 'portion') return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    pointers.current.set(e.pointerId, { x, y });
     e.currentTarget.setPointerCapture(e.pointerId);
+
+    if (pointers.current.size >= 2) {
+      const pts = [...pointers.current.values()];
+      const a = pts[0];
+      const b = pts[1];
+      if (a !== undefined && b !== undefined) {
+        pinch.current = {
+          dist: Math.hypot(b.x - a.x, b.y - a.y),
+          midX: (a.x + b.x) / 2,
+          midY: (a.y + b.y) / 2,
+          moved: false,
+        };
+      }
+      drag.current = null;
+      return;
+    }
+    if (inputLocked) return;
     drag.current = { x: e.clientX, y: e.clientY, moved: false };
   };
 
   const onPointerMove = (e: PointerEvent<SVGSVGElement>): void => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    if (pointers.current.has(e.pointerId)) {
+      pointers.current.set(e.pointerId, { x, y });
+    }
+
+    if (pointers.current.size >= 2 && pinch.current !== null) {
+      const pts = [...pointers.current.values()];
+      const a = pts[0];
+      const b = pts[1];
+      if (a === undefined || b === undefined) return;
+      const dist = Math.hypot(b.x - a.x, b.y - a.y);
+      const midX = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2;
+      const prev = pinch.current;
+      if (prev.dist > 4 && dist > 4) {
+        const factor = dist / prev.dist;
+        if (Math.abs(factor - 1) > 0.001 || Math.hypot(midX - prev.midX, midY - prev.midY) > 1) {
+          pinch.current = { dist, midX, midY, moved: true };
+          setHover(undefined);
+          setHoverPath(undefined);
+          setViewport((v) => {
+            const zoomed = zoomAt(v, prev.midX, prev.midY, factor);
+            return panBy(zoomed, midX - prev.midX, midY - prev.midY);
+          });
+        }
+      } else {
+        pinch.current = { dist, midX, midY, moved: prev.moved };
+      }
+      return;
+    }
+
     if (drag.current === null) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const sx = e.clientX - rect.left;
-      const sy = e.clientY - rect.top;
-      const vertex = hitSpawnerVertex(layout, viewport, sx, sy, spawnerVertices, 16);
-      setHover(vertex === undefined ? undefined : { vertex, x: sx, y: sy });
+      const vertex = hitSpawnerVertex(layout, viewport, x, y, spawnerVertices, 16);
+      setHover(vertex === undefined ? undefined : { vertex, x, y });
 
       const reach = snap.highlights.reach;
       if (
@@ -390,7 +453,7 @@ export const App = (): ReactElement => {
         snap.phase.kind !== 'idle' &&
         snap.phase.kind !== 'blocked'
       ) {
-        const over = hitArrow(layout, viewport, sx, sy, arrows);
+        const over = hitArrow(layout, viewport, x, y, arrows);
         if (over !== undefined && reach.has(over) && over !== snap.highlights.selected) {
           setHoverPath(pathForDestination(reach, over));
         } else {
@@ -412,10 +475,14 @@ export const App = (): ReactElement => {
   };
 
   const onPointerUp = (e: PointerEvent<SVGSVGElement>): void => {
+    pointers.current.delete(e.pointerId);
+    const pinched = pinch.current?.moved === true;
+    if (pointers.current.size < 2) pinch.current = null;
+
     const wasDrag = drag.current?.moved === true;
     const hadPointer = drag.current !== null;
     drag.current = null;
-    if (!hadPointer || wasDrag || inputLocked) return;
+    if (pinched || !hadPointer || wasDrag || inputLocked) return;
     if (snap.phase.kind === 'portion') return;
     const rect = e.currentTarget.getBoundingClientRect();
     const sx = e.clientX - rect.left;
@@ -431,6 +498,8 @@ export const App = (): ReactElement => {
 
   const onPointerLeave = (): void => {
     drag.current = null;
+    pointers.current.clear();
+    pinch.current = null;
     setHover(undefined);
     setHoverPath(undefined);
   };

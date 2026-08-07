@@ -111,10 +111,12 @@ export const Hud = ({
       </label>
 
       <p className="help">
-        Drag to pan · wheel to zoom · thick gold outline = stack can still move this turn
-        (auto-selects the next after you finish one) · blue = reachable, fading with
-        distance · hover a blue tile to pulse the path · bold tile edge = occupied ·
-        solid fill = territory, thin fill = open trail · turn passes when nothing can step
+        Drag to pan · pinch or wheel to zoom · thick gold outline = stack can still move
+        this turn (auto-selects the next after you finish one) · blue = reachable,
+        fading with distance · hover a blue tile to pulse the path · bold tile edge =
+        occupied · trail chords stay visible under enemy stacks (overlap is legal until
+        a cut) · solid fill = territory, thin fill = open trail · turn passes when
+        nothing can step
       </p>
       <p className="help">
         Ringed dots are spawners — three arcs with a dark rim, one per bordering arrow.
