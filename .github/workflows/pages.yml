@@ -30,8 +30,10 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build workspace declarations
+        run: pnpm build
       - name: Build web client for GitHub Pages
-        run: pnpm --filter @arrows/web exec tsc -p tsconfig.json --noEmit && pnpm --filter @arrows/web exec vite build --mode pages
+        run: pnpm --filter @arrows/web exec vite build --mode pages
       - uses: actions/upload-pages-artifact@v3
         with:
           path: packages/web/dist
