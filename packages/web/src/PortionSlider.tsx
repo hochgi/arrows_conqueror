@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent, ReactElement } from 'react';
 
 export interface PortionSliderProps {
   /** Portions that actually arrive, ascending. The slider offers only these. */
@@ -19,6 +19,10 @@ export interface PortionSliderProps {
  * is the fewest heads that can make the trip (§3 buys distance with heads) and a merge
  * that would be barred can leave a gap in the middle. Offering a portion that cannot
  * arrive is the fastest way to make a correct rule look broken.
+ *
+ * **Mobile:** the tap that opens this dialog also synthesises a follow-up mouse/pointer
+ * event on the new backdrop. A short open-grace ignores that ghost dismiss so the
+ * slider does not vanish on the same finger-up that summoned it.
  */
 export const PortionSlider = ({
   allowed,
@@ -29,10 +33,21 @@ export const PortionSlider = ({
 }: PortionSliderProps): ReactElement => {
   const options = useMemo(() => (allowed.length > 0 ? allowed : [1]), [allowed]);
   const [index, setIndex] = useState(options.length - 1);
+  const dismissable = useRef(false);
 
   useEffect(() => {
     setIndex(options.length - 1);
   }, [options]);
+
+  useEffect(() => {
+    dismissable.current = false;
+    const handle = window.setTimeout(() => {
+      dismissable.current = true;
+    }, 400);
+    return () => {
+      window.clearTimeout(handle);
+    };
+  }, []);
 
   const value = options[Math.min(index, options.length - 1)] ?? 1;
   const min = options[0] ?? 1;
@@ -53,12 +68,27 @@ export const PortionSlider = ({
     };
   }, [onCancel, onConfirm, value]);
 
+  const dismissIfBackdrop = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    if (e.target !== e.currentTarget) return;
+    // Eat the ghost tap either way so it cannot fall through to the board.
+    e.preventDefault();
+    e.stopPropagation();
+    if (!dismissable.current) return;
+    onCancel();
+  };
+
   return (
     <div
       className="portion-backdrop"
       role="presentation"
+      onPointerDown={dismissIfBackdrop}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onCancel();
+        // Compat mouse events after touch — same ghost-dismiss path on some WebViews.
+        if (e.target !== e.currentTarget) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (!dismissable.current) return;
+        onCancel();
       }}
     >
       <div
@@ -66,6 +96,9 @@ export const PortionSlider = ({
         role="dialog"
         aria-modal="true"
         aria-label="Send heads"
+        onPointerDown={(e) => {
+          e.stopPropagation();
+        }}
         onMouseDown={(e) => {
           e.stopPropagation();
         }}

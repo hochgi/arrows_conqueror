@@ -493,6 +493,12 @@ export const App = (): ReactElement => {
       commitSnap(mode.onBackgroundClick());
       return;
     }
+    // Drop capture so the portion dialog owns the next events (and the ghost
+    // tap from this finger-up cannot bounce back into the board).
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    pointers.current.clear();
     commitSnap(mode.onArrowClick(arrow, state, rules));
   };
 
