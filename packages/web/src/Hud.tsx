@@ -33,16 +33,16 @@ const phaseHint = (
         return 'No steps left — passing…';
       }
       return vsBot
-        ? `${modeLabel}: your turn — click a gold-outlined stack`
-        : `${modeLabel}: click a gold-outlined stack`;
+        ? `${modeLabel}: your turn — gold-outlined stacks can still move`
+        : `${modeLabel}: gold-outlined stacks can still move`;
     case 'source':
-      return 'Click anywhere blue · fainter = further · the number is the heads it takes';
+      return 'Hover blue to pulse the path · click to send · fainter = further';
     case 'blocked':
-      return 'Branch toll — this stack cannot leave. Click another gold stack';
+      return 'Branch toll — this stack cannot leave. Another gold stack is auto-selected when one finishes';
     case 'preview':
-      return 'Bright path = the route taken · click again to confirm, or an intermediate for another path';
+      return 'Pulsing path = the route taken · click again to confirm, or an intermediate for another path';
     case 'portion':
-      return 'Bright path = the route for this portion · change the slider or cancel and re-click';
+      return 'Pulsing path = the route for this portion · change the slider or cancel and re-click';
   }
 };
 
@@ -72,7 +72,7 @@ export const Hud = ({
           Turn: <strong style={{ color: active.fill }}>{active.label}</strong>
           {vsBot ? (botBusy ? ' · bot' : ' · you') : null}
           {state.dominationHolder !== undefined
-            ? ` · domination ${String(state.dominationStreak)}/${String(state.dominationN)}`
+            ? ` · starvation ${String(state.dominationStreak)}/${String(state.dominationN)} (${styleFor(state.dominationHolder).label})`
             : null}
         </p>
       )}
@@ -111,10 +111,10 @@ export const Hud = ({
       </label>
 
       <p className="help">
-        Drag to pan · wheel to zoom · gold outline = can move · blue = reachable this
-        turn, fading with distance · bright path = the multi-hop route that will run ·
-        bold tile edge = occupied (count on the tile) · solid fill = territory, thin
-        fill = open trail · turn passes automatically when nothing can step
+        Drag to pan · wheel to zoom · thick gold outline = stack can still move this turn
+        (auto-selects the next after you finish one) · blue = reachable, fading with
+        distance · hover a blue tile to pulse the path · bold tile edge = occupied ·
+        solid fill = territory, thin fill = open trail · turn passes when nothing can step
       </p>
       <p className="help">
         Ringed dots are spawners — three arcs with a dark rim, one per bordering arrow.

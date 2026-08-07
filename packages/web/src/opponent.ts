@@ -168,8 +168,10 @@ export const evaluate = (
   }
 
   let domination = 0;
-  if (state.dominationHolder === me) domination = state.dominationStreak * 200;
-  else if (state.dominationHolder !== undefined) {
+  if (state.dominationHolder !== undefined && state.dominationHolder !== me) {
+    // Opponent is on the zero-share clock — good for us.
+    domination = state.dominationStreak * 200;
+  } else if (state.dominationHolder === me) {
     domination = -state.dominationStreak * 200;
   }
 

@@ -1,5 +1,5 @@
 /**
- * P09 — elimination and domination.
+ * P09 — elimination and starvation.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -7,7 +7,7 @@ import { endTurn, rational } from '@arrows/contracts';
 import { makeTiling } from '@arrows/geometry-tiling';
 import { orderedBorders } from '../src/economy';
 import { makeRules } from '../src/index';
-import { applyElimination, tickDomination } from '../src/victory';
+import { applyElimination, shareCountOf, tickDomination } from '../src/victory';
 import { A, B, anArrow, stateOf } from './support';
 
 describe('elimination', () => {
@@ -18,8 +18,8 @@ describe('elimination', () => {
   });
 });
 
-describe('domination', () => {
-  it('increments the streak when one player owns every share for a full round', () => {
+describe('starvation', () => {
+  it('increments the streak when one living player owns no shares for a full round', () => {
     const geometry = makeTiling();
     const rules = makeRules(geometry);
     const seed = anArrow(geometry);
@@ -27,12 +27,14 @@ describe('domination', () => {
     if (vertex === undefined) throw new Error('setup: no flank');
     const borders = orderedBorders(geometry, vertex);
     const feed = borders[0];
-    if (feed === undefined) throw new Error('setup: no border');
+    const other = borders[1];
+    if (feed === undefined || other === undefined) throw new Error('setup: no border');
+    // A owns every share; B is destitute.
     const territory = borders.map((arrow) => ({ arrow, owner: A }));
     const before = stateOf(
       [
         { arrow: feed, owner: A, heads: 1 },
-        { arrow: borders[1] ?? feed, owner: B, heads: 1 },
+        { arrow: other, owner: B, heads: 1 },
       ],
       B,
       {
@@ -41,19 +43,22 @@ describe('domination', () => {
         dominationN: 2,
       },
     );
+    expect(shareCountOf(before, B, geometry)).toBe(0);
+    expect(shareCountOf(before, A, geometry)).toBe(3);
 
     const afterRound = rules.apply(before, endTurn());
-    expect(afterRound.dominationHolder).toBe(A);
+    expect(afterRound.dominationHolder).toBe(B);
     expect(afterRound.dominationStreak).toBe(1);
     expect(afterRound.winner).toBeUndefined();
 
     const mid = rules.apply(afterRound, endTurn());
     const won = rules.apply(mid, endTurn());
     expect(won.dominationStreak).toBe(2);
+    expect(won.dominationHolder).toBe(B);
     expect(won.winner).toBe(A);
   });
 
-  it('resets the streak when shares are split', () => {
+  it('resets the streak when the destitute player reacquires a share', () => {
     const geometry = makeTiling();
     const seed = anArrow(geometry);
     const vertex = geometry.flankVertices(seed)[0];
@@ -65,17 +70,24 @@ describe('domination', () => {
     if (a0 === undefined || a1 === undefined || a2 === undefined) {
       throw new Error('setup: expected 3 borders');
     }
-    const state = stateOf([], A, {
-      territory: [
-        { arrow: a0, owner: A },
-        { arrow: a1, owner: A },
-        { arrow: a2, owner: B },
+    const state = stateOf(
+      [
+        { arrow: a0, owner: A, heads: 1 },
+        { arrow: a1, owner: B, heads: 1 },
       ],
-      spawners: [[vertex, { force: rational(1, 3), phase: 0 }]],
-      dominationStreak: 3,
-      dominationHolder: A,
-      dominationN: 5,
-    });
+      A,
+      {
+        territory: [
+          { arrow: a0, owner: A },
+          { arrow: a1, owner: A },
+          { arrow: a2, owner: B },
+        ],
+        spawners: [[vertex, { force: rational(1, 3), phase: 0 }]],
+        dominationStreak: 3,
+        dominationHolder: B,
+        dominationN: 5,
+      },
+    );
     const after = tickDomination(state, geometry);
     expect(after.dominationStreak).toBe(0);
     expect(after.dominationHolder).toBeUndefined();

@@ -210,7 +210,7 @@ const YieldShine = ({
 }): ReactElement => {
   const pad = Math.max(bounds.w, bounds.h) * 0.85;
   return (
-    <g style={{ pointerEvents: 'none' }} opacity={soon === 1 ? 1 : 0.5}>
+    <g style={{ pointerEvents: 'none' }} opacity={soon === 1 ? 1 : 0.3}>
       <clipPath id={clipId}>
         <polygon points={points} />
       </clipPath>
@@ -284,9 +284,10 @@ export const Board = ({
         const soon = yieldSoon.get(arrow);
         const ownerStroke = group !== undefined ? styleFor(group.owner).stroke : base.stroke;
         let strokeWidth = 0.7;
-        if (group !== undefined) strokeWidth = 2.55;
-        else if (isSelected || isPreview || onPath) strokeWidth = 2.6;
-        else if (entry !== undefined || isMovable) strokeWidth = 1.8;
+        if (isSelected || isPreview || onPath) strokeWidth = 2.6;
+        else if (isMovable) strokeWidth = 3.1;
+        else if (group !== undefined) strokeWidth = 2.55;
+        else if (entry !== undefined) strokeWidth = 1.8;
         const strokeColor = isSelected
           ? HIGHLIGHT_STROKE
           : isPreview || onPath
@@ -300,7 +301,16 @@ export const Board = ({
                 : group !== undefined
                   ? ownerStroke
                   : base.stroke;
-        const glyph = Math.max(9, viewport.scale * 0.34);
+        const tipWorld = layout.pointPosition(geometry.target(arrow));
+        const tip = toScreen(viewport, tipWorld.x, tipWorld.y);
+        // Bias the count toward the arrowhead — the chevron is widest there.
+        const countX = c.x + (tip.x - c.x) * 0.42;
+        const countY = c.y + (tip.y - c.y) * 0.42;
+        const glyph = Math.max(8, viewport.scale * 0.26);
+        const trailMarks: PlayerId[] = [];
+        for (const [player, trail] of state.trails) {
+          if (trail.has(arrow)) trailMarks.push(player);
+        }
         let minX = Infinity;
         let minY = Infinity;
         let maxX = -Infinity;
@@ -321,18 +331,38 @@ export const Board = ({
               strokeWidth={strokeWidth}
               data-arrow={String(arrow)}
             />
+            {trailMarks.map((player) => {
+              const originWorld = layout.pointPosition(geometry.origin(arrow));
+              const origin = toScreen(viewport, originWorld.x, originWorld.y);
+              const ink = styleFor(player).stroke;
+              return (
+                <line
+                  key={`trail-${String(player)}`}
+                  x1={origin.x}
+                  y1={origin.y}
+                  x2={tip.x}
+                  y2={tip.y}
+                  stroke={ink}
+                  strokeWidth={Math.max(1.6, viewport.scale * 0.055)}
+                  strokeLinecap="round"
+                  strokeOpacity={0.92}
+                  style={{ pointerEvents: 'none' }}
+                />
+              );
+            })}
             {entry !== undefined && !isSelected ? (
               <polygon
                 points={points}
                 fill={onPath ? PATH_WASH : REACH_FILL}
-                fillOpacity={onPath ? 0.85 : isPreview ? 0.7 : reachOpacity(entry.distance)}
+                fillOpacity={onPath ? undefined : isPreview ? 0.7 : reachOpacity(entry.distance)}
+                className={onPath ? 'path-pulse' : undefined}
                 style={{ pointerEvents: 'none' }}
               />
             ) : onPath ? (
               <polygon
                 points={points}
                 fill={PATH_WASH}
-                fillOpacity={0.75}
+                className="path-pulse"
                 style={{ pointerEvents: 'none' }}
               />
             ) : null}
@@ -346,16 +376,16 @@ export const Board = ({
             ) : null}
             {group !== undefined ? (
               <text
-                x={c.x}
-                y={c.y}
+                x={countX}
+                y={countY}
                 textAnchor="middle"
                 dominantBaseline="central"
                 fontSize={glyph}
                 fontFamily="IBM Plex Sans, Segoe UI, sans-serif"
-                fontWeight={700}
+                fontWeight={650}
                 fill={styleFor(group.owner).ink}
                 stroke={COUNT_HALO}
-                strokeWidth={glyph * 0.28}
+                strokeWidth={Math.max(0.8, glyph * 0.1)}
                 paintOrder="stroke fill"
                 style={{ pointerEvents: 'none', userSelect: 'none' }}
               >
@@ -363,11 +393,11 @@ export const Board = ({
               </text>
             ) : entry !== undefined && entry.minCount > 1 ? (
               <text
-                x={c.x}
-                y={c.y}
+                x={countX}
+                y={countY}
                 textAnchor="middle"
                 dominantBaseline="central"
-                fontSize={glyph * 0.78}
+                fontSize={glyph * 0.92}
                 fontFamily="IBM Plex Sans, Segoe UI, sans-serif"
                 fontWeight={600}
                 fill={REACH_INK}

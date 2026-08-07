@@ -2,12 +2,12 @@
  * Match setup tuning — playtest-first defaults (P09 / §7 / §8 / §9).
  *
  * All numbers are setup data: the rules core never branches on them; it only
- * reads `dominationN` from state and opaque spawner forces.
+ * reads `dominationN` (starvation threshold) from state and opaque spawner forces.
  */
 
 /** PoC defaults — keep editable for experimentation. */
 export interface MatchConfig {
-  /** Domination hold window in full rounds (§9). Default 5. */
+  /** Starvation window in full rounds (§9) — zero shares for this long loses. Default 5. */
   readonly dominationN: number;
   /** Spawner cutoff radius in graph distance from the origin (§7). Default 7. */
   readonly R: number;
@@ -68,21 +68,19 @@ export interface SpawnerBand {
  *
  * Density carries the rest of the gradient, and §7 says why it is the better lever:
  * force sets how fast one spawner pays, density sets how many arrows are **double-fed**,
- * which halves fill time again on top of it. Full density at the centre and an eighth at
- * the rim are §7's own figures — *"at half density three quarters of centre arrows are
- * fed and a third of those are double-fed; at an eighth, home arrows are mostly
- * single-fed or bare"*.
+ * which halves fill time again on top of it. §7's own sketch is **half** in the contested
+ * disc and an eighth at the rim — *"at half density three quarters of centre arrows are
+ * fed and a third of those are double-fed"*. An earlier PoC ran the centre at full density;
+ * playtests showed one mid close snowballing into too many shares and too many stacks, so
+ * the table below tracks that sketch more closely (half / third / sixth / twelfth).
  *
- * The band totals are deliberately close — with ~14 vertices inside *r* = 1 and ~264
- * beyond *r* = 3, the centre, the middle and the rim each carry roughly the same total
- * force. The centre is *concentrated*, not richer: worth bleeding for because it pays out
- * between flips, not because everywhere else is barren.
+ * The centre is still *concentrated* via force 1/3, not by carpeting every pinwheel.
  */
 export const SPAWNER_BANDS: readonly SpawnerBand[] = [
-  { upTo: 1, force: { num: 1, den: 3 }, density: { num: 1, den: 1 } },
-  { upTo: 3, force: { num: 1, den: 9 }, density: { num: 1, den: 2 } },
-  { upTo: 5, force: { num: 1, den: 12 }, density: { num: 1, den: 4 } },
-  { upTo: Number.POSITIVE_INFINITY, force: { num: 1, den: 12 }, density: { num: 1, den: 8 } },
+  { upTo: 1, force: { num: 1, den: 3 }, density: { num: 1, den: 2 } },
+  { upTo: 3, force: { num: 1, den: 9 }, density: { num: 1, den: 3 } },
+  { upTo: 5, force: { num: 1, den: 12 }, density: { num: 1, den: 6 } },
+  { upTo: Number.POSITIVE_INFINITY, force: { num: 1, den: 12 }, density: { num: 1, den: 12 } },
 ];
 
 /** The band a radius falls in, clamped into `[0, R]`. */

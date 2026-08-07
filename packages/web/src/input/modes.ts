@@ -12,7 +12,7 @@
 
 import { endTurn, skip } from '@arrows/contracts';
 import type { ArrowId, GameState, GeometryPort, Move, RulesPort } from '@arrows/contracts';
-import { planArrowSet, planMoves, reachFrom } from '../reach';
+import { pathForDestination, planMoves, reachFrom } from '../reach';
 import type { Reach, ReachEntry } from '../reach';
 
 export type InputPhase =
@@ -77,12 +77,8 @@ const idle = (): InputSnapshot => ({
 const isOwn = (arrow: ArrowId, state: GameState): boolean =>
   state.groups.get(arrow)?.owner === state.activePlayer;
 
-const pathFor = (reach: Reach, exit: ArrowId, count: number): ReadonlySet<ArrowId> => {
-  const entry = reach.get(exit);
-  if (entry === undefined) return new Set();
-  const plan = entry.plans.get(count) ?? entry.plans.get(entry.minCount);
-  return plan === undefined ? new Set() : planArrowSet(plan);
-};
+const pathFor = (reach: Reach, exit: ArrowId, count: number): ReadonlySet<ArrowId> =>
+  pathForDestination(reach, exit, count);
 
 abstract class BaseMode implements InputMode {
   abstract readonly id: string;
@@ -120,6 +116,19 @@ abstract class BaseMode implements InputMode {
 
   /** The portion dialog for a reachable exit, floored at what actually arrives. */
   protected openPortion(from: ArrowId, exit: ArrowId, entry: ReachEntry): InputSnapshot {
+    // One legal portion — stack of 1, or exactly 2^(steps-1) for a full-speed trip —
+    // is not a choice; skipping the slider was the playtest ask.
+    if (entry.minCount === entry.maxCount) {
+      const plan = entry.plans.get(entry.minCount);
+      if (plan === undefined) return this.snap;
+      this.snap = {
+        phase: { kind: 'idle' },
+        highlights: emptyHighlights(),
+        pending: planMoves(from, plan, entry.minCount),
+      };
+      this.reach = new Map();
+      return this.snap;
+    }
     this.snap = {
       phase: {
         kind: 'portion',

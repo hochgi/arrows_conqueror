@@ -51,6 +51,32 @@ describe('Galcon input', () => {
     expect(previewed.highlights.path?.size).toBe(again.phase.steps);
   });
 
+  it('skips the slider when only one portion can arrive', () => {
+    const geometry = makeTiling();
+    const rules = makeRules(geometry);
+    const opening = makeMatch();
+    const A = opening.players[0];
+    expect(A).toBeDefined();
+    if (A === undefined) return;
+    const from = [...opening.groups.entries()].find(([, g]) => g.owner === A)?.[0];
+    expect(from).toBeDefined();
+    if (from === undefined) return;
+    // A lone head has max=min=1 on every reachable exit.
+    const state = {
+      ...opening,
+      groups: new Map([[from, { owner: A, heads: 1, spent: 0 }]]),
+    };
+    const mode = new GalconInput(geometry);
+    const selected = mode.onArrowClick(from, state, rules);
+    expect(selected.phase.kind).toBe('source');
+    const dest = [...selected.highlights.targets][0];
+    expect(dest).toBeDefined();
+    if (dest === undefined) return;
+    const committed = mode.onArrowClick(dest, state, rules);
+    expect(committed.phase.kind).toBe('idle');
+    expect(committed.pending).toHaveLength(1);
+  });
+
   it('marks a branch-stuck stack as blocked instead of empty destinations', () => {
     const geometry = makeTiling();
     const rules = makeRules(geometry);

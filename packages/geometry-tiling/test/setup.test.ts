@@ -9,7 +9,7 @@ import {
   forceAtRadius,
   rational,
 } from '@arrows/contracts';
-import { hexCorners, homeCellsFor, makeMatch, makeTiling, reflectCell } from '../src/index';
+import { hexCorners, homeCellsFor, makeLayout, makeMatch, makeTiling, reflectCell } from '../src/index';
 import { thinningSample } from '../src/setup';
 import { cellPoint, cellVertex, pointCell, vertexCell } from '../src/cells';
 
@@ -20,7 +20,7 @@ const radiusOf = (vertex: Parameters<typeof vertexCell>[0]): number => {
 };
 
 describe('match setup', () => {
-  it('places two homes on opposite hexagon corners with 3-stacks', () => {
+  it('places two homes as grain-preserving mirrors, not 180° opposites', () => {
     const state = makeMatch();
     expect(state.players).toHaveLength(2);
     expect(state.dominationN).toBe(5);
@@ -39,7 +39,16 @@ describe('match setup', () => {
     expect([...byOwner.values()].toSorted((a, b) => a - b)).toEqual([3, 3]);
 
     const D = DEFAULT_MATCH_CONFIG.homeOffset;
-    expect(homeCellsFor(2, D)).toEqual([hexCorners(D)[0], hexCorners(D)[3]]);
+    const homes = homeCellsFor(2, D);
+    const a = homes[0];
+    const b = homes[1];
+    expect(a).toBeDefined();
+    expect(b).toBeDefined();
+    if (a === undefined || b === undefined) return;
+    expect(a).toEqual(hexCorners(D)[1]);
+    expect(b).toEqual(reflectCell(a));
+    // Opposite corners would be the 180° anti-automorphism — banned by §2.
+    expect(homes).not.toEqual([hexCorners(D)[0], hexCorners(D)[3]]);
   });
 
   it('places three homes on alternating corners', () => {
@@ -61,9 +70,28 @@ describe('match setup', () => {
   });
 
   it('keeps the grain-preserving reflection as an involution', () => {
-    const homeA = { i: 5, j: 0 };
+    const homeA = { i: 0, j: 5 };
     const homeB = reflectCell(homeA);
+    expect(homeB).toEqual({ i: 5, j: -5 });
     expect(reflectCell(homeB)).toEqual(homeA);
+  });
+
+  it('puts the two-player pair left and right after the layout turn', () => {
+    // Layout maps lattice east to screen-up; the reflection across the old
+    // x-axis becomes a left/right mirror on the drawable plane.
+    const D = DEFAULT_MATCH_CONFIG.homeOffset;
+    const homes = homeCellsFor(2, D);
+    const a = homes[0];
+    const b = homes[1];
+    expect(a).toBeDefined();
+    expect(b).toBeDefined();
+    if (a === undefined || b === undefined) return;
+    const layout = makeLayout();
+    const pa = layout.pointPosition(cellPoint(a.i, a.j));
+    const pb = layout.pointPosition(cellPoint(b.i, b.j));
+    expect(Math.sign(pa.x)).not.toBe(Math.sign(pb.x));
+    expect(Math.abs(pa.y - pb.y)).toBeLessThan(1e-9);
+    expect(Math.abs(pa.x + pb.x)).toBeLessThan(1e-9);
   });
 
   it('places spawners inside R at their band force', () => {
@@ -99,11 +127,11 @@ describe('match setup', () => {
     }
   });
 
-  it('thins density with radius, keeping the centre whole', () => {
-    expect(densityAtRadius(1, 7)).toEqual({ num: 1, den: 1 });
-    expect(densityAtRadius(3, 7)).toEqual({ num: 1, den: 2 });
-    expect(densityAtRadius(5, 7)).toEqual({ num: 1, den: 4 });
-    expect(densityAtRadius(7, 7)).toEqual({ num: 1, den: 8 });
+  it('thins density with radius, half at the centre', () => {
+    expect(densityAtRadius(1, 7)).toEqual({ num: 1, den: 2 });
+    expect(densityAtRadius(3, 7)).toEqual({ num: 1, den: 3 });
+    expect(densityAtRadius(5, 7)).toEqual({ num: 1, den: 6 });
+    expect(densityAtRadius(7, 7)).toEqual({ num: 1, den: 12 });
 
     const state = makeMatch();
     const byBand = new Map<number, number>();
@@ -111,12 +139,11 @@ describe('match setup', () => {
       const r = radiusOf(vertex);
       byBand.set(r, (byBand.get(r) ?? 0) + 1);
     }
-    // 14 eligible vertices inside r = 1 (2 at the origin, 12 at distance 1) — all kept.
-    expect((byBand.get(0) ?? 0) + (byBand.get(1) ?? 0)).toBe(14);
-    // 12r eligible at radius r beyond that, and the rim is meant to be sparse.
-    expect(byBand.get(7) ?? 0).toBeLessThan(84 / 4);
-    // The whole disc is thinned well below the 338 the un-thinned board carried.
-    expect(state.spawners.size).toBeLessThan(150);
+    // 14 eligible inside r = 1; half density keeps about 7.
+    expect((byBand.get(0) ?? 0) + (byBand.get(1) ?? 0)).toBeLessThanOrEqual(10);
+    expect((byBand.get(0) ?? 0) + (byBand.get(1) ?? 0)).toBeGreaterThanOrEqual(5);
+    expect(byBand.get(7) ?? 0).toBeLessThan(84 / 6);
+    expect(state.spawners.size).toBeLessThan(90);
   });
 
   it('thins by a pure hash of the vertex, never a draw', () => {

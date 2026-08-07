@@ -204,6 +204,17 @@ describe('twist zero is a rhombus, twist non-zero is an arrow', () => {
     const poly = l.polygon(cellArrow(1, 1, 0));
     expect(isCentrallySymmetric(poly, vertexCentroid(poly))).toBe(false);
   });
+
+  it('draws direction-0 toward screen-up (former east)', () => {
+    // Layout applies a 90° turn so the primary out is an up-chevron, not a right one.
+    const l = measured();
+    const g = board();
+    const arrow = cellArrow(0, 0, 0);
+    const origin = l.pointPosition(g.origin(arrow));
+    const target = l.pointPosition(g.target(arrow));
+    expect(target.y).toBeLessThan(origin.y);
+    expect(Math.abs(target.x - origin.x)).toBeLessThan(1e-9);
+  });
 });
 
 describe('up and down triangles must twist oppositely', () => {

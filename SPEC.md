@@ -167,7 +167,7 @@ Special tiles and starting positions are placed **symmetrically about the origin
 
 > **Two players are placed as mirror images in a line through the origin.** In world coordinates the reflection is the x-axis; it fixes the origin, so it preserves any radial gradient, and it is an exact automorphism of the oriented graph, so every line of play available to one player has an exact counterpart for the other.
 
-The mirror swaps handedness, which is harmless precisely because §2's alternating pattern made the board non-chiral in the first place. **N-player homes** for hot-seat sit on a hexagon about the origin (§11 item 11): opposite corners (2), alternating (3), four corners with one opposite pair free (4), all six (6), or equal angular span (5 / 7+). The classical 120° rotation still describes three-player *map* symmetry of the oriented graph; seating uses the corner table above so every count shares one placement vocabulary.
+The mirror swaps handedness, which is harmless precisely because §2's alternating pattern made the board non-chiral in the first place. **N-player homes** for hot-seat sit on a hexagon about the origin (§11 item 11): a reflected corner pair (2), alternating (3), four corners with one opposite pair free (4), all six (6), or equal angular span (5 / 7+). The classical 120° rotation still describes three-player *map* symmetry of the oriented graph; seating uses the corner table above so every count shares one placement vocabulary.
 
 ---
 
@@ -753,26 +753,28 @@ This makes heads the life force rather than merely units. Conversion by encircle
 
 It also hands the trailing player a real comeback vector: a desperate lasso around an enemy stack doesn't just deal damage, it *takes* those heads — a 2× swing on the exact axis that decides the game.
 
-**Domination.** Hold **every spawner share on the board** for *N* consecutive turns and you win.
+**Starvation.** A living player who owns **no spawner share at all** for *N* consecutive full rounds loses — the other living seat wins.
 
-The second condition, and it exists because elimination alone is unreachable against a player who simply refuses to be reached (§11 item 32). It ends a match on the axis the game is actually contested on — production — rather than on physically cornering a last head, which an unbounded board makes impossible.
+The second condition exists because elimination alone is unreachable against a player who simply refuses to be reached (§11 item 32). It ends a match on the axis the game is actually contested on — production — rather than on physically cornering a last head.
+
+~~**Domination.** Hold every spawner share for *N* turns.~~ — **superseded by starvation.** Playtests showed the old clock started too late: once an opponent already had zero shares, the attacker still had to own *every* share on the board and then wait *N* more rounds of empty end-turns. Starvation starts the clock the moment someone is destitute, which is when the board is already decided.
 
 Two things about its shape are load-bearing and neither is a tuning choice:
 
-- **Every share, not a fraction.** A threshold invites an argument about where the threshold goes; 100% needs no constant. It is also the state the flee case genuinely reaches: a runner past *R* has no production at all (§7), so total capture is not a high bar against them, it is automatic the moment they leave.
-- **Held for *N* turns, not won on the turn of capture.** An instant win on the last share would end the match at the moment the losing side is most dangerous — they can still be holding large, fast stacks (§3: a big stack outruns a small one, which is also why a runner cannot escape a strong pursuer) with nothing left to defend and every reason to counterattack. The hold window turns *I took everything* into *I kept it*, and gives the losing side a defined last chance rather than a rug-pull.
+- **Zero shares, not a fraction.** The flee case reaches exactly this: a runner past *R* has no production (§7). Neutral shares do not protect them — only *owning* a share resets the clock.
+- **Held for *N* turns, not lost on the turn of the last share.** An instant loss on the last share would end the match at the moment the losing side is most dangerous — they can still be holding large, fast stacks (§3) with every reason to counterattack. The window turns *I am broke* into *I stayed broke*, and gives a defined last chance.
 
-*N* is a tuning number, deliberately, and belongs with the rest of the spawner table (§7, §11 item 11).
+*N* is a tuning number, deliberately, and belongs with the rest of the spawner table (§7, §11 item 11). Default **5**.
 
-**Holding means owning, not blockading.** A share *is* ownership of one of the three arrows bordering the vertex, as territory (§7), and a head parked on a rival's spawner arrow **freezes** that share without taking it — the arrow is still theirs. So a blockade stops production and contributes nothing to the hold window. That is the reading §7 already requires, and it is the one that matters: if parking counted, domination would be won by garrisoning rather than by carving, and §7's *a blockade has a maintenance cost and a decisive failure mode* would stop being true.
+**A share means owning, not blockading.** A share *is* ownership of one of the three arrows bordering a spawner vertex, as territory (§7). Parking on a rival's share freezes production without taking it — so a blockade does not keep you off the starvation clock, and does not put the owner onto it.
 
-**This does not require upkeep.** Item 32 listed upkeep as the front-runner and domination as the alternative; domination won because it needs no new state and no per-turn bookkeeping — it reads ownership the board already carries. Upkeep remains available as a balance knob if playtesting wants more pressure on a hoarding player, but nothing depends on it.
+**This does not require upkeep.** Item 32 listed upkeep as the front-runner; starvation (and before it, domination) won because it needs no new per-turn bookkeeping beyond a streak — it reads ownership the board already carries. Upkeep remains available as a balance knob if playtesting wants more pressure on a hoarding player, but nothing depends on it.
 
 ### The turtle is a losing position, not a stalemate
 
 "You can only be hurt while you're growing" means a player who **stops growing becomes unkillable by cutting**. A losing player can pull every head onto safe ground inside a small enclave and never lay another trail.
 
-An earlier draft called that a permanent stalemate and accepted it, reasoning that the only way through a shell was to encircle the *entire* enclave — impractical at a chokepoint. **The reasoning had a hidden premise: that the attacker needed the turtle's heads.** Under domination they need the turtle's *production*, and that is a far smaller shape. The shell is proof against fire, and nobody is obliged to burn it.
+An earlier draft called that a permanent stalemate and accepted it, reasoning that the only way through a shell was to encircle the *entire* enclave — impractical at a chokepoint. **The reasoning had a hidden premise: that the attacker needed the turtle's heads.** Under starvation they need the turtle's *production*, and that is a far smaller shape. The shell is proof against fire, and nobody is obliged to burn it.
 
 Three things already in this spec close the case, and none of them is new:
 
@@ -780,9 +782,9 @@ Three things already in this spec close the case, and none of them is new:
 - **Territory is contestable** (§7). An enemy can drive a chain into your territory and close a loop inside it, carving that chunk — and any specials in it — back out. Safe ground is safe from *cutting*, never from *closure*.
 - **Closing around the garrison converts it** (§6.3). Heads standing on the carved tiles are now inside the attacker's territory with no anchored trail, so they convert intact — a 2× swing on the axis that decides the game. The turtle's own garrison is what makes the carve worth attempting.
 
-So a turtle faces a bill either way: garrison the spawner and lose the garrison when it is carved, or leave it thin and lose it cheaply. Meanwhile they cannot grow — that is the definition of turtling — so nothing replaces what they lose, and once the last share is gone the domination clock runs on a player with no income at all.
+So a turtle faces a bill either way: garrison the spawner and lose the garrison when it is carved, or leave it thin and lose it cheaply. Meanwhile they cannot grow — that is the definition of turtling — so nothing replaces what they lose, and once the last share is gone the starvation clock runs on a player with no income at all.
 
-**Decision: no clock, no upkeep, no rule.** The residue is a turtle with heads enough to cut every incursion into their own ground indefinitely, and that player is losing slowly rather than holding forever. **Upkeep** — each special sustaining some number of heads, with a shortfall costing one head per turn — remains on the shelf as a balance knob if playtesting disagrees, but nothing in the design is waiting on it.
+**Decision: no clock bolted beside the rules, no upkeep.** Starvation *is* the clock, and it reads shares the board already carries. **Upkeep** — each special sustaining some number of heads, with a shortfall costing one head per turn — remains on the shelf as a balance knob if playtesting disagrees, but nothing in the design is waiting on it.
 
 ### Closed: the board has no edge, and it does not need one
 
@@ -793,9 +795,9 @@ Two things were already true, and together they are why this needed a win condit
 - **Fleeing gains nothing.** Past *R* there is no production (§7), so the runner's economy is fixed at zero while the pursuer keeps every spawner. Every turn spent running widens the gap.
 - **Pursuit converges.** `speed(N) = 1 + floor(log₂ N)` (§3), so a 16-stack closes four cells a turn on a lone head. Being faster is not enough on its own — the pursuer must also leave home to do it, and a chase is turns not spent defending.
 
-So the runner cannot win, only decline to lose — and **domination above ends it**, because a player who has left the board's productive region holds no shares at all. The clock starts the moment they run, and it does not depend on catching them. **Resolved** — §11 item 32.
+So the runner cannot win, only decline to lose — and **starvation above ends it**, because a player who has left the board's productive region holds no shares at all. The clock starts the moment they run, and it does not depend on catching them. **Resolved** — §11 item 32.
 
-The two were always the same problem — a player who has stopped playing and cannot be *reached* — and one condition answers both, because it stops asking to reach them. The runner has no production to take; the turtle's is enclosable at the cheapest size on the board (above). Neither needs a clock bolted beside it.
+The two were always the same problem — a player who has stopped playing and cannot be *reached* — and one condition answers both, because it stops asking to reach them. The runner has no production to take; the turtle's is enclosable at the cheapest size on the board (above). Neither needs a second clock bolted beside it.
 
 ---
 
@@ -824,7 +826,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > **Items 30 and 31 were opened together and closed together, by deleting their cause.** Both said the same thing — §7's fill and §8's setup were written for a plane while the board was a torus. The gap was closed in the direction nobody had considered: **the board became the plane** (item 4, re-resolved). Neither was answered on its own terms, and that is the better outcome; a rule invented to make fill work on a torus would have been a rule the game never needed.
 >
-> **Item 32 was the one thing an unbounded board cost, and it is now closed** by a second win condition rather than by a chase mechanic: hold every spawner share for *N* turns and you win. A runner past *R* holds none, so the clock starts when they leave and never depends on catching them. It closed §9's turtle as a side effect, by changing what the attacker has to reach: a spawner is enclosable at the minimum size the game has (items 16 and 34), territory is contestable (§7), and closing around a garrison converts it (§6.3) — so **§9 no longer carries an accepted risk at all**. → §9 (*domination*, and the turtle), → P09 (*N*).
+> **Item 32 was the one thing an unbounded board cost, and it is now closed** by a second win condition rather than by a chase mechanic: a living player with **no spawner shares for *N* turns** loses (starvation; §9). ~~Hold every share for *N*~~ was the first shape and started too late in playtests — the clock now starts the moment someone is destitute. A runner past *R* holds none, so the clock starts when they leave and never depends on catching them. It closed §9's turtle as a side effect, by changing what the attacker has to reach: a spawner is enclosable at the minimum size the game has (items 16 and 34), territory is contestable (§7), and closing around a garrison converts it (§6.3) — so **§9 no longer carries an accepted risk at all**. → §9 (*starvation*, and the turtle), → P09 (*N*).
 >
 > **Item 35 was opened and closed by P05's review**, and it is the sharpest example on this list of why the review phase exists. §5 charged a branch on the move that creates it, in words that name a pairing a *set* cannot hold — so the implementation had to choose a standing form, chose the larger one, and passed every scenario doing it. Resolved to *one head per branch*; §5 now states the standing form and §6.1's price list is the price. → §5, → §6.1, → P05.
 >
@@ -863,9 +865,9 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 10. ~~Multi-prong bonus~~ — **re-resolved: there is no bonus, and none is needed.** Under contact combat (§6.2 / item 37), coordinating two stacks means two separate contact steps over time (or against different arrows) — each resolves on its own *A*∶*D*. Pooling-and-tie-flip was the price of instantaneous attrition; there is still no special-case bonus constant. See §6.2.
 11. ~~Board size~~ — ~~resolved as configurable: the lattice mod `(n, m)`~~ — **re-resolved: there is no board size.** The board is unbounded (item 4), so the knob is no longer how big the world is but **how big the part worth having is**: the spawner cutoff radius *R*, plus the band radii inside it (§7, *the radial gradient*). One number where there were two, and it has a direct meaning — *R* is the distance past which the map stops paying.
 
-    Still tuned by experiment against player count and total spawner force, not decided on paper. **Player count is chosen in the hot-seat lobby (2–8).** Homes sit on a hexagon of radius `homeOffset` about the origin: **2** opposite corners, **3** alternating corners, **4** four corners with one opposite pair left free, **6** all six corners; **5 / 7+** equal angular span (best effort). The two-player case remains a grain-preserving placement (opposite corners), not a 180° rotation — that rotation reverses the grain (§2). Kingmaking under elimination for 3+ is accepted for hot-seat playtest; a dedicated design pass can revisit it later.
+    Still tuned by experiment against player count and total spawner force, not decided on paper. **Player count is chosen in the hot-seat lobby (2–8).** Homes sit on a hexagon of radius `homeOffset` about the origin: **2** a reflected corner pair under `(i,j) ↦ (i+j, −j)`, **3** alternating corners, **4** four corners with one opposite pair left free, **6** all six corners; **5 / 7+** equal angular span (best effort). Opposite corners are exactly the 180° map that reverses the grain (§2) — they are not a fair two-player seat. Kingmaking under elimination for 3+ is accepted for hot-seat playtest; a dedicated design pass can revisit it later.
 
-    **Item 32's *N* joins this table** — the number of consecutive turns every share must be held for a domination win (§9). Same shape as *R*: a number with a direct meaning that only playtesting can set, read once by the victory check rather than spread through it.
+    **Item 32's *N* joins this table** — consecutive full rounds a living player may hold **zero** spawner shares before losing by starvation (§9). Same shape as *R*: a number with a direct meaning that only playtesting can set, read once by the victory check rather than spread through it.
 12. ~~Spawner density~~ — **resolved: not one number, because it is not uniform.** The criterion as originally stated — *scarce enough that nobody sweeps them, common enough that overlap stays the norm* — cannot be met by a single density: overlap only becomes typical at densities where spawners stop being scarce. Under a **clustered** placement it is met trivially, and clustering is already the §7 principle for force. Dense and fast in the contested centre, sparse and slow at home.
 
     MVP defaults, chosen to be playable rather than derived: about **half** the eligible vertices in the central disc, **an eighth** in the home annulus, and **none at all past the cutoff radius *R***. See §7, *the radial gradient*. Still in the tuning sweep with item 11 — but it no longer blocks anything, because a fixture board can be built from these today.
@@ -961,18 +963,18 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
 **~~Nothing ends a match against an opponent who simply leaves~~ — resolved: a second win condition, on production rather than on pursuit**
 
-32. ~~What stops a losing player walking away forever?~~ — **resolved: domination.** Hold **every spawner share for *N* consecutive turns** and you win (§9). The board is unbounded (item 4), so a losing player can walk their last heads past the cutoff radius *R* and keep walking; §7's gradient removes the *reward* and §3's speed curve means a large stack does close on a lone head, so the runner could never win — but with elimination as the only condition they could decline to lose, indefinitely.
+32. ~~What stops a losing player walking away forever?~~ — **re-resolved: starvation.** A living player who owns **no spawner share for *N* consecutive full rounds** loses; the other living seat wins (§9). ~~**resolved: domination** — hold every share for *N*.~~ Playtests showed domination started too late: once the opponent already had zero shares, the attacker still had to own the whole board and then wait *N* empty end-turns. Starvation starts the clock at destitution.
 
     **The answer is a win condition, not a chase mechanic**, and that is what makes it work: a runner past *R* holds no shares at all, so the clock starts the moment they leave and never depends on reaching them. Two things about its shape, neither a tuning choice:
 
-    - **Every share, not a fraction.** A threshold invites an argument about where the threshold goes; 100% needs no constant, and it is the state the flee case reaches automatically.
-    - **Held for *N* turns, not won on the turn of capture.** An instant win on the last share would end the match at the moment the losing side is most dangerous — still holding large, fast stacks (§3), with nothing left to defend and every reason to counterattack. The hold window turns *I took everything* into *I kept it*, and gives the losing side a defined last chance rather than a rug-pull. *N* is a tuning number, deliberately → item 11's table.
+    - **Zero shares, not a fraction.** Neutral ground does not protect a destitute player — only *owning* a share resets the clock — and zero is exactly the state the flee case reaches automatically.
+    - **Lost after *N* turns destitute, not on the turn of the last share.** An instant loss would end the match at the moment the losing side is most dangerous — still holding large, fast stacks (§3). The window turns *I am broke* into *I stayed broke*. *N* is a tuning number → item 11's table (default 5).
 
-    **Chosen over upkeep**, which had been the front-runner. Upkeep — each special sustains some number of heads, and holding less production than your army needs costs one head a turn — also kills the flee case, but it adds per-turn bookkeeping and a second head-loss channel to reason about, and domination reads ownership the board already carries. Upkeep survives as a balance knob, not as a requirement, and the two compose if playtesting wants both.
+    **Chosen over upkeep**, which had been the front-runner. Upkeep also kills the flee case, but adds per-turn bookkeeping; starvation reads ownership the board already carries. Upkeep survives as a balance knob.
 
-    **It closed §9's turtle too, which was not the plan.** The turtle was accepted on the reasoning that the only way through a shell was to encircle the entire enclave. That premise was that the attacker needed the turtle's *heads*; domination needs their *production*, and a spawner is enclosable at the minimum size the game has — the three-arrow lattice triangle of items 16 and 34. Territory is contestable (§7), so a shell is proof against cutting and never against closure; and closing around the garrison converts it (§6.3), so the heads defending a share are what make taking it worth attempting. A turtle therefore pays whether it garrisons or not, cannot grow to replace the loss, and ends on the clock with no income. **§9 no longer carries an accepted risk**, and upkeep went from *drop-in fix* to *shelved balance knob*.
+    **It closed §9's turtle too.** Starvation (like domination before it) needs the turtle's *production*, and a spawner is enclosable at the minimum size the game has. **§9 no longer carries an accepted risk**.
 
-    Opened by the unbounded-board resolution (item 4) and answered by the human directly. → **§9** (*domination*, and the turtle's revised note), → **P09** (*N*, with the rest of the spawner table).
+    Opened by the unbounded-board resolution (item 4); first answered as domination, re-shaped to starvation by playtest. → **§9** (*starvation*), → **P09** (*N*).
 
 **~~"Even-odd fill" had no closed curve to run on~~ — resolved: the test is reachability, not parity**
 

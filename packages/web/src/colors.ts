@@ -64,7 +64,7 @@ export const EMPTY_STROKE = 'rgba(150, 176, 202, 0.22)';
 
 /** Selection and reach. The two brightest things on the board, deliberately. */
 export const HIGHLIGHT_STROKE = '#f0c96a';
-export const MOVABLE_STROKE = 'rgba(240, 201, 106, 0.55)';
+export const MOVABLE_STROKE = 'rgba(240, 201, 106, 0.92)';
 export const PREVIEW_STROKE = '#8fd6ff';
 export const REACH_FILL = '#6cc0ff';
 export const REACH_INK = 'rgba(214, 238, 255, 0.92)';
@@ -84,5 +84,5 @@ export const SPAWNER_HUB_IDLE = 'rgba(160, 188, 214, 0.55)';
 export const SPAWNER_RIM = '#0b1016';
 /** The ring drawn round the spawner under the cursor. */
 export const SPAWNER_CURSOR = '#f0c96a';
-/** Halo behind stack numerals when the disc is gone. */
-export const COUNT_HALO = 'rgba(8, 12, 18, 0.88)';
+/** Soft halo behind stack numerals — thin, not opaque. */
+export const COUNT_HALO = 'rgba(8, 12, 18, 0.45)';

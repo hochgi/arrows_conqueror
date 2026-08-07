@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent, ReactElement, WheelEvent } from 'react';
 import {
   DEFAULT_MATCH_CONFIG,
+  type ArrowId,
   type GameState,
   type MatchConfig,
   type Move,
@@ -27,6 +28,7 @@ import {
 } from './matchLog';
 import { playBotTurn } from './opponent';
 import { PortionSlider } from './PortionSlider';
+import { pathForDestination } from './reach';
 import { spawnerInfoAt } from './spawnerInfo';
 import { SpawnerTip } from './SpawnerTip';
 import type { Viewport } from './viewport';
@@ -103,6 +105,8 @@ export const App = (): ReactElement => {
   const [hover, setHover] = useState<
     { readonly vertex: import('@arrows/contracts').VertexId; readonly x: number; readonly y: number } | undefined
   >(undefined);
+  /** Reach destination under the cursor — drives the pulsed path preview. */
+  const [hoverPath, setHoverPath] = useState<ReadonlySet<ArrowId> | undefined>(undefined);
   const [botBusy, setBotBusy] = useState(false);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -247,6 +251,18 @@ export const App = (): ReactElement => {
     return set;
   }, [state]);
 
+  const boardHighlights = useMemo(() => {
+    // Portion / confirm owns the path via the slider. Otherwise hover a blue tile
+    // to pulse the route that would be walked.
+    if (snap.phase.kind === 'portion' && snap.highlights.path !== undefined) {
+      return snap.highlights;
+    }
+    if (hoverPath !== undefined && hoverPath.size > 0) {
+      return { ...snap.highlights, path: hoverPath };
+    }
+    return snap.highlights;
+  }, [snap, hoverPath]);
+
   const commitSnap = useCallback(
     (next: InputSnapshot) => {
       setSnap(next);
@@ -255,8 +271,34 @@ export const App = (): ReactElement => {
       if (s === undefined) return;
       const { state: applied, applied: moves } = applyMoves(s, next.pending);
       commitApplied(moves, applied);
+
+      // Auto-pick the next stack that can still step — after a trip *or* a skip.
+      if (applied.winner !== undefined) return;
+      const bot = botSeatRef.current;
+      if (bot !== undefined && applied.activePlayer === bot) return;
+      if (!hasLegalStep(rules, applied)) return;
+      if (!moves.some((m) => m.kind === 'step' || m.kind === 'skip')) return;
+
+      let lastFrom: ArrowId | undefined;
+      for (const m of moves) {
+        if (m.kind === 'step' || m.kind === 'skip') lastFrom = m.from;
+      }
+      const froms: ArrowId[] = [];
+      const seen = new Set<string>();
+      for (const m of rules.legalMoves(applied)) {
+        if (m.kind !== 'step') continue;
+        const key = String(m.from);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        froms.push(m.from);
+      }
+      froms.sort((a, b) => (String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0));
+      const pick =
+        froms.find((arrow) => arrow !== lastFrom) ?? froms[0];
+      if (pick === undefined) return;
+      setSnap(mode.onArrowClick(pick, applied, rules));
     },
-    [commitApplied],
+    [commitApplied, mode],
   );
 
   const previewPortion = useCallback(
@@ -340,9 +382,27 @@ export const App = (): ReactElement => {
       const sy = e.clientY - rect.top;
       const vertex = hitSpawnerVertex(layout, viewport, sx, sy, spawnerVertices, 16);
       setHover(vertex === undefined ? undefined : { vertex, x: sx, y: sy });
+
+      const reach = snap.highlights.reach;
+      if (
+        reach !== undefined &&
+        snap.phase.kind !== 'portion' &&
+        snap.phase.kind !== 'idle' &&
+        snap.phase.kind !== 'blocked'
+      ) {
+        const over = hitArrow(layout, viewport, sx, sy, arrows);
+        if (over !== undefined && reach.has(over) && over !== snap.highlights.selected) {
+          setHoverPath(pathForDestination(reach, over));
+        } else {
+          setHoverPath(undefined);
+        }
+      } else if (hoverPath !== undefined) {
+        setHoverPath(undefined);
+      }
       return;
     }
     setHover(undefined);
+    setHoverPath(undefined);
     const dx = e.clientX - drag.current.x;
     const dy = e.clientY - drag.current.y;
     if (Math.hypot(dx, dy) > 3) drag.current.moved = true;
@@ -362,6 +422,7 @@ export const App = (): ReactElement => {
     const sy = e.clientY - rect.top;
     const arrow = hitArrow(layout, viewport, sx, sy, arrows);
     if (arrow === undefined) {
+      setHoverPath(undefined);
       commitSnap(mode.onBackgroundClick());
       return;
     }
@@ -371,6 +432,7 @@ export const App = (): ReactElement => {
   const onPointerLeave = (): void => {
     drag.current = null;
     setHover(undefined);
+    setHoverPath(undefined);
   };
 
   const onWheel = (e: WheelEvent<SVGSVGElement>): void => {
@@ -412,7 +474,7 @@ export const App = (): ReactElement => {
           viewport={viewport}
           arrows={arrows}
           vertices={vertices}
-          highlights={snap.highlights}
+          highlights={boardHighlights}
           movable={movable}
           {...(hover === undefined ? {} : { hoveredSpawner: hover.vertex })}
           onPointerDown={onPointerDown}

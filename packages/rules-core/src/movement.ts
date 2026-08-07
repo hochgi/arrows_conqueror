@@ -301,7 +301,7 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     };
     const roundStart = handed.players[0];
     if (roundStart === undefined || next !== roundStart) return handed;
-    // Full round: accrue, then domination streak (§9 / P08 item 41 boundary).
+    // Full round: accrue, then starvation streak (§9 / P08 item 41 boundary).
     const accrued = accrueRound(handed, geometry);
     return applyElimination(tickDomination(accrued, geometry));
   };

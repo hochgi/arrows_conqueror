@@ -113,11 +113,16 @@ const equalSpanHomes = (n: number, D: number): Cell[] => {
  *
  * | n | placement |
  * |---|---|
- * | 2 | opposite corners |
+ * | 2 | reflected corner pair (grain-preserving; §2 / §8) |
  * | 3 | every alternating corner |
  * | 4 | four corners; one opposite pair left free |
  * | 6 | all six corners |
  * | else | equal angular span (best-effort) |
+ *
+ * Two-player must **not** use opposite corners: `(i,j) ↦ (−i,−j)` reverses the
+ * grain, so one seat would face a board running backwards. Corners 1 and 5 are
+ * mirrors under `(i,j) ↦ (i+j, −j)`. After layout's 90° turn that pair sits
+ * left and right of centre with matching orientation toward the middle.
  */
 export const homeCellsFor = (n: number, D: number): readonly Cell[] => {
   const corners = hexCorners(D);
@@ -126,7 +131,10 @@ export const homeCellsFor = (n: number, D: number): readonly Cell[] => {
     if (cell === undefined) throw new Error(`hex corner ${String(index)} missing`);
     return cell;
   };
-  if (n === 2) return [at(0), at(3)];
+  if (n === 2) {
+    const home = at(1);
+    return [home, reflectCell(home)];
+  }
   if (n === 3) return [at(0), at(2), at(4)];
   if (n === 4) return [at(0), at(1), at(3), at(4)];
   if (n === 6) return corners;

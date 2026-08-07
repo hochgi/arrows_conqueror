@@ -90,8 +90,19 @@ export interface TilingLayout {
 
 const ROOT3_OVER_2 = Math.sqrt(3) / 2;
 
-/** Lattice coordinates to world, over basis `u = (1, 0)`, `v = (½, √3⁄2)`. */
-const world = (i: number, j: number): Point2 => ({ x: i + j / 2, y: j * ROOT3_OVER_2 });
+/**
+ * Lattice → drawable plane.
+ *
+ * Underlying basis is still `u = (1, 0)`, `v = (½, √3⁄2)` (SPEC §2). A fixed
+ * **90° turn** then maps former east (direction 0) to screen-up: SVG's +y is
+ * down, so the map is `(x, y) ↦ (y, −x)`. Graph topology is unchanged — only
+ * which way the chevrons point on the monitor.
+ */
+const world = (i: number, j: number): Point2 => {
+  const x = i + j / 2;
+  const y = j * ROOT3_OVER_2;
+  return { x: y, y: -x };
+};
 
 const triangleCentre = ({ i, j, parity }: VertexCell): Point2 => {
   const f = TRIANGLE_OFFSET[parity];

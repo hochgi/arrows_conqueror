@@ -141,17 +141,20 @@ export interface GameState {
    */
   readonly spawners: ReadonlyMap<VertexId, Spawner>;
   /**
-   * Consecutive full rounds the current domination holder has held every
-   * spawner share (§9 / P09). Zero when nobody holds all shares.
+   * Consecutive full rounds the {@link dominationHolder} has held **zero**
+   * spawner shares (§9 starvation / P09). Zero when nobody is destitute alone.
+   *
+   * Names keep the P09 `domination*` spelling; the condition is starvation — a
+   * player with no income for *N* rounds loses.
    */
   readonly dominationStreak: number;
-  /** Who is currently holding every share, if anyone. */
+  /** Living player currently on a zero-share streak, if exactly one. */
   readonly dominationHolder: PlayerId | undefined;
-  /** Domination threshold *N* (full rounds). Setup data — default 5 (P09). */
+  /** Starvation threshold *N* (full rounds). Setup data — default 5 (P09). */
   readonly dominationN: number;
   /**
    * Match outcome. Absent / `playing` while the match runs; set by elimination
-   * or domination (§9).
+   * or starvation (§9).
    */
   readonly winner: PlayerId | undefined;
 }

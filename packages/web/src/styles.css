@@ -131,6 +131,21 @@ body,
   height: 100%;
 }
 
+@keyframes path-pulse {
+  0%,
+  100% {
+    fill-opacity: 0.28;
+  }
+  50% {
+    fill-opacity: 0.88;
+  }
+}
+
+.path-pulse {
+  animation: path-pulse 1.15s ease-in-out infinite;
+  pointer-events: none;
+}
+
 @keyframes yield-shine-sweep {
   from {
     transform: translate(-35%, -35%);
@@ -143,7 +158,7 @@ body,
 .yield-shine-band {
   transform-box: fill-box;
   transform-origin: center;
-  animation: yield-shine-sweep 2.4s linear infinite;
+  animation: yield-shine-sweep 4.8s linear infinite;
   pointer-events: none;
 }
 

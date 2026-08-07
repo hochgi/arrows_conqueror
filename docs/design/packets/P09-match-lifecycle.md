@@ -48,8 +48,9 @@ obeys this).
 
 **Q1 — *N*.** → **5** (configurable).
 **Q2 — *R* / force.** → **R = 7**, force **`1/3^r`** for *r* ∈ 1..R (configurable).
-**Q3 — Opening.** → homes at `(homeOffset, 2)` + reflection, `homeOffset = 5`,
-each a 3-arrow pinwheel + 3-stack (§8).
+**Q3 — Opening.** → homes at hexagon corners `(0, homeOffset)` and its reflection
+`(homeOffset, −homeOffset)`, `homeOffset = 5`, each a 3-arrow pinwheel + 3-stack
+(§8). (Not opposite corners — that is the grain-reversing 180°.)
 **Q4 — Placer.** → full disc of spawners within *R* (every vertex), not a stub.
 
 ## Definition of done

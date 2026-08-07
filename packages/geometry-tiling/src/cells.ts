@@ -45,9 +45,9 @@ export interface LatticeVector {
  * layout can, which is why layout is specified in this packet.
  */
 export const OUT_DIRECTIONS: readonly [LatticeVector, LatticeVector, LatticeVector] = [
-  { di: 1, dj: 0 }, // world 0°   — east
-  { di: -1, dj: 1 }, // world 120° — up-left
-  { di: 0, dj: -1 }, // world 240° — down-left
+  { di: 1, dj: 0 }, // lattice 0° — east; layout turns this to screen-up
+  { di: -1, dj: 1 }, // lattice 120°
+  { di: 0, dj: -1 }, // lattice 240°
 ];
 
 /** Where a cell's two triangles sit, as a fraction of the cell. P03 D2. */
