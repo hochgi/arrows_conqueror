@@ -12,10 +12,12 @@ describe('passIfExhausted', () => {
     const rules = makeRules(geometry);
     const state = makeMatch();
     expect(hasLegalStep(rules, state)).toBe(true);
-    expect(passIfExhausted(rules, state)).toBe(state);
+    const result = passIfExhausted(rules, state);
+    expect(result.state).toBe(state);
+    expect(result.moves).toEqual([]);
   });
 
-  it('ends the turn when only skips remain', () => {
+  it('ends the turn when only skips remain and records endTurn', () => {
     const geometry = makeTiling();
     const rules = makeRules(geometry);
     const opening = makeMatch();
@@ -24,7 +26,6 @@ describe('passIfExhausted', () => {
     expect(A).toBeDefined();
     expect(B).toBeDefined();
     if (A === undefined || B === undefined) return;
-    // Recreate the branch-stuck green position: A has allowance but no step.
     const trailA = new Set(
       [
         'tiling:a:4,2,0',
@@ -49,8 +50,9 @@ describe('passIfExhausted', () => {
       trails: new Map([[A, trailA]]),
     };
     expect(hasLegalStep(rules, state)).toBe(false);
-    const next = passIfExhausted(rules, state);
+    const { state: next, moves } = passIfExhausted(rules, state);
     expect(next.activePlayer).toBe(B);
     expect(hasLegalStep(rules, next)).toBe(true);
+    expect(moves).toEqual([{ kind: 'endTurn' }]);
   });
 });

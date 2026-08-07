@@ -3,7 +3,7 @@ import { endTurn, rational } from '@arrows/contracts';
 import type { ArrowId, GameState, PlayerId, VertexId } from '@arrows/contracts';
 import { makeMatch, makeTiling } from '@arrows/geometry-tiling';
 import { makeRules } from '@arrows/rules-core';
-import { spawnerInfoAt, spawnerProminence } from '../src/spawnerInfo';
+import { spawnerInfoAt, spawnerProminence, yieldSoonByArrow } from '../src/spawnerInfo';
 
 const geometry = makeTiling();
 const rules = makeRules(geometry);
@@ -158,6 +158,29 @@ describe('spawner read-out', () => {
       expect(advanced.map(String)).toEqual([String(promised)]);
       state = next;
     }
+  });
+
+  it('flags shares that birth a head on the next one or two accruals', () => {
+    const opening = makeMatch();
+    const { a } = seats(opening);
+    const { vertex, shares } = aSpawner(opening);
+    const [one, two] = shares;
+    if (one === undefined || two === undefined) return;
+
+    // Phase 0 feeds `one`. Bank it at 8/9 with force 1/9 so the next feed emits.
+    const territory = new Map(opening.territory);
+    territory.set(one, a);
+    territory.set(two, a);
+    const accumulators = new Map(opening.accumulators);
+    accumulators.set(one, rational(8, 9));
+    accumulators.set(two, rational(8, 9));
+    const spawners = new Map(opening.spawners);
+    spawners.set(vertex, { force: rational(1, 9), phase: 0 });
+    const state = { ...opening, territory, accumulators, spawners };
+
+    const soon = yieldSoonByArrow(geometry, state);
+    expect(soon.get(one)).toBe(1);
+    expect(soon.get(two)).toBe(2);
   });
 
   it('returns nothing for a vertex that carries no spawner', () => {

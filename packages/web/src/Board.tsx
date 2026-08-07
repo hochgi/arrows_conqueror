@@ -3,10 +3,13 @@ import type { Point2, TilingLayout } from '@arrows/geometry-tiling';
 import type { PointerEvent, ReactElement, WheelEvent } from 'react';
 import {
   BOARD_BG,
+  COUNT_HALO,
   EMPTY_FILL,
   EMPTY_STROKE,
   HIGHLIGHT_STROKE,
   MOVABLE_STROKE,
+  PATH_STROKE,
+  PATH_WASH,
   PREVIEW_STROKE,
   REACH_FILL,
   REACH_INK,
@@ -15,11 +18,13 @@ import {
   SPAWNER_IDLE,
   SPAWNER_RIM,
   SPAWNER_TRACK,
+  SPAWNER_TRACK_RIM,
   styleFor,
 } from './colors';
 import type { InputHighlights } from './input/modes';
 import { reachOpacity } from './reach';
-import { spawnerInfoAt, spawnerProminence } from './spawnerInfo';
+import { spawnerInfoAt, spawnerProminence, yieldSoonByArrow } from './spawnerInfo';
+import type { YieldSoon } from './spawnerInfo';
 import type { Viewport } from './viewport';
 import { toScreen } from './viewport';
 
@@ -122,18 +127,6 @@ const arcPath = (
 /**
  * A spawner as three short arcs — one per bordering arrow, tinted by whoever holds it and
  * filled by that share's accumulator — around a hub showing who holds the majority.
- *
- * Three rather than one because §7 owns a special **in thirds**: each bordering arrow
- * carries its own accumulator, which carries its own remainder and resets alone on
- * capture. A single averaged ring would hide the thing that decides play — shaving one
- * arrow off a rival cuts their income by a third.
- *
- * **Deliberately less than it knows.** An earlier version drew the phase cursor and a full
- * track on every spawner; at a hundred spawners that is a field of targets rather than a
- * board. Force, banked fractions, the round-robin cursor and the difference between
- * *unclaimed* and *blockaded* now live in {@link SpawnerTip} on hover, and the mark keeps
- * only what is worth reading at a glance. The arcs are ordered by arrow id, which is what
- * `Spawner.phase` indexes, so the hover cursor lines up with the arcs here.
  */
 const SpawnerMark = ({
   geometry,
@@ -167,10 +160,19 @@ const SpawnerMark = ({
         const from = k * 120 + GAP_DEG / 2;
         const to = (k + 1) * 120 - GAP_DEG / 2;
         const tint = share.owner === undefined ? SPAWNER_IDLE : styleFor(share.owner).fill;
+        const d = arcPath(cx, cy, r, from, to);
         return (
           <g key={String(share.arrow)}>
+            {/* Rim first so the track does not melt into tile fill. */}
             <path
-              d={arcPath(cx, cy, r, from, to)}
+              d={d}
+              fill="none"
+              stroke={SPAWNER_TRACK_RIM}
+              strokeWidth={width + 1.6}
+              strokeLinecap="butt"
+            />
+            <path
+              d={d}
               fill="none"
               stroke={share.owner === undefined ? SPAWNER_TRACK : tint}
               strokeOpacity={share.owner === undefined ? 1 : 0.34}
@@ -194,6 +196,38 @@ const SpawnerMark = ({
   );
 };
 
+/** Diagonal shine clipped to the tile — full strength next accrual, half the one after. */
+const YieldShine = ({
+  clipId,
+  points,
+  soon,
+  bounds,
+}: {
+  clipId: string;
+  points: string;
+  soon: YieldSoon;
+  bounds: { x: number; y: number; w: number; h: number };
+}): ReactElement => {
+  const pad = Math.max(bounds.w, bounds.h) * 0.85;
+  return (
+    <g style={{ pointerEvents: 'none' }} opacity={soon === 1 ? 1 : 0.5}>
+      <clipPath id={clipId}>
+        <polygon points={points} />
+      </clipPath>
+      <g clipPath={`url(#${clipId})`}>
+        <rect
+          className="yield-shine-band"
+          x={bounds.x - pad}
+          y={bounds.y - pad}
+          width={bounds.w + pad * 2}
+          height={bounds.h + pad * 2}
+          fill="url(#yieldShineGrad)"
+        />
+      </g>
+    </g>
+  );
+};
+
 // ── the board ─────────────────────────────────────────────────────────────────
 
 export const Board = ({
@@ -211,77 +245,106 @@ export const Board = ({
   onPointerUp,
   onPointerLeave,
   onWheel,
-}: BoardProps): ReactElement => (
-  <svg
-    className="board"
-    width={viewport.width}
-    height={viewport.height}
-    style={{ background: BOARD_BG, touchAction: 'none', cursor: 'grab' }}
-    onPointerDown={onPointerDown}
-    onPointerMove={onPointerMove}
-    onPointerUp={onPointerUp}
-    onPointerLeave={onPointerLeave}
-    onWheel={onWheel}
-  >
-    {arrows.map((arrow) => {
-      const poly = layout.polygon(arrow);
-      const base = fillFor(arrow, state);
-      const isSelected = highlights.selected === arrow;
-      const isPreview = highlights.preview === arrow;
-      const entry = highlights.reach?.get(arrow);
-      const isMovable = movable.has(arrow) && !isSelected;
-      const c = centroidScreen(viewport, poly);
-      const group = state.groups.get(arrow);
-      const strokeWidth = isSelected || isPreview ? 2.6 : entry !== undefined || isMovable ? 1.8 : 0.7;
-      const strokeColor = isSelected
-        ? HIGHLIGHT_STROKE
-        : isPreview
-          ? PREVIEW_STROKE
-          : entry !== undefined
-            ? REACH_FILL
-            : isMovable
-              ? MOVABLE_STROKE
-              : base.stroke;
-      const glyph = Math.max(9, viewport.scale * 0.34);
-      return (
-        <g key={String(arrow)}>
-          <polygon
-            points={polyPoints(viewport, poly)}
-            fill={base.fill}
-            stroke={strokeColor}
-            strokeWidth={strokeWidth}
-            data-arrow={String(arrow)}
-          />
-          {/*
-            Reach is a wash *over* the ground rather than a replacement for it, so a
-            player can still see whose land they are about to cross. The fade is the
-            price: §3 buys one step with one head and four steps with eight, so a pale
-            arrow is one you can only take by committing most of the stack.
-          */}
-          {entry !== undefined && !isSelected ? (
+}: BoardProps): ReactElement => {
+  const yieldSoon = yieldSoonByArrow(geometry, state);
+  const path = highlights.path;
+
+  return (
+    <svg
+      className="board"
+      width={viewport.width}
+      height={viewport.height}
+      style={{ background: BOARD_BG, touchAction: 'none', cursor: 'grab' }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerLeave}
+      onWheel={onWheel}
+    >
+      <defs>
+        <linearGradient id="yieldShineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="45%" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.55" />
+          <stop offset="55%" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {arrows.map((arrow) => {
+        const poly = layout.polygon(arrow);
+        const points = polyPoints(viewport, poly);
+        const base = fillFor(arrow, state);
+        const isSelected = highlights.selected === arrow;
+        const isPreview = highlights.preview === arrow;
+        const onPath = path?.has(arrow) === true;
+        const entry = highlights.reach?.get(arrow);
+        const isMovable = movable.has(arrow) && !isSelected;
+        const c = centroidScreen(viewport, poly);
+        const group = state.groups.get(arrow);
+        const soon = yieldSoon.get(arrow);
+        const ownerStroke = group !== undefined ? styleFor(group.owner).stroke : base.stroke;
+        let strokeWidth = 0.7;
+        if (group !== undefined) strokeWidth = 2.55;
+        else if (isSelected || isPreview || onPath) strokeWidth = 2.6;
+        else if (entry !== undefined || isMovable) strokeWidth = 1.8;
+        const strokeColor = isSelected
+          ? HIGHLIGHT_STROKE
+          : isPreview || onPath
+            ? onPath
+              ? PATH_STROKE
+              : PREVIEW_STROKE
+            : entry !== undefined
+              ? REACH_FILL
+              : isMovable
+                ? MOVABLE_STROKE
+                : group !== undefined
+                  ? ownerStroke
+                  : base.stroke;
+        const glyph = Math.max(9, viewport.scale * 0.34);
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        for (const p of poly) {
+          const s = toScreen(viewport, p.x, p.y);
+          minX = Math.min(minX, s.x);
+          minY = Math.min(minY, s.y);
+          maxX = Math.max(maxX, s.x);
+          maxY = Math.max(maxY, s.y);
+        }
+        return (
+          <g key={String(arrow)}>
             <polygon
-              points={polyPoints(viewport, poly)}
-              fill={REACH_FILL}
-              fillOpacity={isPreview ? 0.7 : reachOpacity(entry.distance)}
-              style={{ pointerEvents: 'none' }}
+              points={points}
+              fill={base.fill}
+              stroke={strokeColor}
+              strokeWidth={strokeWidth}
+              data-arrow={String(arrow)}
             />
-          ) : null}
-          {group !== undefined ? (
-            /*
-              A token disc rather than a bare numeral. The count has to read over any
-              ground — its owner's territory, an enemy's, bare lattice, or a reach wash —
-              and the disc is also the only place the *stack's* colour appears when it is
-              standing on someone else's land.
-            */
-            <g style={{ pointerEvents: 'none', userSelect: 'none' }}>
-              <circle
-                cx={c.x}
-                cy={c.y}
-                r={glyph * 0.74}
-                fill={styleFor(group.owner).fill}
-                stroke={styleFor(group.owner).stroke}
-                strokeWidth={1.2}
+            {entry !== undefined && !isSelected ? (
+              <polygon
+                points={points}
+                fill={onPath ? PATH_WASH : REACH_FILL}
+                fillOpacity={onPath ? 0.85 : isPreview ? 0.7 : reachOpacity(entry.distance)}
+                style={{ pointerEvents: 'none' }}
               />
+            ) : onPath ? (
+              <polygon
+                points={points}
+                fill={PATH_WASH}
+                fillOpacity={0.75}
+                style={{ pointerEvents: 'none' }}
+              />
+            ) : null}
+            {soon !== undefined ? (
+              <YieldShine
+                clipId={`yield-clip-${String(arrow)}`}
+                points={points}
+                soon={soon}
+                bounds={{ x: minX, y: minY, w: maxX - minX, h: maxY - minY }}
+              />
+            ) : null}
+            {group !== undefined ? (
               <text
                 x={c.x}
                 y={c.y}
@@ -289,48 +352,50 @@ export const Board = ({
                 dominantBaseline="central"
                 fontSize={glyph}
                 fontFamily="IBM Plex Sans, Segoe UI, sans-serif"
-                fontWeight={650}
+                fontWeight={700}
                 fill={styleFor(group.owner).ink}
+                stroke={COUNT_HALO}
+                strokeWidth={glyph * 0.28}
+                paintOrder="stroke fill"
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
               >
                 {group.heads}
               </text>
-            </g>
-          ) : entry !== undefined && entry.minCount > 1 ? (
-            // The toll for arriving here. Reading "8" on a far arrow is how §3's
-            // speed curve stops being a formula in a document.
-            <text
-              x={c.x}
-              y={c.y}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fontSize={glyph * 0.78}
-              fontFamily="IBM Plex Sans, Segoe UI, sans-serif"
-              fontWeight={600}
-              fill={REACH_INK}
-              style={{ pointerEvents: 'none', userSelect: 'none' }}
-            >
-              {entry.minCount}
-            </text>
-          ) : null}
-        </g>
-      );
-    })}
-    {[...vertices].map((vertex) => {
-      if (!state.spawners.has(vertex)) return null;
-      const pos = layout.vertexPosition(vertex);
-      const s = toScreen(viewport, pos.x, pos.y);
-      return (
-        <SpawnerMark
-          key={String(vertex)}
-          geometry={geometry}
-          state={state}
-          vertex={vertex}
-          cx={s.x}
-          cy={s.y}
-          r={Math.max(4, viewport.scale * 0.15)}
-          hovered={hoveredSpawner === vertex}
-        />
-      );
-    })}
-  </svg>
-);
+            ) : entry !== undefined && entry.minCount > 1 ? (
+              <text
+                x={c.x}
+                y={c.y}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={glyph * 0.78}
+                fontFamily="IBM Plex Sans, Segoe UI, sans-serif"
+                fontWeight={600}
+                fill={REACH_INK}
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
+              >
+                {entry.minCount}
+              </text>
+            ) : null}
+          </g>
+        );
+      })}
+      {[...vertices].map((vertex) => {
+        if (!state.spawners.has(vertex)) return null;
+        const pos = layout.vertexPosition(vertex);
+        const s = toScreen(viewport, pos.x, pos.y);
+        return (
+          <SpawnerMark
+            key={String(vertex)}
+            geometry={geometry}
+            state={state}
+            vertex={vertex}
+            cx={s.x}
+            cy={s.y}
+            r={Math.max(4, viewport.scale * 0.15)}
+            hovered={hoveredSpawner === vertex}
+          />
+        );
+      })}
+    </svg>
+  );
+};

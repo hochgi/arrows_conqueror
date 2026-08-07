@@ -134,6 +134,14 @@ export const planMoves = (
 };
 
 /**
+ * Arrows the trip will actually walk — the path the engine will apply for this
+ * portion. Shown so the player can see which of several equal-length routes was
+ * chosen and click an intermediate if they want another.
+ */
+export const planArrowSet = (plan: readonly ArrowId[]): ReadonlySet<ArrowId> =>
+  new Set(plan);
+
+/**
  * How solid a reach arrow should look: nearest full, further fainter.
  *
  * The fade *is* the price. One step costs one head and four steps cost eight, so a

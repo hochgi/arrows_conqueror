@@ -68,14 +68,21 @@ export const MOVABLE_STROKE = 'rgba(240, 201, 106, 0.55)';
 export const PREVIEW_STROKE = '#8fd6ff';
 export const REACH_FILL = '#6cc0ff';
 export const REACH_INK = 'rgba(214, 238, 255, 0.92)';
+/** The multi-hop route that will actually be applied — brighter than the reach wash. */
+export const PATH_STROKE = '#b8e4ff';
+export const PATH_WASH = 'rgba(184, 228, 255, 0.42)';
 
 /**
  * A spawner's three arcs. Quieter than the players and quieter than reach, on purpose:
  * there are around a hundred of them on the board and the detail moved to hover.
  */
 export const SPAWNER_TRACK = 'rgba(160, 188, 214, 0.34)';
+/** Rim behind each arc so the gauge does not melt into tile fill. */
+export const SPAWNER_TRACK_RIM = 'rgba(8, 12, 18, 0.92)';
 export const SPAWNER_IDLE = 'rgba(160, 188, 214, 0.78)';
 export const SPAWNER_HUB_IDLE = 'rgba(160, 188, 214, 0.55)';
 export const SPAWNER_RIM = '#0b1016';
 /** The ring drawn round the spawner under the cursor. */
 export const SPAWNER_CURSOR = '#f0c96a';
+/** Halo behind stack numerals when the disc is gone. */
+export const COUNT_HALO = 'rgba(8, 12, 18, 0.88)';

@@ -3,7 +3,9 @@ import { MAX_PLAYERS, MIN_PLAYERS } from '@arrows/contracts';
 
 export interface LobbyProps {
   readonly playerCount: number;
+  readonly vsBot: boolean;
   readonly onPlayerCount: (n: number) => void;
+  readonly onVsBot: (v: boolean) => void;
   readonly onStart: () => void;
 }
 
@@ -17,16 +19,34 @@ const PLACEMENT_BLURB: Record<number, string> = {
   8: 'Equal span around the ring (best effort)',
 };
 
-export const Lobby = ({ playerCount, onPlayerCount, onStart }: LobbyProps): ReactElement => (
+export const Lobby = ({
+  playerCount,
+  vsBot,
+  onPlayerCount,
+  onVsBot,
+  onStart,
+}: LobbyProps): ReactElement => (
   <div className="lobby">
     <div className="lobby-card">
       <h1>Arrows Conqueror</h1>
-      <p className="lobby-lead">Hot-seat match on the arrow tiling</p>
+      <p className="lobby-lead">Playtest match on the arrow tiling</p>
+
+      <label className="lobby-check">
+        <input
+          type="checkbox"
+          checked={vsBot}
+          onChange={(e) => {
+            onVsBot(e.target.checked);
+          }}
+        />
+        Play against bot (seat B)
+      </label>
 
       <label className="lobby-count">
         Players
         <select
-          value={playerCount}
+          value={vsBot ? 2 : playerCount}
+          disabled={vsBot}
           onChange={(e) => {
             onPlayerCount(Number(e.target.value));
           }}
@@ -41,7 +61,11 @@ export const Lobby = ({ playerCount, onPlayerCount, onStart }: LobbyProps): Reac
         </select>
       </label>
 
-      <p className="lobby-blurb">{PLACEMENT_BLURB[playerCount] ?? 'Spaced around the origin'}</p>
+      <p className="lobby-blurb">
+        {vsBot
+          ? 'You are A · smarter playtest bot is B · match log autosaves'
+          : (PLACEMENT_BLURB[playerCount] ?? 'Spaced around the origin')}
+      </p>
 
       <button type="button" className="lobby-start" onClick={onStart}>
         Start match

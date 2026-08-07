@@ -8,6 +8,8 @@ export interface PortionSliderProps {
   readonly steps: number;
   readonly onConfirm: (count: number) => void;
   readonly onCancel: () => void;
+  /** Live path preview as the slider moves. */
+  readonly onPreview?: (count: number) => void;
 }
 
 /**
@@ -23,6 +25,7 @@ export const PortionSlider = ({
   steps,
   onConfirm,
   onCancel,
+  onPreview,
 }: PortionSliderProps): ReactElement => {
   const options = useMemo(() => (allowed.length > 0 ? allowed : [1]), [allowed]);
   const [index, setIndex] = useState(options.length - 1);
@@ -34,6 +37,10 @@ export const PortionSlider = ({
   const value = options[Math.min(index, options.length - 1)] ?? 1;
   const min = options[0] ?? 1;
   const max = options[options.length - 1] ?? 1;
+
+  useEffect(() => {
+    onPreview?.(value);
+  }, [value, onPreview]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {

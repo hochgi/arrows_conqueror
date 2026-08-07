@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent, ReactElement, WheelEvent } from 'react';
-import { DEFAULT_MATCH_CONFIG, type GameState } from '@arrows/contracts';
+import {
+  DEFAULT_MATCH_CONFIG,
+  type GameState,
+  type MatchConfig,
+  type Move,
+  type PlayerId,
+} from '@arrows/contracts';
 import { makeLayout, makeMatch, makeTiling } from '@arrows/geometry-tiling';
 import { makeRules } from '@arrows/rules-core';
 import { hasLegalStep, passIfExhausted } from './autoEndTurn';
@@ -11,6 +17,15 @@ import { Hud } from './Hud';
 import type { InputMode, InputSnapshot } from './input/modes';
 import { createInputMode } from './input/modes';
 import { Lobby } from './Lobby';
+import {
+  appendMoves,
+  createMatchLog,
+  downloadMatchLog,
+  saveMatchLog,
+  withWinner,
+  type MatchLog,
+} from './matchLog';
+import { playBotTurn } from './opponent';
 import { PortionSlider } from './PortionSlider';
 import { spawnerInfoAt } from './spawnerInfo';
 import { SpawnerTip } from './SpawnerTip';
@@ -21,9 +36,6 @@ const geometry = makeTiling();
 const layout = makeLayout();
 const rules = makeRules(geometry);
 
-const beginMatch = (playerCount: number): GameState =>
-  makeMatch({ ...DEFAULT_MATCH_CONFIG, playerCount });
-
 /**
  * Apply a whole trip, one step at a time.
  *
@@ -33,18 +45,23 @@ const beginMatch = (playerCount: number): GameState =>
  * stay where they got to: the reach preview was computed by simulating this same engine,
  * so that should not happen, and swallowing it silently would hide it if it did.
  */
-const applyPending = (state: GameState, snap: InputSnapshot): GameState => {
-  if (snap.pending === undefined || state.winner !== undefined) return state;
+const applyMoves = (
+  state: GameState,
+  moves: readonly Move[],
+): { readonly state: GameState; readonly applied: readonly Move[] } => {
   let at = state;
-  for (const move of snap.pending) {
+  const applied: Move[] = [];
+  for (const move of moves) {
     if (at.winner !== undefined) break;
     try {
       at = rules.apply(at, move);
+      applied.push(move);
     } catch {
       break;
     }
   }
-  return passIfExhausted(rules, at);
+  const passed = passIfExhausted(rules, at);
+  return { state: passed.state, applied: [...applied, ...passed.moves] };
 };
 
 const idleSnap = (): InputSnapshot => ({
@@ -77,15 +94,26 @@ const SpawnerTipFor = ({
 
 export const App = (): ReactElement => {
   const [playerCount, setPlayerCount] = useState(DEFAULT_MATCH_CONFIG.playerCount);
+  const [vsBot, setVsBot] = useState(true);
   const [state, setState] = useState<GameState | undefined>(undefined);
+  const [log, setLog] = useState<MatchLog | undefined>(undefined);
   const [mode, setMode] = useState<InputMode>(() => createInputMode('galcon', geometry));
   const [snap, setSnap] = useState<InputSnapshot>(idleSnap);
   const [viewport, setViewport] = useState<Viewport>(() => createViewport(800, 600));
   const [hover, setHover] = useState<
     { readonly vertex: import('@arrows/contracts').VertexId; readonly x: number; readonly y: number } | undefined
   >(undefined);
+  const [botBusy, setBotBusy] = useState(false);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+  const botSeatRef = useRef<PlayerId | undefined>(undefined);
+  const botEpoch = useRef(0);
+  const stateRef = useRef<GameState | undefined>(undefined);
+  const passEpoch = useRef(0);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     const el = shellRef.current;
@@ -102,6 +130,27 @@ export const App = (): ReactElement => {
     };
   }, [state]);
 
+  const record = useCallback((moves: readonly Move[], nextState: GameState): void => {
+    if (moves.length === 0) return;
+    setLog((prev) => {
+      if (prev === undefined) return prev;
+      const updated = withWinner(appendMoves(prev, moves), nextState.winner);
+      saveMatchLog(updated);
+      return updated;
+    });
+  }, []);
+
+  /** Apply + log outside React updater functions (Strict Mode double-invokes those). */
+  const commitApplied = useCallback(
+    (moves: readonly Move[], next: GameState): void => {
+      stateRef.current = next;
+      record(moves, next);
+      setState(next);
+      setSnap(mode.reset());
+    },
+    [mode, record],
+  );
+
   const softLockKey = useRef<string | null>(null);
   useEffect(() => {
     if (state === undefined) return;
@@ -110,12 +159,16 @@ export const App = (): ReactElement => {
       return;
     }
     if (snap.phase.kind === 'portion') return;
+    if (botSeatRef.current !== undefined && state.activePlayer === botSeatRef.current) {
+      // Bot owns exhaustion via playBotTurn / chooseMove — avoid racing auto-pass.
+      return;
+    }
     if (hasLegalStep(rules, state)) {
       softLockKey.current = null;
       return;
     }
-    const next = passIfExhausted(rules, state);
-    if (Object.is(next, state)) return;
+    const { state: next, moves } = passIfExhausted(rules, state);
+    if (Object.is(next, state) || moves.length === 0) return;
     if (!hasLegalStep(rules, next) && next.winner === undefined) {
       const key = `${String(next.activePlayer)}:${String(next.groups.size)}:${String(next.dominationStreak)}`;
       if (softLockKey.current === key) return;
@@ -123,9 +176,46 @@ export const App = (): ReactElement => {
     } else {
       softLockKey.current = null;
     }
-    setState(next);
-    setSnap(mode.reset());
-  }, [state, snap.phase.kind, mode]);
+    const epoch = ++passEpoch.current;
+    const handle = window.setTimeout(() => {
+      if (epoch !== passEpoch.current) return;
+      if (stateRef.current !== state) return;
+      commitApplied(moves, next);
+    }, 0);
+    return () => {
+      window.clearTimeout(handle);
+      passEpoch.current += 1;
+    };
+  }, [state, snap.phase.kind, commitApplied]);
+
+  // Bot seat: greedy turn when it is their chair.
+  useEffect(() => {
+    if (state === undefined || log === undefined) return;
+    const bot = botSeatRef.current;
+    if (bot === undefined) return;
+    if (state.winner !== undefined || state.activePlayer !== bot) {
+      setBotBusy(false);
+      return;
+    }
+    setBotBusy(true);
+    const epoch = ++botEpoch.current;
+    const handle = window.setTimeout(() => {
+      if (epoch !== botEpoch.current) return;
+      if (stateRef.current !== state) return;
+      const { state: next, moves } = playBotTurn(geometry, rules, state, bot);
+      if (epoch !== botEpoch.current) return;
+      if (moves.length === 0) {
+        setBotBusy(false);
+        return;
+      }
+      commitApplied(moves, next);
+      setBotBusy(false);
+    }, 30);
+    return () => {
+      window.clearTimeout(handle);
+      botEpoch.current += 1;
+    };
+  }, [state, log, commitApplied]);
 
   const arrows = useMemo(
     () => (state === undefined ? [] : cullArrows(geometry, viewport)),
@@ -138,14 +228,6 @@ export const App = (): ReactElement => {
         : cullVertices(geometry, viewport),
     [state, viewport],
   );
-  /**
-   * Only the vertices that carry a spawner are hover candidates.
-   *
-   * Two reasons, and the second is a bug rather than a cost: the culled set runs to several
-   * hundred vertices and this is re-scanned on every pointer move, and *nearest vertex*
-   * over all of them would let a bare pinwheel centre a few pixels closer win the hover
-   * from the spawner the cursor is plainly on.
-   */
   const spawnerVertices = useMemo(() => {
     const set = new Set<import('@arrows/contracts').VertexId>();
     if (state === undefined) return set;
@@ -156,6 +238,9 @@ export const App = (): ReactElement => {
   const movable = useMemo(() => {
     const set = new Set<import('@arrows/contracts').ArrowId>();
     if (state === undefined) return set;
+    if (botSeatRef.current !== undefined && state.activePlayer === botSeatRef.current) {
+      return set;
+    }
     for (const m of rules.legalMoves(state)) {
       if (m.kind === 'step') set.add(m.from);
     }
@@ -165,10 +250,18 @@ export const App = (): ReactElement => {
   const commitSnap = useCallback(
     (next: InputSnapshot) => {
       setSnap(next);
-      if (next.pending !== undefined) {
-        setState((s) => (s === undefined ? s : applyPending(s, next)));
-        setSnap(mode.reset());
-      }
+      if (next.pending === undefined) return;
+      const s = stateRef.current;
+      if (s === undefined) return;
+      const { state: applied, applied: moves } = applyMoves(s, next.pending);
+      commitApplied(moves, applied);
+    },
+    [commitApplied],
+  );
+
+  const previewPortion = useCallback(
+    (n: number) => {
+      setSnap(mode.previewPortion(n));
     },
     [mode],
   );
@@ -181,33 +274,67 @@ export const App = (): ReactElement => {
 
   const returnToLobby = (): void => {
     setState(undefined);
+    stateRef.current = undefined;
+    setLog(undefined);
+    botSeatRef.current = undefined;
+    setBotBusy(false);
     setSnap(mode.reset());
     softLockKey.current = null;
   };
 
-  if (state === undefined) {
+  const startMatch = (count: number, againstBot: boolean): void => {
+    const config: MatchConfig = {
+      ...DEFAULT_MATCH_CONFIG,
+      playerCount: againstBot ? 2 : count,
+    };
+    const opening = makeMatch(config);
+    const human = opening.players[0];
+    const bot = againstBot ? opening.players[1] : undefined;
+    if (human === undefined) return;
+    botSeatRef.current = bot;
+    const nextLog = createMatchLog({
+      config,
+      vsBot: againstBot,
+      humanSeat: human,
+      botSeat: bot,
+    });
+    saveMatchLog(nextLog);
+    setLog(nextLog);
+    setVsBot(againstBot);
+    setPlayerCount(config.playerCount);
+    stateRef.current = opening;
+    setState(opening);
+    setSnap(mode.reset());
+    softLockKey.current = null;
+  };
+
+  if (state === undefined || log === undefined) {
     return (
       <Lobby
         playerCount={playerCount}
+        vsBot={vsBot}
         onPlayerCount={setPlayerCount}
+        onVsBot={setVsBot}
         onStart={() => {
-          setState(beginMatch(playerCount));
-          setSnap(mode.reset());
+          startMatch(playerCount, vsBot);
         }}
       />
     );
   }
 
+  const inputLocked =
+    botBusy ||
+    (botSeatRef.current !== undefined && state.activePlayer === botSeatRef.current) ||
+    state.winner !== undefined;
+
   const onPointerDown = (e: PointerEvent<SVGSVGElement>): void => {
-    if (snap.phase.kind === 'portion') return;
+    if (snap.phase.kind === 'portion' || inputLocked) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     drag.current = { x: e.clientX, y: e.clientY, moved: false };
   };
 
   const onPointerMove = (e: PointerEvent<SVGSVGElement>): void => {
     if (drag.current === null) {
-      // Hover the spawner read-out. Proximity in screen space, not a polygon hit: a vertex
-      // is not a tile (§7), so it has no polygon to be inside.
       const rect = e.currentTarget.getBoundingClientRect();
       const sx = e.clientX - rect.left;
       const sy = e.clientY - rect.top;
@@ -228,7 +355,7 @@ export const App = (): ReactElement => {
     const wasDrag = drag.current?.moved === true;
     const hadPointer = drag.current !== null;
     drag.current = null;
-    if (!hadPointer || wasDrag || state.winner !== undefined) return;
+    if (!hadPointer || wasDrag || inputLocked) return;
     if (snap.phase.kind === 'portion') return;
     const rect = e.currentTarget.getBoundingClientRect();
     const sx = e.clientX - rect.left;
@@ -260,12 +387,20 @@ export const App = (): ReactElement => {
         mode={mode}
         phase={snap.phase}
         movableCount={movable.size}
+        vsBot={log.vsBot}
+        botBusy={botBusy}
+        moveCount={log.moves.length}
         onModeChange={switchMode}
         onEndTurn={() => {
+          if (inputLocked) return;
           commitSnap(mode.requestEndTurn());
         }}
         onSkip={() => {
+          if (inputLocked) return;
           commitSnap(mode.requestSkip(state, rules));
+        }}
+        onDownloadLog={() => {
+          downloadMatchLog(withWinner(log, state.winner));
         }}
         onNewMatch={returnToLobby}
       />
@@ -289,7 +424,7 @@ export const App = (): ReactElement => {
         {hover !== undefined && snap.phase.kind !== 'portion' ? (
           <SpawnerTipFor state={state} hover={hover} viewport={viewport} />
         ) : null}
-        {snap.phase.kind === 'portion' ? (
+        {snap.phase.kind === 'portion' && !inputLocked ? (
           <PortionSlider
             allowed={snap.phase.allowed}
             steps={snap.phase.steps}
@@ -299,6 +434,7 @@ export const App = (): ReactElement => {
             onCancel={() => {
               commitSnap(mode.reset());
             }}
+            onPreview={previewPortion}
           />
         ) : null}
       </div>

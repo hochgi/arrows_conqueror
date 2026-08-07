@@ -27,6 +27,7 @@ describe('Galcon input', () => {
     const afterDest = mode.onArrowClick(exit, state, rules);
     expect(afterDest.phase.kind).toBe('portion');
     if (afterDest.phase.kind !== 'portion') return;
+    expect(afterDest.highlights.path?.size).toBe(afterDest.phase.steps);
 
     // A trip is a *list* of steps now — one step per arrow crossed (reach.ts) — so the
     // last move must land on the exit and the first must leave the source.
@@ -41,6 +42,13 @@ describe('Galcon input', () => {
     expect(first.from).toBe(from);
     expect(last.exit).toBe(exit);
     expect(plan.length).toBe(afterDest.phase.steps);
+
+    // Slider preview keeps the path in sync with the portion.
+    mode.onArrowClick(from, state, rules);
+    const again = mode.onArrowClick(exit, state, rules);
+    if (again.phase.kind !== 'portion') return;
+    const previewed = mode.previewPortion(again.phase.min);
+    expect(previewed.highlights.path?.size).toBe(again.phase.steps);
   });
 
   it('marks a branch-stuck stack as blocked instead of empty destinations', () => {

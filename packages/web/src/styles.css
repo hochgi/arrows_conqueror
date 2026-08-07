@@ -69,6 +69,18 @@ body,
   opacity: 0.85;
 }
 
+.meta {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.65;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
 .actions button {
   font: inherit;
   padding: 0.35rem 0.65rem;
@@ -85,12 +97,6 @@ body,
 .actions button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
-}
-
-.actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
 }
 
 .mode {
@@ -123,6 +129,22 @@ body,
   display: block;
   width: 100%;
   height: 100%;
+}
+
+@keyframes yield-shine-sweep {
+  from {
+    transform: translate(-35%, -35%);
+  }
+  to {
+    transform: translate(35%, 35%);
+  }
+}
+
+.yield-shine-band {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: yield-shine-sweep 2.4s linear infinite;
+  pointer-events: none;
 }
 
 .portion-backdrop {
@@ -233,6 +255,13 @@ body,
   margin: 0;
   opacity: 0.75;
   font-size: 0.95rem;
+}
+
+.lobby-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
 }
 
 .lobby-count {

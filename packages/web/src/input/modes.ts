@@ -12,7 +12,7 @@
 
 import { endTurn, skip } from '@arrows/contracts';
 import type { ArrowId, GameState, GeometryPort, Move, RulesPort } from '@arrows/contracts';
-import { planMoves, reachFrom } from '../reach';
+import { planArrowSet, planMoves, reachFrom } from '../reach';
 import type { Reach, ReachEntry } from '../reach';
 
 export type InputPhase =
@@ -39,6 +39,11 @@ export interface InputHighlights {
   readonly preview?: ArrowId;
   /** Everything the selected stack can reach, with distance and price. */
   readonly reach?: Reach;
+  /**
+   * Arrows on the route that will be applied for the current preview / portion.
+   * Empty when no destination is committed yet.
+   */
+  readonly path?: ReadonlySet<ArrowId>;
 }
 
 export interface InputSnapshot {
@@ -55,6 +60,8 @@ export interface InputMode {
   onArrowClick(arrow: ArrowId, state: GameState, rules: RulesPort): InputSnapshot;
   onBackgroundClick(): InputSnapshot;
   choosePortion(count: number): InputSnapshot;
+  /** Refresh the path highlight as the portion slider moves. */
+  previewPortion(count: number): InputSnapshot;
   /** Skip the selected source group, if any. */
   requestSkip(state: GameState, rules: RulesPort): InputSnapshot;
   requestEndTurn(): InputSnapshot;
@@ -69,6 +76,13 @@ const idle = (): InputSnapshot => ({
 
 const isOwn = (arrow: ArrowId, state: GameState): boolean =>
   state.groups.get(arrow)?.owner === state.activePlayer;
+
+const pathFor = (reach: Reach, exit: ArrowId, count: number): ReadonlySet<ArrowId> => {
+  const entry = reach.get(exit);
+  if (entry === undefined) return new Set();
+  const plan = entry.plans.get(count) ?? entry.plans.get(entry.minCount);
+  return plan === undefined ? new Set() : planArrowSet(plan);
+};
 
 abstract class BaseMode implements InputMode {
   abstract readonly id: string;
@@ -121,6 +135,7 @@ abstract class BaseMode implements InputMode {
         targets: new Set(this.reach.keys()),
         preview: exit,
         reach: this.reach,
+        path: pathFor(this.reach, exit, entry.minCount),
       },
     };
     return this.snap;
@@ -138,6 +153,20 @@ abstract class BaseMode implements InputMode {
       pending: planMoves(phase.from, plan, count),
     };
     this.reach = new Map();
+    return this.snap;
+  }
+
+  previewPortion(count: number): InputSnapshot {
+    const { phase } = this.snap;
+    if (phase.kind !== 'portion') return this.snap;
+    if (!phase.allowed.includes(count)) return this.snap;
+    this.snap = {
+      ...this.snap,
+      highlights: {
+        ...this.snap.highlights,
+        path: pathFor(this.reach, phase.exit, count),
+      },
+    };
     return this.snap;
   }
 
@@ -211,6 +240,7 @@ export class HommInput extends BaseMode {
     }
     if ((phase.kind === 'source' || phase.kind === 'preview') && arrow !== phase.from) {
       if (this.reach.has(arrow)) {
+        const entry = this.reach.get(arrow);
         this.snap = {
           phase: { kind: 'preview', from: phase.from, exit: arrow },
           highlights: {
@@ -218,6 +248,7 @@ export class HommInput extends BaseMode {
             targets: new Set(this.reach.keys()),
             preview: arrow,
             reach: this.reach,
+            path: entry === undefined ? new Set() : pathFor(this.reach, arrow, entry.minCount),
           },
         };
         return this.snap;

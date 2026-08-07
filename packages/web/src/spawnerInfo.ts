@@ -11,6 +11,7 @@
  */
 
 import type { ArrowId, GameState, GeometryPort, PlayerId, Rational, VertexId } from '@arrows/contracts';
+import { add, wholeSteps } from '@arrows/contracts';
 
 /** Why a share is not accruing this round, when it is not. */
 export type ShareStatus =
@@ -49,6 +50,19 @@ export interface SpawnerInfo {
 
 const ZERO: Rational = { num: 0, den: 1 };
 
+const shareStatus = (
+  state: GameState,
+  arrow: ArrowId,
+): { status: ShareStatus; owner?: PlayerId } => {
+  const owner = state.territory.get(arrow);
+  if (owner === undefined) return { status: 'unclaimed' };
+  const standing = state.groups.get(arrow);
+  if (standing !== undefined && standing.owner !== owner) {
+    return { status: 'blockaded', owner };
+  }
+  return { status: 'earning', owner };
+};
+
 export const spawnerInfoAt = (
   geometry: GeometryPort,
   state: GameState,
@@ -63,15 +77,8 @@ export const spawnerInfoAt = (
   const phase = ((spawner.phase % borders.length) + borders.length) % borders.length;
 
   const shares: ShareInfo[] = borders.map((arrow, k) => {
-    const owner = state.territory.get(arrow);
-    const standing = state.groups.get(arrow);
+    const { status, owner } = shareStatus(state, arrow);
     const banked = state.accumulators.get(arrow) ?? ZERO;
-    const status: ShareStatus =
-      owner === undefined
-        ? 'unclaimed'
-        : standing !== undefined && standing.owner !== owner
-          ? 'blockaded'
-          : 'earning';
     return {
       arrow,
       ...(owner === undefined ? {} : { owner }),
@@ -122,3 +129,41 @@ export const spawnerInfoAt = (
  */
 export const spawnerProminence = (info: SpawnerInfo): number =>
   info.held.length > 0 || info.shares.some((s) => s.loaded > 0) ? 1 : 0.72;
+
+/**
+ * Full rounds until a share arrow births a head, if that is 1 or 2.
+ *
+ * Accrual is per **full round** (§7 / P08), not per `endTurn`. Looks at the next two
+ * round-robin slots only — each share is fed at most once in that window.
+ */
+export type YieldSoon = 1 | 2;
+
+export const yieldSoonByArrow = (
+  geometry: GeometryPort,
+  state: GameState,
+): ReadonlyMap<ArrowId, YieldSoon> => {
+  const out = new Map<ArrowId, YieldSoon>();
+  const vertices = [...state.spawners.keys()].toSorted((a, b) =>
+    String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0,
+  );
+  for (const vertex of vertices) {
+    const spawner = state.spawners.get(vertex);
+    if (spawner === undefined) continue;
+    const borders = [...geometry.borderArrows(vertex)].toSorted((l, r) =>
+      String(l) < String(r) ? -1 : 1,
+    );
+    if (borders.length !== 3) continue;
+    const phase = ((spawner.phase % 3) + 3) % 3;
+    for (let offset = 0; offset < 2; offset += 1) {
+      const arrow = borders[(phase + offset) % 3];
+      if (arrow === undefined) continue;
+      if (out.has(arrow)) continue;
+      const { status } = shareStatus(state, arrow);
+      if (status !== 'earning') continue;
+      const banked = state.accumulators.get(arrow) ?? ZERO;
+      if (wholeSteps(add(banked, spawner.force)) < 1) continue;
+      out.set(arrow, offset === 0 ? 1 : 2);
+    }
+  }
+  return out;
+};
