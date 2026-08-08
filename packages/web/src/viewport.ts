@@ -63,6 +63,13 @@ export const panBy = (viewport: Viewport, dScreenX: number, dScreenY: number): V
   cy: viewport.cy - dScreenY / viewport.scale,
 });
 
+/** Put lattice point `(x, y)` under the screen centre — keep zoom. */
+export const centerOn = (viewport: Viewport, x: number, y: number): Viewport => ({
+  ...viewport,
+  cx: x,
+  cy: y,
+});
+
 export const zoomAt = (
   viewport: Viewport,
   screenX: number,

@@ -58,6 +58,12 @@ describe('reach', () => {
     for (const entry of near) expect(entry.maxCount).toBe(4);
   });
 
+  it('marks no branch toll on open linear ground', () => {
+    const { state, from } = soloStack(4);
+    const reach = reachFrom(geometry, rules, state, from);
+    for (const entry of reach.values()) expect(entry.paysBranchToll).toBe(false);
+  });
+
   it('plans one step per arrow crossed, from the source onward', () => {
     const { state, from } = soloStack(8);
     const reach = reachFrom(geometry, rules, state, from);

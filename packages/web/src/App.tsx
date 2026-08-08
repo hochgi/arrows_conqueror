@@ -32,11 +32,24 @@ import { pathForDestination } from './reach';
 import { spawnerInfoAt } from './spawnerInfo';
 import { SpawnerTip } from './SpawnerTip';
 import type { Viewport } from './viewport';
-import { ZOOM, createViewport, panBy, resize, zoomAt } from './viewport';
+import { ZOOM, centerOn, createViewport, panBy, resize, zoomAt } from './viewport';
 
 const geometry = makeTiling();
 const layout = makeLayout();
 const rules = makeRules(geometry);
+
+/** Layout-space centroid of an arrow tile — same space as `viewport.cx/cy`. */
+const arrowCentroid = (arrow: ArrowId): { x: number; y: number } => {
+  const poly = layout.polygon(arrow);
+  let sx = 0;
+  let sy = 0;
+  for (const p of poly) {
+    sx += p.x;
+    sy += p.y;
+  }
+  const n = poly.length === 0 ? 1 : poly.length;
+  return { x: sx / n, y: sy / n };
+};
 
 /**
  * Apply a whole trip, one step at a time.
@@ -309,6 +322,9 @@ export const App = (): ReactElement => {
         froms.find((arrow) => arrow !== lastFrom) ?? froms[0];
       if (pick === undefined) return;
       setSnap(mode.onArrowClick(pick, applied, rules));
+      // Skip / exhaust already picked the next stack — don't make the player hunt it.
+      const focus = arrowCentroid(pick);
+      setViewport((v) => centerOn(v, focus.x, focus.y));
     },
     [commitApplied, mode],
   );

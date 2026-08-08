@@ -68,9 +68,14 @@ export const MOVABLE_STROKE = 'rgba(240, 201, 106, 0.92)';
 export const PREVIEW_STROKE = '#8fd6ff';
 export const REACH_FILL = '#6cc0ff';
 export const REACH_INK = 'rgba(214, 238, 255, 0.92)';
+/** Reach that leaves a head stuck on a join/split (§5 branch toll). */
+export const TOLL_REACH_FILL = '#e88a8a';
+export const TOLL_PREVIEW_STROKE = '#f0a8a8';
 /** The multi-hop route that will actually be applied — brighter than the reach wash. */
 export const PATH_STROKE = '#b8e4ff';
 export const PATH_WASH = 'rgba(184, 228, 255, 0.42)';
+export const TOLL_PATH_STROKE = '#f0b4b4';
+export const TOLL_PATH_WASH = 'rgba(232, 138, 138, 0.42)';
 
 /**
  * A spawner's three arcs. Quieter than the players and quieter than reach, on purpose:

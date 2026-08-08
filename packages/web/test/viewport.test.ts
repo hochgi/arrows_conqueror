@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ZOOM,
+  centerOn,
   clampZoom,
   createViewport,
   panBy,
@@ -31,6 +32,14 @@ describe('viewport', () => {
     const v = createViewport(400, 300, { x: 0, y: 0 }, 40);
     const next = panBy(v, 40, 0);
     expect(next.cx).toBeCloseTo(-1);
+  });
+
+  it('centers on a lattice point without changing zoom', () => {
+    const v = createViewport(400, 300, { x: 0, y: 0 }, 40);
+    const next = centerOn(v, 3, -2);
+    expect(next.cx).toBe(3);
+    expect(next.cy).toBe(-2);
+    expect(next.scale).toBe(40);
   });
 
   it('zooms about the cursor without drifting the lattice point under it', () => {

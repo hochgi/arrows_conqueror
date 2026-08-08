@@ -13,6 +13,10 @@ import {
   PREVIEW_STROKE,
   REACH_FILL,
   REACH_INK,
+  TOLL_PATH_STROKE,
+  TOLL_PATH_WASH,
+  TOLL_PREVIEW_STROKE,
+  TOLL_REACH_FILL,
   SPAWNER_CURSOR,
   SPAWNER_HUB_IDLE,
   SPAWNER_IDLE,
@@ -288,14 +292,21 @@ export const Board = ({
         else if (isMovable) strokeWidth = 3.1;
         else if (group !== undefined) strokeWidth = 2.55;
         else if (entry !== undefined) strokeWidth = 1.8;
+        const toll = entry?.paysBranchToll === true;
         const strokeColor = isSelected
           ? HIGHLIGHT_STROKE
           : isPreview || onPath
             ? onPath
-              ? PATH_STROKE
-              : PREVIEW_STROKE
+              ? toll
+                ? TOLL_PATH_STROKE
+                : PATH_STROKE
+              : toll
+                ? TOLL_PREVIEW_STROKE
+                : PREVIEW_STROKE
             : entry !== undefined
-              ? REACH_FILL
+              ? toll
+                ? TOLL_REACH_FILL
+                : REACH_FILL
               : isMovable
                 ? MOVABLE_STROKE
                 : group !== undefined
@@ -353,7 +364,15 @@ export const Board = ({
             {entry !== undefined && !isSelected ? (
               <polygon
                 points={points}
-                fill={onPath ? PATH_WASH : REACH_FILL}
+                fill={
+                  onPath
+                    ? toll
+                      ? TOLL_PATH_WASH
+                      : PATH_WASH
+                    : toll
+                      ? TOLL_REACH_FILL
+                      : REACH_FILL
+                }
                 fillOpacity={onPath ? undefined : isPreview ? 0.7 : reachOpacity(entry.distance)}
                 className={onPath ? 'path-pulse' : undefined}
                 style={{ pointerEvents: 'none' }}

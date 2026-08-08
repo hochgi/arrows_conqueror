@@ -18,7 +18,7 @@
  * a player means by "send these six there".
  */
 
-import { speed, step } from '@arrows/contracts';
+import { ContractViolation, speed, step } from '@arrows/contracts';
 import type { ArrowId, GameState, GeometryPort, Move, RulesPort } from '@arrows/contracts';
 
 /** One arrow a portion could reach, and the price of reaching it. */
@@ -31,6 +31,11 @@ export interface ReachEntry {
   readonly maxCount: number;
   /** Exits to walk, per portion size. The renderer hands one back to be applied. */
   readonly plans: ReadonlyMap<number, readonly ArrowId[]>;
+  /**
+   * True when getting here leaves a head stuck on a join/split (§5). Painted red so
+   * a lone remaining unit is not spent into the toll by accident.
+   */
+  readonly paysBranchToll: boolean;
 }
 
 export type Reach = ReadonlyMap<ArrowId, ReachEntry>;
@@ -44,6 +49,28 @@ interface Mutable {
   maxCount: number;
   plans: Map<number, readonly ArrowId[]>;
 }
+
+/**
+ * Would taking the *whole* stack out `exit` leave a join/split unpaid?
+ *
+ * Asked of `apply` rather than re-derived: the mandate lives in trails, and the
+ * adapter only needs the verdict for paint. Combat stay-behind and merge bars fail
+ * for other reasons and must not light the toll colour.
+ */
+const fullStackLeavesUnpaidBranch = (
+  rules: RulesPort,
+  state: GameState,
+  from: ArrowId,
+  exit: ArrowId,
+  heads: number,
+): boolean => {
+  try {
+    rules.apply(state, step(from, exit, heads));
+    return false;
+  } catch (err) {
+    return err instanceof ContractViolation && /\bis a (join|split) of\b/.test(err.message);
+  }
+};
 
 /**
  * Every arrow the group on `from` could reach this turn, keyed by arrow.
@@ -115,7 +142,34 @@ export const reachFrom = (
     walk(state, from, []);
   }
 
-  return found;
+  // Per first-exit: does emptying `from` that way leave a branch unpaid?
+  const tollByExit = new Map<string, boolean>();
+  const exitPaysToll = (exit: ArrowId): boolean => {
+    const key = String(exit);
+    const cached = tollByExit.get(key);
+    if (cached !== undefined) return cached;
+    const pays = fullStackLeavesUnpaidBranch(rules, state, from, exit, group.heads);
+    tollByExit.set(key, pays);
+    return pays;
+  };
+
+  const out = new Map<ArrowId, ReachEntry>();
+  for (const [arrow, seen] of found) {
+    const plan = seen.plans.get(seen.minCount);
+    const first = plan?.[0];
+    const paysBranchToll =
+      first !== undefined &&
+      seen.minCount < group.heads &&
+      exitPaysToll(first);
+    out.set(arrow, {
+      distance: seen.distance,
+      minCount: seen.minCount,
+      maxCount: seen.maxCount,
+      plans: seen.plans,
+      paysBranchToll,
+    });
+  }
+  return out;
 };
 
 /** The moves that carry `count` heads along a reach plan, in order. */
