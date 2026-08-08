@@ -73,14 +73,15 @@ describe('a closure is an ordinary step onto your own territory', () => {
 
   it('does not treat a landing on enemy territory as a closure', () => {
     // §7: enemy territory is hostile ground — enterable, and exposing while you are
-    // there. Marking is trails' rule and it is untouched.
+    // there. Marking is trails' rule and it is untouched. Keep a territory-grade
+    // lifeline so conversion does not strip the mark (P13).
     const table = onTiling();
-    const { run } = aRunFromHome(table.geometry, 2);
+    const { home, run } = aRunFromHome(table.geometry, 2);
     const last = arrowAt(run, 1);
     const enemy = anExitFrom(table.geometry, last);
     const before = stateOf([{ arrow: last, owner: A, heads: 1 }], A, {
       trail: { A: [...run] },
-      territory: owned([enemy], B),
+      territory: [...owned([home], A), ...owned([enemy], B)],
     });
 
     const after = table.rules.apply(before, step(last, enemy, 1));

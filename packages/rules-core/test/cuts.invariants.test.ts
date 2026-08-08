@@ -49,8 +49,8 @@ describe('a crossing evaporates the victim’s trail in both directions', () => 
   });
 });
 
-describe('each front has one kill; a pair is a firebreak', () => {
-  it('leaves the second head of a consecutive pair standing', () => {
+describe('any garrison is a firebreak (P12)', () => {
+  it('leaves the first occupied arrow standing with its heads', () => {
     const table = onBoard();
     const { trailIn, trailOut, ourIn, ourExit } = anInterleaving(
       table.geometry,
@@ -71,7 +71,7 @@ describe('each front has one kill; a pair is a firebreak', () => {
 
     const after = table.rules.apply(before, step(ourIn, ourExit, 1));
 
-    expect(headsOn(after, trailOut)).toBe(0);
+    expect(headsOn(after, trailOut)).toBe(1);
     expect(after.groups.get(beyond)?.heads).toBeGreaterThanOrEqual(1);
     expect(isTrail(after, B, beyond)).toBe(true);
   });
@@ -137,7 +137,7 @@ describe('halt is per arrow; territory is a wall; only the victim’s trail chan
   });
 });
 
-describe('surviving fragments demote to stack grade; headless trail is ordinary', () => {
+describe('surviving fragments demote to stack grade', () => {
   it('reports stack grade on a far fragment after a deep cut', () => {
     const table = onBoard();
     const { trailIn, trailOut, ourIn, ourExit } = anInterleaving(
@@ -145,16 +145,16 @@ describe('surviving fragments demote to stack grade; headless trail is ordinary'
       MINIMAL_DIAMETER,
     );
     const tip = pick(table.geometry.outArrows(table.geometry.target(trailOut)), 0);
+    const home = pick(table.geometry.inArrows(table.geometry.origin(trailIn)), 0);
     const before = stateOf(
       [
         { arrow: ourIn, owner: A, heads: 1 },
         { arrow: trailOut, owner: B, heads: 1 },
-        { arrow: tip, owner: B, heads: 1 },
       ],
       A,
       {
         trail: { A: [ourIn], B: [trailIn, trailOut, tip] },
-        territory: [{ arrow: trailIn, owner: B }],
+        territory: [{ arrow: home, owner: B }],
       },
     );
 

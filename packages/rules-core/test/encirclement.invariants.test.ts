@@ -80,10 +80,12 @@ describe('encirclement converts only unprotected enemy groups on foreign territo
       },
     );
     expect(table.rules.anchorGrade(protectedSetup, tip, B)).toBe('territory');
-    const afterProtected = table.rules.apply(
-      protectedSetup,
-      step(mover, anExitFrom(table.geometry, mover), 1),
-    );
+    // Step onto A's own ground so we do not paint B's last territory feeder (P13 root cut).
+    const safeExit = table.geometry
+      .outArrows(table.geometry.target(mover))
+      .find((a) => protectedSetup.territory.get(a) !== B);
+    if (safeExit === undefined) throw new Error('setup: no safe exit from mover');
+    const afterProtected = table.rules.apply(protectedSetup, step(mover, safeExit, 1));
     expect(ownerOf(afterProtected, tip)).toBe(B);
 
     const ownLand = stateOf(

@@ -25,7 +25,7 @@ Feature: Encirclement — boundaries, conservation, and purity
       When an apply resolves
       Then the group remains owned by B
 
-  Rule: Conversion does not strip trail
+  Rule: Conversion strips trail (P13)
 
     Scenario: Victim trail arrows outside the converted stack are untouched by conversion alone
       Given conversion flips a stack on arrow e1

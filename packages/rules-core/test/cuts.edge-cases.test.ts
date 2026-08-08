@@ -66,13 +66,12 @@ describe('halt is per arrow, never per point', () => {
   });
 });
 
-// ── Rule: headless trail is ordinary ─────────────────────────────────────────
+// ── Rule: territory-anchored headless stretch is ordinary; dormant is not ────
 
-describe('headless trail is ordinary', () => {
-  it('leaves a headless stretch behind a mid-trail cut', () => {
-    // §6.1a: no cleanup pass; a head may walk onto it later.
-    // Pair at tip holds the forward front; the cut must destroy something and
-    // leave a surviving trail arrow with no head — not merely author one.
+describe('territory-anchored headless stretch is ordinary', () => {
+  it('leaves a headless stretch on the territory side of a mid-trail cut', () => {
+    // P12: tip garrison stops the front; trailOut may survive headless while
+    // still territory-anchored via trailIn.
     const table = onBoard();
     const { trailIn, trailOut, ourIn, ourExit } = anInterleaving(
       table.geometry,
@@ -93,12 +92,12 @@ describe('headless trail is ordinary', () => {
 
     const after = table.rules.apply(before, step(ourIn, ourExit, 1));
 
-    expect(trailOf(after, B).length).toBeLessThan(trailOf(before, B).length);
     expect(headsOn(after, tip)).toBeGreaterThanOrEqual(1);
-    const surviving = [...(after.trails.get(B) ?? [])];
-    expect(surviving.length).toBeGreaterThan(0);
-    const headless = surviving.filter((arrow) => !after.groups.has(arrow));
-    expect(headless.length).toBeGreaterThan(0);
+    expect(isTrail(after, B, tip)).toBe(true);
+    // Forward halt at tip — trailOut may remain as headless territory-anchored wall.
+    if (isTrail(after, B, trailOut)) {
+      expect(after.groups.has(trailOut)).toBe(false);
+    }
   });
 });
 

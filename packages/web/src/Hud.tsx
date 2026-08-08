@@ -113,11 +113,11 @@ export const Hud = ({
       <p className="help">
         Drag to pan · pinch or wheel to zoom · gold outline = movable this turn
         (auto-selects and pans to the next after you finish or skip one) · blue =
-        reachable, red = branch toll (leaves a stuck head) · fade with distance ·
-        hover a reach tile to pulse the path · bold tile edge = occupied · trail
-        chords stay visible under enemy stacks (overlap is legal until a cut) ·
-        solid fill = territory, thin fill = open trail · turn passes when nothing
-        can step
+        reachable · red = branch toll · amber = singleton merge onto own trail ·
+        fade with distance · hover a reach tile to pulse the path · bold tile edge =
+        occupied · trail chords stay visible under enemy stacks (overlap is legal until
+        a cut) · solid fill = territory, thin fill = open trail · turn passes when
+        nothing can step
       </p>
       <p className="help">
         Ringed dots are spawners — three arcs with a dark rim, one per bordering arrow.

@@ -44,30 +44,24 @@ Feature: Cuts — evaporating a trail from a crossing
       Then player A's trail still holds the arrows it held before the cut
       # Exposure is laying trail, not a reflexive cut.
 
-  Rule: One kill per front — a lone head bleeds, a pair is a firebreak
+  Rule: Any garrison is a firebreak — evaporation does not kill (P13)
 
-    Scenario: A lone sentry bleeds and the front continues
+    Scenario: A lone sentry halts the front and survives
       Given player B's trail runs past a single head of player B's on arrow s1
-      And a cut's front reaches s1 with its kill unspent
-      When the front enters s1
-      Then that head is destroyed
-      And the front continues past s1 with no kill left
-      # §6.1 / item 24: the first head spends the kill; it does not halt the front.
+      And a cut's front would enter s1
+      When the front resolves at s1
+      Then that head still stands on s1
+      And s1 remains in player B's trail
+      And trail beyond s1 is unchanged by this front
+      # §6.1 / P13: halt at first occupied arrow; no kill.
 
-    Scenario: A pair of heads halts the front
-      Given player B's trail has two heads of player B's on consecutive arrows f1 then f2
-      And a cut's front reaches f1 with its kill unspent
-      When the front resolves through f1 and f2
-      Then one head is destroyed on f1
-      And at least one head remains on f2
-      And trail beyond f2 is not destroyed by this front
-      # The second head is the firebreak.
-
-    Scenario: A second cut on the surviving firebreak rolls on
-      Given a firebreak of one remaining head on arrow f2 after a prior cut
-      When a later cut's front reaches f2 with a fresh kill
-      Then that head is destroyed
-      And the front continues into the region beyond
+    Scenario: A second cut still halts at the same garrison
+      Given a garrison of one head on arrow f2
+      And a cut's front would enter f2
+      When the front resolves at f2
+      Then that head still stands on f2
+      And trail beyond f2 is unchanged by this front
+      # Combat must remove the garrison; cuts alone never thin it.
 
   Rule: All-to-all — a front per branch
 

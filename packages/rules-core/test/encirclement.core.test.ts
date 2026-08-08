@@ -199,25 +199,24 @@ describe('territory grade protects; lesser grades do not', () => {
 
 describe('cut demotion then conversion on the same step', () => {
   it('converts after a cut drops territory grade inside enemy land', () => {
+    // P12: halt at tip; empty mid-trail is cleared so tip loses territory grade
+    // and converts on A's land; convert then strips B's trail from tip.
     const table = onBoard();
-    const { trailIn, trailOut: f1, ourIn, ourExit } = anInterleaving(
+    const { trailIn, trailOut: mid, ourIn, ourExit } = anInterleaving(
       table.geometry,
       MINIMAL_DIAMETER,
     );
-    const f2 = anExitFrom(table.geometry, f1);
-    const tip = anExitFrom(table.geometry, f2);
+    const tip = anExitFrom(table.geometry, mid);
     const home = pick(table.geometry.inArrows(table.geometry.origin(trailIn)), 0);
 
     const before = stateOf(
       [
         { arrow: ourIn, owner: A, heads: 1 },
-        { arrow: f1, owner: B, heads: 1 },
-        { arrow: f2, owner: B, heads: 1 },
         { arrow: tip, owner: B, heads: 1 },
       ],
       A,
       {
-        trail: { A: [ourIn], B: [trailIn, f1, f2, tip] },
+        trail: { A: [ourIn], B: [trailIn, mid, tip] },
         territory: [
           { arrow: home, owner: B },
           { arrow: tip, owner: A },
@@ -228,9 +227,8 @@ describe('cut demotion then conversion on the same step', () => {
 
     const after = table.rules.apply(before, step(ourIn, ourExit, 1));
 
-    expect(isTrail(after, B, tip)).toBe(true);
-    expect(table.rules.anchorGrade(after, tip, B)).toBe('stack');
     expect(ownerOf(after, tip)).toBe(A);
     expect(headsOn(after, tip)).toBe(1);
+    expect(isTrail(after, B, tip)).toBe(false);
   });
 });

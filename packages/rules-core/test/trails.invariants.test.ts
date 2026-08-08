@@ -88,9 +88,14 @@ describe('a step marks its destination unless that destination is the mover’s 
     const table = onBoard();
     for (const from of allArrows(table.geometry, MINIMAL_DIAMETER)) {
       for (const exit of exitsFrom(table.geometry, from)) {
+        // Territory-grade lifeline so conversion does not strip the fresh mark (P13).
+        const home = pick(table.geometry.inArrows(table.geometry.origin(from)), 0);
         const state = stateOf([{ arrow: from, owner: A, heads: 1 }], A, {
           trail: { A: [from] },
-          territory: [{ arrow: exit, owner: B }],
+          territory: [
+            { arrow: exit, owner: B },
+            { arrow: home, owner: A },
+          ],
         });
         const after = table.rules.apply(state, step(from, exit, 1));
         expect(isTrail(after, A, exit)).toBe(true);

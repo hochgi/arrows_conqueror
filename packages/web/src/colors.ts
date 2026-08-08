@@ -76,6 +76,10 @@ export const PATH_STROKE = '#b8e4ff';
 export const PATH_WASH = 'rgba(184, 228, 255, 0.42)';
 export const TOLL_PATH_STROKE = '#f0b4b4';
 export const TOLL_PATH_WASH = 'rgba(232, 138, 138, 0.42)';
+/** Singleton merging onto own trail — soft trap, not a toll. */
+export const MERGE_TRAP_FILL = '#e8c56a';
+export const MERGE_TRAP_PATH_WASH = 'rgba(232, 197, 106, 0.42)';
+export const MERGE_TRAP_STROKE = '#e0b84a';
 
 /**
  * A spawner's three arcs. Quieter than the players and quieter than reach, on purpose:

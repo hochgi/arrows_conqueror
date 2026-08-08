@@ -134,17 +134,16 @@ describe('a cut is an ordinary step that crosses an enemy trail', () => {
   });
 });
 
-// ── Rule: one kill per front — lone bleeds, pair is a firebreak ───────────────
+// ── Rule: any garrison is a firebreak (P12 — no kill) ─────────────────────────
 
-describe('one kill per front — a lone head bleeds, a pair is a firebreak', () => {
-  it('bleeds a lone sentry and continues the front', () => {
-    // §6.1 / item 24: the first head spends the kill; it does not halt the front.
+describe('any garrison is a firebreak — evaporation does not kill', () => {
+  it('halts at a lone sentry and leaves it standing', () => {
+    // §6.1 / P12: the first occupied arrow stops the front; heads are untouched.
     const table = onBoard();
     const { trailIn, trailOut, ourIn, ourExit } = anInterleaving(
       table.geometry,
       MINIMAL_DIAMETER,
     );
-    // Extend beyond trailOut so there is a region past the lone sentry.
     const beyond = anExitFrom(table.geometry, trailOut);
     const before = stateOf(
       [
@@ -160,14 +159,12 @@ describe('one kill per front — a lone head bleeds, a pair is a firebreak', () 
 
     const after = table.rules.apply(before, step(ourIn, ourExit, 1));
 
-    expect(headsOn(after, trailOut)).toBe(0);
-    expect(isTrail(after, B, beyond)).toBe(false);
+    expect(headsOn(after, trailOut)).toBe(1);
+    expect(isTrail(after, B, trailOut)).toBe(true);
+    expect(isTrail(after, B, beyond)).toBe(true);
   });
 
-  it('halts a front at a pair of heads', () => {
-    // The second head is the firebreak. Trail beyond f2 is not destroyed.
-    // Built from anInterleaving so the cut is a real crossing on this board
-    // (slot rotation is free — §11 item 29 — and a hand-picked spine may offer none).
+  it('halts at the first of a pair and leaves trail beyond intact', () => {
     const table = onBoard();
     const { trailIn, trailOut: f1, ourIn, ourExit } = anInterleaving(
       table.geometry,
@@ -192,14 +189,13 @@ describe('one kill per front — a lone head bleeds, a pair is a firebreak', () 
 
     const after = table.rules.apply(before, step(ourIn, ourExit, 1));
 
-    expect(headsOn(after, f1)).toBe(0);
-    expect(headsOn(after, f2)).toBeGreaterThanOrEqual(1);
+    expect(headsOn(after, f1)).toBe(1);
+    expect(headsOn(after, f2)).toBe(1);
     expect(isTrail(after, B, beyond)).toBe(true);
   });
 
-  it('rolls on when a second cut reaches the surviving firebreak', () => {
-    // After a prior cut left one head on f2, a later front with a fresh kill
-    // destroys it and continues into the region beyond.
+  it('does not roll past a surviving garrison on a second cut of the same arrow', () => {
+    // Combat must remove the garrison; a second crossing still halts.
     const table = onBoard();
     const run = pathFrom(table.geometry, anExitFrom(table.geometry,
       pick(table.geometry.inArrows(table.geometry.seedPoint()), 0)), 4);
@@ -232,8 +228,8 @@ describe('one kill per front — a lone head bleeds, a pair is a firebreak', () 
 
     const after = table.rules.apply(before, step(cutterIn, cutExit, 1));
 
-    expect(headsOn(after, f2)).toBe(0);
-    expect(isTrail(after, B, beyond)).toBe(false);
+    expect(headsOn(after, f2)).toBe(1);
+    expect(isTrail(after, B, beyond)).toBe(true);
   });
 });
 
@@ -303,32 +299,31 @@ describe('territory is a wall; survivors demote', () => {
   });
 
   it('demotes the far fragment to stack grade after a deep cut', () => {
-    // §6.1 / item 28. Conversion of heads on it is P07 — they keep standing here.
-    // anInterleaving guarantees a crossing; the firebreak pair bounds the far tip.
+    // P12: lone sentry on f1 is the firebreak; trailIn (empty) between home and
+    // f1 is cleared, so tip beyond f1 no longer reaches a territory feeder.
     const table = onBoard();
     const { trailIn, trailOut: f1, ourIn, ourExit } = anInterleaving(
       table.geometry,
       MINIMAL_DIAMETER,
     );
-    const f2 = anExitFrom(table.geometry, f1);
-    const tip = anExitFrom(table.geometry, f2);
+    const tip = anExitFrom(table.geometry, f1);
     const home = pick(table.geometry.inArrows(table.geometry.origin(trailIn)), 0);
 
     const before = stateOf(
       [
         { arrow: ourIn, owner: A, heads: 1 },
         { arrow: f1, owner: B, heads: 1 },
-        { arrow: f2, owner: B, heads: 1 },
       ],
       A,
       {
-        trail: { A: [ourIn], B: [trailIn, f1, f2, tip] },
+        trail: { A: [ourIn], B: [trailIn, f1, tip] },
         territory: [{ arrow: home, owner: B }],
       },
     );
 
     const after = table.rules.apply(before, step(ourIn, ourExit, 1));
 
+    expect(headsOn(after, f1)).toBe(1);
     expect(isTrail(after, B, tip)).toBe(true);
     expect(table.rules.anchorGrade(after, tip, B)).toBe('stack');
   });

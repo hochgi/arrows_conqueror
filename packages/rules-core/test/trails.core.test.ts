@@ -101,12 +101,17 @@ describe('a step marks its destination unless that destination is your territory
   it('marks trail when a head steps into enemy territory', () => {
     // "Stepping into enemy territory marks trail". §7: hostile ground — enterable,
     // and exposing while you are on it. Only your *own* territory is safe.
+    // Territory-grade lifeline so conversion does not strip the mark (P13).
     const table = onBoard();
     const n1 = anArrow(table.geometry);
     const e1 = anExitFrom(table.geometry, n1);
+    const home = pick(table.geometry.inArrows(table.geometry.origin(n1)), 0);
     const before = stateOf([{ arrow: n1, owner: A, heads: 1 }], A, {
       trail: { A: [n1] },
-      territory: [{ arrow: e1, owner: B }],
+      territory: [
+        { arrow: e1, owner: B },
+        { arrow: home, owner: A },
+      ],
     });
 
     const after = table.rules.apply(before, step(n1, e1, 1));

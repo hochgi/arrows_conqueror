@@ -212,50 +212,55 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     const contact =
       standing !== undefined && standing.owner !== movers.owner ? standing : undefined;
 
+    /** Arrows whose occupant was wiped to 0 this step — evaporate after mark. */
+    const wiped: { readonly owner: PlayerId; readonly arrow: ArrowId }[] = [];
+
     let landed = true;
     if (contact !== undefined) {
-      // §6.2 / item 38: stay-behind, fight-to-wipe, mark only on land.
       requireStayBehind(movers, move, contact);
       const { aRem, dRem } = resolveBattle(move.count, contact.heads);
       leaveRemainder(groups, move.from, movers, move.count);
       if (dRem === 0) {
-        // Attacker lands with A remaining — ordinary occupancy on emptied ground.
+        wiped.push({ owner: contact.owner, arrow: move.exit });
         landed = true;
         if (aRem === 0) {
+          wiped.push({ owner: movers.owner, arrow: move.exit });
           groups.delete(move.exit);
         } else {
           groups.set(move.exit, asGroup(movers.owner, aRem, movers.spent + 1, movers.speedOverride));
         }
       } else {
-        // Attacker wiped — stay-behind is the tip; do not mark the destination.
         landed = false;
         groups.set(move.exit, asGroup(contact.owner, dRem, contact.spent, contact.speedOverride));
+        if (aRem === 0) {
+          // Attackers on the destination are gone; stay-behind remains on from.
+          // No destination wipe of attacker trail — they never marked exit.
+        }
       }
     } else {
-      // A split leaves the remainder its parent's `spent` and its parent's override,
-      // and only the movers pay for the step (§3; SPEC §11 item 33).
       leaveRemainder(groups, move.from, movers, move.count);
       groups.set(move.exit, landing(movers, move.count, standing));
     }
 
-    const stepped: GameState = {
+    let stepped: GameState = {
       ...state,
       groups,
       trails: landed ? trails.markStep(state, move, movers.owner) : state.trails,
     };
-    const afterCut = cuts.evaporate(stepped, move, movers.owner);
-    // A closure is an ordinary step onto your own territory (§7, P05b D1), so it is
-    // resolved here rather than behind a move kind of its own. `commit` returns the
-    // state untouched when the step is not one, which keeps this a single expression.
-    //
-    // Handed the *post-cut* state on purpose: `move.from` is still in the trail —
-    // marking only ever adds — and the backward walk reads no head positions, so the
-    // claim is identical either side of the move. A cut mid-closure is the victim's
-    // problem on the cutter's turn, not a reorder here.
+
+    // Combat wipes evaporate trail from emptied arrows (P12).
+    for (const { owner, arrow } of wiped) {
+      stepped = cuts.evaporateFromArrow(stepped, owner, arrow);
+    }
+
+    // Crossing cuts, then territory-root feeder cuts on the marked arrow.
+    let afterCut = cuts.evaporate(stepped, move, movers.owner);
+    if (landed) {
+      afterCut = cuts.territoryRootCuts(afterCut, movers.owner, move.exit);
+    }
+
     const afterClosure = closure.commit(afterCut, move, movers.owner);
-    // P07: combat → cut → closure → conversion. State predicate over the post-claim
-    // board — territory-grade trail still protects (§6.3 / item 40).
-    return applyElimination(convertEncircled(afterClosure, trails.anchorGrade));
+    return applyElimination(convertEncircled(afterClosure, trails.anchorGrade, cuts));
   };
 
   /**
@@ -338,14 +343,52 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
    * `skip`: §5 leaves such a head standing, immobile until reinforced, and declining
    * is always legal (§6.2).
    */
+  /**
+   * Other heads of `owner` on the same trail component as `from` (excluding `from`).
+   */
+  const otherHeadsOnComponent = (
+    state: GameState,
+    from: ArrowId,
+    owner: PlayerId,
+  ): boolean => {
+    const trail = state.trails.get(owner);
+    if (trail === undefined || !trail.has(from)) return false;
+    const seen = new Set<ArrowId>([from]);
+    const pending: ArrowId[] = [from];
+    for (let here = pending.pop(); here !== undefined; here = pending.pop()) {
+      for (const point of [geometry.origin(here), geometry.target(here)]) {
+        for (const next of [...geometry.inArrows(point), ...geometry.outArrows(point)]) {
+          if (!trail.has(next) || seen.has(next)) continue;
+          seen.add(next);
+          if (next !== from && state.groups.get(next)?.owner === owner) return true;
+          pending.push(next);
+        }
+      }
+    }
+    return false;
+  };
+
   const legalMoves = (state: GameState): readonly Move[] => {
     const moves: Move[] = [];
     for (const [arrow, group] of movable(state)) {
       for (const exit of exitsFrom(arrow)) {
-        // Enemy-occupied exits: stay-behind (§6.2 / item 38) — offer 1..heads-1 only.
         const standing = state.groups.get(exit);
         const isAttack = standing !== undefined && standing.owner !== group.owner;
-        const maxCount = isAttack ? group.heads - 1 : group.heads;
+        let maxCount = isAttack ? group.heads - 1 : group.heads;
+        // P12 freeze: cannot fully vacate the sole stack on a stack-grade fragment.
+        const onTrail = state.trails.get(group.owner)?.has(arrow) === true;
+        if (onTrail && maxCount === group.heads) {
+          try {
+            if (
+              trails.anchorGrade(state, arrow, group.owner) === 'stack' &&
+              !otherHeadsOnComponent(state, arrow, group.owner)
+            ) {
+              maxCount = group.heads - 1;
+            }
+          } catch {
+            // not on trail — ignore
+          }
+        }
         for (let count = 1; count <= maxCount; count += 1) {
           const candidate = step(arrow, exit, count);
           if (trails.unpaidBranch(state, candidate, group.owner) !== undefined) continue;

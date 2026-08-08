@@ -61,7 +61,10 @@ describe('reach', () => {
   it('marks no branch toll on open linear ground', () => {
     const { state, from } = soloStack(4);
     const reach = reachFrom(geometry, rules, state, from);
-    for (const entry of reach.values()) expect(entry.paysBranchToll).toBe(false);
+    for (const entry of reach.values()) {
+      expect(entry.paysBranchToll).toBe(false);
+      expect(entry.mergeTrap).toBe(false);
+    }
   });
 
   it('plans one step per arrow crossed, from the source onward', () => {

@@ -36,6 +36,11 @@ export interface ReachEntry {
    * a lone remaining unit is not spent into the toll by accident.
    */
   readonly paysBranchToll: boolean;
+  /**
+   * Soft danger (amber): a size-1 stack merging onto its own trail spine — can only
+   * follow existing outs; opening a new out is a split it cannot pay.
+   */
+  readonly mergeTrap: boolean;
 }
 
 export type Reach = ReadonlyMap<ArrowId, ReachEntry>;
@@ -153,6 +158,9 @@ export const reachFrom = (
     return pays;
   };
 
+  // Size-1 merging onto own trail: soft amber trap (cannot afford a split out).
+  const ownTrail = state.trails.get(group.owner);
+
   const out = new Map<ArrowId, ReachEntry>();
   for (const [arrow, seen] of found) {
     const plan = seen.plans.get(seen.minCount);
@@ -161,12 +169,15 @@ export const reachFrom = (
       first !== undefined &&
       seen.minCount < group.heads &&
       exitPaysToll(first);
+    const mergeTrap =
+      group.heads === 1 && !paysBranchToll && (ownTrail?.has(arrow) ?? false);
     out.set(arrow, {
       distance: seen.distance,
       minCount: seen.minCount,
       maxCount: seen.maxCount,
       plans: seen.plans,
       paysBranchToll,
+      mergeTrap,
     });
   }
   return out;

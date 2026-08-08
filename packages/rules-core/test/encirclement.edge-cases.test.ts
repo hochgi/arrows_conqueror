@@ -20,7 +20,6 @@ import {
   ownerOf,
   snapshot,
   stateOf,
-  trailOf,
 } from './support';
 
 const totalHeads = (state: ReturnType<typeof stateOf>): number =>
@@ -79,10 +78,10 @@ describe('neutral stranded is not capture', () => {
   });
 });
 
-// ── Rule: conversion does not strip trail ────────────────────────────────────
+// ── Rule: conversion strips trail (P12) ──────────────────────────────────────
 
-describe('conversion does not strip trail', () => {
-  it('leaves victim trail arrows outside the converted stack alone', () => {
+describe('conversion strips trail', () => {
+  it('removes victim trail from converted arrows', () => {
     const table = onBoard();
     const tip = anArrow(table.geometry);
     const stem = anExitFrom(table.geometry, tip);
@@ -106,11 +105,7 @@ describe('conversion does not strip trail', () => {
     const after = table.rules.apply(before, step(mover, exit, 1));
 
     expect(ownerOf(after, tip)).toBe(A);
-    // Conversion left B's trail set intact (stem still marked for B).
-    expect(trailOf(after, B)).toEqual(expect.arrayContaining([String(stem), String(tip)].map(String)));
-    // Compare via isTrail-style: stem still in B's trail.
-    expect(after.trails.get(B)?.has(stem)).toBe(true);
-    expect(after.trails.get(B)?.has(tip)).toBe(true);
+    expect(after.trails.get(B)?.has(tip) ?? false).toBe(false);
   });
 });
 

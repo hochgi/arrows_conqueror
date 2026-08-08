@@ -17,6 +17,9 @@ import {
   TOLL_PATH_WASH,
   TOLL_PREVIEW_STROKE,
   TOLL_REACH_FILL,
+  MERGE_TRAP_FILL,
+  MERGE_TRAP_PATH_WASH,
+  MERGE_TRAP_STROKE,
   SPAWNER_CURSOR,
   SPAWNER_HUB_IDLE,
   SPAWNER_IDLE,
@@ -293,20 +296,23 @@ export const Board = ({
         else if (group !== undefined) strokeWidth = 2.55;
         else if (entry !== undefined) strokeWidth = 1.8;
         const toll = entry?.paysBranchToll === true;
+        const mergeTrap = entry?.mergeTrap === true;
+        const reachFill = toll ? TOLL_REACH_FILL : mergeTrap ? MERGE_TRAP_FILL : REACH_FILL;
+        const pathStroke = toll ? TOLL_PATH_STROKE : mergeTrap ? MERGE_TRAP_STROKE : PATH_STROKE;
+        const previewStroke = toll
+          ? TOLL_PREVIEW_STROKE
+          : mergeTrap
+            ? MERGE_TRAP_STROKE
+            : PREVIEW_STROKE;
+        const pathWash = toll ? TOLL_PATH_WASH : mergeTrap ? MERGE_TRAP_PATH_WASH : PATH_WASH;
         const strokeColor = isSelected
           ? HIGHLIGHT_STROKE
           : isPreview || onPath
             ? onPath
-              ? toll
-                ? TOLL_PATH_STROKE
-                : PATH_STROKE
-              : toll
-                ? TOLL_PREVIEW_STROKE
-                : PREVIEW_STROKE
+              ? pathStroke
+              : previewStroke
             : entry !== undefined
-              ? toll
-                ? TOLL_REACH_FILL
-                : REACH_FILL
+              ? reachFill
               : isMovable
                 ? MOVABLE_STROKE
                 : group !== undefined
@@ -364,15 +370,7 @@ export const Board = ({
             {entry !== undefined && !isSelected ? (
               <polygon
                 points={points}
-                fill={
-                  onPath
-                    ? toll
-                      ? TOLL_PATH_WASH
-                      : PATH_WASH
-                    : toll
-                      ? TOLL_REACH_FILL
-                      : REACH_FILL
-                }
+                fill={onPath ? pathWash : reachFill}
                 fillOpacity={onPath ? undefined : isPreview ? 0.7 : reachOpacity(entry.distance)}
                 className={onPath ? 'path-pulse' : undefined}
                 style={{ pointerEvents: 'none' }}
