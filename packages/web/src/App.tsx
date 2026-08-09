@@ -18,13 +18,14 @@ import { Hud } from './Hud';
 import type { InputMode, InputSnapshot } from './input/modes';
 import { createInputMode } from './input/modes';
 import { Lobby } from './Lobby';
+import type { ByokRunStats, MatchLog } from './matchLog';
 import {
   appendMoves,
   createMatchLog,
   downloadMatchLog,
   saveMatchLog,
+  withByokStats,
   withWinner,
-  type MatchLog,
 } from './matchLog';
 import { playLlmBotTurn } from './byokBot';
 import { isByokReady, loadByokConfig, saveByokConfig, type ByokConfig } from './byokConfig';
@@ -124,6 +125,7 @@ export const App = (): ReactElement => {
   /** Reach destination under the cursor — drives the pulsed path preview. */
   const [hoverPath, setHoverPath] = useState<ReadonlySet<ArrowId> | undefined>(undefined);
   const [botBusy, setBotBusy] = useState(false);
+  const [byokStatus, setByokStatus] = useState<string | undefined>(undefined);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   /** Active pointers for pinch-zoom (phone has no wheel). */
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -164,21 +166,25 @@ export const App = (): ReactElement => {
     };
   }, [state]);
 
-  const record = useCallback((moves: readonly Move[], nextState: GameState): void => {
-    if (moves.length === 0) return;
-    setLog((prev) => {
-      if (prev === undefined) return prev;
-      const updated = withWinner(appendMoves(prev, moves), nextState.winner);
-      saveMatchLog(updated);
-      return updated;
-    });
-  }, []);
+  const record = useCallback(
+    (moves: readonly Move[], nextState: GameState, byokDelta?: ByokRunStats): void => {
+      if (moves.length === 0) return;
+      setLog((prev) => {
+        if (prev === undefined) return prev;
+        let updated = withWinner(appendMoves(prev, moves), nextState.winner);
+        if (byokDelta !== undefined) updated = withByokStats(updated, byokDelta);
+        saveMatchLog(updated);
+        return updated;
+      });
+    },
+    [],
+  );
 
   /** Apply + log outside React updater functions (Strict Mode double-invokes those). */
   const commitApplied = useCallback(
-    (moves: readonly Move[], next: GameState): void => {
+    (moves: readonly Move[], next: GameState, byokDelta?: ByokRunStats): void => {
       stateRef.current = next;
-      record(moves, next);
+      record(moves, next, byokDelta);
       setState(next);
       setSnap(mode.reset());
     },
@@ -241,9 +247,29 @@ export const App = (): ReactElement => {
       if (epoch !== botEpoch.current) return;
       if (stateRef.current !== state) return;
       const config = byokRef.current;
-      const { state: next, moves } = isByokReady(config)
-        ? await playLlmBotTurn(geometry, rules, state, bot, config)
-        : playBotTurn(geometry, rules, state, bot);
+      if (isByokReady(config)) {
+        const turn = await playLlmBotTurn(geometry, rules, state, bot, config);
+        if (epoch !== botEpoch.current) return;
+        if (turn.moves.length === 0) {
+          setBotBusy(false);
+          return;
+        }
+        if (turn.llmFallbacks > 0 && turn.lastError !== undefined) {
+          setByokStatus(
+            `LLM fallback ×${String(turn.llmFallbacks)} (hits ${String(turn.llmHits)}): ${turn.lastError}`,
+          );
+        } else if (turn.llmHits > 0) {
+          setByokStatus(`LLM ok · ${String(turn.llmHits)} picks this turn`);
+        }
+        commitApplied(turn.moves, turn.state, {
+          llmHits: turn.llmHits,
+          llmFallbacks: turn.llmFallbacks,
+          lastError: turn.lastError,
+        });
+        setBotBusy(false);
+        return;
+      }
+      const { state: next, moves } = playBotTurn(geometry, rules, state, bot);
       if (epoch !== botEpoch.current) return;
       if (moves.length === 0) {
         setBotBusy(false);
@@ -360,11 +386,13 @@ export const App = (): ReactElement => {
     setLog(undefined);
     botSeatRef.current = undefined;
     setBotBusy(false);
+    setByokStatus(undefined);
     setSnap(mode.reset());
     softLockKey.current = null;
   };
 
   const startMatch = (count: number, againstBot: boolean): void => {
+    if (againstBot && byok.enabled && !isByokReady(byok)) return;
     const config: MatchConfig = {
       ...DEFAULT_MATCH_CONFIG,
       playerCount: againstBot ? 2 : count,
@@ -374,9 +402,11 @@ export const App = (): ReactElement => {
     const bot = againstBot ? opening.players[1] : undefined;
     if (human === undefined) return;
     botSeatRef.current = bot;
+    const botMode = !againstBot ? 'human-hotseat' : isByokReady(byok) ? 'byok' : 'heuristic';
     const nextLog = createMatchLog({
       config,
       vsBot: againstBot,
+      botMode,
       humanSeat: human,
       botSeat: bot,
     });
@@ -384,6 +414,7 @@ export const App = (): ReactElement => {
     setLog(nextLog);
     setVsBot(againstBot);
     setPlayerCount(config.playerCount);
+    setByokStatus(botMode === 'byok' ? 'LLM seat armed' : undefined);
     stateRef.current = opening;
     setState(opening);
     setSnap(mode.reset());
@@ -559,6 +590,7 @@ export const App = (): ReactElement => {
         movableCount={movable.size}
         vsBot={log.vsBot}
         byokActive={isByokReady(byok)}
+        byokStatus={byokStatus ?? log.byokStats?.lastError}
         botBusy={botBusy}
         moveCount={log.moves.length}
         onModeChange={switchMode}

@@ -1,7 +1,8 @@
 /**
  * BYOK (bring-your-own-key) config for the optional LLM opponent.
  *
- * Session-only. Never written into match logs. Never sent to any arrows server.
+ * Persists in localStorage for the browser profile (playtest convenience).
+ * Never written into match logs. Never sent to any arrows server.
  */
 
 export const BYOK_STORAGE_KEY = 'arrows-conqueror:byok';
@@ -22,12 +23,22 @@ export const DEFAULT_BYOK: ByokConfig = {
 };
 
 export const isByokReady = (config: ByokConfig): boolean =>
-  config.enabled && config.baseUrl.trim().length > 0 && config.apiKey.trim().length > 0 && config.model.trim().length > 0;
+  config.enabled &&
+  config.baseUrl.trim().length > 0 &&
+  config.apiKey.trim().length > 0 &&
+  config.model.trim().length > 0;
+
+const readStore = (): Storage | undefined => {
+  if (typeof localStorage !== 'undefined') return localStorage;
+  if (typeof sessionStorage !== 'undefined') return sessionStorage;
+  return undefined;
+};
 
 export const loadByokConfig = (): ByokConfig => {
-  if (typeof sessionStorage === 'undefined') return DEFAULT_BYOK;
+  const store = readStore();
+  if (store === undefined) return DEFAULT_BYOK;
   try {
-    const raw = sessionStorage.getItem(BYOK_STORAGE_KEY);
+    const raw = store.getItem(BYOK_STORAGE_KEY);
     if (raw === null || raw === '') return DEFAULT_BYOK;
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return DEFAULT_BYOK;
@@ -44,8 +55,9 @@ export const loadByokConfig = (): ByokConfig => {
 };
 
 export const saveByokConfig = (config: ByokConfig): void => {
-  if (typeof sessionStorage === 'undefined') return;
-  sessionStorage.setItem(BYOK_STORAGE_KEY, JSON.stringify(config));
+  const store = readStore();
+  if (store === undefined) return;
+  store.setItem(BYOK_STORAGE_KEY, JSON.stringify(config));
 };
 
 /** Normalize so `${base}/chat/completions` is well-formed. */

@@ -2,7 +2,8 @@
  * Optional LLM move chooser — adapter only (P15).
  *
  * The model never invents a move: it picks an index from an exhaustive
- * `legalMoves` list. Failures fall back to the heuristic `chooseMove`.
+ * `legalMoves` list. Failures fall back to the heuristic `chooseMove`, and the
+ * caller can see how often that happened (silent fallback hid bugs in playtest).
  */
 
 import type { GameState, GeometryPort, Move, PlayerId, RulesPort } from '@arrows/contracts';
@@ -114,13 +115,18 @@ interface ChatCompletionResponse {
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
+export type LlmFetchResult =
+  | { readonly ok: true; readonly index: number }
+  | { readonly ok: false; readonly reason: string };
+
 export const fetchLlmMoveIndex = async (
   config: ByokConfig,
   prompt: string,
   moveCount: number,
   fetchImpl: FetchLike = fetch,
-): Promise<number | undefined> => {
-  if (!isByokReady(config) || moveCount === 0) return undefined;
+): Promise<LlmFetchResult> => {
+  if (!isByokReady(config)) return { ok: false, reason: 'byok not ready' };
+  if (moveCount === 0) return { ok: false, reason: 'no legal moves' };
   const url = chatCompletionsUrl(config.baseUrl);
   let response: Response;
   try {
@@ -140,20 +146,35 @@ export const fetchLlmMoveIndex = async (
         ],
       }),
     });
-  } catch {
-    return undefined;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'network error';
+    return { ok: false, reason: `fetch failed: ${msg}` };
   }
-  if (!response.ok) return undefined;
+  if (!response.ok) {
+    return { ok: false, reason: `HTTP ${String(response.status)} from ${url}` };
+  }
   let body: unknown;
   try {
     body = await response.json();
   } catch {
-    return undefined;
+    return { ok: false, reason: 'response was not JSON' };
   }
   const content = (body as ChatCompletionResponse).choices?.[0]?.message?.content;
-  if (typeof content !== 'string') return undefined;
-  return parseMoveIndex(content, moveCount);
+  if (typeof content !== 'string') {
+    return { ok: false, reason: 'missing choices[0].message.content' };
+  }
+  const index = parseMoveIndex(content, moveCount);
+  if (index === undefined) {
+    return { ok: false, reason: `unusable model reply: ${JSON.stringify(content)}` };
+  }
+  return { ok: true, index };
 };
+
+export interface LlmChoice {
+  readonly move: Move;
+  readonly source: 'llm' | 'heuristic';
+  readonly reason?: string;
+}
 
 export const chooseLlmMove = async (
   geometry: GeometryPort,
@@ -162,19 +183,34 @@ export const chooseLlmMove = async (
   me: PlayerId,
   config: ByokConfig,
   fetchImpl: FetchLike = fetch,
-): Promise<Move> => {
+): Promise<LlmChoice> => {
   const offered = rules.legalMoves(state);
   if (offered.length === 0) {
-    return chooseMove(geometry, rules, state, me);
+    return {
+      move: chooseMove(geometry, rules, state, me),
+      source: 'heuristic',
+      reason: 'no legal moves listed',
+    };
   }
   const prompt = buildUserPrompt(state, me, offered);
-  const index = await fetchLlmMoveIndex(config, prompt, offered.length, fetchImpl);
-  if (index !== undefined) {
-    const picked = offered[index];
-    if (picked !== undefined) return picked;
+  const result = await fetchLlmMoveIndex(config, prompt, offered.length, fetchImpl);
+  if (result.ok) {
+    const picked = offered[result.index];
+    if (picked !== undefined) return { move: picked, source: 'llm' };
   }
-  return chooseMove(geometry, rules, state, me);
+  const reason = result.ok ? 'index out of range' : result.reason;
+  return {
+    move: chooseMove(geometry, rules, state, me),
+    source: 'heuristic',
+    reason,
+  };
 };
+
+export interface LlmBotTurn extends BotTurn {
+  readonly llmHits: number;
+  readonly llmFallbacks: number;
+  readonly lastError: string | undefined;
+}
 
 export const playLlmBotTurn = async (
   geometry: GeometryPort,
@@ -183,27 +219,41 @@ export const playLlmBotTurn = async (
   me: PlayerId,
   config: ByokConfig,
   fetchImpl: FetchLike = fetch,
-): Promise<BotTurn> => {
+): Promise<LlmBotTurn> => {
   if (state.activePlayer !== me || state.winner !== undefined) {
-    return { state, moves: [] };
+    return { state, moves: [], llmHits: 0, llmFallbacks: 0, lastError: undefined };
   }
   if (!isByokReady(config)) {
-    return playBotTurn(geometry, rules, state, me);
+    const fallback = playBotTurn(geometry, rules, state, me);
+    return {
+      ...fallback,
+      llmHits: 0,
+      llmFallbacks: fallback.moves.length,
+      lastError: 'byok not ready',
+    };
   }
 
   const moves: Move[] = [];
   let at = state;
+  let llmHits = 0;
+  let llmFallbacks = 0;
+  let lastError: string | undefined;
   for (let i = 0; i < MAX_MOVES_PER_TURN; i += 1) {
     if (at.winner !== undefined || at.activePlayer !== me) break;
-    const move = await chooseLlmMove(geometry, rules, at, me, config, fetchImpl);
-    at = rules.apply(at, move);
-    moves.push(move);
-    if (move.kind === 'endTurn') break;
+    const choice = await chooseLlmMove(geometry, rules, at, me, config, fetchImpl);
+    if (choice.source === 'llm') llmHits += 1;
+    else {
+      llmFallbacks += 1;
+      if (choice.reason !== undefined) lastError = choice.reason;
+    }
+    at = rules.apply(at, choice.move);
+    moves.push(choice.move);
+    if (choice.move.kind === 'endTurn') break;
   }
   if (at.winner === undefined && at.activePlayer === me) {
     const forced = endTurn();
     at = rules.apply(at, forced);
     moves.push(forced);
   }
-  return { state: at, moves };
+  return { state: at, moves, llmHits, llmFallbacks, lastError };
 };

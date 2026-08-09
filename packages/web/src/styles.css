@@ -69,6 +69,12 @@ body,
   opacity: 0.85;
 }
 
+.byok-status {
+  color: #d4b483;
+  opacity: 1;
+  word-break: break-word;
+}
+
 .meta {
   margin: 0;
   font-size: 0.8rem;
@@ -351,6 +357,18 @@ body,
   font-size: 0.75rem;
   line-height: 1.35;
   opacity: 0.75;
+}
+
+.lobby-byok-warn {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #e8a0a0;
+}
+
+.lobby-start:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .lobby-start {

@@ -11,6 +11,7 @@ export interface HudProps {
   readonly movableCount: number;
   readonly vsBot: boolean;
   readonly byokActive: boolean;
+  readonly byokStatus: string | undefined;
   readonly botBusy: boolean;
   readonly moveCount: number;
   readonly onModeChange: (id: string) => void;
@@ -55,6 +56,7 @@ export const Hud = ({
   movableCount,
   vsBot,
   byokActive,
+  byokStatus,
   botBusy,
   moveCount,
   onModeChange,
@@ -80,6 +82,7 @@ export const Hud = ({
         </p>
       )}
       <p className="hint">{phaseHint(phase, mode.label, movableCount, botBusy, vsBot, byokActive)}</p>
+      {byokStatus !== undefined ? <p className="hint byok-status">{byokStatus}</p> : null}
       <p className="meta">Moves logged: {moveCount}</p>
 
       <div className="actions">

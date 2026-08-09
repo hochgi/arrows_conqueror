@@ -86,8 +86,8 @@ describe('byokBot fetch + fallback', () => {
   it('reads an index from a chat-completions response', async () => {
     const fetchImpl: FetchLike = () => Promise.resolve(jsonResponse('1'));
     const spy = vi.fn(fetchImpl);
-    const index = await fetchLlmMoveIndex(readyConfig(), 'prompt', 4, spy);
-    expect(index).toBe(1);
+    const result = await fetchLlmMoveIndex(readyConfig(), 'prompt', 4, spy);
+    expect(result).toEqual({ ok: true, index: 1 });
     expect(spy).toHaveBeenCalledOnce();
   });
 
@@ -97,8 +97,10 @@ describe('byokBot fetch + fallback', () => {
     const opening = makeMatch();
     const me = opening.activePlayer;
     const fetchImpl: FetchLike = () => Promise.reject(new Error('network'));
-    const move = await chooseLlmMove(geometry, rules, opening, me, readyConfig(), fetchImpl);
-    expect(['step', 'endTurn', 'skip']).toContain(move.kind);
+    const choice = await chooseLlmMove(geometry, rules, opening, me, readyConfig(), fetchImpl);
+    expect(choice.source).toBe('heuristic');
+    expect(choice.reason).toMatch(/fetch failed/);
+    expect(['step', 'endTurn', 'skip']).toContain(choice.move.kind);
   });
 
   it('plays a full LLM turn using mocked endTurn picks then hands the seat back', async () => {
@@ -122,7 +124,7 @@ describe('byokBot fetch + fallback', () => {
     };
     const spy = vi.fn(fetchImpl);
 
-    const { state, moves } = await playLlmBotTurn(
+    const { state, moves, llmHits, llmFallbacks } = await playLlmBotTurn(
       geometry,
       rules,
       afterA,
@@ -134,5 +136,7 @@ describe('byokBot fetch + fallback', () => {
     expect(moves.some((m) => m.kind === 'endTurn')).toBe(true);
     expect(state.activePlayer).toBe(A);
     expect(spy.mock.calls.length).toBeGreaterThan(0);
+    expect(llmHits).toBeGreaterThan(0);
+    expect(llmFallbacks).toBe(0);
   });
 });

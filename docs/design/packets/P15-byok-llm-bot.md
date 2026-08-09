@@ -21,7 +21,11 @@ harden.
 3. Model replies with a move **index**; client accepts only if ∈ that list.
 4. Illegal / network / parse failure → fall back to the heuristic `chooseMove`
    for that step (never invent a move).
-5. Config lives in `sessionStorage` only.
+5. Config lives in `localStorage` (browser profile). Match logs record
+   `botMode` + `byokStats` (hits/fallbacks/lastError) — never the API key.
+6. Incomplete BYOK (checkbox on, missing fields) **blocks Start** so the
+   heuristic cannot run silently under an “LLM” label. Live failures surface in
+   the HUD.
 
 ## Out of scope
 

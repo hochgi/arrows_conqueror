@@ -21,6 +21,7 @@ describe('matchLog', () => {
     const log = createMatchLog({
       config: DEFAULT_MATCH_CONFIG,
       vsBot: true,
+      botMode: 'heuristic',
       humanSeat: A,
       botSeat: B,
       startedAt: '2026-08-06T00:00:00.000Z',
@@ -38,6 +39,7 @@ describe('matchLog', () => {
     const parsed = JSON.parse(raw) as typeof next;
     expect(parsed.version).toBe(1);
     expect(parsed.vsBot).toBe(true);
+    expect(parsed.botMode).toBe('heuristic');
     expect(parsed.moves[1]).toEqual({ kind: 'endTurn' });
   });
 });
