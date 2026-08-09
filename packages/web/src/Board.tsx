@@ -291,7 +291,7 @@ export const Board = ({
         const soon = yieldSoon.get(arrow);
         const ownerStroke = group !== undefined ? styleFor(group.owner).stroke : base.stroke;
         let strokeWidth = 0.7;
-        if (isSelected || isPreview || onPath) strokeWidth = 2.6;
+        if (isSelected || isPreview || onPath) strokeWidth = isSelected ? 3.4 : 2.6;
         else if (isMovable) strokeWidth = 3.1;
         else if (group !== undefined) strokeWidth = 2.55;
         else if (entry !== undefined) strokeWidth = 1.8;
@@ -348,6 +348,15 @@ export const Board = ({
               strokeWidth={strokeWidth}
               data-arrow={String(arrow)}
             />
+            {isSelected ? (
+              <polygon
+                points={points}
+                fill={HIGHLIGHT_STROKE}
+                stroke={HIGHLIGHT_STROKE}
+                strokeWidth={strokeWidth + 1.2}
+                className="selected-pulse"
+              />
+            ) : null}
             {trailMarks.map((player) => {
               const originWorld = layout.pointPosition(geometry.origin(arrow));
               const origin = toScreen(viewport, originWorld.x, originWorld.y);
