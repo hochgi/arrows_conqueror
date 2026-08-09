@@ -311,13 +311,11 @@ export const makeClosureRules = (geometry: GeometryPort): ClosureRules => {
     }
 
     const trails = new Map<PlayerId, ReadonlySet<ArrowId>>();
+    // P13: claiming a tile strips *every* trail on it — enemy paint inside a claim
+    // is not a surviving wall; convert alone only scrubbed stacks, not bare trail.
     for (const [player, arrows] of state.trails) {
-      if (player !== mover) {
-        trails.set(player, arrows);
-        continue;
-      }
       const kept = [...arrows].filter((a) => !taken.has(a));
-      if (kept.length > 0) trails.set(mover, canonical(kept));
+      if (kept.length > 0) trails.set(player, canonical(kept));
     }
 
     const accumulators = resetAccumulatorsOnCapture(state, taken, state.territory, mover);

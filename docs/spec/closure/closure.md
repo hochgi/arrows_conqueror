@@ -34,7 +34,8 @@ In: the closure trigger, the backward walk, the claim, the land bridge, the pinc
 Out: **the interior** — [fill](../fill/fill.md) owns reachability and the pockets.
 **Conversion** — §7 grants the enclosed tiles *and everything standing on them*, and
 this packet claims the tiles and leaves the heads standing (P07). **Evaporation** —
-an enemy trail on a claimed arrow survives, because removing it is a cut (P06).
+an enemy trail on a claimed arrow is **stripped** (P13) — convert alone only
+scrubbed stacks, so bare trail paint inside a claim looked like a bug.
 **Accumulators** — an arrow changing hands is P08's hook, and there is nothing to
 reset yet. **Vertices** — nothing here enumerates one (§11 item 34).
 

@@ -140,13 +140,13 @@ Feature: Closure — coming home, and what that takes with you
       And they are no longer player B's territory
       # §7, territory is contestable. Nothing is ever safe, so nobody snowballs.
 
-    Scenario: An enemy trail on a claimed arrow survives the closure
+    Scenario: An enemy trail on a claimed arrow is stripped
       Given arrow x1 is in player B's trail
       And player A closes a loop that encircles x1
       When the closure resolves
       Then x1 is player A's territory
-      And x1 is still in player B's trail
-      # Removing it would be evaporation, and evaporation is P06. Trails overlap.
+      And x1 is not in player B's trail
+      # P13: claim clears enemy paint on the tile; convert alone missed bare trail.
 
     Scenario: An enemy head on a claimed arrow keeps standing
       Given a stack of player B's stands on arrow x1

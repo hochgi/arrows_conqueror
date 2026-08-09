@@ -289,8 +289,9 @@ describe('a closure moves ground, whoever held it', () => {
     expect(territoryOf(after, ring.inside)).toBe(A);
   });
 
-  it('leaves an enemy trail on a claimed arrow alone', () => {
-    // Removing it would be evaporation, and evaporation is P06. Trails overlap.
+  it('strips an enemy trail from arrows the closure claims', () => {
+    // P13: claimed tiles are no longer enemy trail paint — convert alone missed
+    // bare trail without a stack on the tile.
     const table = onTiling();
     const { home, run } = aRunFromHome(table.geometry, 2);
     const last = arrowAt(run, 1);
@@ -303,7 +304,7 @@ describe('a closure moves ground, whoever held it', () => {
     const after = table.rules.apply(state, step(last, landing, 1));
 
     expect(territoryOf(after, arrowAt(run, 0))).toBe(A);
-    expect(isTrail(after, B, arrowAt(run, 0))).toBe(true);
+    expect(isTrail(after, B, arrowAt(run, 0))).toBe(false);
   });
 
   it('converts an enemy head standing on a claimed arrow', () => {

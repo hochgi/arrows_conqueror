@@ -51,6 +51,12 @@ export interface CutRules {
   ) => GameState;
 
   /**
+   * Drop every dormant trail component for every player (P13).
+   * Used after claims punch holes in enemy trails.
+   */
+  readonly scrubDormantTrails: (state: GameState) => GameState;
+
+  /**
    * After `mover` marked `marked`, if that was the last clean territory feeder
    * into a victim trail root, evaporate that victim from the root point.
    */
@@ -316,5 +322,28 @@ export const makeCutRules = (geometry: GeometryPort): CutRules => {
     return evaporateFrom(state, owner, p0);
   };
 
-  return { evaporate, evaporateFrom, evaporateFromArrow, territoryRootCuts };
+  const scrubDormantTrails = (state: GameState): GameState => {
+    let next = state;
+    for (const player of state.players) {
+      const current = next.trails.get(player);
+      if (current === undefined || current.size === 0) continue;
+      const groups = new Map(next.groups);
+      const working = new Set(current);
+      scrubDormant(next, groups, working, player);
+      if (working.size === current.size) continue;
+      const trails = new Map(next.trails);
+      if (working.size === 0) trails.delete(player);
+      else trails.set(player, canonical([...working]));
+      next = { ...next, trails };
+    }
+    return next;
+  };
+
+  return {
+    evaporate,
+    evaporateFrom,
+    evaporateFromArrow,
+    scrubDormantTrails,
+    territoryRootCuts,
+  };
 };

@@ -126,8 +126,8 @@ describe('the backward walk takes every merge in-arrow and stops at its root', (
   });
 });
 
-describe('commit writes territory, strips the mover’s trail, and leaves the rest', () => {
-  it('removes claimed arrows from the mover’s trail only', () => {
+describe('commit writes territory and strips every trail on claimed arrows', () => {
+  it('removes claimed arrows from the mover’s and the enemy’s trails', () => {
     const table = onTiling();
     const { home, run } = aRunFromHome(table.geometry, 2);
     const last = arrowAt(run, 1);
@@ -140,7 +140,7 @@ describe('commit writes territory, strips the mover’s trail, and leaves the re
     const after = table.rules.apply(state, step(last, landing, 1));
 
     expect(trailOf(after, A)).toEqual([]);
-    expect(isTrail(after, B, arrowAt(run, 0))).toBe(true);
+    expect(isTrail(after, B, arrowAt(run, 0))).toBe(false);
   });
 
   it('overwrites whoever held a claimed arrow and converts unprotected heads', () => {

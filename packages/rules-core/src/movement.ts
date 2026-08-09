@@ -260,7 +260,12 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     }
 
     const afterClosure = closure.commit(afterCut, move, movers.owner);
-    return applyElimination(convertEncircled(afterClosure, trails.anchorGrade, cuts));
+    const afterConvert = convertEncircled(afterClosure, trails.anchorGrade, cuts);
+    // Claims punch holes in enemy trails; scrub only then (every-step scrub would
+    // erase legal headless overlap on a single arrow before a cut ever fires).
+    const cleaned =
+      afterClosure !== afterCut ? cuts.scrubDormantTrails(afterConvert) : afterConvert;
+    return applyElimination(cleaned);
   };
 
   /**
