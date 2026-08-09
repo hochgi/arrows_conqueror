@@ -26,6 +26,8 @@ import {
   withWinner,
   type MatchLog,
 } from './matchLog';
+import { playLlmBotTurn } from './byokBot';
+import { isByokReady, loadByokConfig, saveByokConfig, type ByokConfig } from './byokConfig';
 import { playBotTurn } from './opponent';
 import { PortionSlider } from './PortionSlider';
 import { pathForDestination } from './reach';
@@ -110,6 +112,7 @@ const SpawnerTipFor = ({
 export const App = (): ReactElement => {
   const [playerCount, setPlayerCount] = useState(DEFAULT_MATCH_CONFIG.playerCount);
   const [vsBot, setVsBot] = useState(true);
+  const [byok, setByok] = useState<ByokConfig>(() => loadByokConfig());
   const [state, setState] = useState<GameState | undefined>(undefined);
   const [log, setLog] = useState<MatchLog | undefined>(undefined);
   const [mode, setMode] = useState<InputMode>(() => createInputMode('galcon', geometry));
@@ -130,6 +133,8 @@ export const App = (): ReactElement => {
   const shellRef = useRef<HTMLDivElement>(null);
   const botSeatRef = useRef<PlayerId | undefined>(undefined);
   const botEpoch = useRef(0);
+  const byokRef = useRef(byok);
+  byokRef.current = byok;
   const stateRef = useRef<GameState | undefined>(undefined);
   const passEpoch = useRef(0);
 
@@ -217,7 +222,7 @@ export const App = (): ReactElement => {
     };
   }, [state, snap.phase.kind, commitApplied]);
 
-  // Bot seat: greedy turn when it is their chair.
+  // Bot seat: greedy or BYOK turn when it is their chair.
   useEffect(() => {
     if (state === undefined || log === undefined) return;
     const bot = botSeatRef.current;
@@ -228,10 +233,17 @@ export const App = (): ReactElement => {
     }
     setBotBusy(true);
     const epoch = ++botEpoch.current;
-    const handle = window.setTimeout(() => {
+    const run = async (): Promise<void> => {
+      // Let the busy hint paint before a long LLM round-trip.
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 30);
+      });
       if (epoch !== botEpoch.current) return;
       if (stateRef.current !== state) return;
-      const { state: next, moves } = playBotTurn(geometry, rules, state, bot);
+      const config = byokRef.current;
+      const { state: next, moves } = isByokReady(config)
+        ? await playLlmBotTurn(geometry, rules, state, bot, config)
+        : playBotTurn(geometry, rules, state, bot);
       if (epoch !== botEpoch.current) return;
       if (moves.length === 0) {
         setBotBusy(false);
@@ -239,9 +251,9 @@ export const App = (): ReactElement => {
       }
       commitApplied(moves, next);
       setBotBusy(false);
-    }, 30);
+    };
+    void run();
     return () => {
-      window.clearTimeout(handle);
       botEpoch.current += 1;
     };
   }, [state, log, commitApplied]);
@@ -383,8 +395,13 @@ export const App = (): ReactElement => {
       <Lobby
         playerCount={playerCount}
         vsBot={vsBot}
+        byok={byok}
         onPlayerCount={setPlayerCount}
         onVsBot={setVsBot}
+        onByok={(next) => {
+          setByok(next);
+          saveByokConfig(next);
+        }}
         onStart={() => {
           startMatch(playerCount, vsBot);
         }}
@@ -541,6 +558,7 @@ export const App = (): ReactElement => {
         phase={snap.phase}
         movableCount={movable.size}
         vsBot={log.vsBot}
+        byokActive={isByokReady(byok)}
         botBusy={botBusy}
         moveCount={log.moves.length}
         onModeChange={switchMode}

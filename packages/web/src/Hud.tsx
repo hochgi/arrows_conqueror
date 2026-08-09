@@ -10,6 +10,7 @@ export interface HudProps {
   readonly phase: InputPhase;
   readonly movableCount: number;
   readonly vsBot: boolean;
+  readonly byokActive: boolean;
   readonly botBusy: boolean;
   readonly moveCount: number;
   readonly onModeChange: (id: string) => void;
@@ -25,8 +26,9 @@ const phaseHint = (
   movableCount: number,
   botBusy: boolean,
   vsBot: boolean,
+  byokActive: boolean,
 ): string => {
-  if (botBusy) return 'Bot is moving…';
+  if (botBusy) return byokActive ? 'LLM bot is thinking…' : 'Bot is moving…';
   switch (phase.kind) {
     case 'idle':
       if (movableCount === 0) {
@@ -52,6 +54,7 @@ export const Hud = ({
   phase,
   movableCount,
   vsBot,
+  byokActive,
   botBusy,
   moveCount,
   onModeChange,
@@ -70,13 +73,13 @@ export const Hud = ({
       ) : (
         <p className="banner" style={{ borderColor: active.fill }}>
           Turn: <strong style={{ color: active.fill }}>{active.label}</strong>
-          {vsBot ? (botBusy ? ' · bot' : ' · you') : null}
+          {vsBot ? (botBusy ? (byokActive ? ' · llm' : ' · bot') : ' · you') : null}
           {state.dominationHolder !== undefined
             ? ` · starvation ${String(state.dominationStreak)}/${String(state.dominationN)} (${styleFor(state.dominationHolder).label})`
             : null}
         </p>
       )}
-      <p className="hint">{phaseHint(phase, mode.label, movableCount, botBusy, vsBot)}</p>
+      <p className="hint">{phaseHint(phase, mode.label, movableCount, botBusy, vsBot, byokActive)}</p>
       <p className="meta">Moves logged: {moveCount}</p>
 
       <div className="actions">
@@ -128,9 +131,9 @@ export const Hud = ({
       </p>
       {vsBot ? (
         <p className="help">
-          The bot spends its allowance (never idles with a legal step), steers tips
-          home by grain-distance, and biases cuts / tempo pairs — still not a real AI
-          packet. Download the match log when done.
+          {byokActive
+            ? 'Seat B is your BYOK LLM (keys stay in this tab). Illegal replies fall back to the heuristic bot. Download the match log when done.'
+            : 'The bot spends its allowance (never idles with a legal step), steers tips home by grain-distance, and biases cuts / tempo pairs — still not a real AI packet. Enable BYOK in the lobby for a harder seat. Download the match log when done.'}
         </p>
       ) : null}
     </aside>

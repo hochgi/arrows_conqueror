@@ -1,11 +1,15 @@
 import type { ReactElement } from 'react';
 import { MAX_PLAYERS, MIN_PLAYERS } from '@arrows/contracts';
+import type { ByokConfig } from './byokConfig';
+import { DEFAULT_BYOK } from './byokConfig';
 
 export interface LobbyProps {
   readonly playerCount: number;
   readonly vsBot: boolean;
+  readonly byok: ByokConfig;
   readonly onPlayerCount: (n: number) => void;
   readonly onVsBot: (v: boolean) => void;
+  readonly onByok: (next: ByokConfig) => void;
   readonly onStart: () => void;
 }
 
@@ -22,8 +26,10 @@ const PLACEMENT_BLURB: Record<number, string> = {
 export const Lobby = ({
   playerCount,
   vsBot,
+  byok,
   onPlayerCount,
   onVsBot,
+  onByok,
   onStart,
 }: LobbyProps): ReactElement => (
   <div className="lobby">
@@ -61,9 +67,75 @@ export const Lobby = ({
         </select>
       </label>
 
+      {vsBot ? (
+        <fieldset className="lobby-byok">
+          <legend>BYOK LLM opponent (optional)</legend>
+          <label className="lobby-check">
+            <input
+              type="checkbox"
+              checked={byok.enabled}
+              onChange={(e) => {
+                onByok({ ...byok, enabled: e.target.checked });
+              }}
+            />
+            Use OpenAI-compatible API for seat B
+          </label>
+          {byok.enabled ? (
+            <>
+              <label className="lobby-count">
+                Base URL
+                <input
+                  type="url"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={byok.baseUrl}
+                  placeholder={DEFAULT_BYOK.baseUrl}
+                  onChange={(e) => {
+                    onByok({ ...byok, baseUrl: e.target.value });
+                  }}
+                />
+              </label>
+              <label className="lobby-count">
+                API key
+                <input
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={byok.apiKey}
+                  placeholder="sk-… (stays in this tab’s session only)"
+                  onChange={(e) => {
+                    onByok({ ...byok, apiKey: e.target.value });
+                  }}
+                />
+              </label>
+              <label className="lobby-count">
+                Model
+                <input
+                  type="text"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={byok.model}
+                  placeholder={DEFAULT_BYOK.model}
+                  onChange={(e) => {
+                    onByok({ ...byok, model: e.target.value });
+                  }}
+                />
+              </label>
+              <p className="lobby-byok-note">
+                Key never leaves this browser session and is never written to the match
+                log. Calls go from your browser to the base URL you set. Illegal model
+                replies fall back to the heuristic bot. Some providers block browser CORS.
+              </p>
+            </>
+          ) : null}
+        </fieldset>
+      ) : null}
+
       <p className="lobby-blurb">
         {vsBot
-          ? 'You are A · smarter playtest bot is B · match log autosaves'
+          ? byok.enabled
+            ? 'You are A · LLM seat B (BYOK) · match log autosaves (no key)'
+            : 'You are A · smarter playtest bot is B · match log autosaves'
           : (PLACEMENT_BLURB[playerCount] ?? 'Spaced around the origin')}
       </p>
 

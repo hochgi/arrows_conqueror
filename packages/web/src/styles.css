@@ -319,6 +319,40 @@ body,
   min-height: 2.5em;
 }
 
+.lobby-byok {
+  margin: 0;
+  padding: 0.65rem 0.75rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.lobby-byok legend {
+  padding: 0 0.25rem;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.lobby-byok input[type='url'],
+.lobby-byok input[type='password'],
+.lobby-byok input[type='text'] {
+  font: inherit;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--panel, transparent);
+  color: inherit;
+}
+
+.lobby-byok-note {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  opacity: 0.75;
+}
+
 .lobby-start {
   font: inherit;
   margin-top: 0.35rem;
