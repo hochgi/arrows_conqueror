@@ -154,6 +154,21 @@ export const Lobby = ({
                     }}
                   />
                 </label>
+                <label className="lobby-count">
+                  Proxy URL (optional)
+                  <input
+                    type="url"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={byok.proxyUrl}
+                    placeholder="leave empty — local pnpm dev uses /__byok"
+                    onChange={(e) => {
+                      onByok({ ...byok, proxyUrl: e.target.value });
+                      setProbeMsg(undefined);
+                      setProbeOk(undefined);
+                    }}
+                  />
+                </label>
                 <div className="lobby-byok-actions">
                   <button
                     type="button"
@@ -184,9 +199,11 @@ export const Lobby = ({
                   </p>
                 ) : null}
                 <p className="lobby-byok-note">
-                  Key never leaves this browser and is never written to the match log.
-                  Use Test connection before Start — a 401 means the key is rejected.
-                  Some providers also block browser CORS.
+                  OpenAI blocks browser CORS. For a working Test: run locally with{' '}
+                  <code>pnpm --filter @arrows/web dev</code> (auto-proxies via{' '}
+                  <code>/__byok</code>). GitHub Pages needs a Proxy URL to a relay you
+                  own later on your personal AWS — never an employer account. Key stays
+                  in this browser; the relay only forwards Authorization.
                 </p>
               </>
             ) : null}

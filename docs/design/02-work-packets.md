@@ -44,7 +44,7 @@ scheduled early in the first place.
 | ~~P12~~ | ~~AI opponent~~ | — | — | — | **out of MVP** (hot-seat). Kept in the graph because P10 exists partly to make it cheap later |
 | P14 | Online ADR | architecture | — | ADR 0001, P10 | **[packet](./packets/P14-online-adr.md).** Cheap async multiplayer decisions (Google OIDC, S3 index, WS notify, DNS) |
 | P15 | Local BYOK LLM bot | adapter | — | P11 | **[packet](./packets/P15-byok-llm-bot.md).** Browser-only OpenAI-compatible seat; legalMoves filter; keys never leave session |
-| P16 | Online infra | adapter | — | P14 | **[packet](./packets/P16-online-infra.md).** SAM + CI + `api.games` / `ws.games` CNAMEs |
+| P16 | Online infra | adapter | — | P14 | **[packet](./packets/P16-online-infra.md).** SAM + CI + `api.games` / `ws.games` CNAMEs — **personal AWS only, never employer** |
 | P17 | Online auth & invites | adapter | — | P16 | **[packet](./packets/P17-online-auth-invites.md)** |
 | P18 | Online moves + WS | adapter | — | P17 | **[packet](./packets/P18-online-moves-ws.md)** |
 | P19 | Online web adapter | adapter | — | P18 | **[packet](./packets/P19-online-web-adapter.md)** |

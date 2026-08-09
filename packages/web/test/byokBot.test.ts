@@ -10,13 +10,16 @@ import {
   formatLegalMoves,
   parseMoveIndex,
   playLlmBotTurn,
+  postChatCompletions,
   snapshotForPrompt,
   testByokConnection,
   type FetchLike,
 } from '../src/byokBot';
 import {
   DEFAULT_BYOK,
+  BYOK_UPSTREAM_HEADER,
   chatCompletionsUrl,
+  isAllowedByokUpstream,
   isByokReady,
   type ByokConfig,
 } from '../src/byokConfig';
@@ -46,6 +49,11 @@ describe('byokConfig', () => {
     expect(chatCompletionsUrl('https://api.openai.com/v1/')).toBe(
       'https://api.openai.com/v1/chat/completions',
     );
+  });
+
+  it('allowlists common OpenAI-compatible hosts', () => {
+    expect(isAllowedByokUpstream('https://api.openai.com/v1/chat/completions')).toBe(true);
+    expect(isAllowedByokUpstream('https://evil.example/v1/chat/completions')).toBe(false);
   });
 });
 
@@ -84,6 +92,24 @@ describe('byokBot parsing', () => {
 });
 
 describe('byokBot fetch + fallback', () => {
+  it('posts via proxy URL and sets the upstream header', async () => {
+    const spy = vi.fn((url: string, init?: RequestInit) => {
+      void url;
+      void init;
+      return Promise.resolve(jsonResponse('0'));
+    });
+    await postChatCompletions(
+      readyConfig({ proxyUrl: 'https://relay.example/byok' }),
+      { model: 'x' },
+      spy,
+    );
+    expect(spy).toHaveBeenCalledOnce();
+    const call = spy.mock.calls[0];
+    expect(call?.[0]).toBe('https://relay.example/byok');
+    const headers = call?.[1]?.headers as Record<string, string>;
+    expect(headers[BYOK_UPSTREAM_HEADER]).toBe('https://api.openai.com/v1/chat/completions');
+  });
+
   it('reads an index from a chat-completions response', async () => {
     const fetchImpl: FetchLike = () => Promise.resolve(jsonResponse('1'));
     const spy = vi.fn(fetchImpl);

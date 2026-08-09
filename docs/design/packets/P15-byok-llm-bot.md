@@ -26,10 +26,14 @@ harden.
 6. Incomplete BYOK (checkbox on, missing fields) **blocks Start** so the
    heuristic cannot run silently under an “LLM” label. Live failures surface in
    the HUD.
+7. **CORS:** OpenAI rejects browser origins. Local `pnpm --filter @arrows/web
+   dev` auto-uses same-origin `/__byok`. GitHub Pages needs a Proxy URL to a
+   **personal** relay when that exists — **never employer/Versatile AWS**.
 
 ## Out of scope
 
-- Server-side proxies, key storage, conversation memory across turns beyond the
+- Server-side proxies we host on employer cloud
+- Key storage, conversation memory across turns beyond the
   current decision
 - Changing `Move` / `GameState` contracts
 - Online multiplayer (P14+)

@@ -9,7 +9,12 @@
 import type { GameState, GeometryPort, Move, PlayerId, RulesPort } from '@arrows/contracts';
 import { endTurn } from '@arrows/contracts';
 import type { ByokConfig } from './byokConfig';
-import { chatCompletionsUrl, isByokReady } from './byokConfig';
+import {
+  BYOK_UPSTREAM_HEADER,
+  chatCompletionsUrl,
+  isByokReady,
+  resolveByokProxyUrl,
+} from './byokConfig';
 import { chooseMove, playBotTurn, type BotTurn } from './opponent';
 
 const MAX_MOVES_PER_TURN = 64;
@@ -115,6 +120,27 @@ interface ChatCompletionResponse {
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
+/** POST chat/completions via optional same-origin / player-owned CORS relay. */
+export const postChatCompletions = (
+  config: ByokConfig,
+  body: unknown,
+  fetchImpl: FetchLike = fetch,
+): Promise<Response> => {
+  const upstream = chatCompletionsUrl(config.baseUrl);
+  const proxy = resolveByokProxyUrl(config);
+  const url = proxy.length > 0 ? proxy : upstream;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${config.apiKey.trim()}`,
+  };
+  if (proxy.length > 0) headers[BYOK_UPSTREAM_HEADER] = upstream;
+  return fetchImpl(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+};
+
 export type LlmFetchResult =
   | { readonly ok: true; readonly index: number }
   | { readonly ok: false; readonly reason: string };
@@ -127,16 +153,11 @@ export const fetchLlmMoveIndex = async (
 ): Promise<LlmFetchResult> => {
   if (!isByokReady(config)) return { ok: false, reason: 'byok not ready' };
   if (moveCount === 0) return { ok: false, reason: 'no legal moves' };
-  const url = chatCompletionsUrl(config.baseUrl);
   let response: Response;
   try {
-    response = await fetchImpl(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey.trim()}`,
-      },
-      body: JSON.stringify({
+    response = await postChatCompletions(
+      config,
+      {
         model: config.model.trim(),
         temperature: 0,
         max_tokens: 16,
@@ -144,14 +165,25 @@ export const fetchLlmMoveIndex = async (
           { role: 'system', content: RULES_BLURB },
           { role: 'user', content: prompt },
         ],
-      }),
-    });
+      },
+      fetchImpl,
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'network error';
-    return { ok: false, reason: `fetch failed: ${msg}` };
+    const via = resolveByokProxyUrl(config);
+    return {
+      ok: false,
+      reason:
+        via.length === 0
+          ? `fetch failed: ${msg} (OpenAI blocks browser CORS — use pnpm dev, or set a personal proxy URL)`
+          : `fetch failed: ${msg}`,
+    };
   }
   if (!response.ok) {
-    return { ok: false, reason: `HTTP ${String(response.status)} from ${url}` };
+    return {
+      ok: false,
+      reason: `HTTP ${String(response.status)} from ${chatCompletionsUrl(config.baseUrl)}`,
+    };
   }
   let body: unknown;
   try {
@@ -182,16 +214,11 @@ export const testByokConnection = async (
   if (!isByokReady(config)) {
     return { ok: false, reason: 'fill base URL, API key, and model first' };
   }
-  const url = chatCompletionsUrl(config.baseUrl);
   let response: Response;
   try {
-    response = await fetchImpl(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey.trim()}`,
-      },
-      body: JSON.stringify({
+    response = await postChatCompletions(
+      config,
+      {
         model: config.model.trim(),
         temperature: 0,
         max_tokens: 8,
@@ -199,13 +226,18 @@ export const testByokConnection = async (
           { role: 'system', content: 'Reply with exactly the digit 0 and nothing else.' },
           { role: 'user', content: '0' },
         ],
-      }),
-    });
+      },
+      fetchImpl,
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'network error';
+    const via = resolveByokProxyUrl(config);
     return {
       ok: false,
-      reason: `fetch failed: ${msg} (often CORS — the provider must allow browser origins)`,
+      reason:
+        via.length === 0
+          ? `fetch failed: ${msg} (OpenAI blocks browser CORS — play via pnpm --filter @arrows/web dev, or set Proxy URL to a relay on your personal infra)`
+          : `fetch failed: ${msg}`,
     };
   }
   if (!response.ok) {
@@ -220,7 +252,7 @@ export const testByokConnection = async (
     }
     return {
       ok: false,
-      reason: `HTTP ${String(response.status)} from ${url}${detail}`,
+      reason: `HTTP ${String(response.status)} from ${chatCompletionsUrl(config.baseUrl)}${detail}`,
     };
   }
   let body: unknown;
