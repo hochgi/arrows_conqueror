@@ -20,6 +20,13 @@ export const BYOK_UPSTREAM_ALLOWLIST: readonly string[] = [
   'api.mistral.ai',
   'api.moonshot.cn',
   'generativelanguage.googleapis.com',
+  // NVIDIA NIM (build.nvidia.com / integrate)
+  'integrate.api.nvidia.com',
+  'api.nvcf.nvidia.com',
+  // other OpenAI-compatible bases used in personal playtest
+  'api.z.ai',
+  'zenmux.ai',
+  'api.valarhq.ai',
 ];
 
 export const isAllowedByokUpstream = (urlString: string): boolean => {
@@ -30,6 +37,8 @@ export const isAllowedByokUpstream = (urlString: string): boolean => {
     if (BYOK_UPSTREAM_ALLOWLIST.includes(host)) return true;
     // Azure OpenAI: *.openai.azure.com
     if (host.endsWith('.openai.azure.com')) return true;
+    // NVIDIA subdomains
+    if (host.endsWith('.api.nvidia.com') || host.endsWith('.nvcf.nvidia.com')) return true;
     return false;
   } catch {
     return false;

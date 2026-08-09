@@ -53,6 +53,9 @@ describe('byokConfig', () => {
 
   it('allowlists common OpenAI-compatible hosts', () => {
     expect(isAllowedByokUpstream('https://api.openai.com/v1/chat/completions')).toBe(true);
+    expect(isAllowedByokUpstream('https://integrate.api.nvidia.com/v1/chat/completions')).toBe(
+      true,
+    );
     expect(isAllowedByokUpstream('https://evil.example/v1/chat/completions')).toBe(false);
   });
 });
