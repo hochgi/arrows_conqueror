@@ -170,6 +170,72 @@ export const fetchLlmMoveIndex = async (
   return { ok: true, index };
 };
 
+/** Tiny probe so the lobby can verify base URL + key + model before a match. */
+export type ByokProbeResult =
+  | { readonly ok: true; readonly sample: string }
+  | { readonly ok: false; readonly reason: string };
+
+export const testByokConnection = async (
+  config: ByokConfig,
+  fetchImpl: FetchLike = fetch,
+): Promise<ByokProbeResult> => {
+  if (!isByokReady(config)) {
+    return { ok: false, reason: 'fill base URL, API key, and model first' };
+  }
+  const url = chatCompletionsUrl(config.baseUrl);
+  let response: Response;
+  try {
+    response = await fetchImpl(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey.trim()}`,
+      },
+      body: JSON.stringify({
+        model: config.model.trim(),
+        temperature: 0,
+        max_tokens: 8,
+        messages: [
+          { role: 'system', content: 'Reply with exactly the digit 0 and nothing else.' },
+          { role: 'user', content: '0' },
+        ],
+      }),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'network error';
+    return {
+      ok: false,
+      reason: `fetch failed: ${msg} (often CORS — the provider must allow browser origins)`,
+    };
+  }
+  if (!response.ok) {
+    let detail = '';
+    try {
+      const errBody: unknown = await response.json();
+      if (typeof errBody === 'object' && errBody !== null) {
+        detail = ` · ${JSON.stringify(errBody).slice(0, 240)}`;
+      }
+    } catch {
+      // ignore body parse
+    }
+    return {
+      ok: false,
+      reason: `HTTP ${String(response.status)} from ${url}${detail}`,
+    };
+  }
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return { ok: false, reason: 'response was not JSON' };
+  }
+  const content = (body as ChatCompletionResponse).choices?.[0]?.message?.content;
+  if (typeof content !== 'string' || content.trim().length === 0) {
+    return { ok: false, reason: 'missing choices[0].message.content' };
+  }
+  return { ok: true, sample: content.trim().slice(0, 40) };
+};
+
 export interface LlmChoice {
   readonly move: Move;
   readonly source: 'llm' | 'heuristic';

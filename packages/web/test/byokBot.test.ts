@@ -11,6 +11,7 @@ import {
   parseMoveIndex,
   playLlmBotTurn,
   snapshotForPrompt,
+  testByokConnection,
   type FetchLike,
 } from '../src/byokBot';
 import {
@@ -101,6 +102,27 @@ describe('byokBot fetch + fallback', () => {
     expect(choice.source).toBe('heuristic');
     expect(choice.reason).toMatch(/fetch failed/);
     expect(['step', 'endTurn', 'skip']).toContain(choice.move.kind);
+  });
+
+  it('probes the connection with a tiny completion', async () => {
+    const fetchImpl: FetchLike = () => Promise.resolve(jsonResponse('0'));
+    const result = await testByokConnection(readyConfig(), fetchImpl);
+    expect(result).toEqual({ ok: true, sample: '0' });
+  });
+
+  it('reports HTTP 401 from the probe', async () => {
+    const fetchImpl: FetchLike = () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ error: { message: 'Incorrect API key' } }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    const result = await testByokConnection(readyConfig(), fetchImpl);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toContain('HTTP 401');
+    expect(result.reason).toContain('Incorrect API key');
   });
 
   it('plays a full LLM turn using mocked endTurn picks then hands the seat back', async () => {

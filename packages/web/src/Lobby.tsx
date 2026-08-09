@@ -1,5 +1,6 @@
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { MAX_PLAYERS, MIN_PLAYERS } from '@arrows/contracts';
+import { testByokConnection } from './byokBot';
 import type { ByokConfig } from './byokConfig';
 import { DEFAULT_BYOK, isByokReady } from './byokConfig';
 
@@ -33,6 +34,28 @@ export const Lobby = ({
   onStart,
 }: LobbyProps): ReactElement => {
   const byokIncomplete = vsBot && byok.enabled && !isByokReady(byok);
+  const [probeBusy, setProbeBusy] = useState(false);
+  const [probeMsg, setProbeMsg] = useState<string | undefined>(undefined);
+  const [probeOk, setProbeOk] = useState<boolean | undefined>(undefined);
+
+  const runProbe = (): void => {
+    if (!isByokReady(byok) || probeBusy) return;
+    setProbeBusy(true);
+    setProbeMsg('Testing…');
+    setProbeOk(undefined);
+    void (async () => {
+      const result = await testByokConnection(byok);
+      setProbeBusy(false);
+      if (result.ok) {
+        setProbeOk(true);
+        setProbeMsg(`OK · model replied ${JSON.stringify(result.sample)}`);
+      } else {
+        setProbeOk(false);
+        setProbeMsg(result.reason);
+      }
+    })();
+  };
+
   return (
     <div className="lobby">
       <div className="lobby-card">
@@ -78,6 +101,8 @@ export const Lobby = ({
                 checked={byok.enabled}
                 onChange={(e) => {
                   onByok({ ...byok, enabled: e.target.checked });
+                  setProbeMsg(undefined);
+                  setProbeOk(undefined);
                 }}
               />
               Use OpenAI-compatible API for seat B
@@ -94,6 +119,8 @@ export const Lobby = ({
                     placeholder={DEFAULT_BYOK.baseUrl}
                     onChange={(e) => {
                       onByok({ ...byok, baseUrl: e.target.value });
+                      setProbeMsg(undefined);
+                      setProbeOk(undefined);
                     }}
                   />
                 </label>
@@ -107,6 +134,8 @@ export const Lobby = ({
                     placeholder="sk-… (stored in this browser only)"
                     onChange={(e) => {
                       onByok({ ...byok, apiKey: e.target.value });
+                      setProbeMsg(undefined);
+                      setProbeOk(undefined);
                     }}
                   />
                 </label>
@@ -120,9 +149,34 @@ export const Lobby = ({
                     placeholder={DEFAULT_BYOK.model}
                     onChange={(e) => {
                       onByok({ ...byok, model: e.target.value });
+                      setProbeMsg(undefined);
+                      setProbeOk(undefined);
                     }}
                   />
                 </label>
+                <div className="lobby-byok-actions">
+                  <button
+                    type="button"
+                    className="lobby-byok-test"
+                    disabled={byokIncomplete || probeBusy}
+                    onClick={runProbe}
+                  >
+                    {probeBusy ? 'Testing…' : 'Test connection'}
+                  </button>
+                </div>
+                {probeMsg !== undefined ? (
+                  <p
+                    className={
+                      probeOk === true
+                        ? 'lobby-byok-ok'
+                        : probeOk === false
+                          ? 'lobby-byok-warn'
+                          : 'lobby-byok-note'
+                    }
+                  >
+                    {probeMsg}
+                  </p>
+                ) : null}
                 {byokIncomplete ? (
                   <p className="lobby-byok-warn">
                     Fill base URL, API key, and model — otherwise Start stays disabled
@@ -131,9 +185,8 @@ export const Lobby = ({
                 ) : null}
                 <p className="lobby-byok-note">
                   Key never leaves this browser and is never written to the match log.
-                  Calls go from your browser to the base URL. Failures fall back to the
-                  heuristic and show in the HUD / log stats. Some providers block browser
-                  CORS.
+                  Use Test connection before Start — a 401 means the key is rejected.
+                  Some providers also block browser CORS.
                 </p>
               </>
             ) : null}

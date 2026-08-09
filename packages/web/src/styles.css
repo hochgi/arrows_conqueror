@@ -366,6 +366,38 @@ body,
   color: #e8a0a0;
 }
 
+.lobby-byok-ok {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #9dcf9a;
+  word-break: break-word;
+}
+
+.lobby-byok-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.lobby-byok-test {
+  font: inherit;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.lobby-byok-test:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.lobby-byok-test:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .lobby-start:disabled {
   opacity: 0.45;
   cursor: not-allowed;
