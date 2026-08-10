@@ -61,6 +61,11 @@ export interface ByokConfig {
    * in dev when this is empty.
    */
   readonly proxyUrl: string;
+  /**
+   * Let reasoning models (Nemotron Ultra, etc.) think before answering.
+   * Default true — turn off only for fast non-reasoning chat models.
+   */
+  readonly reasoning: boolean;
 }
 
 export const DEFAULT_BYOK: ByokConfig = {
@@ -69,6 +74,7 @@ export const DEFAULT_BYOK: ByokConfig = {
   apiKey: '',
   model: 'gpt-4o-mini',
   proxyUrl: '',
+  reasoning: true,
 };
 
 export const isByokReady = (config: ByokConfig): boolean =>
@@ -98,6 +104,8 @@ export const loadByokConfig = (): ByokConfig => {
       apiKey: typeof o['apiKey'] === 'string' ? o['apiKey'] : '',
       model: typeof o['model'] === 'string' ? o['model'] : DEFAULT_BYOK.model,
       proxyUrl: typeof o['proxyUrl'] === 'string' ? o['proxyUrl'] : '',
+      // Default on: absence means reasoning (older saves).
+      reasoning: o['reasoning'] !== false,
     };
   } catch {
     return DEFAULT_BYOK;

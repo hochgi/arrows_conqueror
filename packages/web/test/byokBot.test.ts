@@ -94,6 +94,7 @@ describe('seatPlan', () => {
         apiKey: 'sk-x',
         model: 'local',
         proxyUrl: '',
+        reasoning: true,
       },
     });
     expect(seatPlanReady(plan)).toBe(true);
@@ -150,12 +151,13 @@ describe('byokBot parsing', () => {
     });
     const seat = state.activePlayer;
     const moves = rules.legalMoves(state);
-    const prompt = buildUserPrompt(geometry, state, seat, moves);
+    const prompt = buildUserPrompt(geometry, state, seat, moves, true);
     expect(prompt).toContain('LEGAL_MOVES');
     expect(prompt).toContain('0:');
-    expect(buildSystemPrompt(seat)).toContain(`seat ${String(seat)}`);
-    expect(buildSystemPrompt(seat)).toContain('OUTPUT RULE');
-    expect(buildSystemPrompt(seat)).toContain('spawners');
+    expect(prompt).toContain('ANSWER:');
+    expect(buildSystemPrompt(seat, true)).toContain(`seat ${String(seat)}`);
+    expect(buildSystemPrompt(seat, true)).toContain('ANSWER:');
+    expect(buildSystemPrompt(seat, true)).toContain('spawners');
     const snap = snapshotForPrompt(geometry, state, seat);
     expect(typeof snap).toBe('object');
     expect(snap).not.toBeNull();
@@ -186,7 +188,7 @@ describe('byokBot fetch + fallback', () => {
   });
 
   it('reads an index from a chat-completions response', async () => {
-    const fetchImpl: FetchLike = () => Promise.resolve(jsonResponse('1'));
+    const fetchImpl: FetchLike = () => Promise.resolve(jsonResponse('ANSWER: 1'));
     const spy = vi.fn(fetchImpl);
     const opening = makeMatch();
     const result = await fetchLlmMoveIndex(
@@ -205,15 +207,26 @@ describe('byokBot fetch + fallback', () => {
       max_tokens: number;
       chat_template_kwargs: { enable_thinking: boolean };
     };
-    expect(body.max_tokens).toBe(8);
-    expect(body.chat_template_kwargs.enable_thinking).toBe(false);
+    expect(body.max_tokens).toBe(2048);
+    expect(body.chat_template_kwargs.enable_thinking).toBe(true);
   });
 
-  it('builds a completion body that disables thinking for NIM/LiteLLM', () => {
-    const body = byokCompletionBody(readyConfig(), [{ role: 'user', content: '0' }], 8);
+  it('builds a completion body that enables thinking by default', () => {
+    const body = byokCompletionBody(readyConfig(), [{ role: 'user', content: '0' }]);
+    expect(body['chat_template_kwargs']).toEqual(
+      expect.objectContaining({ enable_thinking: true }),
+    );
+    expect(body['max_tokens']).toBe(2048);
+  });
+
+  it('can disable thinking for fast non-reasoning models', () => {
+    const body = byokCompletionBody(readyConfig({ reasoning: false }), [
+      { role: 'user', content: '0' },
+    ]);
     expect(body['chat_template_kwargs']).toEqual(
       expect.objectContaining({ enable_thinking: false }),
     );
+    expect(body['max_tokens']).toBe(32);
   });
 
   it('falls back to the heuristic when the model is unreachable', async () => {

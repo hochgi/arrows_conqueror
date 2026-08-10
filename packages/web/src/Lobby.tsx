@@ -172,6 +172,20 @@ export const Lobby = ({ plan, onPlan, onStart }: LobbyProps): ReactElement => {
                         }}
                       />
                     </label>
+                    <label className="lobby-check">
+                      <input
+                        type="checkbox"
+                        checked={seat.byok.reasoning}
+                        onChange={(e) => {
+                          onPlan(
+                            updateSeat(plan, index, {
+                              byok: { ...seat.byok, reasoning: e.target.checked },
+                            }),
+                          );
+                        }}
+                      />
+                      Model thinking (keep on for Nemotron / reasoning models)
+                    </label>
                     <label className="lobby-count">
                       Proxy URL (optional)
                       <input
@@ -190,8 +204,7 @@ export const Lobby = ({ plan, onPlan, onStart }: LobbyProps): ReactElement => {
                           setProbeOk(undefined);
                         }}
                       />
-                    </label>
-                    <div className="lobby-byok-actions">
+                    </label>                    <div className="lobby-byok-actions">
                       <button
                         type="button"
                         className="lobby-byok-test"

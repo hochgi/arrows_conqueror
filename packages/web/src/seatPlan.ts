@@ -27,6 +27,8 @@ export interface SeatByokFields {
   readonly apiKey: string;
   readonly model: string;
   readonly proxyUrl: string;
+  /** Default true — reasoning models need this for non-stupid play. */
+  readonly reasoning: boolean;
 }
 
 export interface SeatConfig {
@@ -47,6 +49,7 @@ export const emptyByokFields = (): SeatByokFields => ({
   apiKey: '',
   model: DEFAULT_BYOK.model,
   proxyUrl: '',
+  reasoning: true,
 });
 
 export const byokFieldsFromConfig = (config: ByokConfig): SeatByokFields => ({
@@ -54,6 +57,7 @@ export const byokFieldsFromConfig = (config: ByokConfig): SeatByokFields => ({
   apiKey: config.apiKey,
   model: config.model,
   proxyUrl: config.proxyUrl,
+  reasoning: config.reasoning,
 });
 
 export const byokConfigForSeat = (seat: SeatConfig): ByokConfig => ({
@@ -153,6 +157,7 @@ const parseSeat = (raw: unknown): SeatConfig | undefined => {
       apiKey: typeof byokObj['apiKey'] === 'string' ? byokObj['apiKey'] : '',
       model: typeof byokObj['model'] === 'string' ? byokObj['model'] : DEFAULT_BYOK.model,
       proxyUrl: typeof byokObj['proxyUrl'] === 'string' ? byokObj['proxyUrl'] : '',
+      reasoning: byokObj['reasoning'] !== false,
     },
   };
 };

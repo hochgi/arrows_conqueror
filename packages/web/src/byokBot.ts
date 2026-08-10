@@ -22,30 +22,47 @@ const MAX_LISTED_ARROWS = 120;
 const MAX_SPAWNER_ROWS = 48;
 
 /**
- * Reasoning models (e.g. Nemotron Ultra via LiteLLM) often force thinking into
- * `content` with a huge budget. Our move pick must be a single digit, so we ask
- * the gateway to disable thinking. Harmless when the provider ignores the field.
+ * Reasoning models (Nemotron Ultra, etc.) need thinking on to play well.
+ * We still require a parseable final `ANSWER: <n>` line — that is what failed
+ * earlier when max_tokens was too small for the think dump.
  */
-export const BYOK_CHAT_TEMPLATE_KWARGS = {
+export const BYOK_THINKING_ON = {
+  enable_thinking: true,
+  force_nonempty_content: true,
+} as const;
+
+export const BYOK_THINKING_OFF = {
   enable_thinking: false,
   force_nonempty_content: true,
 } as const;
 
-export const buildSystemPrompt = (me: PlayerId): string =>
-  `You are seat ${String(me)} in Arrows Conqueror (territorial game on directed arrows).
+/** Completion budget when the model is allowed to reason before ANSWER. */
+export const BYOK_REASONING_MAX_TOKENS = 2048;
+/** Tiny budget when thinking is disabled — bare index / ANSWER line only. */
+export const BYOK_FAST_MAX_TOKENS = 32;
+
+export const buildSystemPrompt = (me: PlayerId, reasoning: boolean): string => {
+  const priorities = `Priorities: claim spawners early (inner/higher force first); cut exposed enemy trails before they close; prefer small safe closes when exposed, expand once garrisoned; merge toward powers of 2 (speed=1+floor(log2 N)); in multiplayer, do not gift the strongest rival free shares.`;
+  if (reasoning) {
+    return `You are seat ${String(me)} in Arrows Conqueror (territorial conquest on directed arrows).
+Reason carefully about the best LEGAL_MOVES index for this seat.
+${priorities}
+
+When finished, end with exactly one final line and nothing after it:
+ANSWER: <integer>
+Example final line: ANSWER: 3`;
+  }
+  return `You are seat ${String(me)} in Arrows Conqueror (territorial game on directed arrows).
 Pick the best LEGAL_MOVES index for this seat.
+${priorities}
 
-Priorities: claim spawners early (inner/higher force first); cut exposed enemy trails; prefer small safe closes when exposed; merge toward powers of 2 (speed=1+floor(log2 N)).
-
-OUTPUT RULE (absolute):
-Your entire reply must be a single integer index and nothing else.
-Valid: 0
-Valid: 12
-Invalid: any words, arrows ids, punctuation, markdown, or explanation.`;
+OUTPUT RULE: end with exactly one final line: ANSWER: <integer>
+(or reply with only that integer). No arrow ids in the answer.`;
+};
 
 /**
  * Moves shown to the model. While any `step` exists, omit `skip` — otherwise
- * models (and false digit parses) burn the whole turn on skip spam.
+ * models burn the whole turn on skip spam.
  */
 export const movesForLlm = (moves: readonly Move[]): readonly Move[] => {
   const hasStep = moves.some((m) => m.kind === 'step');
@@ -173,9 +190,13 @@ export const buildUserPrompt = (
   state: GameState,
   me: PlayerId,
   moves: readonly Move[],
+  reasoning: boolean,
 ): string =>
   [
-    `Seat ${String(me)}. Reply with one integer index only.`,
+    `Seat ${String(me)}.`,
+    reasoning
+      ? 'Think through the position, then finish with ANSWER: <index>.'
+      : 'Finish with ANSWER: <index> (or the bare integer).',
     '',
     'STATE_JSON:',
     JSON.stringify(snapshotForPrompt(geometry, state, me)),
@@ -183,7 +204,7 @@ export const buildUserPrompt = (
     'LEGAL_MOVES:',
     formatLegalMoves(moves),
     '',
-    'Your whole reply = the index integer. Zero other characters.',
+    'Final line must be: ANSWER: <integer>',
   ].join('\n');
 
 /**
@@ -218,20 +239,27 @@ export const parseMoveIndex = (text: string, length: number): number | undefined
 export const byokCompletionBody = (
   config: ByokConfig,
   messages: readonly { readonly role: string; readonly content: string }[],
-  maxTokens: number,
-): Record<string, unknown> => ({
-  model: config.model.trim(),
-  temperature: 0,
-  max_tokens: maxTokens,
-  messages,
-  // LiteLLM / NIM: disable reasoning dump into content (Nemotron Ultra default).
-  chat_template_kwargs: BYOK_CHAT_TEMPLATE_KWARGS,
-  extra_body: { chat_template_kwargs: BYOK_CHAT_TEMPLATE_KWARGS },
-});
+  maxTokens?: number,
+): Record<string, unknown> => {
+  const thinking = config.reasoning ? BYOK_THINKING_ON : BYOK_THINKING_OFF;
+  const tokens =
+    maxTokens ?? (config.reasoning ? BYOK_REASONING_MAX_TOKENS : BYOK_FAST_MAX_TOKENS);
+  return {
+    model: config.model.trim(),
+    temperature: 0,
+    max_tokens: tokens,
+    messages,
+    chat_template_kwargs: thinking,
+    extra_body: { chat_template_kwargs: thinking },
+  };
+};
 
 interface ChatCompletionResponse {
   readonly choices?: readonly {
-    readonly message?: { readonly content?: string | null };
+    readonly message?: {
+      readonly content?: string | null;
+      readonly reasoning_content?: string | null;
+    };
   }[];
 }
 
@@ -262,6 +290,17 @@ export type LlmFetchResult =
   | { readonly ok: true; readonly index: number }
   | { readonly ok: false; readonly reason: string };
 
+const extractReplyText = (body: ChatCompletionResponse): string => {
+  const message = body.choices?.[0]?.message;
+  if (message === undefined) return '';
+  const content = typeof message.content === 'string' ? message.content : '';
+  const reasoning =
+    typeof message.reasoning_content === 'string' ? message.reasoning_content : '';
+  // Prefer content (usually the final ANSWER line); fall back to reasoning tail.
+  if (content.trim().length > 0) return content;
+  return reasoning;
+};
+
 export const fetchLlmMoveIndex = async (
   config: ByokConfig,
   prompt: string,
@@ -275,14 +314,10 @@ export const fetchLlmMoveIndex = async (
   try {
     response = await postChatCompletions(
       config,
-      byokCompletionBody(
-        config,
-        [
-          { role: 'system', content: buildSystemPrompt(me) },
-          { role: 'user', content: prompt },
-        ],
-        8,
-      ),
+      byokCompletionBody(config, [
+        { role: 'system', content: buildSystemPrompt(me, config.reasoning) },
+        { role: 'user', content: prompt },
+      ]),
       fetchImpl,
     );
   } catch (err) {
@@ -308,13 +343,13 @@ export const fetchLlmMoveIndex = async (
   } catch {
     return { ok: false, reason: 'response was not JSON' };
   }
-  const content = (body as ChatCompletionResponse).choices?.[0]?.message?.content;
-  if (typeof content !== 'string') {
+  const text = extractReplyText(body as ChatCompletionResponse);
+  if (text.trim().length === 0) {
     return { ok: false, reason: 'missing choices[0].message.content' };
   }
-  const index = parseMoveIndex(content, moveCount);
+  const index = parseMoveIndex(text, moveCount);
   if (index === undefined) {
-    return { ok: false, reason: `unusable model reply: ${JSON.stringify(content)}` };
+    return { ok: false, reason: `unusable model reply: ${JSON.stringify(text.slice(0, 240))}` };
   }
   return { ok: true, index };
 };
@@ -338,10 +373,15 @@ export const testByokConnection = async (
       byokCompletionBody(
         config,
         [
-          { role: 'system', content: 'Reply with exactly the digit 0 and nothing else.' },
+          {
+            role: 'system',
+            content: config.reasoning
+              ? 'Reply with exactly: ANSWER: 0'
+              : 'Reply with exactly the digit 0 and nothing else.',
+          },
           { role: 'user', content: '0' },
         ],
-        8,
+        config.reasoning ? 64 : 8,
       ),
       fetchImpl,
     );
@@ -406,7 +446,7 @@ export const chooseLlmMove = async (
       reason: 'no legal moves listed',
     };
   }
-  const prompt = buildUserPrompt(geometry, state, me, offered);
+  const prompt = buildUserPrompt(geometry, state, me, offered, config.reasoning);
   const result = await fetchLlmMoveIndex(config, prompt, offered.length, me, fetchImpl);
   if (result.ok) {
     const picked = offered[result.index];
