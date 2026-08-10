@@ -1,0 +1,13 @@
+{
+  "name": "byok-turn-runner",
+  "private": true,
+  "type": "module",
+  "description": "Local plan→commit→validate BYOK turn orchestrator (playtest experiment)",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
