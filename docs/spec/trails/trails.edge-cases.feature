@@ -57,6 +57,21 @@ Feature: Trails — the anchor a move may not strip, and the states damage leave
       Then the step succeeds
       And the anchor on P's paying in-arrow is untouched
 
+    Scenario: A singleton may leave a territory-rooted home fork
+      Given point P is a live territory root for player A
+      And player A's trail has two out-arrows of P
+      And one of those out-arrows holds exactly 1 head belonging to player A
+      And the other out-arrow holds none
+      When player A applies a step of count 1 from that singleton
+      Then the step succeeds
+      # Territory anchors both arms — same reading as bare trail from home.
+
+    Scenario: A mid-trail split without a territory root still demands its head
+      Given point P is a split in player A's trail and is not a territory root
+      And one out-arrow of P holds exactly 1 head belonging to player A
+      When player A tries a step of count 1 from that out-arrow
+      Then the step is refused with a contract violation
+
   Rule: A lone head is an anchor, not a brancher
 
     §5 does not contain a clause about single heads. It contains a bill a single

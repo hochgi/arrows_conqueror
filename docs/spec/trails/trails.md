@@ -109,12 +109,17 @@ the rule is an existence test rather than a per-arm one:
 
 > **A join must keep at least one of its owner's heads somewhere among its in-arrows,
 > a split at least one among its out-arrows, and no move may take the last one.**
+>
+> **Exception — territory root.** If the branch point is a live territory root
+> (§6.1 — an owned territory in-arrow feeds it and is not on an enemy trail), that
+> feeder anchors the junction. No head toll is owed there; mid-trail branches still pay.
 
 A fork therefore costs one head and a crossover two — §6.1's price list and §5's *one
 before, one after*, both — and a **sibling arm carries the toll for the whole
 junction**, so any arm may be wholly vacated while another holds it. Only the mover's
 own heads count: an enemy standing on a strand of your junction is a problem, not an
-anchor (§6.1).
+anchor (§6.1). A second exit off home is free for the same reason bare trail from home
+is legal: territory, not a parked head, is the anchor.
 
 This was **§11 item 35**, resolved during P05's review. The alternative — one head per
 strand, from §5's *each mini-trail needs its own anchored end* — pins each of a

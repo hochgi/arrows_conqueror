@@ -143,6 +143,44 @@ describe('the branch mandate constrains what you may leave', () => {
     expect(after.groups.get(paying)?.heads).toBe(1);
     expect(after.groups.get(to)?.heads).toBe(1);
   });
+
+  it('lets a singleton leave a territory-rooted home fork', () => {
+    // Bare trail from home is legal (§5 / §6.1); a second exit off the same territory
+    // root is the same reading applied to a fork — territory anchors both arms, so the
+    // branch toll must not freeze the size-1 tip.
+    const table = onBoard();
+    const spine = anArrow(table.geometry);
+    const root = table.geometry.origin(spine);
+    const outs = table.geometry.outArrows(root);
+    const armA = pick(outs, 0);
+    const armB = pick(outs, 1);
+    const feeder = pick(table.geometry.inArrows(root), 0);
+    const before = stateOf([{ arrow: armB, owner: A, heads: 1 }], A, {
+      trail: { A: [armA, armB] },
+      territory: [{ arrow: feeder, owner: A }],
+    });
+
+    const after = table.rules.apply(before, step(armB, anExitFrom(table.geometry, armB), 1));
+
+    expect(after.groups.get(armB)).toBeUndefined();
+    expect([...after.groups.values()].some((g) => g.owner === A && g.heads === 1)).toBe(true);
+  });
+
+  it('still refuses stripping a mid-trail split with no territory root', () => {
+    const table = onBoard();
+    const spine = anArrow(table.geometry);
+    const root = table.geometry.origin(spine);
+    const outs = table.geometry.outArrows(root);
+    const armA = pick(outs, 0);
+    const armB = pick(outs, 1);
+    const before = stateOf([{ arrow: armB, owner: A, heads: 1 }], A, {
+      trail: { A: [armA, armB] },
+    });
+
+    expect(() =>
+      table.rules.apply(before, step(armB, anExitFrom(table.geometry, armB), 1)),
+    ).toThrow(ContractViolation);
+  });
 });
 
 // ── Rule: a lone head is an anchor, not a brancher ───────────────────────────

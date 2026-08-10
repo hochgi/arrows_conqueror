@@ -249,9 +249,23 @@ export const makeTrailRules = (geometry: GeometryPort): TrailRules => {
     mover: PlayerId,
   ): UnpaidBranch | undefined => {
     const trail = markStep(state, move, mover).get(mover) ?? NO_TRAIL;
-    // Territory carries no anchor. An arrow the mover is not trailing on is not a
+    // Territory carries no trail mark. An arrow the mover is not trailing on is not a
     // strand of theirs however dense the trail around it is (§5's safety rule).
     if (!trail.has(move.from)) return undefined;
+
+    /**
+     * Live territory root at `point` (§6.1): an owned territory in-arrow that is not
+     * also on an enemy trail. That feeder anchors every trail arm leaving the point,
+     * so the branch toll is not owed there (home forks; mid-trail still pays).
+     */
+    const territoryRooted = (point: PointId): boolean =>
+      geometry.inArrows(point).some((feeder) => {
+        if (state.territory.get(feeder) !== mover) return false;
+        for (const [player, arrows] of state.trails) {
+          if (player !== mover && arrows.has(feeder)) return false;
+        }
+        return true;
+      });
 
     /**
      * Would this move take the branch's last head?
@@ -270,6 +284,7 @@ export const makeTrailRules = (geometry: GeometryPort): TrailRules => {
       point: PointId,
     ): UnpaidBranch | undefined => {
       if (pool.length < 2) return undefined;
+      if (territoryRooted(point)) return undefined;
       if (anchoring(state, pool, mover, move.from, move.count) > 0) return undefined;
       return { kind, point, anchor: move.from };
     };
