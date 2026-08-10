@@ -184,7 +184,7 @@ export const Lobby = ({ plan, onPlan, onStart }: LobbyProps): ReactElement => {
                           );
                         }}
                       />
-                      Model thinking (keep on for Nemotron / reasoning models)
+                      Longer rationale budget (API thinking stays off — required for JSON picks)
                     </label>
                     <label className="lobby-count">
                       Proxy URL (optional)

@@ -107,13 +107,14 @@ describe('byokBot parsing', () => {
     const from = mintArrowId('a');
     const exit = mintArrowId('b');
     const moves: Move[] = [step(from, exit, 1), endTurn()];
-    expect(formatLegalMoves(moves)).toContain('0: step');
-    expect(formatLegalMoves(moves)).toContain('1: endTurn');
+    expect(formatLegalMoves(moves)).toContain('[0] step');
+    expect(formatLegalMoves(moves)).toContain('[1] endTurn');
   });
 
   it('parses strict index replies and ignores digits inside arrow prose', () => {
     expect(parseMoveIndex('3', 5)).toBe(3);
-    expect(parseMoveIndex('thinking...\n2\n', 4)).toBe(2);
+    expect(parseMoveIndex('{"move":2,"why":"step"}', 4)).toBe(2);
+    expect(parseMoveIndex('thinking...\n<<<MOVE:2>>>\n', 4)).toBe(2);
     expect(parseMoveIndex('ANSWER: 2', 4)).toBe(2);
     expect(parseMoveIndex('INDEX: 1', 4)).toBe(1);
     // Truncated Nemotron prose with tiling ids must NOT become a false hit.
@@ -153,10 +154,10 @@ describe('byokBot parsing', () => {
     const moves = rules.legalMoves(state);
     const prompt = buildUserPrompt(geometry, state, seat, moves, true);
     expect(prompt).toContain('LEGAL_MOVES');
-    expect(prompt).toContain('0:');
-    expect(prompt).toContain('ANSWER:');
+    expect(prompt).toContain('[0]');
+    expect(prompt).toContain('{"move":N');
     expect(buildSystemPrompt(seat, true)).toContain(`seat ${String(seat)}`);
-    expect(buildSystemPrompt(seat, true)).toContain('ANSWER:');
+    expect(buildSystemPrompt(seat, true)).toContain('{"move":N');
     expect(buildSystemPrompt(seat, true)).toContain('spawners');
     const snap = snapshotForPrompt(geometry, state, seat);
     expect(typeof snap).toBe('object');
@@ -188,7 +189,7 @@ describe('byokBot fetch + fallback', () => {
   });
 
   it('reads an index from a chat-completions response', async () => {
-    const fetchImpl: FetchLike = () => Promise.resolve(jsonResponse('ANSWER: 1'));
+    const fetchImpl: FetchLike = () => Promise.resolve(jsonResponse('{"move":1,"why":"ok"}'));
     const spy = vi.fn(fetchImpl);
     const opening = makeMatch();
     const result = await fetchLlmMoveIndex(
@@ -205,28 +206,49 @@ describe('byokBot fetch + fallback', () => {
     if (typeof rawBody !== 'string') return;
     const body = JSON.parse(rawBody) as {
       max_tokens: number;
-      chat_template_kwargs: { enable_thinking: boolean };
+      response_format: { type: string };
+      chat_template_kwargs?: { enable_thinking: boolean };
     };
-    expect(body.max_tokens).toBe(2048);
-    expect(body.chat_template_kwargs.enable_thinking).toBe(true);
-  });
-
-  it('builds a completion body that enables thinking by default', () => {
-    const body = byokCompletionBody(readyConfig(), [{ role: 'user', content: '0' }]);
-    expect(body['chat_template_kwargs']).toEqual(
-      expect.objectContaining({ enable_thinking: true }),
+    expect(body.max_tokens).toBe(512);
+    expect(body.response_format).toEqual({ type: 'json_object' });
+    expect(body.chat_template_kwargs).toEqual(
+      expect.objectContaining({ enable_thinking: false }),
     );
-    expect(body['max_tokens']).toBe(2048);
   });
 
-  it('can disable thinking for fast non-reasoning models', () => {
-    const body = byokCompletionBody(readyConfig({ reasoning: false }), [
-      { role: 'user', content: '0' },
-    ]);
+  it('builds a completion body with json_object and thinking forced off', () => {
+    const body = byokCompletionBody(readyConfig(), [{ role: 'user', content: '0' }]);
+    expect(body['response_format']).toEqual({ type: 'json_object' });
+    expect(body['max_tokens']).toBe(512);
     expect(body['chat_template_kwargs']).toEqual(
       expect.objectContaining({ enable_thinking: false }),
     );
-    expect(body['max_tokens']).toBe(32);
+  });
+
+  it('uses a smaller token budget for fast seats', () => {
+    const body = byokCompletionBody(readyConfig({ reasoning: false }), [
+      { role: 'user', content: '0' },
+    ]);
+    expect(body['max_tokens']).toBe(64);
+  });
+
+  it('retries with a fast extract when the first reply is unusable prose', async () => {
+    const prose =
+      'Let me analyze. Group at tiling:a:-5,5,0. I think move 0 toward center is best because...';
+    const spy = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(prose))
+      .mockResolvedValueOnce(jsonResponse('{"move":0}'));
+    const opening = makeMatch();
+    const result = await fetchLlmMoveIndex(
+      readyConfig(),
+      'prompt',
+      4,
+      opening.activePlayer,
+      spy,
+    );
+    expect(result).toEqual({ ok: true, index: 0 });
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 
   it('falls back to the heuristic when the model is unreachable', async () => {
@@ -242,9 +264,12 @@ describe('byokBot fetch + fallback', () => {
   });
 
   it('probes the connection with a tiny completion', async () => {
-    const fetchImpl: FetchLike = () => Promise.resolve(jsonResponse('0'));
+    const fetchImpl: FetchLike = () =>
+      Promise.resolve(jsonResponse('{"move":0,"why":"probe"}'));
     const result = await testByokConnection(readyConfig(), fetchImpl);
-    expect(result).toEqual({ ok: true, sample: '0' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.sample).toContain('move');
   });
 
   it('reports HTTP 401 from the probe', async () => {
@@ -278,8 +303,8 @@ describe('byokBot fetch + fallback', () => {
     const fetchImpl: FetchLike = (_url, init) => {
       const bodyUnknown: unknown = init?.body;
       const raw = typeof bodyUnknown === 'string' ? bodyUnknown : '';
-      const match = /(\d+): endTurn/.exec(raw);
-      return Promise.resolve(jsonResponse(match?.[1] ?? '0'));
+      const match = /\[(\d+)\] endTurn/.exec(raw);
+      return Promise.resolve(jsonResponse(`{"move":${match?.[1] ?? '0'}}`));
     };
     const spy = vi.fn(fetchImpl);
 
