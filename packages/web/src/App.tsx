@@ -18,7 +18,7 @@ import { Hud } from './Hud';
 import type { InputMode, InputSnapshot } from './input/modes';
 import { createInputMode } from './input/modes';
 import { Lobby } from './Lobby';
-import type { ByokRunStats, MatchLog } from './matchLog';
+import type { ByokRunStats, MatchLog, SeatDriverLog } from './matchLog';
 import {
   appendMoves,
   createMatchLog,
@@ -28,7 +28,21 @@ import {
   withWinner,
 } from './matchLog';
 import { playLlmBotTurn } from './byokBot';
-import { isByokReady, loadByokConfig, saveByokConfig, type ByokConfig } from './byokConfig';
+import { isByokReady } from './byokConfig';
+import {
+  aiSeatIds,
+  byokConfigForSeat,
+  firstHumanSeat,
+  hasAiSeat,
+  hasByokSeat,
+  loadSeatPlan,
+  saveSeatPlan,
+  seatPlanReady,
+  seatPlayerId,
+  summarizeDrivers,
+  type SeatConfig,
+  type SeatPlan,
+} from './seatPlan';
 import { playBotTurn } from './opponent';
 import { PortionSlider } from './PortionSlider';
 import { pathForDestination } from './reach';
@@ -111,9 +125,7 @@ const SpawnerTipFor = ({
 };
 
 export const App = (): ReactElement => {
-  const [playerCount, setPlayerCount] = useState(DEFAULT_MATCH_CONFIG.playerCount);
-  const [vsBot, setVsBot] = useState(true);
-  const [byok, setByok] = useState<ByokConfig>(() => loadByokConfig());
+  const [seatPlan, setSeatPlan] = useState<SeatPlan>(() => loadSeatPlan());
   const [state, setState] = useState<GameState | undefined>(undefined);
   const [log, setLog] = useState<MatchLog | undefined>(undefined);
   const [mode, setMode] = useState<InputMode>(() => createInputMode('galcon', geometry));
@@ -133,10 +145,10 @@ export const App = (): ReactElement => {
     { dist: number; midX: number; midY: number; moved: boolean } | null
   >(null);
   const shellRef = useRef<HTMLDivElement>(null);
-  const botSeatRef = useRef<PlayerId | undefined>(undefined);
+  /** Non-human seats for the live match. */
+  const aiSeatsRef = useRef<ReadonlySet<string>>(new Set());
+  const seatConfigsRef = useRef<ReadonlyMap<string, SeatConfig>>(new Map());
   const botEpoch = useRef(0);
-  const byokRef = useRef(byok);
-  byokRef.current = byok;
   const stateRef = useRef<GameState | undefined>(undefined);
   const passEpoch = useRef(0);
 
@@ -167,12 +179,17 @@ export const App = (): ReactElement => {
   }, [state]);
 
   const record = useCallback(
-    (moves: readonly Move[], nextState: GameState, byokDelta?: ByokRunStats): void => {
+    (
+      moves: readonly Move[],
+      nextState: GameState,
+      byokDelta?: ByokRunStats,
+      byokSeat?: PlayerId,
+    ): void => {
       if (moves.length === 0) return;
       setLog((prev) => {
         if (prev === undefined) return prev;
         let updated = withWinner(appendMoves(prev, moves), nextState.winner);
-        if (byokDelta !== undefined) updated = withByokStats(updated, byokDelta);
+        if (byokDelta !== undefined) updated = withByokStats(updated, byokDelta, byokSeat);
         saveMatchLog(updated);
         return updated;
       });
@@ -182,9 +199,14 @@ export const App = (): ReactElement => {
 
   /** Apply + log outside React updater functions (Strict Mode double-invokes those). */
   const commitApplied = useCallback(
-    (moves: readonly Move[], next: GameState, byokDelta?: ByokRunStats): void => {
+    (
+      moves: readonly Move[],
+      next: GameState,
+      byokDelta?: ByokRunStats,
+      byokSeat?: PlayerId,
+    ): void => {
       stateRef.current = next;
-      record(moves, next, byokDelta);
+      record(moves, next, byokDelta, byokSeat);
       setState(next);
       setSnap(mode.reset());
     },
@@ -199,8 +221,8 @@ export const App = (): ReactElement => {
       return;
     }
     if (snap.phase.kind === 'portion') return;
-    if (botSeatRef.current !== undefined && state.activePlayer === botSeatRef.current) {
-      // Bot owns exhaustion via playBotTurn / chooseMove — avoid racing auto-pass.
+    if (aiSeatsRef.current.has(String(state.activePlayer))) {
+      // AI owns exhaustion via playBotTurn / chooseMove — avoid racing auto-pass.
       return;
     }
     if (hasLegalStep(rules, state)) {
@@ -228,27 +250,31 @@ export const App = (): ReactElement => {
     };
   }, [state, snap.phase.kind, commitApplied]);
 
-  // Bot seat: greedy or BYOK turn when it is their chair.
+  // Any AI seat: heuristic or BYOK when it is their chair.
   useEffect(() => {
     if (state === undefined || log === undefined) return;
-    const bot = botSeatRef.current;
-    if (bot === undefined) return;
-    if (state.winner !== undefined || state.activePlayer !== bot) {
+    const active = state.activePlayer;
+    const seatKey = String(active);
+    if (state.winner !== undefined || !aiSeatsRef.current.has(seatKey)) {
+      setBotBusy(false);
+      return;
+    }
+    const seatConfig = seatConfigsRef.current.get(seatKey);
+    if (seatConfig === undefined || seatConfig.kind === 'human') {
       setBotBusy(false);
       return;
     }
     setBotBusy(true);
     const epoch = ++botEpoch.current;
     const run = async (): Promise<void> => {
-      // Let the busy hint paint before a long LLM round-trip.
       await new Promise<void>((resolve) => {
         window.setTimeout(resolve, 30);
       });
       if (epoch !== botEpoch.current) return;
       if (stateRef.current !== state) return;
-      const config = byokRef.current;
-      if (isByokReady(config)) {
-        const turn = await playLlmBotTurn(geometry, rules, state, bot, config);
+      if (seatConfig.kind === 'byok') {
+        const config = byokConfigForSeat(seatConfig);
+        const turn = await playLlmBotTurn(geometry, rules, state, active, config);
         if (epoch !== botEpoch.current) return;
         if (turn.moves.length === 0) {
           setBotBusy(false);
@@ -256,20 +282,25 @@ export const App = (): ReactElement => {
         }
         if (turn.llmFallbacks > 0 && turn.lastError !== undefined) {
           setByokStatus(
-            `LLM fallback ×${String(turn.llmFallbacks)} (hits ${String(turn.llmHits)}): ${turn.lastError}`,
+            `${seatKey} LLM fallback ×${String(turn.llmFallbacks)} (hits ${String(turn.llmHits)}): ${turn.lastError}`,
           );
         } else if (turn.llmHits > 0) {
-          setByokStatus(`LLM ok · ${String(turn.llmHits)} picks this turn`);
+          setByokStatus(`${seatKey} LLM ok · ${String(turn.llmHits)} picks this turn`);
         }
-        commitApplied(turn.moves, turn.state, {
-          llmHits: turn.llmHits,
-          llmFallbacks: turn.llmFallbacks,
-          lastError: turn.lastError,
-        });
+        commitApplied(
+          turn.moves,
+          turn.state,
+          {
+            llmHits: turn.llmHits,
+            llmFallbacks: turn.llmFallbacks,
+            lastError: turn.lastError,
+          },
+          active,
+        );
         setBotBusy(false);
         return;
       }
-      const { state: next, moves } = playBotTurn(geometry, rules, state, bot);
+      const { state: next, moves } = playBotTurn(geometry, rules, state, active);
       if (epoch !== botEpoch.current) return;
       if (moves.length === 0) {
         setBotBusy(false);
@@ -305,7 +336,7 @@ export const App = (): ReactElement => {
   const movable = useMemo(() => {
     const set = new Set<import('@arrows/contracts').ArrowId>();
     if (state === undefined) return set;
-    if (botSeatRef.current !== undefined && state.activePlayer === botSeatRef.current) {
+    if (aiSeatsRef.current.has(String(state.activePlayer))) {
       return set;
     }
     for (const m of rules.legalMoves(state)) {
@@ -337,8 +368,7 @@ export const App = (): ReactElement => {
 
       // Auto-pick the next stack that can still step — after a trip *or* a skip.
       if (applied.winner !== undefined) return;
-      const bot = botSeatRef.current;
-      if (bot !== undefined && applied.activePlayer === bot) return;
+      if (aiSeatsRef.current.has(String(applied.activePlayer))) return;
       if (!hasLegalStep(rules, applied)) return;
       if (!moves.some((m) => m.kind === 'step' || m.kind === 'skip')) return;
 
@@ -384,37 +414,53 @@ export const App = (): ReactElement => {
     setState(undefined);
     stateRef.current = undefined;
     setLog(undefined);
-    botSeatRef.current = undefined;
+    aiSeatsRef.current = new Set();
+    seatConfigsRef.current = new Map();
     setBotBusy(false);
     setByokStatus(undefined);
     setSnap(mode.reset());
     softLockKey.current = null;
   };
 
-  const startMatch = (count: number, againstBot: boolean): void => {
-    if (againstBot && byok.enabled && !isByokReady(byok)) return;
+  const startMatch = (plan: SeatPlan): void => {
+    if (!seatPlanReady(plan)) return;
     const config: MatchConfig = {
       ...DEFAULT_MATCH_CONFIG,
-      playerCount: againstBot ? 2 : count,
+      playerCount: plan.playerCount,
     };
     const opening = makeMatch(config);
-    const human = opening.players[0];
-    const bot = againstBot ? opening.players[1] : undefined;
+    const configs = new Map<string, SeatConfig>();
+    const aiKeys = new Set<string>();
+    const seatLogs: SeatDriverLog[] = [];
+    for (let i = 0; i < plan.seats.length; i += 1) {
+      const seat = plan.seats[i];
+      const player = opening.players[i] ?? seatPlayerId(i);
+      if (seat === undefined) continue;
+      configs.set(String(player), seat);
+      if (seat.kind !== 'human') aiKeys.add(String(player));
+      seatLogs.push({
+        player,
+        kind: seat.kind,
+        ...(seat.kind === 'byok' ? { model: seat.byok.model.trim() } : {}),
+      });
+    }
+    aiSeatsRef.current = aiKeys;
+    seatConfigsRef.current = configs;
+    const human = firstHumanSeat(plan) ?? opening.players[0];
     if (human === undefined) return;
-    botSeatRef.current = bot;
-    const botMode = !againstBot ? 'human-hotseat' : isByokReady(byok) ? 'byok' : 'heuristic';
+    const bots = aiSeatIds(plan);
+    const botMode = summarizeDrivers(plan);
     const nextLog = createMatchLog({
       config,
-      vsBot: againstBot,
+      vsBot: hasAiSeat(plan),
       botMode,
+      seats: seatLogs,
       humanSeat: human,
-      botSeat: bot,
+      botSeat: bots[0],
     });
     saveMatchLog(nextLog);
     setLog(nextLog);
-    setVsBot(againstBot);
-    setPlayerCount(config.playerCount);
-    setByokStatus(botMode === 'byok' ? 'LLM seat armed' : undefined);
+    setByokStatus(hasByokSeat(plan) ? 'BYOK seat(s) armed' : undefined);
     stateRef.current = opening;
     setState(opening);
     setSnap(mode.reset());
@@ -424,26 +470,23 @@ export const App = (): ReactElement => {
   if (state === undefined || log === undefined) {
     return (
       <Lobby
-        playerCount={playerCount}
-        vsBot={vsBot}
-        byok={byok}
-        onPlayerCount={setPlayerCount}
-        onVsBot={setVsBot}
-        onByok={(next) => {
-          setByok(next);
-          saveByokConfig(next);
+        plan={seatPlan}
+        onPlan={(next) => {
+          setSeatPlan(next);
+          saveSeatPlan(next);
         }}
         onStart={() => {
-          startMatch(playerCount, vsBot);
+          startMatch(seatPlan);
         }}
       />
     );
   }
 
-  const inputLocked =
-    botBusy ||
-    (botSeatRef.current !== undefined && state.activePlayer === botSeatRef.current) ||
-    state.winner !== undefined;
+  const activeIsAi = aiSeatsRef.current.has(String(state.activePlayer));
+  const activeSeat = seatConfigsRef.current.get(String(state.activePlayer));
+  const byokActive = activeSeat?.kind === 'byok' && isByokReady(byokConfigForSeat(activeSeat));
+
+  const inputLocked = botBusy || activeIsAi || state.winner !== undefined;
 
   const onPointerDown = (e: PointerEvent<SVGSVGElement>): void => {
     if (snap.phase.kind === 'portion') return;
@@ -589,9 +632,10 @@ export const App = (): ReactElement => {
         phase={snap.phase}
         movableCount={movable.size}
         vsBot={log.vsBot}
-        byokActive={isByokReady(byok)}
+        byokActive={byokActive}
         byokStatus={byokStatus ?? log.byokStats?.lastError}
         botBusy={botBusy}
+        seatSummary={log.seats.map((s) => `${String(s.player)}=${s.kind}`).join(' · ')}
         moveCount={log.moves.length}
         onModeChange={switchMode}
         onEndTurn={() => {

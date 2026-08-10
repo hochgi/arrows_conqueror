@@ -13,6 +13,7 @@ export interface HudProps {
   readonly byokActive: boolean;
   readonly byokStatus: string | undefined;
   readonly botBusy: boolean;
+  readonly seatSummary: string;
   readonly moveCount: number;
   readonly onModeChange: (id: string) => void;
   readonly onEndTurn: () => void;
@@ -29,7 +30,7 @@ const phaseHint = (
   vsBot: boolean,
   byokActive: boolean,
 ): string => {
-  if (botBusy) return byokActive ? 'LLM bot is thinking…' : 'Bot is moving…';
+  if (botBusy) return byokActive ? 'LLM seat is thinking…' : 'AI seat is moving…';
   switch (phase.kind) {
     case 'idle':
       if (movableCount === 0) {
@@ -58,6 +59,7 @@ export const Hud = ({
   byokActive,
   byokStatus,
   botBusy,
+  seatSummary,
   moveCount,
   onModeChange,
   onEndTurn,
@@ -75,7 +77,7 @@ export const Hud = ({
       ) : (
         <p className="banner" style={{ borderColor: active.fill }}>
           Turn: <strong style={{ color: active.fill }}>{active.label}</strong>
-          {vsBot ? (botBusy ? (byokActive ? ' · llm' : ' · bot') : ' · you') : null}
+          {vsBot ? (botBusy ? (byokActive ? ' · llm' : ' · ai') : ' · you') : null}
           {state.dominationHolder !== undefined
             ? ` · starvation ${String(state.dominationStreak)}/${String(state.dominationN)} (${styleFor(state.dominationHolder).label})`
             : null}
@@ -83,6 +85,7 @@ export const Hud = ({
       )}
       <p className="hint">{phaseHint(phase, mode.label, movableCount, botBusy, vsBot, byokActive)}</p>
       {byokStatus !== undefined ? <p className="hint byok-status">{byokStatus}</p> : null}
+      <p className="meta">Seats: {seatSummary}</p>
       <p className="meta">Moves logged: {moveCount}</p>
 
       <div className="actions">
@@ -134,9 +137,8 @@ export const Hud = ({
       </p>
       {vsBot ? (
         <p className="help">
-          {byokActive
-            ? 'Seat B is your BYOK LLM (keys stay in this tab). Illegal replies fall back to the heuristic bot. Download the match log when done.'
-            : 'The bot spends its allowance (never idles with a legal step), steers tips home by grain-distance, and biases cuts / tempo pairs — still not a real AI packet. Enable BYOK in the lobby for a harder seat. Download the match log when done.'}
+          Non-human seats auto-play. BYOK seats use your keys in this tab; illegal LLM
+          replies fall back to the heuristic. Download the match log when done.
         </p>
       ) : null}
     </aside>

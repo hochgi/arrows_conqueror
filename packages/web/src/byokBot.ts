@@ -19,11 +19,29 @@ import { chooseMove, playBotTurn, type BotTurn } from './opponent';
 
 const MAX_MOVES_PER_TURN = 64;
 const MAX_LISTED_ARROWS = 120;
-const RULES_BLURB = `You are seat B in Arrows Conqueror, a turn-based territorial game on a directed arrow tiling.
-Movement follows arrow grain. Stacks spend allowance speed(N)=1+floor(log2 N) per turn.
-Steps may leave trail; closing back onto your territory claims enclosed ground.
-Enemy contact on an occupied arrow is combat; cutting an enemy trail evaporates it until a garrison.
-Reply with ONLY the integer index of your chosen legal move. No prose.`;
+const MAX_SPAWNER_ROWS = 48;
+
+export const buildSystemPrompt = (me: PlayerId): string =>
+  `You are seat ${String(me)} in Arrows Conqueror — turn-based territorial conquest on a directed arrow tiling.
+
+RULES (compact):
+- Movement always follows arrow grain. Stacks spend allowance speed(N)=1+floor(log2(N)) steps per turn.
+- Stepping off your territory leaves trail. Closing back onto your territory claims everything enclosed (and converts caught enemy heads).
+- Contact on an enemy-occupied arrow is 1:1 combat. Crossing an enemy trail cuts it: evaporation runs both ways until firebreaks (occupied arrows) or territory.
+- Spawners sit on vertices; each has 3 bordering arrows (shares). Only territory on a share earns that third of force f each full round.
+- Win by eliminating rivals or by starvation: a living seat with zero spawner shares for dominationN full rounds loses.
+
+STRATEGY PRIORITIES:
+1. Economy: grab spawners early — income compounds into army size.
+2. Inner > rim: higher force (centre up to 1/3 vs rim ~1/12) and denser spawners grow much faster. Contest the middle.
+3. Deny with cuts: cut exposed enemy trails before they close areas that include spawners. Early cuts are tempo + economy denial.
+4. Close vs expand: small safe closes start generating sooner; large closes claim more shares but risk being cut. Prefer quick income when exposed; expand once trails are garrisoned (2+ heads stop a front).
+5. Stacking math: powers of 2 travel efficiently (2→speed 2, 4→3, 8→4). Merge toward power-of-2 when racing; leave sentries on long trails.
+6. Multi-seat: punish leaders' open trails; do not gift the strongest rival free shares.
+
+OUTPUT CONTRACT (mandatory):
+Reply with ONLY one integer — the index from LEGAL_MOVES.
+No words, no punctuation, no markdown, no explanation. Example valid reply: 3`;
 
 const sortIds = (ids: readonly string[]): string[] =>
   [...ids].toSorted((a, b) => (a < b ? -1 : a > b ? 1 : 0));
@@ -34,14 +52,22 @@ const truncateIds = (ids: readonly string[]): { ids: string[]; truncated: boolea
   return { ids: sorted.slice(0, MAX_LISTED_ARROWS), truncated: true };
 };
 
+const forceKey = (f: { readonly num: number; readonly den: number }): string =>
+  `${String(f.num)}/${String(f.den)}`;
+
 /** Compact, JSON-serializable view for the prompt — not a rules DTO. */
-export const snapshotForPrompt = (state: GameState, me: PlayerId): unknown => {
+export const snapshotForPrompt = (
+  geometry: GeometryPort,
+  state: GameState,
+  me: PlayerId,
+): unknown => {
   const groups = [...state.groups.entries()]
     .map(([arrow, g]) => ({
       arrow: String(arrow),
       owner: String(g.owner),
       heads: g.heads,
       spent: g.spent,
+      speed: 1 + Math.floor(Math.log2(Math.max(1, g.heads))),
       ...(g.speedOverride !== undefined ? { speedOverride: g.speedOverride } : {}),
     }))
     .toSorted((a, b) => (a.arrow < b.arrow ? -1 : a.arrow > b.arrow ? 1 : 0));
@@ -62,8 +88,46 @@ export const snapshotForPrompt = (state: GameState, me: PlayerId): unknown => {
     territoryCounts[key] = (territoryCounts[key] ?? 0) + 1;
   }
 
+  const shareCounts: Record<string, number> = {};
+  for (const p of state.players) shareCounts[String(p)] = 0;
+  const spawners: {
+    vertex: string;
+    force: string;
+    held: Record<string, number>;
+    unclaimed: number;
+  }[] = [];
+  const spawnerEntries = [...state.spawners.entries()].toSorted((a, b) =>
+    String(a[0]) < String(b[0]) ? -1 : String(a[0]) > String(b[0]) ? 1 : 0,
+  );
+  for (const [vertex, spawner] of spawnerEntries) {
+    const borders = [...geometry.borderArrows(vertex)].toSorted((l, r) =>
+      String(l) < String(r) ? -1 : 1,
+    );
+    const held: Record<string, number> = {};
+    let unclaimed = 0;
+    for (const arrow of borders) {
+      const owner = state.territory.get(arrow);
+      if (owner === undefined) {
+        unclaimed += 1;
+        continue;
+      }
+      const key = String(owner);
+      held[key] = (held[key] ?? 0) + 1;
+      shareCounts[key] = (shareCounts[key] ?? 0) + 1;
+    }
+    if (spawners.length < MAX_SPAWNER_ROWS) {
+      spawners.push({
+        vertex: String(vertex),
+        force: forceKey(spawner.force),
+        held,
+        unclaimed,
+      });
+    }
+  }
+
   return {
     me: String(me),
+    players: state.players.map(String),
     activePlayer: String(state.activePlayer),
     winner: state.winner === undefined ? null : String(state.winner),
     dominationStreak: state.dominationStreak,
@@ -73,7 +137,10 @@ export const snapshotForPrompt = (state: GameState, me: PlayerId): unknown => {
     groups,
     trails,
     territoryCounts,
+    shareCounts,
     spawnerCount: state.spawners.size,
+    spawnersTruncated: state.spawners.size > MAX_SPAWNER_ROWS,
+    spawners,
   };
 };
 
@@ -91,25 +158,48 @@ export const formatLegalMoves = (moves: readonly Move[]): string =>
     })
     .join('\n');
 
-export const buildUserPrompt = (state: GameState, me: PlayerId, moves: readonly Move[]): string =>
+export const buildUserPrompt = (
+  geometry: GeometryPort,
+  state: GameState,
+  me: PlayerId,
+  moves: readonly Move[],
+): string =>
   [
+    `You are seat ${String(me)}. Choose the best legal move index.`,
+    '',
     'STATE_JSON:',
-    JSON.stringify(snapshotForPrompt(state, me)),
+    JSON.stringify(snapshotForPrompt(geometry, state, me)),
     '',
     'LEGAL_MOVES (pick one index; inventing a move is illegal):',
     formatLegalMoves(moves),
     '',
-    'Reply with the index integer only.',
+    'Reply with ONLY the integer index. No other characters.',
   ].join('\n');
 
-/** First integer token that lands in `[0, length)`. */
+/**
+ * Prefer a lone digit line (models often ramble then answer).
+ * Fall back to INDEX:/MOVE: tags, then the last in-range digit token.
+ */
 export const parseMoveIndex = (text: string, length: number): number | undefined => {
   if (length <= 0) return undefined;
-  const match = /(\d+)/.exec(text);
-  if (match === null) return undefined;
-  const n = Number(match[1]);
-  if (!Number.isInteger(n) || n < 0 || n >= length) return undefined;
-  return n;
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const n = Number(trimmed);
+      if (Number.isInteger(n) && n >= 0 && n < length) return n;
+    }
+  }
+  const tagged = /(?:^|\b)(?:index|move)\s*[:=]?\s*(\d+)/i.exec(text);
+  if (tagged?.[1] !== undefined) {
+    const n = Number(tagged[1]);
+    if (Number.isInteger(n) && n >= 0 && n < length) return n;
+  }
+  const inRange: number[] = [];
+  for (const m of text.matchAll(/\d+/g)) {
+    const n = Number(m[0]);
+    if (Number.isInteger(n) && n >= 0 && n < length) inRange.push(n);
+  }
+  return inRange.length === 0 ? undefined : inRange[inRange.length - 1];
 };
 
 interface ChatCompletionResponse {
@@ -149,6 +239,7 @@ export const fetchLlmMoveIndex = async (
   config: ByokConfig,
   prompt: string,
   moveCount: number,
+  me: PlayerId,
   fetchImpl: FetchLike = fetch,
 ): Promise<LlmFetchResult> => {
   if (!isByokReady(config)) return { ok: false, reason: 'byok not ready' };
@@ -160,9 +251,9 @@ export const fetchLlmMoveIndex = async (
       {
         model: config.model.trim(),
         temperature: 0,
-        max_tokens: 16,
+        max_tokens: 24,
         messages: [
-          { role: 'system', content: RULES_BLURB },
+          { role: 'system', content: buildSystemPrompt(me) },
           { role: 'user', content: prompt },
         ],
       },
@@ -290,8 +381,8 @@ export const chooseLlmMove = async (
       reason: 'no legal moves listed',
     };
   }
-  const prompt = buildUserPrompt(state, me, offered);
-  const result = await fetchLlmMoveIndex(config, prompt, offered.length, fetchImpl);
+  const prompt = buildUserPrompt(geometry, state, me, offered);
+  const result = await fetchLlmMoveIndex(config, prompt, offered.length, me, fetchImpl);
   if (result.ok) {
     const picked = offered[result.index];
     if (picked !== undefined) return { move: picked, source: 'llm' };

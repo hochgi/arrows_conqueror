@@ -4,6 +4,7 @@ import type { Move } from '@arrows/contracts';
 import { makeMatch, makeTiling } from '@arrows/geometry-tiling';
 import { makeRules } from '@arrows/rules-core';
 import {
+  buildSystemPrompt,
   buildUserPrompt,
   chooseLlmMove,
   fetchLlmMoveIndex,
@@ -23,6 +24,13 @@ import {
   isByokReady,
   type ByokConfig,
 } from '../src/byokConfig';
+import {
+  defaultSeatPlan,
+  resizeSeatPlan,
+  seatPlanReady,
+  summarizeDrivers,
+  updateSeat,
+} from '../src/seatPlan';
 
 const readyConfig = (over: Partial<ByokConfig> = {}): ByokConfig => ({
   ...DEFAULT_BYOK,
@@ -63,6 +71,34 @@ describe('byokConfig', () => {
   });
 });
 
+describe('seatPlan', () => {
+  it('defaults to 3 seats with A human and the rest heuristic', () => {
+    const plan = defaultSeatPlan(3);
+    expect(plan.playerCount).toBe(3);
+    expect(plan.seats.map((s) => s.kind)).toEqual(['human', 'heuristic', 'heuristic']);
+    expect(seatPlanReady(plan)).toBe(true);
+    expect(summarizeDrivers(plan)).toBe('heuristic');
+  });
+
+  it('resizes to 6 and blocks Start when a BYOK seat is incomplete', () => {
+    let plan = resizeSeatPlan(defaultSeatPlan(3), 6);
+    expect(plan.seats).toHaveLength(6);
+    plan = updateSeat(plan, 2, { kind: 'byok' });
+    expect(seatPlanReady(plan)).toBe(false);
+    plan = updateSeat(plan, 2, {
+      kind: 'byok',
+      byok: {
+        baseUrl: 'http://localhost:4000/v1',
+        apiKey: 'sk-x',
+        model: 'local',
+        proxyUrl: '',
+      },
+    });
+    expect(seatPlanReady(plan)).toBe(true);
+    expect(summarizeDrivers(plan)).toBe('mixed');
+  });
+});
+
 describe('byokBot parsing', () => {
   it('formats legal moves with stable indices', () => {
     const from = mintArrowId('a');
@@ -72,26 +108,37 @@ describe('byokBot parsing', () => {
     expect(formatLegalMoves(moves)).toContain('1: endTurn');
   });
 
-  it('parses the first in-range index from model prose', () => {
+  it('parses a lone digit line or the last in-range index from model prose', () => {
     expect(parseMoveIndex('3', 5)).toBe(3);
-    expect(parseMoveIndex('I choose 2 thanks', 4)).toBe(2);
+    expect(parseMoveIndex('thinking...\n2\n', 4)).toBe(2);
+    expect(parseMoveIndex('I choose index: 2 thanks', 4)).toBe(2);
+    expect(parseMoveIndex('ramble 0 then answer 3', 4)).toBe(3);
     expect(parseMoveIndex('99', 3)).toBeUndefined();
     expect(parseMoveIndex('nope', 3)).toBeUndefined();
   });
 
-  it('builds a prompt that lists every offered move', () => {
-    const rules = makeRules(makeTiling());
-    const opening = makeMatch();
-    const seat = opening.activePlayer;
-    const moves = rules.legalMoves(opening);
-    const prompt = buildUserPrompt(opening, seat, moves);
+  it('builds a strategy-aware prompt that lists every offered move', () => {
+    const geometry = makeTiling();
+    const rules = makeRules(geometry);
+    const state = makeMatch({
+      dominationN: 5,
+      R: 7,
+      homeOffset: 5,
+      playerCount: 3,
+      spawnerSeed: 1,
+    });
+    const seat = state.activePlayer;
+    const moves = rules.legalMoves(state);
+    const prompt = buildUserPrompt(geometry, state, seat, moves);
     expect(prompt).toContain('LEGAL_MOVES');
     expect(prompt).toContain('0:');
-    const snap = snapshotForPrompt(opening, seat);
+    expect(buildSystemPrompt(seat)).toContain(`seat ${String(seat)}`);
+    expect(buildSystemPrompt(seat)).toContain('STRATEGY');
+    const snap = snapshotForPrompt(geometry, state, seat);
     expect(typeof snap).toBe('object');
     expect(snap).not.toBeNull();
-    if (typeof snap === 'object' && snap !== null && 'groups' in snap) {
-      expect(Array.isArray(snap.groups)).toBe(true);
+    if (typeof snap === 'object' && snap !== null && 'shareCounts' in snap) {
+      expect(typeof snap.shareCounts).toBe('object');
     }
     expect(moves.length).toBeGreaterThan(0);
   });
@@ -119,9 +166,18 @@ describe('byokBot fetch + fallback', () => {
   it('reads an index from a chat-completions response', async () => {
     const fetchImpl: FetchLike = () => Promise.resolve(jsonResponse('1'));
     const spy = vi.fn(fetchImpl);
-    const result = await fetchLlmMoveIndex(readyConfig(), 'prompt', 4, spy);
+    const geometry = makeTiling();
+    const opening = makeMatch();
+    const result = await fetchLlmMoveIndex(
+      readyConfig(),
+      'prompt',
+      4,
+      opening.activePlayer,
+      spy,
+    );
     expect(result).toEqual({ ok: true, index: 1 });
     expect(spy).toHaveBeenCalledOnce();
+    void geometry;
   });
 
   it('falls back to the heuristic when the model is unreachable', async () => {

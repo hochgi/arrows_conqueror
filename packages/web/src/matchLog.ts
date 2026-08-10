@@ -6,13 +6,14 @@
  */
 
 import type { MatchConfig, Move, PlayerId } from '@arrows/contracts';
+import type { SeatDriverSummary, SeatKind } from './seatPlan';
 
 export const MATCH_LOG_VERSION = 1 as const;
 
 export const LAST_MATCH_STORAGE_KEY = 'arrows-conqueror:last-match';
 
-/** How seat B was driven — never includes API keys. */
-export type BotMode = 'human-hotseat' | 'heuristic' | 'byok';
+/** Aggregate how chairs were driven — never includes API keys. */
+export type BotMode = SeatDriverSummary;
 
 export interface ByokRunStats {
   readonly llmHits: number;
@@ -21,15 +22,28 @@ export interface ByokRunStats {
   readonly lastError: string | undefined;
 }
 
+/** Per-seat driver metadata persisted in the match log (no secrets). */
+export interface SeatDriverLog {
+  readonly player: PlayerId;
+  readonly kind: SeatKind;
+  /** Model id when kind is byok — never the API key. */
+  readonly model?: string;
+}
+
 export interface MatchLog {
   readonly version: typeof MATCH_LOG_VERSION;
   readonly config: MatchConfig;
   /** ISO timestamp from the adapter clock — review metadata only. */
   readonly startedAt: string;
+  /** True when at least one seat is non-human. */
   readonly vsBot: boolean;
   readonly botMode: BotMode;
+  readonly seats: readonly SeatDriverLog[];
   readonly byokStats: ByokRunStats | undefined;
+  readonly byokStatsBySeat: Readonly<Record<string, ByokRunStats>> | undefined;
+  /** First human seat, if any — else seat A. */
   readonly humanSeat: PlayerId;
+  /** First AI seat, if any. */
   readonly botSeat: PlayerId | undefined;
   readonly moves: readonly Move[];
   readonly winner: PlayerId | undefined;
@@ -39,38 +53,62 @@ export const createMatchLog = (args: {
   readonly config: MatchConfig;
   readonly vsBot: boolean;
   readonly botMode: BotMode;
+  readonly seats: readonly SeatDriverLog[];
   readonly humanSeat: PlayerId;
   readonly botSeat: PlayerId | undefined;
   readonly startedAt?: string;
-}): MatchLog => ({
-  version: MATCH_LOG_VERSION,
-  config: args.config,
-  startedAt: args.startedAt ?? new Date().toISOString(),
-  vsBot: args.vsBot,
-  botMode: args.botMode,
-  byokStats:
-    args.botMode === 'byok' ? { llmHits: 0, llmFallbacks: 0, lastError: undefined } : undefined,
-  humanSeat: args.humanSeat,
-  botSeat: args.botSeat,
-  moves: [],
-  winner: undefined,
-});
+}): MatchLog => {
+  const anyByok = args.seats.some((s) => s.kind === 'byok');
+  return {
+    version: MATCH_LOG_VERSION,
+    config: args.config,
+    startedAt: args.startedAt ?? new Date().toISOString(),
+    vsBot: args.vsBot,
+    botMode: args.botMode,
+    seats: args.seats,
+    byokStats: anyByok ? { llmHits: 0, llmFallbacks: 0, lastError: undefined } : undefined,
+    byokStatsBySeat: anyByok ? {} : undefined,
+    humanSeat: args.humanSeat,
+    botSeat: args.botSeat,
+    moves: [],
+    winner: undefined,
+  };
+};
 
 export const appendMoves = (log: MatchLog, moves: readonly Move[]): MatchLog => {
   if (moves.length === 0) return log;
   return { ...log, moves: [...log.moves, ...moves] };
 };
 
-export const withByokStats = (log: MatchLog, delta: ByokRunStats): MatchLog => {
-  if (log.botMode !== 'byok') return log;
+export const withByokStats = (
+  log: MatchLog,
+  delta: ByokRunStats,
+  seat?: PlayerId,
+): MatchLog => {
+  if (log.byokStats === undefined && log.byokStatsBySeat === undefined) return log;
   const prev = log.byokStats ?? { llmHits: 0, llmFallbacks: 0, lastError: undefined };
+  const aggregate: ByokRunStats = {
+    llmHits: prev.llmHits + delta.llmHits,
+    llmFallbacks: prev.llmFallbacks + delta.llmFallbacks,
+    lastError: delta.lastError ?? prev.lastError,
+  };
+  let bySeat = log.byokStatsBySeat;
+  if (seat !== undefined) {
+    const key = String(seat);
+    const seatPrev = bySeat?.[key] ?? { llmHits: 0, llmFallbacks: 0, lastError: undefined };
+    bySeat = {
+      ...(bySeat ?? {}),
+      [key]: {
+        llmHits: seatPrev.llmHits + delta.llmHits,
+        llmFallbacks: seatPrev.llmFallbacks + delta.llmFallbacks,
+        lastError: delta.lastError ?? seatPrev.lastError,
+      },
+    };
+  }
   return {
     ...log,
-    byokStats: {
-      llmHits: prev.llmHits + delta.llmHits,
-      llmFallbacks: prev.llmFallbacks + delta.llmFallbacks,
-      lastError: delta.lastError ?? prev.lastError,
-    },
+    byokStats: aggregate,
+    ...(bySeat === undefined ? {} : { byokStatsBySeat: bySeat }),
   };
 };
 

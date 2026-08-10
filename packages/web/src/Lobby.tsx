@@ -1,232 +1,250 @@
 import { useState, type ReactElement } from 'react';
-import { MAX_PLAYERS, MIN_PLAYERS } from '@arrows/contracts';
+import { styleFor } from './colors';
 import { testByokConnection } from './byokBot';
-import type { ByokConfig } from './byokConfig';
 import { DEFAULT_BYOK, isByokReady } from './byokConfig';
+import {
+  PLAYTEST_PLAYER_COUNTS,
+  byokConfigForSeat,
+  resizeSeatPlan,
+  seatPlanReady,
+  seatPlayerId,
+  updateSeat,
+  type PlaytestPlayerCount,
+  type SeatKind,
+  type SeatPlan,
+} from './seatPlan';
 
 export interface LobbyProps {
-  readonly playerCount: number;
-  readonly vsBot: boolean;
-  readonly byok: ByokConfig;
-  readonly onPlayerCount: (n: number) => void;
-  readonly onVsBot: (v: boolean) => void;
-  readonly onByok: (next: ByokConfig) => void;
+  readonly plan: SeatPlan;
+  readonly onPlan: (next: SeatPlan) => void;
   readonly onStart: () => void;
 }
 
-const PLACEMENT_BLURB: Record<number, string> = {
-  2: 'Opposite corners of the home hexagon',
-  3: 'Every alternating corner',
-  4: 'Four corners — one opposite pair left free',
-  5: 'Equal span around the ring (best effort)',
-  6: 'All six corners',
-  7: 'Equal span around the ring (best effort)',
-  8: 'Equal span around the ring (best effort)',
+const PLACEMENT_BLURB: Record<PlaytestPlayerCount, string> = {
+  3: 'Every alternating corner — order-3 rotational symmetry (fair grain)',
+  6: 'All six corners — full hexagon of homes',
 };
 
-export const Lobby = ({
-  playerCount,
-  vsBot,
-  byok,
-  onPlayerCount,
-  onVsBot,
-  onByok,
-  onStart,
-}: LobbyProps): ReactElement => {
-  const byokIncomplete = vsBot && byok.enabled && !isByokReady(byok);
-  const [probeBusy, setProbeBusy] = useState(false);
+const KIND_OPTIONS: readonly { value: SeatKind; label: string }[] = [
+  { value: 'human', label: 'Human' },
+  { value: 'heuristic', label: 'Heuristic AI' },
+  { value: 'byok', label: 'BYOK LLM' },
+];
+
+export const Lobby = ({ plan, onPlan, onStart }: LobbyProps): ReactElement => {
+  const incomplete = !seatPlanReady(plan);
+  const [probeSeat, setProbeSeat] = useState<number | undefined>(undefined);
   const [probeMsg, setProbeMsg] = useState<string | undefined>(undefined);
   const [probeOk, setProbeOk] = useState<boolean | undefined>(undefined);
 
-  const runProbe = (): void => {
-    if (!isByokReady(byok) || probeBusy) return;
-    setProbeBusy(true);
-    setProbeMsg('Testing…');
+  const runProbe = (index: number): void => {
+    const seat = plan.seats[index];
+    if (seat === undefined || seat.kind !== 'byok') return;
+    const config = byokConfigForSeat(seat);
+    if (!isByokReady(config) || probeSeat !== undefined) return;
+    setProbeSeat(index);
+    setProbeMsg(`Testing seat ${PLAYER_LABEL(index)}…`);
     setProbeOk(undefined);
     void (async () => {
-      const result = await testByokConnection(byok);
-      setProbeBusy(false);
+      const result = await testByokConnection(config);
+      setProbeSeat(undefined);
       if (result.ok) {
         setProbeOk(true);
-        setProbeMsg(`OK · model replied ${JSON.stringify(result.sample)}`);
+        setProbeMsg(`Seat ${PLAYER_LABEL(index)} OK · ${JSON.stringify(result.sample)}`);
       } else {
         setProbeOk(false);
-        setProbeMsg(result.reason);
+        setProbeMsg(`Seat ${PLAYER_LABEL(index)}: ${result.reason}`);
       }
     })();
   };
 
   return (
     <div className="lobby">
-      <div className="lobby-card">
+      <div className="lobby-card lobby-card-wide">
         <h1>Arrows Conqueror</h1>
         <p className="lobby-lead">Playtest match on the arrow tiling</p>
 
-        <label className="lobby-check">
-          <input
-            type="checkbox"
-            checked={vsBot}
-            onChange={(e) => {
-              onVsBot(e.target.checked);
-            }}
-          />
-          Play against bot (seat B)
-        </label>
-
         <label className="lobby-count">
-          Players
+          Players (3 or 6 — rotationally fair)
           <select
-            value={vsBot ? 2 : playerCount}
-            disabled={vsBot}
+            value={plan.playerCount}
             onChange={(e) => {
-              onPlayerCount(Number(e.target.value));
+              const n = Number(e.target.value) as PlaytestPlayerCount;
+              onPlan(resizeSeatPlan(plan, n));
+              setProbeMsg(undefined);
+              setProbeOk(undefined);
             }}
           >
-            {Array.from({ length: MAX_PLAYERS - MIN_PLAYERS + 1 }, (_, i) => MIN_PLAYERS + i).map(
-              (n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ),
-            )}
+            {PLAYTEST_PLAYER_COUNTS.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
           </select>
         </label>
 
-        {vsBot ? (
-          <fieldset className="lobby-byok">
-            <legend>BYOK LLM opponent (optional)</legend>
-            <label className="lobby-check">
-              <input
-                type="checkbox"
-                checked={byok.enabled}
-                onChange={(e) => {
-                  onByok({ ...byok, enabled: e.target.checked });
-                  setProbeMsg(undefined);
-                  setProbeOk(undefined);
-                }}
-              />
-              Use OpenAI-compatible API for seat B
-            </label>
-            {byok.enabled ? (
-              <>
-                <label className="lobby-count">
-                  Base URL
-                  <input
-                    type="url"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={byok.baseUrl}
-                    placeholder={DEFAULT_BYOK.baseUrl}
+        <p className="lobby-blurb">{PLACEMENT_BLURB[plan.playerCount]}</p>
+
+        <fieldset className="lobby-seats">
+          <legend>Seats — each can be human or a different AI</legend>
+          {plan.seats.map((seat, index) => {
+            const player = seatPlayerId(index);
+            const color = styleFor(player).fill;
+            const byokIncomplete = seat.kind === 'byok' && !isByokReady(byokConfigForSeat(seat));
+            return (
+              <div key={String(player)} className="lobby-seat">
+                <div className="lobby-seat-head">
+                  <span className="lobby-seat-swatch" style={{ background: color }} />
+                  <strong style={{ color }}>{styleFor(player).label}</strong>
+                  <select
+                    value={seat.kind}
+                    aria-label={`${styleFor(player).label} driver`}
                     onChange={(e) => {
-                      onByok({ ...byok, baseUrl: e.target.value });
+                      const kind = e.target.value as SeatKind;
+                      onPlan(updateSeat(plan, index, { kind }));
                       setProbeMsg(undefined);
                       setProbeOk(undefined);
                     }}
-                  />
-                </label>
-                <label className="lobby-count">
-                  API key
-                  <input
-                    type="password"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={byok.apiKey}
-                    placeholder="sk-… (stored in this browser only)"
-                    onChange={(e) => {
-                      onByok({ ...byok, apiKey: e.target.value });
-                      setProbeMsg(undefined);
-                      setProbeOk(undefined);
-                    }}
-                  />
-                </label>
-                <label className="lobby-count">
-                  Model
-                  <input
-                    type="text"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={byok.model}
-                    placeholder={DEFAULT_BYOK.model}
-                    onChange={(e) => {
-                      onByok({ ...byok, model: e.target.value });
-                      setProbeMsg(undefined);
-                      setProbeOk(undefined);
-                    }}
-                  />
-                </label>
-                <label className="lobby-count">
-                  Proxy URL (optional)
-                  <input
-                    type="url"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={byok.proxyUrl}
-                    placeholder="leave empty — local pnpm dev uses /__byok"
-                    onChange={(e) => {
-                      onByok({ ...byok, proxyUrl: e.target.value });
-                      setProbeMsg(undefined);
-                      setProbeOk(undefined);
-                    }}
-                  />
-                </label>
-                <div className="lobby-byok-actions">
-                  <button
-                    type="button"
-                    className="lobby-byok-test"
-                    disabled={byokIncomplete || probeBusy}
-                    onClick={runProbe}
                   >
-                    {probeBusy ? 'Testing…' : 'Test connection'}
-                  </button>
+                    {KIND_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                {probeMsg !== undefined ? (
-                  <p
-                    className={
-                      probeOk === true
-                        ? 'lobby-byok-ok'
-                        : probeOk === false
-                          ? 'lobby-byok-warn'
-                          : 'lobby-byok-note'
-                    }
-                  >
-                    {probeMsg}
-                  </p>
+                {seat.kind === 'byok' ? (
+                  <div className="lobby-seat-byok">
+                    <label className="lobby-count">
+                      Base URL
+                      <input
+                        type="url"
+                        autoComplete="off"
+                        spellCheck={false}
+                        value={seat.byok.baseUrl}
+                        placeholder={DEFAULT_BYOK.baseUrl}
+                        onChange={(e) => {
+                          onPlan(
+                            updateSeat(plan, index, {
+                              byok: { ...seat.byok, baseUrl: e.target.value },
+                            }),
+                          );
+                          setProbeMsg(undefined);
+                          setProbeOk(undefined);
+                        }}
+                      />
+                    </label>
+                    <label className="lobby-count">
+                      API key
+                      <input
+                        type="password"
+                        autoComplete="off"
+                        spellCheck={false}
+                        value={seat.byok.apiKey}
+                        placeholder="sk-… (this browser only)"
+                        onChange={(e) => {
+                          onPlan(
+                            updateSeat(plan, index, {
+                              byok: { ...seat.byok, apiKey: e.target.value },
+                            }),
+                          );
+                          setProbeMsg(undefined);
+                          setProbeOk(undefined);
+                        }}
+                      />
+                    </label>
+                    <label className="lobby-count">
+                      Model
+                      <input
+                        type="text"
+                        autoComplete="off"
+                        spellCheck={false}
+                        value={seat.byok.model}
+                        placeholder={DEFAULT_BYOK.model}
+                        onChange={(e) => {
+                          onPlan(
+                            updateSeat(plan, index, {
+                              byok: { ...seat.byok, model: e.target.value },
+                            }),
+                          );
+                          setProbeMsg(undefined);
+                          setProbeOk(undefined);
+                        }}
+                      />
+                    </label>
+                    <label className="lobby-count">
+                      Proxy URL (optional)
+                      <input
+                        type="url"
+                        autoComplete="off"
+                        spellCheck={false}
+                        value={seat.byok.proxyUrl}
+                        placeholder="empty — local pnpm dev uses /__byok"
+                        onChange={(e) => {
+                          onPlan(
+                            updateSeat(plan, index, {
+                              byok: { ...seat.byok, proxyUrl: e.target.value },
+                            }),
+                          );
+                          setProbeMsg(undefined);
+                          setProbeOk(undefined);
+                        }}
+                      />
+                    </label>
+                    <div className="lobby-byok-actions">
+                      <button
+                        type="button"
+                        className="lobby-byok-test"
+                        disabled={byokIncomplete || probeSeat !== undefined}
+                        onClick={() => {
+                          runProbe(index);
+                        }}
+                      >
+                        {probeSeat === index ? 'Testing…' : 'Test connection'}
+                      </button>
+                    </div>
+                    {byokIncomplete ? (
+                      <p className="lobby-byok-warn">
+                        Fill base URL, API key, and model for this seat.
+                      </p>
+                    ) : null}
+                  </div>
                 ) : null}
-                {byokIncomplete ? (
-                  <p className="lobby-byok-warn">
-                    Fill base URL, API key, and model — otherwise Start stays disabled
-                    (avoids silently running the heuristic).
-                  </p>
-                ) : null}
-                <p className="lobby-byok-note">
-                  OpenAI blocks browser CORS. For a working Test: run locally with{' '}
-                  <code>pnpm --filter @arrows/web dev</code> (auto-proxies via{' '}
-                  <code>/__byok</code>). GitHub Pages needs a Proxy URL to a relay you
-                  own later on your personal AWS — never an employer account. Key stays
-                  in this browser; the relay only forwards Authorization.
-                </p>
-              </>
-            ) : null}
-          </fieldset>
+              </div>
+            );
+          })}
+        </fieldset>
+
+        {probeMsg !== undefined ? (
+          <p
+            className={
+              probeOk === true
+                ? 'lobby-byok-ok'
+                : probeOk === false
+                  ? 'lobby-byok-warn'
+                  : 'lobby-byok-note'
+            }
+          >
+            {probeMsg}
+          </p>
         ) : null}
 
-        <p className="lobby-blurb">
-          {vsBot
-            ? byok.enabled
-              ? 'You are A · LLM seat B (BYOK) · match log records botMode + llm hit/fallback counts'
-              : 'You are A · smarter playtest bot is B · match log autosaves'
-            : (PLACEMENT_BLURB[playerCount] ?? 'Spaced around the origin')}
+        <p className="lobby-byok-note">
+          OpenAI blocks browser CORS. Local play: <code>pnpm --filter @arrows/web dev</code>{' '}
+          (auto <code>/__byok</code>). Point different seats at different models to watch
+          AIs fight. Keys stay in this browser.
         </p>
 
-        <button
-          type="button"
-          className="lobby-start"
-          disabled={byokIncomplete}
-          onClick={onStart}
-        >
+        {incomplete ? (
+          <p className="lobby-byok-warn">Complete every BYOK seat before Start.</p>
+        ) : null}
+
+        <button type="button" className="lobby-start" disabled={incomplete} onClick={onStart}>
           Start match
         </button>
       </div>
     </div>
   );
 };
+
+const PLAYER_LABEL = (index: number): string => String(seatPlayerId(index));
