@@ -32,8 +32,12 @@ export const BYOK_UPSTREAM_ALLOWLIST: readonly string[] = [
 export const isAllowedByokUpstream = (urlString: string): boolean => {
   try {
     const url = new URL(urlString);
-    if (url.protocol !== 'https:') return false;
     const host = url.hostname.toLowerCase();
+    const isLocal =
+      host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1';
+    // Local LiteLLM (and friends): http(s) on loopback only.
+    if (isLocal) return url.protocol === 'http:' || url.protocol === 'https:';
+    if (url.protocol !== 'https:') return false;
     if (BYOK_UPSTREAM_ALLOWLIST.includes(host)) return true;
     // Azure OpenAI: *.openai.azure.com
     if (host.endsWith('.openai.azure.com')) return true;

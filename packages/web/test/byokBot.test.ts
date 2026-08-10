@@ -56,6 +56,9 @@ describe('byokConfig', () => {
     expect(isAllowedByokUpstream('https://integrate.api.nvidia.com/v1/chat/completions')).toBe(
       true,
     );
+    expect(isAllowedByokUpstream('http://localhost:4000/v1/chat/completions')).toBe(true);
+    expect(isAllowedByokUpstream('http://127.0.0.1:4000/chat/completions')).toBe(true);
+    expect(isAllowedByokUpstream('http://evil.example/v1/chat/completions')).toBe(false);
     expect(isAllowedByokUpstream('https://evil.example/v1/chat/completions')).toBe(false);
   });
 });
