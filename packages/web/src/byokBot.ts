@@ -14,6 +14,7 @@ import {
   chatCompletionsUrl,
   isByokReady,
   resolveByokProxyUrl,
+  resolveTurnRunnerUrl,
 } from './byokConfig';
 import { chooseMove, playBotTurn, type BotTurn } from './opponent';
 
@@ -329,6 +330,66 @@ const extractReplyText = (body: ChatCompletionResponse): string => {
   return reasoning;
 };
 
+/** POST /v1/pick on the local turn runner (plan→commit→validate). */
+export const fetchTurnRunnerMoveIndex = async (
+  config: ByokConfig,
+  prompt: string,
+  moveCount: number,
+  me: PlayerId,
+  fetchImpl: FetchLike = fetch,
+): Promise<LlmFetchResult> => {
+  const runner = resolveTurnRunnerUrl(config);
+  if (runner.length === 0) return { ok: false, reason: 'turn runner not configured' };
+  if (moveCount === 0) return { ok: false, reason: 'no legal moves' };
+
+  const url = `${runner.replace(/\/+$/, '')}/v1/pick`;
+  let response: Response;
+  try {
+    response = await fetchImpl(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        upstream: config.baseUrl.trim(),
+        apiKey: config.apiKey.trim(),
+        model: config.model.trim(),
+        seat: String(me),
+        moveCount,
+        system: buildSystemPrompt(me, config.reasoning),
+        user: prompt,
+        // Reasoning seats get a free-form plan step; fast seats skip to commit.
+        plan: config.reasoning,
+      }),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'network error';
+    return {
+      ok: false,
+      reason: `turn runner fetch failed: ${msg} (run pnpm byok-turn on :4010)`,
+    };
+  }
+
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return { ok: false, reason: `turn runner HTTP ${String(response.status)}: not JSON` };
+  }
+  if (typeof body !== 'object' || body === null) {
+    return { ok: false, reason: 'turn runner returned non-object' };
+  }
+  const o = body as Record<string, unknown>;
+  if (o['ok'] === true && typeof o['move'] === 'number' && Number.isInteger(o['move'])) {
+    const index = o['move'];
+    if (index >= 0 && index < moveCount) return { ok: true, index };
+    return { ok: false, reason: `turn runner move out of range: ${String(index)}` };
+  }
+  const err =
+    typeof o['error'] === 'string'
+      ? o['error']
+      : `HTTP ${String(response.status)} from turn runner`;
+  return { ok: false, reason: err };
+};
+
 export const fetchLlmMoveIndex = async (
   config: ByokConfig,
   prompt: string,
@@ -338,6 +399,10 @@ export const fetchLlmMoveIndex = async (
 ): Promise<LlmFetchResult> => {
   if (!isByokReady(config)) return { ok: false, reason: 'byok not ready' };
   if (moveCount === 0) return { ok: false, reason: 'no legal moves' };
+
+  if (resolveTurnRunnerUrl(config).length > 0) {
+    return fetchTurnRunnerMoveIndex(config, prompt, moveCount, me, fetchImpl);
+  }
 
   const runOnce = async (
     messages: readonly { readonly role: string; readonly content: string }[],

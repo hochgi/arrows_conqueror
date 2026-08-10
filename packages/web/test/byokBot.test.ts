@@ -95,6 +95,8 @@ describe('seatPlan', () => {
         model: 'local',
         proxyUrl: '',
         reasoning: true,
+        useTurnRunner: false,
+        turnRunnerUrl: '',
       },
     });
     expect(seatPlanReady(plan)).toBe(true);
@@ -249,6 +251,42 @@ describe('byokBot fetch + fallback', () => {
     );
     expect(result).toEqual({ ok: true, index: 0 });
     expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it('routes picks through the turn runner when enabled', async () => {
+    const spy = vi.fn((_url: string, _init?: RequestInit) =>
+      Promise.resolve(
+        new Response(JSON.stringify({ ok: true, move: 2, why: 'plan' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    const opening = makeMatch();
+    const result = await fetchLlmMoveIndex(
+      readyConfig({
+        useTurnRunner: true,
+        turnRunnerUrl: 'http://127.0.0.1:4010',
+      }),
+      'STATE_JSON…',
+      4,
+      opening.activePlayer,
+      spy,
+    );
+    expect(result).toEqual({ ok: true, index: 2 });
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy.mock.calls[0]?.[0]).toBe('http://127.0.0.1:4010/v1/pick');
+    const rawBody = spy.mock.calls[0]?.[1]?.body;
+    expect(typeof rawBody).toBe('string');
+    if (typeof rawBody !== 'string') return;
+    const body = JSON.parse(rawBody) as {
+      moveCount: number;
+      plan: boolean;
+      upstream: string;
+    };
+    expect(body.moveCount).toBe(4);
+    expect(body.plan).toBe(true);
+    expect(body.upstream).toBe('https://api.openai.com/v1');
   });
 
   it('falls back to the heuristic when the model is unreachable', async () => {

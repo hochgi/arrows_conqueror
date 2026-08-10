@@ -66,6 +66,13 @@ export interface ByokConfig {
    * Default true — turn off only for fast non-reasoning chat models.
    */
   readonly reasoning: boolean;
+  /**
+   * Route picks through the local turn runner (plan→commit→validate) instead
+   * of a single chat/completions call. Experiment — see tools/byok-turn-runner.
+   */
+  readonly useTurnRunner: boolean;
+  /** Empty under Vite → `/__turn`. Otherwise e.g. `http://127.0.0.1:4010`. */
+  readonly turnRunnerUrl: string;
 }
 
 export const DEFAULT_BYOK: ByokConfig = {
@@ -75,6 +82,8 @@ export const DEFAULT_BYOK: ByokConfig = {
   model: 'gpt-4o-mini',
   proxyUrl: '',
   reasoning: true,
+  useTurnRunner: false,
+  turnRunnerUrl: '',
 };
 
 export const isByokReady = (config: ByokConfig): boolean =>
@@ -106,6 +115,8 @@ export const loadByokConfig = (): ByokConfig => {
       proxyUrl: typeof o['proxyUrl'] === 'string' ? o['proxyUrl'] : '',
       // Default on: absence means reasoning (older saves).
       reasoning: o['reasoning'] !== false,
+      useTurnRunner: o['useTurnRunner'] === true,
+      turnRunnerUrl: typeof o['turnRunnerUrl'] === 'string' ? o['turnRunnerUrl'] : '',
     };
   } catch {
     return DEFAULT_BYOK;
@@ -138,6 +149,18 @@ export const resolveByokProxyUrl = (config: ByokConfig): string => {
   if (typeof envProxy === 'string' && envProxy.trim().length > 0) return envProxy.trim();
   if (import.meta.env.DEV) return '/__byok';
   return '';
+};
+
+/**
+ * Base URL for the local turn runner (no trailing slash).
+ * Empty when the seat is not using the runner.
+ */
+export const resolveTurnRunnerUrl = (config: ByokConfig): string => {
+  if (!config.useTurnRunner) return '';
+  const fromConfig = config.turnRunnerUrl.trim().replace(/\/+$/, '');
+  if (fromConfig.length > 0) return fromConfig;
+  if (import.meta.env.DEV) return '/__turn';
+  return 'http://127.0.0.1:4010';
 };
 
 export const BYOK_UPSTREAM_HEADER = 'X-Arrows-Byok-Upstream';

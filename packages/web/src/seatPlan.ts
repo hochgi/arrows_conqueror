@@ -29,6 +29,9 @@ export interface SeatByokFields {
   readonly proxyUrl: string;
   /** Default true — reasoning models need this for non-stupid play. */
   readonly reasoning: boolean;
+  /** Local plan→commit runner (tools/byok-turn-runner). */
+  readonly useTurnRunner: boolean;
+  readonly turnRunnerUrl: string;
 }
 
 export interface SeatConfig {
@@ -50,6 +53,8 @@ export const emptyByokFields = (): SeatByokFields => ({
   model: DEFAULT_BYOK.model,
   proxyUrl: '',
   reasoning: true,
+  useTurnRunner: false,
+  turnRunnerUrl: '',
 });
 
 export const byokFieldsFromConfig = (config: ByokConfig): SeatByokFields => ({
@@ -58,6 +63,8 @@ export const byokFieldsFromConfig = (config: ByokConfig): SeatByokFields => ({
   model: config.model,
   proxyUrl: config.proxyUrl,
   reasoning: config.reasoning,
+  useTurnRunner: config.useTurnRunner,
+  turnRunnerUrl: config.turnRunnerUrl,
 });
 
 export const byokConfigForSeat = (seat: SeatConfig): ByokConfig => ({
@@ -158,6 +165,9 @@ const parseSeat = (raw: unknown): SeatConfig | undefined => {
       model: typeof byokObj['model'] === 'string' ? byokObj['model'] : DEFAULT_BYOK.model,
       proxyUrl: typeof byokObj['proxyUrl'] === 'string' ? byokObj['proxyUrl'] : '',
       reasoning: byokObj['reasoning'] !== false,
+      useTurnRunner: byokObj['useTurnRunner'] === true,
+      turnRunnerUrl:
+        typeof byokObj['turnRunnerUrl'] === 'string' ? byokObj['turnRunnerUrl'] : '',
     },
   };
 };

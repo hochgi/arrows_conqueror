@@ -204,7 +204,45 @@ export const Lobby = ({ plan, onPlan, onStart }: LobbyProps): ReactElement => {
                           setProbeOk(undefined);
                         }}
                       />
-                    </label>                    <div className="lobby-byok-actions">
+                    </label>
+                    <label className="lobby-check">
+                      <input
+                        type="checkbox"
+                        checked={seat.byok.useTurnRunner}
+                        onChange={(e) => {
+                          onPlan(
+                            updateSeat(plan, index, {
+                              byok: { ...seat.byok, useTurnRunner: e.target.checked },
+                            }),
+                          );
+                          setProbeMsg(undefined);
+                          setProbeOk(undefined);
+                        }}
+                      />
+                      Turn runner (local plan→commit — run <code>pnpm byok-turn</code>)
+                    </label>
+                    {seat.byok.useTurnRunner ? (
+                      <label className="lobby-count">
+                        Turn runner URL
+                        <input
+                          type="url"
+                          autoComplete="off"
+                          spellCheck={false}
+                          value={seat.byok.turnRunnerUrl}
+                          placeholder="empty — Vite uses /__turn → :4010"
+                          onChange={(e) => {
+                            onPlan(
+                              updateSeat(plan, index, {
+                                byok: { ...seat.byok, turnRunnerUrl: e.target.value },
+                              }),
+                            );
+                            setProbeMsg(undefined);
+                            setProbeOk(undefined);
+                          }}
+                        />
+                      </label>
+                    ) : null}
+                    <div className="lobby-byok-actions">
                       <button
                         type="button"
                         className="lobby-byok-test"
