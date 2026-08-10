@@ -6,9 +6,11 @@ import { makeRules } from '@arrows/rules-core';
 import {
   buildSystemPrompt,
   buildUserPrompt,
+  byokCompletionBody,
   chooseLlmMove,
   fetchLlmMoveIndex,
   formatLegalMoves,
+  movesForLlm,
   parseMoveIndex,
   playLlmBotTurn,
   postChatCompletions,
@@ -108,13 +110,32 @@ describe('byokBot parsing', () => {
     expect(formatLegalMoves(moves)).toContain('1: endTurn');
   });
 
-  it('parses a lone digit line or the last in-range index from model prose', () => {
+  it('parses strict index replies and ignores digits inside arrow prose', () => {
     expect(parseMoveIndex('3', 5)).toBe(3);
     expect(parseMoveIndex('thinking...\n2\n', 4)).toBe(2);
-    expect(parseMoveIndex('I choose index: 2 thanks', 4)).toBe(2);
-    expect(parseMoveIndex('ramble 0 then answer 3', 4)).toBe(3);
+    expect(parseMoveIndex('ANSWER: 2', 4)).toBe(2);
+    expect(parseMoveIndex('INDEX: 1', 4)).toBe(1);
+    // Truncated Nemotron prose with tiling ids must NOT become a false hit.
+    expect(
+      parseMoveIndex(
+        'We are seat B. We have groups:\n- B group at tiling:a:-4,6,0 with ',
+        20,
+      ),
+    ).toBeUndefined();
+    expect(parseMoveIndex('ramble 0 then answer 3', 4)).toBeUndefined();
     expect(parseMoveIndex('99', 3)).toBeUndefined();
     expect(parseMoveIndex('nope', 3)).toBeUndefined();
+  });
+
+  it('hides skip from the model while any step remains', () => {
+    const from = mintArrowId('a');
+    const exit = mintArrowId('b');
+    const moves: Move[] = [step(from, exit, 1), { kind: 'skip', from }, endTurn()];
+    expect(movesForLlm(moves).map((m) => m.kind)).toEqual(['step', 'endTurn']);
+    expect(movesForLlm([{ kind: 'skip', from }, endTurn()]).map((m) => m.kind)).toEqual([
+      'skip',
+      'endTurn',
+    ]);
   });
 
   it('builds a strategy-aware prompt that lists every offered move', () => {
@@ -133,7 +154,8 @@ describe('byokBot parsing', () => {
     expect(prompt).toContain('LEGAL_MOVES');
     expect(prompt).toContain('0:');
     expect(buildSystemPrompt(seat)).toContain(`seat ${String(seat)}`);
-    expect(buildSystemPrompt(seat)).toContain('STRATEGY');
+    expect(buildSystemPrompt(seat)).toContain('OUTPUT RULE');
+    expect(buildSystemPrompt(seat)).toContain('spawners');
     const snap = snapshotForPrompt(geometry, state, seat);
     expect(typeof snap).toBe('object');
     expect(snap).not.toBeNull();
@@ -166,7 +188,6 @@ describe('byokBot fetch + fallback', () => {
   it('reads an index from a chat-completions response', async () => {
     const fetchImpl: FetchLike = () => Promise.resolve(jsonResponse('1'));
     const spy = vi.fn(fetchImpl);
-    const geometry = makeTiling();
     const opening = makeMatch();
     const result = await fetchLlmMoveIndex(
       readyConfig(),
@@ -177,7 +198,22 @@ describe('byokBot fetch + fallback', () => {
     );
     expect(result).toEqual({ ok: true, index: 1 });
     expect(spy).toHaveBeenCalledOnce();
-    void geometry;
+    const rawBody = spy.mock.calls[0]?.[1]?.body;
+    expect(typeof rawBody).toBe('string');
+    if (typeof rawBody !== 'string') return;
+    const body = JSON.parse(rawBody) as {
+      max_tokens: number;
+      chat_template_kwargs: { enable_thinking: boolean };
+    };
+    expect(body.max_tokens).toBe(8);
+    expect(body.chat_template_kwargs.enable_thinking).toBe(false);
+  });
+
+  it('builds a completion body that disables thinking for NIM/LiteLLM', () => {
+    const body = byokCompletionBody(readyConfig(), [{ role: 'user', content: '0' }], 8);
+    expect(body['chat_template_kwargs']).toEqual(
+      expect.objectContaining({ enable_thinking: false }),
+    );
   });
 
   it('falls back to the heuristic when the model is unreachable', async () => {

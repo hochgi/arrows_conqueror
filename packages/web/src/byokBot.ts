@@ -21,27 +21,37 @@ const MAX_MOVES_PER_TURN = 64;
 const MAX_LISTED_ARROWS = 120;
 const MAX_SPAWNER_ROWS = 48;
 
+/**
+ * Reasoning models (e.g. Nemotron Ultra via LiteLLM) often force thinking into
+ * `content` with a huge budget. Our move pick must be a single digit, so we ask
+ * the gateway to disable thinking. Harmless when the provider ignores the field.
+ */
+export const BYOK_CHAT_TEMPLATE_KWARGS = {
+  enable_thinking: false,
+  force_nonempty_content: true,
+} as const;
+
 export const buildSystemPrompt = (me: PlayerId): string =>
-  `You are seat ${String(me)} in Arrows Conqueror — turn-based territorial conquest on a directed arrow tiling.
+  `You are seat ${String(me)} in Arrows Conqueror (territorial game on directed arrows).
+Pick the best LEGAL_MOVES index for this seat.
 
-RULES (compact):
-- Movement always follows arrow grain. Stacks spend allowance speed(N)=1+floor(log2(N)) steps per turn.
-- Stepping off your territory leaves trail. Closing back onto your territory claims everything enclosed (and converts caught enemy heads).
-- Contact on an enemy-occupied arrow is 1:1 combat. Crossing an enemy trail cuts it: evaporation runs both ways until firebreaks (occupied arrows) or territory.
-- Spawners sit on vertices; each has 3 bordering arrows (shares). Only territory on a share earns that third of force f each full round.
-- Win by eliminating rivals or by starvation: a living seat with zero spawner shares for dominationN full rounds loses.
+Priorities: claim spawners early (inner/higher force first); cut exposed enemy trails; prefer small safe closes when exposed; merge toward powers of 2 (speed=1+floor(log2 N)).
 
-STRATEGY PRIORITIES:
-1. Economy: grab spawners early — income compounds into army size.
-2. Inner > rim: higher force (centre up to 1/3 vs rim ~1/12) and denser spawners grow much faster. Contest the middle.
-3. Deny with cuts: cut exposed enemy trails before they close areas that include spawners. Early cuts are tempo + economy denial.
-4. Close vs expand: small safe closes start generating sooner; large closes claim more shares but risk being cut. Prefer quick income when exposed; expand once trails are garrisoned (2+ heads stop a front).
-5. Stacking math: powers of 2 travel efficiently (2→speed 2, 4→3, 8→4). Merge toward power-of-2 when racing; leave sentries on long trails.
-6. Multi-seat: punish leaders' open trails; do not gift the strongest rival free shares.
+OUTPUT RULE (absolute):
+Your entire reply must be a single integer index and nothing else.
+Valid: 0
+Valid: 12
+Invalid: any words, arrows ids, punctuation, markdown, or explanation.`;
 
-OUTPUT CONTRACT (mandatory):
-Reply with ONLY one integer — the index from LEGAL_MOVES.
-No words, no punctuation, no markdown, no explanation. Example valid reply: 3`;
+/**
+ * Moves shown to the model. While any `step` exists, omit `skip` — otherwise
+ * models (and false digit parses) burn the whole turn on skip spam.
+ */
+export const movesForLlm = (moves: readonly Move[]): readonly Move[] => {
+  const hasStep = moves.some((m) => m.kind === 'step');
+  if (!hasStep) return moves;
+  return moves.filter((m) => m.kind !== 'skip');
+};
 
 const sortIds = (ids: readonly string[]): string[] =>
   [...ids].toSorted((a, b) => (a < b ? -1 : a > b ? 1 : 0));
@@ -165,42 +175,59 @@ export const buildUserPrompt = (
   moves: readonly Move[],
 ): string =>
   [
-    `You are seat ${String(me)}. Choose the best legal move index.`,
+    `Seat ${String(me)}. Reply with one integer index only.`,
     '',
     'STATE_JSON:',
     JSON.stringify(snapshotForPrompt(geometry, state, me)),
     '',
-    'LEGAL_MOVES (pick one index; inventing a move is illegal):',
+    'LEGAL_MOVES:',
     formatLegalMoves(moves),
     '',
-    'Reply with ONLY the integer index. No other characters.',
+    'Your whole reply = the index integer. Zero other characters.',
   ].join('\n');
 
 /**
- * Prefer a lone digit line (models often ramble then answer).
- * Fall back to INDEX:/MOVE: tags, then the last in-range digit token.
+ * Strict index parse — never harvest digits from arrow ids in model prose.
+ * Accepts: whole-string integer, a lone digit line, or `ANSWER:`/`INDEX:`/`MOVE:`.
  */
 export const parseMoveIndex = (text: string, length: number): number | undefined => {
   if (length <= 0) return undefined;
-  for (const line of text.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (/^\d+$/.test(trimmed)) {
-      const n = Number(trimmed);
+  const trimmed = text.trim();
+  if (/^\d+$/.test(trimmed)) {
+    const n = Number(trimmed);
+    if (Number.isInteger(n) && n >= 0 && n < length) return n;
+  }
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i];
+    if (line === undefined) continue;
+    if (/^\d+$/.test(line)) {
+      const n = Number(line);
+      if (Number.isInteger(n) && n >= 0 && n < length) return n;
+    }
+    const tagged = /^(?:ANSWER|INDEX|MOVE)\s*[:=]\s*(\d+)\s*$/i.exec(line);
+    if (tagged?.[1] !== undefined) {
+      const n = Number(tagged[1]);
       if (Number.isInteger(n) && n >= 0 && n < length) return n;
     }
   }
-  const tagged = /(?:^|\b)(?:index|move)\s*[:=]?\s*(\d+)/i.exec(text);
-  if (tagged?.[1] !== undefined) {
-    const n = Number(tagged[1]);
-    if (Number.isInteger(n) && n >= 0 && n < length) return n;
-  }
-  const inRange: number[] = [];
-  for (const m of text.matchAll(/\d+/g)) {
-    const n = Number(m[0]);
-    if (Number.isInteger(n) && n >= 0 && n < length) inRange.push(n);
-  }
-  return inRange.length === 0 ? undefined : inRange[inRange.length - 1];
+  return undefined;
 };
+
+/** Request body fields shared by move picks and the lobby probe. */
+export const byokCompletionBody = (
+  config: ByokConfig,
+  messages: readonly { readonly role: string; readonly content: string }[],
+  maxTokens: number,
+): Record<string, unknown> => ({
+  model: config.model.trim(),
+  temperature: 0,
+  max_tokens: maxTokens,
+  messages,
+  // LiteLLM / NIM: disable reasoning dump into content (Nemotron Ultra default).
+  chat_template_kwargs: BYOK_CHAT_TEMPLATE_KWARGS,
+  extra_body: { chat_template_kwargs: BYOK_CHAT_TEMPLATE_KWARGS },
+});
 
 interface ChatCompletionResponse {
   readonly choices?: readonly {
@@ -248,15 +275,14 @@ export const fetchLlmMoveIndex = async (
   try {
     response = await postChatCompletions(
       config,
-      {
-        model: config.model.trim(),
-        temperature: 0,
-        max_tokens: 24,
-        messages: [
+      byokCompletionBody(
+        config,
+        [
           { role: 'system', content: buildSystemPrompt(me) },
           { role: 'user', content: prompt },
         ],
-      },
+        8,
+      ),
       fetchImpl,
     );
   } catch (err) {
@@ -309,15 +335,14 @@ export const testByokConnection = async (
   try {
     response = await postChatCompletions(
       config,
-      {
-        model: config.model.trim(),
-        temperature: 0,
-        max_tokens: 8,
-        messages: [
+      byokCompletionBody(
+        config,
+        [
           { role: 'system', content: 'Reply with exactly the digit 0 and nothing else.' },
           { role: 'user', content: '0' },
         ],
-      },
+        8,
+      ),
       fetchImpl,
     );
   } catch (err) {
@@ -373,7 +398,7 @@ export const chooseLlmMove = async (
   config: ByokConfig,
   fetchImpl: FetchLike = fetch,
 ): Promise<LlmChoice> => {
-  const offered = rules.legalMoves(state);
+  const offered = movesForLlm(rules.legalMoves(state));
   if (offered.length === 0) {
     return {
       move: chooseMove(geometry, rules, state, me),
