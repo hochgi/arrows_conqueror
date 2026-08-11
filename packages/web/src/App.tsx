@@ -29,6 +29,7 @@ import {
 } from './matchLog';
 import { playLlmBotTurn } from './byokBot';
 import { isByokReady } from './byokConfig';
+import { clearTargetLocks } from './targets';
 import {
   aiSeatIds,
   byokConfigForSeat,
@@ -412,6 +413,7 @@ export const App = (): ReactElement => {
     seatConfigsRef.current = new Map();
     setBotBusy(false);
     setByokStatus(undefined);
+    clearTargetLocks();
     setSnap(mode.reset());
     softLockKey.current = null;
   };
@@ -440,6 +442,7 @@ export const App = (): ReactElement => {
     }
     aiSeatsRef.current = aiKeys;
     seatConfigsRef.current = configs;
+    clearTargetLocks();
     const human = firstHumanSeat(plan) ?? opening.players[0];
     if (human === undefined) return;
     const bots = aiSeatIds(plan);

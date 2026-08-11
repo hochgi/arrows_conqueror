@@ -33,7 +33,13 @@ const impureProperties = [
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/*.d.ts', 'packages/web/dist/**'],
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/*.d.ts',
+      'packages/web/dist/**',
+      'tools/byok-turn-runner/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,

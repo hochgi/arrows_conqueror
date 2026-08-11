@@ -24,6 +24,13 @@ import {
   resolveTurnRunnerUrl,
 } from './byokConfig';
 import { chooseMove, closeUrgency, distanceToTerritory, playBotTurn, type BotTurn } from './opponent';
+import type { Finding } from './findings';
+import {
+  advanceTargetLock,
+  formatTargetsForPrompt,
+  syncTargetLocks,
+  tagOnTarget,
+} from './targets';
 
 const MAX_MOVES_PER_TURN = 64;
 const MAX_LISTED_ARROWS = 24;
@@ -55,8 +62,8 @@ export const MOVE_TAG = (n: number): string => `<<<MOVE:${String(n)}>>>`;
 export const buildSystemPrompt = (me: PlayerId, reasoning: boolean): string => {
   const priorities = `Goal: claim spawner shares by leaving home, walking a SHORT open trail, then closing. Domination needs shares; milling forever on home loses.
 Priorities (context-dependent):
-1. If you hold few/no shares: prefer tags leave_home, share, borders_spawner, or short outward scouts. Do NOT pick onto_home / home_mill just to keep tipDist=0.
-2. Prefer tags closes / land_bridge / share when available — claim ground.
+1. If you hold few/no shares: prefer tags leave_home, share, borders_spawner, on_target, or short outward scouts. Do NOT pick onto_home / home_mill just to keep tipDist=0.
+2. Prefer tags closes / land_bridge / share / on_target when available — claim ground.
 3. When trailLen>=4 (or tipDist is high): prefer homeward / onto_home / closes. Do NOT grow tipDist then. Giant loops lose.
 4. Prefer cut when it does not strand a long trail. Merge toward powers of 2 (speed=1+floor(log2 N)).
 onto_home with trailLen=0 and no expansion is wasted tempo.`;
@@ -238,6 +245,7 @@ export const annotateMove = (
   state: GameState,
   me: PlayerId,
   move: Move,
+  targets: readonly Finding[] = [],
 ): string => {
   switch (move.kind) {
     case 'skip':
@@ -275,6 +283,7 @@ export const annotateMove = (
       if (d1 < d0) tags.push('homeward');
       else if (d1 > d0) tags.push('outward');
       if (ontoHome) tags.push('onto_home');
+      if (tagOnTarget(move, targets)) tags.push('on_target');
       for (const [player, set] of state.trails) {
         if (player !== me && set.has(move.exit)) {
           tags.push('cut');
@@ -298,6 +307,7 @@ export const formatLegalMoves = (
   rules?: RulesPort,
   state?: GameState,
   me?: PlayerId,
+  targets: readonly Finding[] = [],
 ): string =>
   moves
     .map((m, i) => {
@@ -306,7 +316,7 @@ export const formatLegalMoves = (
         rules !== undefined &&
         state !== undefined &&
         me !== undefined
-          ? annotateMove(geometry, rules, state, me, m)
+          ? annotateMove(geometry, rules, state, me, m, targets)
           : (() => {
               switch (m.kind) {
                 case 'step':
@@ -328,6 +338,7 @@ export const buildUserPrompt = (
   moves: readonly Move[],
   _reasoning: boolean,
   rules?: RulesPort,
+  targets: readonly Finding[] = [],
 ): string => {
   const trail = state.trails.get(me)?.size ?? 0;
   const myShares = shareCount(geometry, state, me);
@@ -343,20 +354,21 @@ export const buildUserPrompt = (
   }
   const phaseHint =
     myShares === 0
-      ? `You hold 0 spawner shares. Prefer leave_home / borders_spawner / short outward — do NOT home_mill.`
+      ? `You hold 0 spawner shares. Prefer leave_home / borders_spawner / on_target / short outward — do NOT home_mill.`
       : trail >= 4
         ? `Open trailLen=${String(trail)} with ${String(myShares)} shares — prefer homeward/closes; do not extend tipDist.`
-        : `Shares=${String(myShares)}, trailLen=${String(trail)}. Short scouts OK; close when a closes/land_bridge tag appears.`;
+        : `Shares=${String(myShares)}, trailLen=${String(trail)}. Prefer on_target when present; short scouts OK.`;
   return [
     `Seat ${String(me)}. Pick one LEGAL_MOVES index.`,
     phaseHint,
     tipLines.length > 0 ? `Exposed tips: ${tipLines.join('; ')}` : 'Exposed tips: none',
+    formatTargetsForPrompt(targets),
     '',
     'STATE_JSON:',
     JSON.stringify(snapshotForPrompt(geometry, state, me)),
     '',
     'LEGAL_MOVES (tipDist=grain distance to your territory; tags explain outcomes):',
-    formatLegalMoves(moves, geometry, rules, state, me),
+    formatLegalMoves(moves, geometry, rules, state, me, targets),
     '',
     'Reply with only JSON: {"move":N,"why":"short"}',
   ].join('\n');
@@ -723,13 +735,36 @@ export const chooseLlmMove = async (
       reason: 'no legal moves listed',
     };
   }
-  const prompt = buildUserPrompt(geometry, state, me, offered, config.reasoning, rules);
+  const targets = syncTargetLocks(geometry, rules, state, me);
+  const prompt = buildUserPrompt(
+    geometry,
+    state,
+    me,
+    offered,
+    config.reasoning,
+    rules,
+    targets,
+  );
   const result = await fetchLlmMoveIndex(config, prompt, offered.length, me, fetchImpl);
   if (result.ok) {
     const picked = offered[result.index];
     if (picked !== undefined) return { move: picked, source: 'llm' };
   }
   const reason = result.ok ? 'index out of range' : result.reason;
+  // Prefer locked target step when falling back.
+  const guided = targets[0]?.move;
+  if (guided !== undefined) {
+    const ok = offered.some(
+      (m) =>
+        m.kind === 'step' &&
+        m.from === guided.from &&
+        m.exit === guided.exit &&
+        m.count === guided.count,
+    );
+    if (ok) {
+      return { move: guided, source: 'heuristic', reason };
+    }
+  }
   return {
     move: chooseMove(geometry, rules, state, me),
     source: 'heuristic',
@@ -778,6 +813,7 @@ export const playLlmBotTurn = async (
       if (choice.reason !== undefined) lastError = choice.reason;
     }
     at = rules.apply(at, choice.move);
+    advanceTargetLock(me, choice.move, geometry);
     moves.push(choice.move);
     if (choice.move.kind === 'endTurn') break;
   }

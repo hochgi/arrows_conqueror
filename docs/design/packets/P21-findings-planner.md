@@ -17,8 +17,9 @@ Replace opaque one-ply weight soup with an explicit, pure **findings** list:
 Heuristic `chooseMove` prefers the top finding when present; otherwise falls
 back to the existing evaluate/scoreStepExtras path.
 
-BYOK (follow-on packet slice): lock stacks to findings / replan — not this
-commit's required surface.
+BYOK (follow-on): stacks lock to findings across plies (`targets.ts`). Stale
+locks drop; unlocked steppable stacks get a new finding. Prompt lists TARGETS
+and tags matching legal moves `on_target`.
 
 ## Finding kinds (v0)
 
