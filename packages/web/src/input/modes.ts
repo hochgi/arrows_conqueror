@@ -1,8 +1,5 @@
 /**
- * Pluggable hot-seat input — swap modes without touching the board renderer.
- *
- * Galcon: source → destination → portion.
- * HoMM-style: source → destination (preview) → confirm click → portion.
+ * Hot-seat input — Galcon: source → destination → portion.
  *
  * A destination is anywhere the stack can get **this turn**, not just one step away
  * (see `reach.ts`). §3 buys distance with heads, so the portion picker opens at the
@@ -19,7 +16,6 @@ export type InputPhase =
   | { readonly kind: 'idle' }
   | { readonly kind: 'source'; readonly from: ArrowId }
   | { readonly kind: 'blocked'; readonly from: ArrowId }
-  | { readonly kind: 'preview'; readonly from: ArrowId; readonly exit: ArrowId }
   | {
       readonly kind: 'portion';
       readonly from: ArrowId;
@@ -233,45 +229,5 @@ export class GalconInput extends BaseMode {
   }
 }
 
-/**
- * HoMM-ish: first destination click previews the trip, second click on the same exit
- * opens the portion picker. Easy to replace — only this class owns the confirm.
- */
-export class HommInput extends BaseMode {
-  readonly id = 'homm';
-  readonly label = 'HoMM preview';
-
-  override onArrowClick(arrow: ArrowId, state: GameState, rules: RulesPort): InputSnapshot {
-    const { phase } = this.snap;
-    if (phase.kind === 'preview' && arrow === phase.exit) {
-      const entry = this.reach.get(arrow);
-      if (entry !== undefined) return this.openPortion(phase.from, arrow, entry);
-    }
-    if ((phase.kind === 'source' || phase.kind === 'preview') && arrow !== phase.from) {
-      if (this.reach.has(arrow)) {
-        const entry = this.reach.get(arrow);
-        this.snap = {
-          phase: { kind: 'preview', from: phase.from, exit: arrow },
-          highlights: {
-            selected: phase.from,
-            targets: new Set(this.reach.keys()),
-            preview: arrow,
-            reach: this.reach,
-            path: entry === undefined ? new Set() : pathFor(this.reach, arrow, entry.minCount),
-          },
-        };
-        return this.snap;
-      }
-    }
-    const from = phase.kind === 'idle' ? undefined : phase.from;
-    return this.common(arrow, state, rules, from) ?? this.snap;
-  }
-}
-
-export const INPUT_MODE_OPTIONS: readonly { readonly id: string; readonly label: string }[] = [
-  { id: 'galcon', label: 'Galcon' },
-  { id: 'homm', label: 'HoMM preview' },
-];
-
-export const createInputMode = (id: string, geometry: GeometryPort): InputMode =>
-  id === 'homm' ? new HommInput(geometry) : new GalconInput(geometry);
+/** Sole hot-seat input mode. */
+export const createInputMode = (geometry: GeometryPort): InputMode => new GalconInput(geometry);

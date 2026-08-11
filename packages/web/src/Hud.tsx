@@ -1,12 +1,10 @@
 import type { GameState, PlayerId } from '@arrows/contracts';
 import type { ReactElement } from 'react';
 import { styleFor } from './colors';
-import type { InputMode, InputPhase } from './input/modes';
-import { INPUT_MODE_OPTIONS } from './input/modes';
+import type { InputPhase } from './input/modes';
 
 export interface HudProps {
   readonly state: GameState;
-  readonly mode: InputMode;
   readonly phase: InputPhase;
   readonly movableCount: number;
   readonly vsBot: boolean;
@@ -15,7 +13,6 @@ export interface HudProps {
   readonly botBusy: boolean;
   readonly seatSummary: string;
   readonly moveCount: number;
-  readonly onModeChange: (id: string) => void;
   readonly onEndTurn: () => void;
   readonly onSkip: () => void;
   readonly onDownloadLog: () => void;
@@ -24,7 +21,6 @@ export interface HudProps {
 
 const phaseHint = (
   phase: InputPhase,
-  modeLabel: string,
   movableCount: number,
   botBusy: boolean,
   vsBot: boolean,
@@ -37,14 +33,12 @@ const phaseHint = (
         return 'No steps left — passing…';
       }
       return vsBot
-        ? `${modeLabel}: your turn — gold-outlined stacks can still move`
-        : `${modeLabel}: gold-outlined stacks can still move`;
+        ? 'Your turn — gold-outlined stacks can still move'
+        : 'Gold-outlined stacks can still move';
     case 'source':
       return 'Hover blue to pulse the path · click to send · fainter = further';
     case 'blocked':
       return 'Branch toll — this stack cannot leave. Another gold stack is auto-selected when one finishes';
-    case 'preview':
-      return 'Pulsing path = the route taken · click again to confirm, or an intermediate for another path';
     case 'portion':
       return 'Pulsing path = the route for this portion · change the slider or cancel and re-click';
   }
@@ -52,7 +46,6 @@ const phaseHint = (
 
 export const Hud = ({
   state,
-  mode,
   phase,
   movableCount,
   vsBot,
@@ -61,7 +54,6 @@ export const Hud = ({
   botBusy,
   seatSummary,
   moveCount,
-  onModeChange,
   onEndTurn,
   onSkip,
   onDownloadLog,
@@ -83,7 +75,7 @@ export const Hud = ({
             : null}
         </p>
       )}
-      <p className="hint">{phaseHint(phase, mode.label, movableCount, botBusy, vsBot, byokActive)}</p>
+      <p className="hint">{phaseHint(phase, movableCount, botBusy, vsBot, byokActive)}</p>
       {byokStatus !== undefined ? <p className="hint byok-status">{byokStatus}</p> : null}
       <p className="meta">Seats: {seatSummary}</p>
       <p className="meta">Moves logged: {moveCount}</p>
@@ -102,22 +94,6 @@ export const Hud = ({
           Lobby
         </button>
       </div>
-
-      <label className="mode">
-        Input
-        <select
-          value={mode.id}
-          onChange={(e) => {
-            onModeChange(e.target.value);
-          }}
-        >
-          {INPUT_MODE_OPTIONS.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
-        </select>
-      </label>
 
       <p className="help">
         Drag to pan · pinch or wheel to zoom · gold outline = movable this turn

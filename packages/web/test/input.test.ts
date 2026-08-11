@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeMatch, makeTiling } from '@arrows/geometry-tiling';
 import { makeRules } from '@arrows/rules-core';
-import { GalconInput, HommInput } from '../src/input/modes';
+import { GalconInput } from '../src/input/modes';
 
 const activeGroup = (state: ReturnType<typeof makeMatch>) =>
   [...state.groups.entries()].find(([, g]) => g.owner === state.activePlayer)?.[0];
@@ -118,31 +118,5 @@ describe('Galcon input', () => {
     const movable = mode.onArrowClick(arrow('tiling:a:5,1,2'), state, rules);
     expect(movable.phase.kind).toBe('source');
     expect(movable.highlights.targets.size).toBeGreaterThan(0);
-  });
-});
-
-describe('HoMM input', () => {
-  it('requires a second click on the destination before portion', () => {
-    const geometry = makeTiling();
-    const rules = makeRules(geometry);
-    const state = makeMatch();
-    const mode = new HommInput(geometry);
-    const from = activeGroup(state);
-    expect(from).toBeDefined();
-    if (from === undefined) return;
-
-    mode.onArrowClick(from, state, rules);
-    const dest = rules
-      .legalMoves(state)
-      .find((m) => m.kind === 'step' && m.from === from);
-    expect(dest?.kind).toBe('step');
-    if (dest?.kind !== 'step') return;
-
-    const preview = mode.onArrowClick(dest.exit, state, rules);
-    expect(preview.phase.kind).toBe('preview');
-    expect(preview.pending).toBeUndefined();
-
-    const portion = mode.onArrowClick(dest.exit, state, rules);
-    expect(portion.phase.kind).toBe('portion');
   });
 });

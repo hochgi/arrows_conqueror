@@ -128,7 +128,7 @@ export const App = (): ReactElement => {
   const [seatPlan, setSeatPlan] = useState<SeatPlan>(() => loadSeatPlan());
   const [state, setState] = useState<GameState | undefined>(undefined);
   const [log, setLog] = useState<MatchLog | undefined>(undefined);
-  const [mode, setMode] = useState<InputMode>(() => createInputMode('galcon', geometry));
+  const [mode, setMode] = useState<InputMode>(() => createInputMode(geometry));
   const [snap, setSnap] = useState<InputSnapshot>(idleSnap);
   const [viewport, setViewport] = useState<Viewport>(() => createViewport(800, 600));
   const [hover, setHover] = useState<
@@ -404,12 +404,6 @@ export const App = (): ReactElement => {
     [mode],
   );
 
-  const switchMode = (id: string): void => {
-    const next = createInputMode(id, geometry);
-    setMode(next);
-    setSnap(next.reset());
-  };
-
   const returnToLobby = (): void => {
     setState(undefined);
     stateRef.current = undefined;
@@ -628,7 +622,6 @@ export const App = (): ReactElement => {
     <div className="app">
       <Hud
         state={state}
-        mode={mode}
         phase={snap.phase}
         movableCount={movable.size}
         vsBot={log.vsBot}
@@ -637,7 +630,6 @@ export const App = (): ReactElement => {
         botBusy={botBusy}
         seatSummary={log.seats.map((s) => `${String(s.player)}=${s.kind}`).join(' · ')}
         moveCount={log.moves.length}
-        onModeChange={switchMode}
         onEndTurn={() => {
           if (inputLocked) return;
           commitSnap(mode.requestEndTurn());
