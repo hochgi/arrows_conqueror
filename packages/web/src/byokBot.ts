@@ -16,7 +16,7 @@ import {
   resolveByokProxyUrl,
   resolveTurnRunnerUrl,
 } from './byokConfig';
-import { chooseMove, playBotTurn, type BotTurn } from './opponent';
+import { chooseMove, closeUrgency, distanceToTerritory, playBotTurn, type BotTurn } from './opponent';
 
 const MAX_MOVES_PER_TURN = 64;
 const MAX_LISTED_ARROWS = 24;
@@ -46,10 +46,15 @@ export const BYOK_FAST_MAX_TOKENS = 64;
 export const MOVE_TAG = (n: number): string => `<<<MOVE:${String(n)}>>>`;
 
 export const buildSystemPrompt = (me: PlayerId, reasoning: boolean): string => {
-  const priorities = `Priorities: claim spawners early (inner/higher force first); cut exposed enemy trails; prefer small safe closes when exposed; merge toward powers of 2 (speed=1+floor(log2 N)); do not gift the strongest rival free shares.`;
+  const priorities = `Priorities (strict order):
+1. Prefer moves tagged closes or land_bridge — claim ground. Giant open loops lose.
+2. Prefer tipDist that shrinks (homeward). When trailLen>=4, do NOT pick tipDist that grows.
+3. Prefer tags cut / share when they do not strand a long trail.
+4. Merge toward powers of 2 (speed=1+floor(log2 N)); do not gift the strongest rival free shares.
+Never try to encircle the whole board. Small closes beat long marches.`;
   const contract = `Return ONLY a JSON object (no markdown fence):
 {"move":N,"why":"short reason"}
-N is a LEGAL_MOVES index. Do not invent moves. Do not reprint STATE_JSON.`;
+N is a LEGAL_MOVES index. Read each line's tags and tipDist. Do not invent moves. Do not reprint STATE_JSON.`;
   if (reasoning) {
     return `You are seat ${String(me)} in Arrows Conqueror (territorial conquest on directed arrows).
 Choose the best LEGAL_MOVES index for this seat.
@@ -179,17 +184,106 @@ export const snapshotForPrompt = (
   };
 };
 
-export const formatLegalMoves = (moves: readonly Move[]): string =>
+const territoryCount = (state: GameState, player: PlayerId): number => {
+  let n = 0;
+  for (const owner of state.territory.values()) if (owner === player) n += 1;
+  return n;
+};
+
+const shareCount = (
+  geometry: GeometryPort,
+  state: GameState,
+  player: PlayerId,
+): number => {
+  let n = 0;
+  for (const vertex of state.spawners.keys()) {
+    for (const arrow of geometry.borderArrows(vertex)) {
+      if (state.territory.get(arrow) === player) n += 1;
+    }
+  }
+  return n;
+};
+
+/** Compact tags so the model can rank without inventing geometry. */
+export const annotateMove = (
+  geometry: GeometryPort,
+  rules: RulesPort,
+  state: GameState,
+  me: PlayerId,
+  move: Move,
+): string => {
+  switch (move.kind) {
+    case 'skip':
+      return `skip from=${String(move.from)}`;
+    case 'endTurn': {
+      const trail = state.trails.get(me)?.size ?? 0;
+      const tags: string[] = [];
+      if (trail >= 4) tags.push('exposed_trail');
+      if (closeUrgency(trail) >= 36) tags.push('should_close_soon');
+      const tagStr = tags.length > 0 ? ` tags=${tags.join(',')}` : '';
+      return `endTurn trailLen=${String(trail)}${tagStr}`;
+    }
+    case 'step': {
+      let after: GameState;
+      try {
+        after = rules.apply(state, move);
+      } catch {
+        return `step from=${String(move.from)} exit=${String(move.exit)} count=${String(move.count)} tags=illegal`;
+      }
+      const d0 = distanceToTerritory(geometry, state, me, move.from);
+      const d1 = distanceToTerritory(geometry, state, me, move.exit);
+      const trailAfter = after.trails.get(me)?.size ?? 0;
+      const gainedTerr = territoryCount(after, me) - territoryCount(state, me);
+      const gainedShare = shareCount(geometry, after, me) - shareCount(geometry, state, me);
+      const tags: string[] = [];
+      if (gainedTerr > 0) tags.push(gainedTerr === 1 ? 'land_bridge' : 'closes');
+      if (gainedShare > 0) tags.push('share');
+      if (d1 < d0) tags.push('homeward');
+      else if (d1 > d0) tags.push('outward');
+      if (state.territory.get(move.exit) === me) tags.push('onto_home');
+      for (const [player, set] of state.trails) {
+        if (player !== me && set.has(move.exit)) {
+          tags.push('cut');
+          break;
+        }
+      }
+      const dest = state.groups.get(move.exit);
+      if (dest !== undefined && dest.owner !== me) tags.push('combat');
+      return (
+        `step from=${String(move.from)} exit=${String(move.exit)} count=${String(move.count)}` +
+        ` tipDist=${String(d0)}→${String(d1)} trailLen=${String(trailAfter)}` +
+        (tags.length > 0 ? ` tags=${tags.join(',')}` : '')
+      );
+    }
+  }
+};
+
+export const formatLegalMoves = (
+  moves: readonly Move[],
+  geometry?: GeometryPort,
+  rules?: RulesPort,
+  state?: GameState,
+  me?: PlayerId,
+): string =>
   moves
     .map((m, i) => {
-      switch (m.kind) {
-        case 'step':
-          return `[${String(i)}] step from=${String(m.from)} exit=${String(m.exit)} count=${String(m.count)}`;
-        case 'skip':
-          return `[${String(i)}] skip from=${String(m.from)}`;
-        case 'endTurn':
-          return `[${String(i)}] endTurn`;
-      }
+      const body =
+        geometry !== undefined &&
+        rules !== undefined &&
+        state !== undefined &&
+        me !== undefined
+          ? annotateMove(geometry, rules, state, me, m)
+          : (() => {
+              switch (m.kind) {
+                case 'step':
+                  return `step from=${String(m.from)} exit=${String(m.exit)} count=${String(m.count)}`;
+                case 'skip':
+                  return `skip from=${String(m.from)}`;
+                case 'endTurn':
+                  return `endTurn`;
+              }
+            })();
+      return `[${String(i)}] ${body}`;
     })
     .join('\n');
 
@@ -199,19 +293,33 @@ export const buildUserPrompt = (
   me: PlayerId,
   moves: readonly Move[],
   _reasoning: boolean,
-): string =>
-  [
+  rules?: RulesPort,
+): string => {
+  const trail = state.trails.get(me)?.size ?? 0;
+  const tipLines: string[] = [];
+  for (const [arrow, group] of [...state.groups.entries()].toSorted((a, b) =>
+    String(a[0]) < String(b[0]) ? -1 : String(a[0]) > String(b[0]) ? 1 : 0,
+  )) {
+    if (group.owner !== me) continue;
+    if (!(state.trails.get(me)?.has(arrow) ?? false)) continue;
+    tipLines.push(
+      `${String(arrow)} tipDist=${String(distanceToTerritory(geometry, state, me, arrow))} heads=${String(group.heads)}`,
+    );
+  }
+  return [
     `Seat ${String(me)}. Pick one LEGAL_MOVES index.`,
+    `Open trailLen=${String(trail)}. Prefer closes/homeward over outward when trailLen>=4.`,
+    tipLines.length > 0 ? `Exposed tips: ${tipLines.join('; ')}` : 'Exposed tips: none',
     '',
     'STATE_JSON:',
     JSON.stringify(snapshotForPrompt(geometry, state, me)),
     '',
-    'LEGAL_MOVES:',
-    formatLegalMoves(moves),
+    'LEGAL_MOVES (tipDist=grain distance to your territory; tags explain outcomes):',
+    formatLegalMoves(moves, geometry, rules, state, me),
     '',
     'Reply with only JSON: {"move":N,"why":"short"}',
   ].join('\n');
-
+};
 /**
  * Strict move-index parse — never harvest digits from arrow ids in prose.
  * Accepts: `{"move":N}`, `<<<MOVE:N>>>`, `ANSWER: N`, lone digit line/string.
@@ -574,7 +682,7 @@ export const chooseLlmMove = async (
       reason: 'no legal moves listed',
     };
   }
-  const prompt = buildUserPrompt(geometry, state, me, offered, config.reasoning);
+  const prompt = buildUserPrompt(geometry, state, me, offered, config.reasoning, rules);
   const result = await fetchLlmMoveIndex(config, prompt, offered.length, me, fetchImpl);
   if (result.ok) {
     const picked = offered[result.index];

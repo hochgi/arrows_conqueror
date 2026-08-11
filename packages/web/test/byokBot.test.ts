@@ -113,6 +113,25 @@ describe('byokBot parsing', () => {
     expect(formatLegalMoves(moves)).toContain('[1] endTurn');
   });
 
+  it('annotates steps with tipDist and outcome tags', () => {
+    const geometry = makeTiling();
+    const rules = makeRules(geometry);
+    const state = makeMatch({
+      dominationN: 5,
+      R: 7,
+      homeOffset: 5,
+      playerCount: 3,
+      spawnerSeed: 1,
+    });
+    const me = state.activePlayer;
+    const moves = movesForLlm(rules.legalMoves(state));
+    const listed = formatLegalMoves(moves, geometry, rules, state, me);
+    expect(listed).toMatch(/tipDist=\d+→\d+/);
+    expect(listed).toContain('trailLen=');
+    expect(buildSystemPrompt(me, true)).toContain('homeward');
+    expect(buildSystemPrompt(me, true)).toContain('encircle');
+  });
+
   it('parses strict index replies and ignores digits inside arrow prose', () => {
     expect(parseMoveIndex('3', 5)).toBe(3);
     expect(parseMoveIndex('{"move":2,"why":"step"}', 4)).toBe(2);
@@ -154,13 +173,15 @@ describe('byokBot parsing', () => {
     });
     const seat = state.activePlayer;
     const moves = rules.legalMoves(state);
-    const prompt = buildUserPrompt(geometry, state, seat, moves, true);
+    const prompt = buildUserPrompt(geometry, state, seat, moves, true, rules);
     expect(prompt).toContain('LEGAL_MOVES');
     expect(prompt).toContain('[0]');
     expect(prompt).toContain('{"move":N');
+    expect(prompt).toContain('tipDist=');
+    expect(prompt).toContain('Open trailLen=');
     expect(buildSystemPrompt(seat, true)).toContain(`seat ${String(seat)}`);
     expect(buildSystemPrompt(seat, true)).toContain('{"move":N');
-    expect(buildSystemPrompt(seat, true)).toContain('spawners');
+    expect(buildSystemPrompt(seat, true)).toContain('closes');
     const snap = snapshotForPrompt(geometry, state, seat);
     expect(typeof snap).toBe('object');
     expect(snap).not.toBeNull();

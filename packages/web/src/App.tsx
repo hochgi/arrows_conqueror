@@ -511,7 +511,7 @@ export const App = (): ReactElement => {
       drag.current = null;
       return;
     }
-    if (inputLocked) return;
+    // Pan/zoom stay live during LLM waits — only arrow clicks / HUD actions are locked.
     drag.current = { x: e.clientX, y: e.clientY, moved: false };
   };
 

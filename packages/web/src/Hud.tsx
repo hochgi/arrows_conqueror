@@ -126,7 +126,8 @@ export const Hud = ({
         merge onto own trail · fade with distance · hover a reach tile to pulse
         the path · bold tile edge = occupied · trail chords stay visible under
         enemy stacks (overlap is legal until a cut) · solid fill = territory,
-        thin fill = open trail · turn passes when nothing can step
+        thin fill = open trail · turn passes when nothing can step · pan stays
+        live while an LLM seat thinks
       </p>
       <p className="help">
         Ringed dots are spawners — three arcs with a dark rim, one per bordering arrow.
