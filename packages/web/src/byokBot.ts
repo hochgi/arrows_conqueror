@@ -6,7 +6,14 @@
  * caller can see how often that happened (silent fallback hid bugs in playtest).
  */
 
-import type { GameState, GeometryPort, Move, PlayerId, RulesPort } from '@arrows/contracts';
+import type {
+  ArrowId,
+  GameState,
+  GeometryPort,
+  Move,
+  PlayerId,
+  RulesPort,
+} from '@arrows/contracts';
 import { endTurn } from '@arrows/contracts';
 import type { ByokConfig } from './byokConfig';
 import {
@@ -46,15 +53,16 @@ export const BYOK_FAST_MAX_TOKENS = 64;
 export const MOVE_TAG = (n: number): string => `<<<MOVE:${String(n)}>>>`;
 
 export const buildSystemPrompt = (me: PlayerId, reasoning: boolean): string => {
-  const priorities = `Priorities (strict order):
-1. Prefer moves tagged closes or land_bridge — claim ground. Giant open loops lose.
-2. Prefer tipDist that shrinks (homeward). When trailLen>=4, do NOT pick tipDist that grows.
-3. Prefer tags cut / share when they do not strand a long trail.
-4. Merge toward powers of 2 (speed=1+floor(log2 N)); do not gift the strongest rival free shares.
-Never try to encircle the whole board. Small closes beat long marches.`;
+  const priorities = `Goal: claim spawner shares by leaving home, walking a SHORT open trail, then closing. Domination needs shares; milling forever on home loses.
+Priorities (context-dependent):
+1. If you hold few/no shares: prefer tags leave_home, share, borders_spawner, or short outward scouts. Do NOT pick onto_home / home_mill just to keep tipDist=0.
+2. Prefer tags closes / land_bridge / share when available — claim ground.
+3. When trailLen>=4 (or tipDist is high): prefer homeward / onto_home / closes. Do NOT grow tipDist then. Giant loops lose.
+4. Prefer cut when it does not strand a long trail. Merge toward powers of 2 (speed=1+floor(log2 N)).
+onto_home with trailLen=0 and no expansion is wasted tempo.`;
   const contract = `Return ONLY a JSON object (no markdown fence):
 {"move":N,"why":"short reason"}
-N is a LEGAL_MOVES index. Read each line's tags and tipDist. Do not invent moves. Do not reprint STATE_JSON.`;
+N is a LEGAL_MOVES index. Read tags and tipDist. Do not invent moves. Do not reprint STATE_JSON.`;
   if (reasoning) {
     return `You are seat ${String(me)} in Arrows Conqueror (territorial conquest on directed arrows).
 Choose the best LEGAL_MOVES index for this seat.
@@ -204,6 +212,25 @@ const shareCount = (
   return n;
 };
 
+/** Exit is a border arrow of a spawner that still has an unclaimed share. */
+const bordersOpenSpawner = (
+  geometry: GeometryPort,
+  state: GameState,
+  exit: ArrowId,
+): boolean => {
+  for (const vertex of state.spawners.keys()) {
+    const borders = geometry.borderArrows(vertex);
+    let onSpawner = false;
+    let open = false;
+    for (const border of borders) {
+      if (border === exit) onSpawner = true;
+      if (state.territory.get(border) === undefined) open = true;
+    }
+    if (onSpawner && open) return true;
+  }
+  return false;
+};
+
 /** Compact tags so the model can rank without inventing geometry. */
 export const annotateMove = (
   geometry: GeometryPort,
@@ -217,11 +244,13 @@ export const annotateMove = (
       return `skip from=${String(move.from)}`;
     case 'endTurn': {
       const trail = state.trails.get(me)?.size ?? 0;
+      const shares = shareCount(geometry, state, me);
       const tags: string[] = [];
       if (trail >= 4) tags.push('exposed_trail');
       if (closeUrgency(trail) >= 36) tags.push('should_close_soon');
+      if (shares === 0 && trail === 0) tags.push('no_shares_yet');
       const tagStr = tags.length > 0 ? ` tags=${tags.join(',')}` : '';
-      return `endTurn trailLen=${String(trail)}${tagStr}`;
+      return `endTurn trailLen=${String(trail)} shares=${String(shares)}${tagStr}`;
     }
     case 'step': {
       let after: GameState;
@@ -235,12 +264,17 @@ export const annotateMove = (
       const trailAfter = after.trails.get(me)?.size ?? 0;
       const gainedTerr = territoryCount(after, me) - territoryCount(state, me);
       const gainedShare = shareCount(geometry, after, me) - shareCount(geometry, state, me);
+      const fromHome = state.territory.get(move.from) === me;
+      const ontoHome = state.territory.get(move.exit) === me;
       const tags: string[] = [];
       if (gainedTerr > 0) tags.push(gainedTerr === 1 ? 'land_bridge' : 'closes');
       if (gainedShare > 0) tags.push('share');
+      if (bordersOpenSpawner(geometry, state, move.exit)) tags.push('borders_spawner');
+      if (fromHome && !ontoHome) tags.push('leave_home');
+      if (fromHome && ontoHome) tags.push('home_mill');
       if (d1 < d0) tags.push('homeward');
       else if (d1 > d0) tags.push('outward');
-      if (state.territory.get(move.exit) === me) tags.push('onto_home');
+      if (ontoHome) tags.push('onto_home');
       for (const [player, set] of state.trails) {
         if (player !== me && set.has(move.exit)) {
           tags.push('cut');
@@ -296,6 +330,7 @@ export const buildUserPrompt = (
   rules?: RulesPort,
 ): string => {
   const trail = state.trails.get(me)?.size ?? 0;
+  const myShares = shareCount(geometry, state, me);
   const tipLines: string[] = [];
   for (const [arrow, group] of [...state.groups.entries()].toSorted((a, b) =>
     String(a[0]) < String(b[0]) ? -1 : String(a[0]) > String(b[0]) ? 1 : 0,
@@ -306,9 +341,15 @@ export const buildUserPrompt = (
       `${String(arrow)} tipDist=${String(distanceToTerritory(geometry, state, me, arrow))} heads=${String(group.heads)}`,
     );
   }
+  const phaseHint =
+    myShares === 0
+      ? `You hold 0 spawner shares. Prefer leave_home / borders_spawner / short outward — do NOT home_mill.`
+      : trail >= 4
+        ? `Open trailLen=${String(trail)} with ${String(myShares)} shares — prefer homeward/closes; do not extend tipDist.`
+        : `Shares=${String(myShares)}, trailLen=${String(trail)}. Short scouts OK; close when a closes/land_bridge tag appears.`;
   return [
     `Seat ${String(me)}. Pick one LEGAL_MOVES index.`,
-    `Open trailLen=${String(trail)}. Prefer closes/homeward over outward when trailLen>=4.`,
+    phaseHint,
     tipLines.length > 0 ? `Exposed tips: ${tipLines.join('; ')}` : 'Exposed tips: none',
     '',
     'STATE_JSON:',

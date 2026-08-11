@@ -23,6 +23,8 @@ export const BYOK_UPSTREAM_ALLOWLIST: readonly string[] = [
   // NVIDIA NIM (build.nvidia.com / integrate)
   'integrate.api.nvidia.com',
   'api.nvcf.nvidia.com',
+  // xAI Grok
+  'api.x.ai',
   // other OpenAI-compatible bases used in personal playtest
   'api.z.ai',
   'zenmux.ai',

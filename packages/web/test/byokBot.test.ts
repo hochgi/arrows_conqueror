@@ -63,6 +63,7 @@ describe('byokConfig', () => {
 
   it('allowlists common OpenAI-compatible hosts', () => {
     expect(isAllowedByokUpstream('https://api.openai.com/v1/chat/completions')).toBe(true);
+    expect(isAllowedByokUpstream('https://api.x.ai/v1/chat/completions')).toBe(true);
     expect(isAllowedByokUpstream('https://integrate.api.nvidia.com/v1/chat/completions')).toBe(
       true,
     );
@@ -128,8 +129,9 @@ describe('byokBot parsing', () => {
     const listed = formatLegalMoves(moves, geometry, rules, state, me);
     expect(listed).toMatch(/tipDist=\d+→\d+/);
     expect(listed).toContain('trailLen=');
-    expect(buildSystemPrompt(me, true)).toContain('homeward');
-    expect(buildSystemPrompt(me, true)).toContain('encircle');
+    expect(listed).toMatch(/leave_home|home_mill|onto_home/);
+    expect(buildSystemPrompt(me, true)).toContain('leave_home');
+    expect(buildSystemPrompt(me, true)).toContain('spawner');
   });
 
   it('parses strict index replies and ignores digits inside arrow prose', () => {
@@ -178,10 +180,10 @@ describe('byokBot parsing', () => {
     expect(prompt).toContain('[0]');
     expect(prompt).toContain('{"move":N');
     expect(prompt).toContain('tipDist=');
-    expect(prompt).toContain('Open trailLen=');
+    expect(prompt).toMatch(/shares|spawner shares/i);
     expect(buildSystemPrompt(seat, true)).toContain(`seat ${String(seat)}`);
     expect(buildSystemPrompt(seat, true)).toContain('{"move":N');
-    expect(buildSystemPrompt(seat, true)).toContain('closes');
+    expect(buildSystemPrompt(seat, true)).toContain('leave_home');
     const snap = snapshotForPrompt(geometry, state, seat);
     expect(typeof snap).toBe('object');
     expect(snap).not.toBeNull();
