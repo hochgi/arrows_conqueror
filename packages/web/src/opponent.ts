@@ -10,6 +10,13 @@
  *   3. **Tempo / pairs** (§3): prefer `speed(2)` shapes; avoid freezing a lone tip.
  *   4. **Harass**: cut enemy trail, take favorable contact fights.
  *
+ * 2026-08 heuristic pass:
+ *   - Explicit closing / cutting detectors with large reliable bonuses so the
+ *     bot stops wandering when a close or cut is available.
+ *   - Stricter urgency: under high closeUrgency, distance-increasing steps are
+ *     heavily penalized (almost vetoed) unless they cut.
+ *   - Stronger pair bias (create / preserve size-2; punish lone tips on trail).
+ *
  * Ties break on a stable move key — never insertion order. No RNG (replayable).
  */
 
@@ -124,13 +131,15 @@ const stackShapeScore = (state: GameState, me: PlayerId, rules: RulesPort): numb
   }
   for (const [arrow, group] of state.groups) {
     if (group.owner !== me) continue;
-    if (group.heads === 2) score += 30;
+    if (group.heads === 2) score += 45;
     else if (group.heads === 1) {
-      score -= 10;
+      score -= 18;
       const canAct = group.spent < speed(1) && steppable.has(arrow);
-      if (!canAct && (state.trails.get(me)?.has(arrow) ?? false)) score -= 60;
-    } else if (group.heads === 3) score += 4;
-    else if (group.heads >= 4) score += 14;
+      const onTrail = state.trails.get(me)?.has(arrow) ?? false;
+      if (!canAct && onTrail) score -= 90;
+      else if (onTrail) score -= 35;
+    } else if (group.heads === 3) score += 6;
+    else if (group.heads >= 4) score += 18;
   }
   return score;
 };
@@ -175,7 +184,7 @@ export const evaluate = (
     domination = -state.dominationStreak * 200;
   }
 
-  // Tip pressure: how far the furthest of my groups is from a close.
+  // Tip pressure: sum of distances for groups sitting on our open trail.
   let tipPressure = 0;
   for (const [arrow, group] of state.groups) {
     if (group.owner !== me) continue;
@@ -183,7 +192,7 @@ export const evaluate = (
     tipPressure += distanceToTerritory(geometry, state, me, arrow);
   }
   const urgency = closeUrgency(trail);
-  const tipTerm = -tipPressure * (4 + Math.floor(urgency / 20));
+  const tipTerm = -tipPressure * (5 + Math.floor(urgency / 16));
 
   const shape = rules === undefined ? 0 : stackShapeScore(state, me, rules);
 
@@ -195,8 +204,8 @@ export const evaluate = (
     shares * 100 -
     enemyShares * 90 +
     // Open trail is a cut surface once long — but never so toxic we prefer idling.
-    trail * 2 -
-    enemyTrail * 6 +
+    trail * 1 -
+    enemyTrail * 8 +
     tipTerm +
     domination +
     shape
@@ -247,6 +256,30 @@ export const pruneCandidates = (moves: readonly Move[]): readonly Move[] => {
   return kept.toSorted(compareMoves);
 };
 
+/** True when a tip on open trail lands back on own territory or territory grows. */
+const isClosingMove = (
+  before: GameState,
+  after: GameState,
+  me: PlayerId,
+  move: StepMove,
+): boolean => {
+  const wasOnTrail = before.trails.get(me)?.has(move.from) ?? false;
+  if (!wasOnTrail) return false;
+  const landedHome = before.territory.get(move.exit) === me;
+  const gained = territoryOf(after, me) > territoryOf(before, me);
+  return landedHome || gained;
+};
+
+/** True when this step reduces any enemy trail size (a cut / evaporation). */
+const isCutMove = (before: GameState, after: GameState, me: PlayerId): boolean => {
+  for (const [player, set] of before.trails) {
+    if (player === me) continue;
+    const afterSize = after.trails.get(player)?.size ?? 0;
+    if (afterSize < set.size) return true;
+  }
+  return false;
+};
+
 const scoreStepExtras = (
   geometry: GeometryPort,
   before: GameState,
@@ -259,10 +292,15 @@ const scoreStepExtras = (
   if (group === undefined) return bonus;
 
   const leftBehind = group.heads - move.count;
-  if (move.count === 2) bonus += 36;
-  if (leftBehind === 2) bonus += 28;
-  if (move.count === 1 && group.heads >= 3) bonus += 12;
-  if (leftBehind === 1 && move.count >= 2) bonus -= 40;
+  // Pair bias: taking a pair or leaving a pair is tempo-correct (§3).
+  if (move.count === 2) bonus += 48;
+  if (leftBehind === 2) bonus += 40;
+  if (move.count === 1 && group.heads >= 3) bonus += 14;
+  // Leaving a singleton on open trail is usually a blunder.
+  if (leftBehind === 1 && move.count >= 2) {
+    const onTrail = before.trails.get(me)?.has(move.from) ?? false;
+    bonus -= onTrail ? 70 : 40;
+  }
 
   const dest = before.groups.get(move.exit);
   if (dest !== undefined && dest.owner !== me) {
@@ -270,28 +308,45 @@ const scoreStepExtras = (
     if (move.count < dest.heads) bonus -= 60;
   }
 
+  // Landing on / reducing enemy trail.
   for (const [player, set] of before.trails) {
     if (player === me) continue;
-    if (set.has(move.exit)) bonus += 90;
+    if (set.has(move.exit)) bonus += 110;
     const afterSize = after.trails.get(player)?.size ?? 0;
-    if (afterSize < set.size) bonus += (set.size - afterSize) * 55;
+    if (afterSize < set.size) bonus += (set.size - afterSize) * 70;
   }
 
   const urgency = closeUrgency(trailOf(before, me));
   const onOwnLand = before.territory.get(move.exit) === me;
   const trailing = before.trails.get(me)?.has(move.from) ?? false;
-  if (onOwnLand && trailing) bonus += 200 + urgency * 3;
+  if (onOwnLand && trailing) bonus += 220 + urgency * 4;
 
   const gainedTerr = territoryOf(after, me) - territoryOf(before, me);
-  if (gainedTerr > 0) bonus += 400 + urgency * 5 + gainedTerr * 30;
+  if (gainedTerr > 0) bonus += 450 + urgency * 6 + gainedTerr * 35;
+
+  // First-class close / cut: make these dominate ordinary scouting steps.
+  if (isClosingMove(before, after, me, move)) {
+    bonus += 700 + urgency * 8;
+  }
+  if (isCutMove(before, after, me)) {
+    bonus += 420 + urgency * 3;
+  }
 
   // Homeward bias along the grain.
   const d0 = distanceToTerritory(geometry, before, me, move.from);
   const d1 = distanceToTerritory(geometry, before, me, move.exit);
-  if (d1 < d0) bonus += (d0 - d1) * (25 + urgency);
-  else if (d1 > d0) {
-    if (urgency >= 36) bonus -= (d1 - d0) * (urgency + 10);
-    else bonus += 6; // early: allow scouting outward
+  if (d1 < d0) {
+    bonus += (d0 - d1) * (28 + urgency);
+  } else if (d1 > d0) {
+    if (urgency >= 36) {
+      // High urgency: extending is almost a veto unless we just cut.
+      const cut = isCutMove(before, after, me);
+      bonus -= (d1 - d0) * (urgency + (cut ? 4 : 22));
+    } else if (urgency >= 20) {
+      bonus -= (d1 - d0) * (urgency / 2);
+    } else {
+      bonus += 6; // early: allow scouting outward
+    }
   }
 
   if (territoryOf(before, me) <= 6 && leftBehind === 0 && before.territory.get(move.from) === me) {
