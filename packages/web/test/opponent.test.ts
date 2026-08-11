@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { endTurn, mintArrowId, step } from '@arrows/contracts';
-import type { Move } from '@arrows/contracts';
+import type { Move, StepMove } from '@arrows/contracts';
 import { makeMatch, makeTiling } from '@arrows/geometry-tiling';
 import { makeRules } from '@arrows/rules-core';
 import {
@@ -8,6 +8,7 @@ import {
   closeUrgency,
   distanceToTerritory,
   evaluate,
+  isClosingMove,
   playBotTurn,
   pruneCandidates,
 } from '../src/opponent';
@@ -108,5 +109,46 @@ describe('opponent', () => {
     expect(moves.some((m) => m.kind === 'step')).toBe(true);
     expect(state.activePlayer).toBe(A);
     expect(evaluate(geometry, state, B, rules)).toBeTypeOf('number');
+  });
+
+  it('picks a closing step whenever one is legal (heuristic policy)', () => {
+    const geometry = makeTiling();
+    const rules = makeRules(geometry);
+    let state = makeMatch({
+      dominationN: 5,
+      R: 7,
+      homeOffset: 5,
+      playerCount: 3,
+      spawnerSeed: 1,
+    });
+    let sawClosingChoice = false;
+    for (let i = 0; i < 60; i += 1) {
+      if (state.winner !== undefined) break;
+      const me = state.activePlayer;
+      const steps = rules
+        .legalMoves(state)
+        .filter((m): m is StepMove => m.kind === 'step');
+      const closing: StepMove[] = [];
+      for (const move of steps) {
+        let after;
+        try {
+          after = rules.apply(state, move);
+        } catch {
+          continue;
+        }
+        if (isClosingMove(state, after, me, move)) closing.push(move);
+      }
+      const pick = chooseMove(geometry, rules, state, me);
+      if (closing.length > 0) {
+        sawClosingChoice = true;
+        expect(pick.kind).toBe('step');
+        if (pick.kind !== 'step') return;
+        const afterPick = rules.apply(state, pick);
+        expect(isClosingMove(state, afterPick, me, pick)).toBe(true);
+      }
+      const turn = playBotTurn(geometry, rules, state, me);
+      state = turn.state;
+    }
+    expect(sawClosingChoice).toBe(true);
   });
 });
