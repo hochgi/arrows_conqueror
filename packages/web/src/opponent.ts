@@ -30,6 +30,7 @@ import type {
   StepMove,
 } from '@arrows/contracts';
 import { endTurn, speed } from '@arrows/contracts';
+import { bestFindingMove } from './findings';
 
 const MAX_CANDIDATES = 64;
 const MAX_MOVES_PER_TURN = 64;
@@ -374,6 +375,17 @@ export const chooseMove = (
   // Hard rule from the idle-turn autopsy: never pass while a step is legal.
   const candidates: readonly Move[] =
     steps.length > 0 ? steps : pruned.length > 0 ? pruned : offered;
+
+  if (steps.length > 0) {
+    const guided = bestFindingMove(geometry, rules, state, me);
+    if (guided !== undefined) {
+      const ok = steps.some(
+        (m) =>
+          m.from === guided.from && m.exit === guided.exit && m.count === guided.count,
+      );
+      if (ok) return guided;
+    }
+  }
 
   const first = candidates[0];
   if (first === undefined) {

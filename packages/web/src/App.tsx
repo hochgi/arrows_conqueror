@@ -128,7 +128,7 @@ export const App = (): ReactElement => {
   const [seatPlan, setSeatPlan] = useState<SeatPlan>(() => loadSeatPlan());
   const [state, setState] = useState<GameState | undefined>(undefined);
   const [log, setLog] = useState<MatchLog | undefined>(undefined);
-  const [mode, setMode] = useState<InputMode>(() => createInputMode(geometry));
+  const [mode] = useState<InputMode>(() => createInputMode(geometry));
   const [snap, setSnap] = useState<InputSnapshot>(idleSnap);
   const [viewport, setViewport] = useState<Viewport>(() => createViewport(800, 600));
   const [hover, setHover] = useState<
