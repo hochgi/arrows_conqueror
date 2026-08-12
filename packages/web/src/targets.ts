@@ -22,6 +22,7 @@ import {
   type FindingsCaps,
   DEFAULT_FINDINGS_CAPS,
 } from './findings';
+import { playLayout } from './playLayout';
 
 /** seat -> (stack arrow -> finding) */
 const locksBySeat = new Map<string, Map<string, Finding>>();
@@ -88,7 +89,7 @@ export const syncTargetLocks = (
 
   const unlocked = steppableFroms(rules, state, me).filter((from) => !next.has(String(from)));
   if (unlocked.length > 0) {
-    const findings = collectFindings(geometry, rules, state, me, caps);
+    const findings = collectFindings(geometry, rules, state, me, caps, playLayout);
     for (const from of unlocked) {
       const hit = findings.find((f) => f.from === from);
       if (hit !== undefined) next.set(String(from), hit);

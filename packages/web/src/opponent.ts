@@ -31,6 +31,7 @@ import type {
 } from '@arrows/contracts';
 import { endTurn, speed } from '@arrows/contracts';
 import { bestFindingMove } from './findings';
+import { playLayout } from './playLayout';
 
 const MAX_CANDIDATES = 64;
 const MAX_MOVES_PER_TURN = 64;
@@ -377,7 +378,14 @@ export const chooseMove = (
     steps.length > 0 ? steps : pruned.length > 0 ? pruned : offered;
 
   if (steps.length > 0) {
-    const guided = bestFindingMove(geometry, rules, state, me);
+    const guided = bestFindingMove(
+      geometry,
+      rules,
+      state,
+      me,
+      undefined,
+      playLayout,
+    );
     if (guided !== undefined) {
       const ok = steps.some(
         (m) =>

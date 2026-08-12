@@ -43,6 +43,7 @@ scheduled early in the first place.
 | P13 | Trail fire & anchors | rules | §5–6.3 | P05–P07 | **[packet doc](./packets/P13-trail-fire-anchors.md).** Halt-at-first (no kill); wipe/convert scrub trail; territory-root feeder cut; stack-grade freeze; dormant illegal |
 | P21 | Findings planner | adapter | — | P11, P15 | **[packet](./packets/P21-findings-planner.md).** Deterministic findings list; heuristic + BYOK target locks. Web only |
 | P22 | Simple trails | rules | §5–7 | P05–P07, P13 | **[packet](./packets/P22-beta-simple-trails.md).** **Landed.** No branch toll; dormant legal; no size-1 freeze; firebreak-capped paint on unanchored reconnect |
+| P23 | Intercept findings | adapter | — | P21 | **[packet](./packets/P23-intercept-findings.md).** **Ready to ship.** Timed `intercept` vs projected tip-frontier triangles; in-time gate; layout wired into heuristic + BYOK |
 | ~~P12~~ | ~~AI opponent~~ | — | — | — | **out of MVP** (hot-seat). Kept in the graph because P10 exists partly to make it cheap later |
 | P14 | Online ADR | architecture | — | ADR 0001, P10 | **[packet](./packets/P14-online-adr.md).** Cheap async multiplayer decisions (Google OIDC, S3 index, WS notify, DNS) |
 | P15 | Local BYOK LLM bot | adapter | — | P11 | **[packet](./packets/P15-byok-llm-bot.md).** Browser-only OpenAI-compatible seat; legalMoves filter; keys never leave session |
