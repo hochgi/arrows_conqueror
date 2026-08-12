@@ -215,7 +215,7 @@ export const App = (): ReactElement => {
     ): void => {
       const before = stateRef.current;
       if (before !== undefined) {
-        const burst = createEvaporationBurst(before, next, moves);
+        const burst = createEvaporationBurst(before, next, moves, Date.now(), geometry);
         if (burst !== undefined) {
           setEvaporation((prev) => pruneBursts([...prev, burst]));
         }
@@ -225,13 +225,14 @@ export const App = (): ReactElement => {
       setState(next);
       setSnap(mode.reset());
     },
-    [mode, record],
+    [geometry, mode, record],
   );
 
   // Drop finished evaporation bursts so the overlay list stays short.
   useEffect(() => {
     if (evaporation.length === 0) return;
-    const latest = evaporation[evaporation.length - 1]!;
+    const latest = evaporation[evaporation.length - 1];
+    if (latest === undefined) return;
     const wait = burstLifetimeMs(latest) + 30;
     const handle = window.setTimeout(() => {
       setEvaporation((prev) => pruneBursts(prev));

@@ -2,11 +2,18 @@
  * Trail evaporation FX — pure presentation helper (not rules-core).
  *
  * When a move shrinks any player's open trail, the lost arrows burn away from
- * the cut locus outward so the player can see the two fronts of §5 evaporation
+ * the cut locus outward so the player can see the two fronts of §6.1 evaporation
  * instead of a silent blink between frames.
  */
 
-import type { ArrowId, GameState, Move, PlayerId, StepMove } from '@arrows/contracts';
+import type {
+  ArrowId,
+  GameState,
+  GeometryPort,
+  Move,
+  PlayerId,
+  StepMove,
+} from '@arrows/contracts';
 
 export interface EvaporatingArrow {
   readonly arrow: ArrowId;
@@ -29,8 +36,10 @@ export interface EvaporationBurst {
 export const EVAPORATE_MS = 560;
 /** Extra hold so the last staggered cell finishes cleanly. */
 export const EVAPORATE_TAIL_MS = 120;
-/** Delay between successive cells along the front. */
+/** Delay between successive distance rings along the front. */
 export const EVAPORATE_STAGGER_MS = 38;
+/** Cap so a long wipe does not animate for seconds. */
+const MAX_STAGGER_MS = 420;
 
 const stepExits = (moves: readonly Move[]): ArrowId[] => {
   const out: ArrowId[] = [];
@@ -42,17 +51,67 @@ const stepExits = (moves: readonly Move[]): ArrowId[] => {
 
 const stableArrowKey = (a: ArrowId): string => String(a);
 
+/** Undirected arrow-adjacency via shared points (presentation BFS). */
+const undirectedNeighbours = (
+  geometry: GeometryPort,
+  arrow: ArrowId,
+): ArrowId[] => {
+  const out: ArrowId[] = [];
+  const seen = new Set<string>();
+  for (const point of [geometry.origin(arrow), geometry.target(arrow)]) {
+    for (const n of [
+      ...geometry.inArrows(point),
+      ...geometry.outArrows(point),
+    ]) {
+      const key = stableArrowKey(n);
+      if (seen.has(key) || key === stableArrowKey(arrow)) continue;
+      seen.add(key);
+      out.push(n);
+    }
+  }
+  return out;
+};
+
+/**
+ * Distance from `seed` over the lost-arrow subgraph (undirected). Missing
+ * arrows get a large sentinel so they sort last.
+ */
+const distancesFromCut = (
+  geometry: GeometryPort,
+  seed: ArrowId,
+  lostKeys: ReadonlySet<string>,
+): Map<string, number> => {
+  const dist = new Map<string, number>();
+  const seedKey = stableArrowKey(seed);
+  if (!lostKeys.has(seedKey)) return dist;
+  dist.set(seedKey, 0);
+  const queue: ArrowId[] = [seed];
+  for (let i = 0; i < queue.length; i += 1) {
+    const cur = queue[i];
+    if (cur === undefined) continue;
+    const d = dist.get(stableArrowKey(cur)) ?? 0;
+    for (const n of undirectedNeighbours(geometry, cur)) {
+      const nk = stableArrowKey(n);
+      if (!lostKeys.has(nk) || dist.has(nk)) continue;
+      dist.set(nk, d + 1);
+      queue.push(n);
+    }
+  }
+  return dist;
+};
+
 /**
  * Diff `before.trails` → `after.trails`. Returns undefined when nothing evaporated.
  *
- * Ordering: prefer arrows that were step exits (the cut landings), then stable
- * id order. Stagger delay grows with that order so the burn reads as a front.
+ * Ordering: BFS distance from the cut exit over the lost subgraph when
+ * `geometry` is supplied; otherwise exit-first then stable id order.
  */
 export const createEvaporationBurst = (
   before: GameState,
   after: GameState,
   moves: readonly Move[] = [],
   now = Date.now(),
+  geometry?: GeometryPort,
 ): EvaporationBurst | undefined => {
   const lost: { arrow: ArrowId; player: PlayerId }[] = [];
   for (const [player, set] of before.trails) {
@@ -64,29 +123,49 @@ export const createEvaporationBurst = (
   }
   if (lost.length === 0) return undefined;
 
-  const exits = new Set(stepExits(moves).map(stableArrowKey));
+  const exits = stepExits(moves);
+  const exitKeys = new Set(exits.map(stableArrowKey));
   const cutArrow =
-    stepExits(moves).find((exit) =>
+    exits.find((exit) =>
       lost.some((l) => stableArrowKey(l.arrow) === stableArrowKey(exit)),
-    ) ?? stepExits(moves)[stepExits(moves).length - 1];
+    ) ?? exits[exits.length - 1];
+
+  const lostKeys = new Set(lost.map((l) => stableArrowKey(l.arrow)));
+  const byDist =
+    geometry !== undefined && cutArrow !== undefined
+      ? distancesFromCut(geometry, cutArrow, lostKeys)
+      : undefined;
 
   lost.sort((a, b) => {
-    const aCut = exits.has(stableArrowKey(a.arrow)) ? 0 : 1;
-    const bCut = exits.has(stableArrowKey(b.arrow)) ? 0 : 1;
-    if (aCut !== bCut) return aCut - bCut;
+    if (byDist !== undefined) {
+      const da = byDist.get(stableArrowKey(a.arrow)) ?? 9999;
+      const db = byDist.get(stableArrowKey(b.arrow)) ?? 9999;
+      if (da !== db) return da - db;
+    } else {
+      const aCut = exitKeys.has(stableArrowKey(a.arrow)) ? 0 : 1;
+      const bCut = exitKeys.has(stableArrowKey(b.arrow)) ? 0 : 1;
+      if (aCut !== bCut) return aCut - bCut;
+    }
     const ka = stableArrowKey(a.arrow);
     const kb = stableArrowKey(b.arrow);
     if (ka !== kb) return ka < kb ? -1 : 1;
     return String(a.player) < String(b.player) ? -1 : String(a.player) > String(b.player) ? 1 : 0;
   });
 
-  const arrows: EvaporatingArrow[] = lost.map((item, i) => ({
-    arrow: item.arrow,
-    player: item.player,
-    delayMs: Math.min(i * EVAPORATE_STAGGER_MS, 420),
-  }));
+  const arrows: EvaporatingArrow[] = lost.map((item, i) => {
+    const ring =
+      byDist?.get(stableArrowKey(item.arrow)) ??
+      (exitKeys.has(stableArrowKey(item.arrow)) ? 0 : i);
+    return {
+      arrow: item.arrow,
+      player: item.player,
+      delayMs: Math.min(ring * EVAPORATE_STAGGER_MS, MAX_STAGGER_MS),
+    };
+  });
 
-  const id = `evap-${String(now)}-${String(lost.length)}-${stableArrowKey(lost[0]!.arrow)}`;
+  const first = lost[0];
+  if (first === undefined) return undefined;
+  const id = `evap-${String(now)}-${String(lost.length)}-${stableArrowKey(first.arrow)}`;
   return {
     id,
     cutArrow,
