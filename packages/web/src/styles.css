@@ -628,3 +628,71 @@ body,
   border-top: 1px solid var(--line);
   color: var(--muted);
 }
+
+/* ── trail evaporation (cut FX) ───────────────────────────────────────────────
+   Lost trail cells burn from the cut locus outward. Presentation only. */
+
+@keyframes trail-evaporate-burn {
+  0% {
+    fill-opacity: 0.72;
+    stroke-opacity: 0.95;
+  }
+  35% {
+    fill-opacity: 0.55;
+    stroke-opacity: 1;
+  }
+  100% {
+    fill-opacity: 0;
+    stroke-opacity: 0;
+  }
+}
+
+@keyframes trail-evaporate-line {
+  0% {
+    stroke-opacity: 0.95;
+    stroke-width: 1;
+  }
+  40% {
+    stroke-opacity: 1;
+  }
+  100% {
+    stroke-opacity: 0;
+  }
+}
+
+@keyframes cut-spark {
+  0% {
+    fill-opacity: 0;
+    stroke-opacity: 0;
+    transform: scale(0.55);
+  }
+  18% {
+    fill-opacity: 0.85;
+    stroke-opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    fill-opacity: 0;
+    stroke-opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+.trail-evaporate-fill {
+  animation: trail-evaporate-burn 0.56s ease-out forwards;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.trail-evaporate-line {
+  animation: trail-evaporate-line 0.56s ease-out forwards;
+  pointer-events: none;
+}
+
+.cut-spark {
+  animation: cut-spark 0.48s ease-out forwards;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+}
