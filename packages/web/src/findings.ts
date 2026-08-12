@@ -68,6 +68,21 @@ const territoryOf = (state: GameState, player: PlayerId): number => {
   return n;
 };
 
+/** Spawner-border arrows already owned as territory (true shares). */
+const shareCountOf = (
+  geometry: GeometryPort,
+  state: GameState,
+  player: PlayerId,
+): number => {
+  let n = 0;
+  for (const vertex of state.spawners.keys()) {
+    for (const arrow of geometry.borderArrows(vertex)) {
+      if (state.territory.get(arrow) === player) n += 1;
+    }
+  }
+  return n;
+};
+
 const isClosingMove = (
   before: GameState,
   after: GameState,
@@ -241,22 +256,20 @@ export const collectFindings = (
         move,
       });
     }
-    if (state.territory.get(move.exit) === undefined) {
-      for (const share of openShares) {
-        if (share === move.exit) {
-          const cost = 1;
-          const reward = 100;
-          push({
-            kind: 'claim_share',
-            from: move.from,
-            goal: share,
-            cost,
-            reward,
-            score: scoreOf(reward, cost),
-            move,
-          });
-        }
-      }
+    // Visiting an unclaimed spawner border is not a claim — only a close that
+    // raises share count is. False claim_share bait milled tips on pinwheels.
+    if (shareCountOf(geometry, after, me) > shareCountOf(geometry, state, me)) {
+      const cost = 1;
+      const reward = 100;
+      push({
+        kind: 'claim_share',
+        from: move.from,
+        goal: move.exit,
+        cost,
+        reward,
+        score: scoreOf(reward, cost),
+        move,
+      });
     }
   }
 
@@ -265,6 +278,9 @@ export const collectFindings = (
   )) {
     const from = moves[0]?.from;
     if (from === undefined) continue;
+    // Already on an open share: hopping to a sibling border is a pinwheel mill,
+    // not progress. Closing / evaluate homeward owns the next decision.
+    if (openShares.some((s) => s === from)) continue;
     const group = state.groups.get(from);
     const heads = group?.heads ?? 1;
     const nearestGoals = openShares
@@ -272,7 +288,7 @@ export const collectFindings = (
         goal,
         d: grainDistance(geometry, from, goal, caps.distCap),
       }))
-      .filter((g) => g.d <= caps.distCap)
+      .filter((g) => g.d > 0 && g.d <= caps.distCap)
       .toSorted((a, b) =>
         a.d !== b.d ? a.d - b.d : String(a.goal) < String(b.goal) ? -1 : 1,
       )

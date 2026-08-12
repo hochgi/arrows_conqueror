@@ -70,4 +70,37 @@ describe('findings planner', () => {
     expect(hasStep).toBe(true);
     expect(chooseMove(geometry, rules, state, B).kind).toBe('step');
   });
+
+  it('does not emit claim_share for visiting an unclaimed border without gaining shares', () => {
+    const geometry = makeTiling();
+    const rules = makeRules(geometry);
+    const opening = makeMatch({
+      dominationN: 5,
+      R: 7,
+      homeOffset: 5,
+      playerCount: 3,
+      spawnerSeed: 1,
+    });
+    const B = opening.players[1];
+    expect(B).toBeDefined();
+    if (B === undefined) return;
+    const state = rules.apply(opening, { kind: 'endTurn' });
+    const findings = collectFindings(geometry, rules, state, B, {
+      maxFindings: 32,
+      distCap: 12,
+    });
+    for (const f of findings) {
+      if (f.kind !== 'claim_share') continue;
+      const after = rules.apply(state, f.move);
+      let beforeShares = 0;
+      let afterShares = 0;
+      for (const vertex of state.spawners.keys()) {
+        for (const arrow of geometry.borderArrows(vertex)) {
+          if (state.territory.get(arrow) === B) beforeShares += 1;
+          if (after.territory.get(arrow) === B) afterShares += 1;
+        }
+      }
+      expect(afterShares).toBeGreaterThan(beforeShares);
+    }
+  });
 });
