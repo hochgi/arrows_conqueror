@@ -38,7 +38,7 @@ const phaseHint = (
     case 'source':
       return 'Hover blue to pulse the path · click to send · fainter = further';
     case 'blocked':
-      return 'Branch toll — this stack cannot leave. Another gold stack is auto-selected when one finishes';
+      return 'This stack has nowhere to go. Another gold stack is auto-selected when one finishes';
     case 'portion':
       return 'Pulsing path = the route for this portion · change the slider or cancel and re-click';
   }
@@ -98,10 +98,9 @@ export const Hud = ({
       <p className="help">
         Drag to pan · pinch or wheel to zoom · gold outline = movable this turn
         (auto-selects and pans to the next after you finish or skip one) · selected
-        stack pulses · blue = reachable · red = branch toll · amber = singleton
-        merge onto own trail · fade with distance · hover a reach tile to pulse
-        the path · bold tile edge = occupied · trail chords stay visible under
-        enemy stacks (overlap is legal until a cut) · solid fill = territory,
+        stack pulses · blue = reachable · fade with distance · hover a reach tile
+        to pulse the path · bold tile edge = occupied · trail chords stay visible
+        under enemy stacks (overlap is legal until a cut) · solid fill = territory,
         thin fill = open trail · turn passes when nothing can step · pan stays
         live while an LLM seat thinks
       </p>

@@ -67,6 +67,31 @@ describe('reach', () => {
     }
   });
 
+  it('marks no branch toll when vacating a join (P22)', () => {
+    // P22: free branching — reach must not paint toll red for a whole-stack join vacate.
+    const opening = makeMatch();
+    const owner = opening.activePlayer;
+    const seed = geometry.seedPoint();
+    const ins = geometry.inArrows(seed);
+    const outs = geometry.outArrows(seed);
+    const arriving = ins[1];
+    const already = ins[0];
+    const exit = outs[0];
+    if (arriving === undefined || already === undefined || exit === undefined) {
+      throw new Error('setup: seed point missing slots');
+    }
+    const state: GameState = {
+      ...opening,
+      groups: new Map([[arriving, { owner, heads: 2, spent: 0 }]]),
+      trails: new Map([[owner, new Set([already, arriving])]]),
+      territory: new Map(),
+    };
+    const reach = reachFrom(geometry, rules, state, arriving);
+    for (const entry of reach.values()) {
+      expect(entry.paysBranchToll).toBe(false);
+    }
+  });
+
   it('plans one step per arrow crossed, from the source onward', () => {
     const { state, from } = soloStack(8);
     const reach = reachFrom(geometry, rules, state, from);

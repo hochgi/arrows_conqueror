@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ContractViolation, step } from '@arrows/contracts';
+import { step } from '@arrows/contracts';
 import { makeRules } from '../src/index';
 import {
   A,
@@ -221,7 +221,7 @@ describe('a closure is refused for the same reasons any step is', () => {
     expect(territoryOf(before, arrowAt(run, 0))).toBeUndefined();
   });
 
-  it('refuses a closure that would strip a branch anchor', () => {
+  it('permits a closure that vacates a branch strand (P22 — no toll)', () => {
     const table = onTiling();
     const { home, run } = aRunFromHome(table.geometry, 2);
     const stem = arrowAt(run, 0);
@@ -232,15 +232,17 @@ describe('a closure is refused for the same reasons any step is', () => {
       0,
     );
     const landing = anExitFrom(table.geometry, armX);
-    // Only head is on armX — landing would leave the fork unpaid (§5 / §11 item 35).
     const before = stateOf([{ arrow: armX, owner: A, heads: 1 }], A, {
       trail: { A: [stem, armX, armY] },
       territory: owned([home, landing], A),
     });
 
-    expect(() => table.rules.apply(before, step(armX, landing, 1))).toThrow(
-      ContractViolation,
-    );
+    const after = table.rules.apply(before, step(armX, landing, 1));
+
+    expect(territoryOf(after, stem)).toBe(A);
+    expect(territoryOf(after, armX)).toBe(A);
+    // armY was not on the claim walk from armX against the grain — remains trail.
+    expect(isTrail(after, A, armY) || territoryOf(after, armY) === A).toBe(true);
   });
 });
 

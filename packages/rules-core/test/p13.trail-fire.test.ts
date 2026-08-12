@@ -1,5 +1,6 @@
 /**
- * P12 additions: wipe ⇒ evaporate, territory-root cut, stack-grade freeze.
+ * P12/P13 additions: wipe ⇒ evaporate, territory-root cut.
+ * P22: size-1 stack-grade freeze removed — sole tips may vacate.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -42,8 +43,8 @@ describe('wipe starts evaporation (P12)', () => {
   });
 });
 
-describe('stack-grade freeze (P12)', () => {
-  it('offers no step that fully vacates a lone size-1 stack-grade tip', () => {
+describe('no stack-grade freeze (P22)', () => {
+  it('offers a step that fully vacates a lone size-1 stack-grade tip', () => {
     const table = onBoard();
     const tip = pick(table.geometry.outArrows(table.geometry.seedPoint()), 0);
     const next = anExitFrom(table.geometry, tip);
@@ -53,10 +54,11 @@ describe('stack-grade freeze (P12)', () => {
     expect(table.rules.anchorGrade(before, tip, A)).toBe('stack');
 
     const steps = table.rules.legalMoves(before).filter((m) => m.kind === 'step' && m.from === tip);
-    expect(steps.length).toBe(0);
+    expect(steps.some((m) => m.kind === 'step' && m.count === 1)).toBe(true);
   });
 
-  it('allows a size-2 stack-grade tip to leave one head behind', () => {
+  it('allows a size-2 stack-grade tip to leave with the whole stack', () => {
+    // P22: no freeze — size-2 may vacate fully as well as leave one behind.
     const table = onBoard();
     const tip = pick(table.geometry.outArrows(table.geometry.seedPoint()), 0);
     const next = anExitFrom(table.geometry, tip);
@@ -69,7 +71,7 @@ describe('stack-grade freeze (P12)', () => {
       .legalMoves(before)
       .filter((m) => m.kind === 'step' && m.from === tip);
     expect(steps.some((m) => m.kind === 'step' && m.count === 1)).toBe(true);
-    expect(steps.every((m) => m.kind !== 'step' || m.count < 2)).toBe(true);
+    expect(steps.some((m) => m.kind === 'step' && m.count === 2)).toBe(true);
   });
 });
 

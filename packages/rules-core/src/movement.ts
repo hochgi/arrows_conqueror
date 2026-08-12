@@ -73,9 +73,8 @@ const asGroup = (
  * tiling (P03) satisfy the same rules unchanged.
  */
 export const makeRules = (geometry: GeometryPort): RulesPort => {
-  // P05's half of the port: what a step marks, what a branch costs, and who
-  // crossed whom. Movement asks it two questions — `requireBranchAnchors` before a
-  // step is written and `markStep` as it is — and exposes the rest unchanged.
+  // P05's half of the port: what a step marks and who crossed whom. Movement asks
+  // `markStep` as a step is written and exposes the rest unchanged. (P22: no branch toll.)
   const trails = makeTrailRules(geometry);
   // P05b's half: what a landing claims, and what the claimed ground rings.
   const closure = makeClosureRules(geometry);
@@ -195,18 +194,13 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
 
   /**
    * A step: occupancy (ordinary or contact combat), then the mark it leaves,
-   * then cut evaporation, then closure.
-   *
-   * The branch mandate is asked **before** anything is written, against the trail
-   * the move would leave (§5, P05 D6) — an illegal move is never a plausible no-op
-   * (P04 D2), so a step that cannot pay for a branch must not have moved anything.
+   * then cut evaporation, then closure, then conversion.
    *
    * P06 D6: combat (when contact) first, then cut against the trail set, then
    * closure. `evaporate` / `commit` are no-ops when the step is neither.
    */
   const applyStep = (state: GameState, move: StepMove): GameState => {
     const movers = moversFor(state, move);
-    trails.requireBranchAnchors(state, move, movers.owner);
     const groups = new Map(state.groups);
     const standing = state.groups.get(move.exit);
     const contact =
@@ -260,12 +254,9 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     }
 
     const afterClosure = closure.commit(afterCut, move, movers.owner);
-    const afterConvert = convertEncircled(afterClosure, trails.anchorGrade, cuts);
-    // Claims punch holes in enemy trails; scrub only then (every-step scrub would
-    // erase legal headless overlap on a single arrow before a cut ever fires).
-    const cleaned =
-      afterClosure !== afterCut ? cuts.scrubDormantTrails(afterConvert) : afterConvert;
-    return applyElimination(cleaned);
+    // P22: dormant marks stay — convert strips converted arrows only; no scrub.
+    const afterConvert = convertEncircled(afterClosure, trails.anchorGrade);
+    return applyElimination(afterConvert);
   };
 
   /**
@@ -340,64 +331,18 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
    * exhaustion restricts the offer rather than advancing the player behind their
    * back.
    *
-   * A portion that would leave a branch of the mover's own trail unpaid is withheld
-   * (§5, P05 D6). The port promises that anything it names, `apply` accepts, so the
-   * mandate has to be read here and not only there — otherwise a player following
-   * the engine's own advice gets refused, and a replay could record a move the rules
-   * reject. A group with allowance whose every step is withheld still offers its
-   * `skip`: §5 leaves such a head standing, immobile until reinforced, and declining
-   * is always legal (§6.2).
+   * P22: branching is free and a sole stack-grade tip may vacate — no toll filter,
+   * no size-1 freeze.
    */
-  /**
-   * Other heads of `owner` on the same trail component as `from` (excluding `from`).
-   */
-  const otherHeadsOnComponent = (
-    state: GameState,
-    from: ArrowId,
-    owner: PlayerId,
-  ): boolean => {
-    const trail = state.trails.get(owner);
-    if (trail === undefined || !trail.has(from)) return false;
-    const seen = new Set<ArrowId>([from]);
-    const pending: ArrowId[] = [from];
-    for (let here = pending.pop(); here !== undefined; here = pending.pop()) {
-      for (const point of [geometry.origin(here), geometry.target(here)]) {
-        for (const next of [...geometry.inArrows(point), ...geometry.outArrows(point)]) {
-          if (!trail.has(next) || seen.has(next)) continue;
-          seen.add(next);
-          if (next !== from && state.groups.get(next)?.owner === owner) return true;
-          pending.push(next);
-        }
-      }
-    }
-    return false;
-  };
-
   const legalMoves = (state: GameState): readonly Move[] => {
     const moves: Move[] = [];
     for (const [arrow, group] of movable(state)) {
       for (const exit of exitsFrom(arrow)) {
         const standing = state.groups.get(exit);
         const isAttack = standing !== undefined && standing.owner !== group.owner;
-        let maxCount = isAttack ? group.heads - 1 : group.heads;
-        // P12 freeze: cannot fully vacate the sole stack on a stack-grade fragment.
-        const onTrail = state.trails.get(group.owner)?.has(arrow) === true;
-        if (onTrail && maxCount === group.heads) {
-          try {
-            if (
-              trails.anchorGrade(state, arrow, group.owner) === 'stack' &&
-              !otherHeadsOnComponent(state, arrow, group.owner)
-            ) {
-              maxCount = group.heads - 1;
-            }
-          } catch {
-            // not on trail — ignore
-          }
-        }
+        const maxCount = isAttack ? group.heads - 1 : group.heads;
         for (let count = 1; count <= maxCount; count += 1) {
-          const candidate = step(arrow, exit, count);
-          if (trails.unpaidBranch(state, candidate, group.owner) !== undefined) continue;
-          moves.push(candidate);
+          moves.push(step(arrow, exit, count));
         }
       }
       moves.push(skip(arrow));

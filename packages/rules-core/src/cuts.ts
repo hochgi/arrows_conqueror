@@ -3,7 +3,7 @@
  *
  * SPEC §6.1: fronts destroy trail until they would enter an occupied arrow;
  * that arrow and its stack survive. No kills. Territory is a wall. Orphan
- * dormant components are scrubbed. Wipe and territory-root cuts share
+ * dormant components stand (P22 — no scrub). Wipe and territory-root cuts share
  * `evaporateFrom`.
  *
  * @see docs/spec/cuts/cuts.md
@@ -49,12 +49,6 @@ export interface CutRules {
     victim: PlayerId,
     emptied: ArrowId,
   ) => GameState;
-
-  /**
-   * Drop every dormant trail component for every player (P13).
-   * Used after claims punch holes in enemy trails.
-   */
-  readonly scrubDormantTrails: (state: GameState) => GameState;
 
   /**
    * After `mover` marked `marked`, if that was the last clean territory feeder
@@ -111,62 +105,6 @@ export const makeCutRules = (geometry: GeometryPort): CutRules => {
     );
   };
 
-  /** Does this trail arrow's component reach owner territory or an owner stack? */
-  const componentAnchored = (
-    state: GameState,
-    groups: ReadonlyMap<ArrowId, Group>,
-    trail: ReadonlySet<ArrowId>,
-    start: ArrowId,
-    owner: PlayerId,
-  ): boolean => {
-    const seen = new Set<ArrowId>([start]);
-    const pending: ArrowId[] = [start];
-    for (let here = pending.pop(); here !== undefined; here = pending.pop()) {
-      if (state.territory.get(here) === owner) return true;
-      const behind = geometry.origin(here);
-      if (geometry.inArrows(behind).some((a) => state.territory.get(a) === owner)) {
-        return true;
-      }
-      if (groups.get(here)?.owner === owner) return true;
-      for (const point of [behind, geometry.target(here)]) {
-        for (const next of [...geometry.inArrows(point), ...geometry.outArrows(point)]) {
-          if (!trail.has(next) || seen.has(next)) continue;
-          seen.add(next);
-          pending.push(next);
-        }
-      }
-    }
-    return false;
-  };
-
-  /** Drop every trail arrow whose component is dormant. */
-  const scrubDormant = (
-    state: GameState,
-    groups: Map<ArrowId, Group>,
-    trail: Set<ArrowId>,
-    owner: PlayerId,
-  ): void => {
-    const doomed = new Set<ArrowId>();
-    for (const arrow of [...trail].toSorted(compareArrows)) {
-      if (doomed.has(arrow)) continue;
-      if (componentAnchored(state, groups, trail, arrow, owner)) continue;
-      // Collect the whole unanchored component.
-      const seen = new Set<ArrowId>([arrow]);
-      const pending: ArrowId[] = [arrow];
-      for (let here = pending.pop(); here !== undefined; here = pending.pop()) {
-        doomed.add(here);
-        for (const point of [geometry.origin(here), geometry.target(here)]) {
-          for (const next of [...geometry.inArrows(point), ...geometry.outArrows(point)]) {
-            if (!trail.has(next) || seen.has(next)) continue;
-            seen.add(next);
-            pending.push(next);
-          }
-        }
-      }
-    }
-    for (const arrow of doomed) trail.delete(arrow);
-  };
-
   const runFronts = (
     state: GameState,
     victim: PlayerId,
@@ -202,8 +140,6 @@ export const makeCutRules = (geometry: GeometryPort): CutRules => {
         queue.push({ arrow: next, direction });
       }
     }
-
-    scrubDormant(state, groups, trail, victim);
   };
 
   const evaporateAtPoint = (
@@ -254,10 +190,7 @@ export const makeCutRules = (geometry: GeometryPort): CutRules => {
     emptied: ArrowId,
   ): GameState =>
     withTrailUpdate(state, victim, (groups, trail) => {
-      if (!trail.has(emptied)) {
-        scrubDormant(state, groups, trail, victim);
-        return;
-      }
+      if (!trail.has(emptied)) return;
       // Empty arrow cannot be a firebreak — destroy it and fan both ways.
       const seed: Front[] = [];
       for (const next of continuations(emptied, 'forward', trail)) {
@@ -322,28 +255,10 @@ export const makeCutRules = (geometry: GeometryPort): CutRules => {
     return evaporateFrom(state, owner, p0);
   };
 
-  const scrubDormantTrails = (state: GameState): GameState => {
-    let next = state;
-    for (const player of state.players) {
-      const current = next.trails.get(player);
-      if (current === undefined || current.size === 0) continue;
-      const groups = new Map(next.groups);
-      const working = new Set(current);
-      scrubDormant(next, groups, working, player);
-      if (working.size === current.size) continue;
-      const trails = new Map(next.trails);
-      if (working.size === 0) trails.delete(player);
-      else trails.set(player, canonical([...working]));
-      next = { ...next, trails };
-    }
-    return next;
-  };
-
   return {
     evaporate,
     evaporateFrom,
     evaporateFromArrow,
-    scrubDormantTrails,
     territoryRootCuts,
   };
 };

@@ -1,7 +1,10 @@
 # language: en
 # Overview: docs/spec/trails/trails.md
-# SPEC §5 (safety rule, sentries, branching costs an anchor), §6.1a (trail is a set),
+# SPEC §5 (safety rule, sentries), §6.1a (trail is a set),
 # §6.1 (the two grades of anchor), §11 items 21–24, 27
+#
+# ARCHIVE NOTE (P22): Branch-toll / size-1-freeze scenarios below are historical.
+# Live branching/dormant rules: docs/spec/trails-simple/. Tests assert P22.
 
 Feature: Trails, sentries and the anchor a branch costs
   As a player advancing heads off my own ground

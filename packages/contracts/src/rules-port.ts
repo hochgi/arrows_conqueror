@@ -33,8 +33,9 @@ import type { Move } from './move';
  *   but lesser: drivable home for a **land bridge**, encloses nothing, and does not
  *   save a head from conversion. Without this distinction a parked stack would be a
  *   founding site, which §7 forbids outright.
- * - `dormant` — reaches neither. A headless wall: claims nothing, charges nothing,
- *   and a head walking onto it later puts it back to work (§6.1a).
+ * - `dormant` — reaches neither. **Legal standing grade under P22:** headless marks
+ *   persist until cut+evaporate or friendly re-attach; claims nothing, and a head
+ *   walking onto them later puts the stretch back to work (§6.1 / §6.1a).
  */
 export type AnchorGrade = 'territory' | 'stack' | 'dormant';
 

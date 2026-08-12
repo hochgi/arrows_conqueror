@@ -176,7 +176,7 @@ The mirror swaps handedness, which is harmless precisely because §2's alternati
 - A player's units are **heads**.
 - Heads on the same tile may **merge** into a **stack**.
 - **Stack size is lives.** A 3-stack is literally three heads standing together. There is no separate HP stat — a stack that loses one becomes a 2-stack.
-- **Splitting is unmerging.** A stack may shed heads freely (see §5, sentries). The rules impose no minimum except the anchor a branch costs.
+- **Splitting is unmerging.** A stack may shed heads freely (see §5, sentries). The rules impose no minimum — branching is free under P22 beta (§5, §11 item 35).
 - **Merging is free and automatic.** Two of your heads ending a move on the same arrow merge. No action cost, no declaration.
 
 Both directions are free, deliberately. Spawners produce **dispersion** — heads arrive one at a time on different arrows (§7) — so concentration is already the work the player is doing. Taxing the merge would tax the exact play the economy forces on you.
@@ -324,27 +324,13 @@ A **sentry** is therefore not a kind of unit. It is the name for heads you chose
 
 This is the third leg of the tension: every head left behind makes the chain safer and the far end slower and weaker. Greed, speed and safety trade against each other in a decision made repeatedly along the way — and because the portion is just a number on the move, that decision is available at *every* step rather than at authored moments.
 
-### Branching costs an anchor
+### Branching is free (P22 beta)
 
-**Linear trail carries no heads.** A tip walks, marking arrows behind it, and leaves nothing. (Behind it *including the one under it*: a step marks its **destination**, so the arrow a head stands on is trail and the ground it departed is not. §6.1 depends on that — a front halts when it meets a head "on the arrow it is entering", which requires the occupied arrow to be part of the trail — and so does the safety rule two paragraphs up, since the first step off your own territory must not mark the territory it left.) The trail is a mark on the board, not a chain of garrisons — every sentry above is a head you *chose* to leave. There is exactly one place the rules require one.
+**Linear trail carries no heads.** A tip walks, marking arrows behind it, and leaves nothing. (Behind it *including the one under it*: a step marks its **destination**, so the arrow a head stands on is trail and the ground it departed is not. §6.1 depends on that — a front halts when it meets a head "on the arrow it is entering", which requires the occupied arrow to be part of the trail — and so does the safety rule two paragraphs up, since the first step off your own territory must not mark the territory it left.) The trail is a mark on the board, not a chain of garrisons — every sentry above is a head you *chose* to leave.
 
-That place is **branching**. A trail that joins or splits is no longer one trail: it is several **mini-trails** meeting at a point, and each of them needs its own anchored end.
+~~**Branching costs an anchor**~~ — **withdrawn by P22 beta.** Joins, splits, and crossovers are **free and unlimited**. A lone head may branch. No move is refused for unpaid branch toll. Sentries remain discretionary firebreaks against cuts (§6.1); the rules require none.
 
-> **A move that gives a point a second trail in-arrow must leave at least one head on the in-arrow it arrived by. A move that gives a point a second trail out-arrow must leave at least one head on the out-arrow it departed onto.**
-
-One head before a join, one head after a split. A **crossover** — a point your own trail already runs through — is a join followed by a split (§6.1a), so it costs both: one before, one after.
-
-**One head per branch, and the rules never ask which strand holds it.** "The in-arrow it arrived by" and "the out-arrow it departed onto" name the move that created the branch, and a trail is a set that records no such thing (§6.1a) — a moment later the arm a split created is indistinguishable from the arm already there. So the standing form of the rule is: **a join must keep at least one of your heads somewhere among its in-arrows, a split at least one among its out-arrows, and no move may take the last one.** A sibling arm covers the whole junction, which is what makes the price list in §6.1 the price rather than a per-arm floor (§11 item 35). Because only the branches the departing arrow itself belongs to are ever checked, a branch damage emptied constrains nothing later — the next paragraph but one.
-
-**Territory-rooted forks do not pay the toll.** When the branch point is a live **territory root** (§6.1) — at least one of your territory in-arrows feeds the point and is not on an enemy trail — that feeder already anchors every arm leaving it. Mid-trail joins and splits still cost a head; a second exit off home does not. That is the same reading as "leaving a trail bare from home to tip is still legal" applied to a fork: both arms are territory-anchored, so neither needs a parked head to stay mobile.
-
-**A lone head therefore cannot branch** mid-trail. It pays its only head and stops there, becoming the anchor rather than passing through. That is not a clause written for singles; it is a bill a single cannot afford. It is also the whole answer to *"what if the tip is too small to pay?"* — too small to pay and unable to act are the same state, and it is a state the rules already handle: the head stays, immobile, until reinforced or captured.
-
-**The anchor is a toll, not a wall.** A front halts at the first occupied arrow (§6.1), so a single branch-toll head *is* a firebreak against cuts. What the toll buys is the price of branching — and, with halt-at-first, that same head also stops evaporation. A player who wants the junction to survive *combat* still leaves more.
-
-**This constrains what you may leave, not what may exist after damage — but P12 no longer leaves dormant trail standing.** A cut or wipe that would orphan an unanchored component evaporates that remnant. Branch tolls still only constrain deliberate moves.
-
-> An earlier draft set the floor at *"one head per open side"* — two mid-trail, on the argument that two is the smallest garrison that halts a front. **The arithmetic was right and the rule was fatal.** It read the arrow you were *vacating*, so leaving zero counted as leaving fewer than two, and no group could ever fully step off a mid-trail arrow: a 2-stack could not move at all, and an N-stack shed two heads per arrow of trail it laid. It also contradicted the tension two paragraphs above — a garrison is meant to be a *choice*, and that rule made it a tax.
+> An earlier draft set the floor at *"one head per open side"* — two mid-trail. **Fatal.** Then P05–P13 charged **one head per branch** (join + split; §11 item 35). Playtests showed that toll freezes tips players and bots cannot read. **P22 beta removes the toll** so the garrison choice stays a choice. May revert after playtest — see packet P22.
 
 ### Reading the board
 
@@ -375,8 +361,8 @@ So **any garrison is a firebreak.** Sentry *size* matters for contact combat, no
 - **A front halts per arrow, not per point.** It stops when it would enter an arrow that holds the victim's heads. A head does *not* shield the point ahead of it against evaporation — that range belongs to combat (§6.2), and the two jobs sit on different axes.
 - **Territory is a wall.** Backward evaporation reaching your own closed ground stops there and costs nothing. There is nothing to destroy and nothing to charge (§5).
 - **A stack is an anchor.** Trail beyond a halting stack is anchored *on that stack* — live. It can be extended, defended, and driven home.
-- **Unanchored trail is illegal.** A trail component must reach a **territory root** (below) or carry at least one of the owner's stacks. Dormant headless stretch is not a standing state (P12; item 8 re-resolved).
-- **Stack-grade salvage.** After a cut demotes a fragment: a stack of size ≥ 2 may leave at least one head and walk the rest toward friendly ground; a **size-1** stack-grade tip that cannot leave without creating an unanchored trail is **frozen** until merge-in or conversion.
+- **Unanchored (dormant) trail is legal (P22 beta).** A trail component that reaches neither a territory root nor any of the owner's stacks **stands as marked trail** until a friendly head re-attaches or an enemy cut evaporates it. No decay. Headless territory-anchored stretch remains ordinary wall.
+- ~~**Stack-grade size-1 freeze**~~ — **withdrawn by P22 beta.** A sole tip may vacate its arrow; if nothing remains on the component, the marks stay dormant.
 - A stranded stack **fights its way home** when it can still step. Because the graph is strongly connected (§2), it does this by looping forward around the grain rather than reversing, laying fresh cuttable trail the entire way.
 
 **Territory-root cut.** A trail that first leaves point `P0` (an out-arrow of `P0` in the owner's trail) is territory-anchored while at least one **in-arrow of `P0` that is the owner's territory** is **not** present in any enemy trail. When an enemy step marks the **last** such feeder, that step **is a cut** of the owner's trail at `P0` — evaporation runs from `P0` under the halt rule above.
@@ -391,21 +377,21 @@ Four properties fall out of this:
 
 **A cut destroys one region, and you choose how big a region is.** Heads standing on a trail partition it into regions, and evaporation runs from the cut in both directions until it would enter an occupied arrow, or meets territory. Everything between those boundaries is lost as trail; garrisons and everything beyond them are untouched. So a player sets the price of being cut by choosing how far apart to place sentries — *region length*, legible at a glance (§5).
 
-**Any sentry is a firebreak.** One head stops the front; a larger stack is for combat, not for surviving the cut. The only heads the rules *require* remain the branch tolls (§5). Leaving a trail bare from home to tip is still legal and means one cut takes the whole stretch between territory and tip.
+**Any sentry is a firebreak.** One head stops the front; a larger stack is for combat, not for surviving the cut. The rules *require* no heads (§5 / P22). Leaving a trail bare from home to tip is legal and means one cut takes the whole stretch between territory and tip.
 
 **Cut depth is still everything, by a better mechanism.** A deep cut no longer destroys heads; it **demotes** more. Take out the region touching the victim's territory and everything beyond survives — sentries intact, territory anchor gone — dropped to stack grade. Attackers are still drawn toward the victim's own border.
 
 **Prying a firebreak open takes combat, not a second cut.** A cut stops at the first garrison forever. Removing that garrison is contact combat (§6.2); a wipe then evaporates trail from the emptied arrow. Dismantling a garrisoned trail is a siege of fights, not a sequence of lucky crossings.
 
-**Forks are ordinary trail, but branching is not free.** A fork is one arrow with two trail arrows leaving it; nothing about its *behaviour* is privileged. A cut behind it floods into both branches until each arm's garrison. What it costs is the anchor §5 charges to create it — one head per join, one per split, two at a crossover (§11 item 35).
+**Forks are ordinary trail, and branching is free (P22).** A fork is one arrow with two trail arrows leaving it; nothing about its *behaviour* is privileged. A cut behind it floods into both branches until each arm's garrison. ~~What it costs is the anchor §5 charges~~ — **no toll** (§11 item 35 re-resolved).
 
-A cut is therefore expensive but survivable. You lose the region you were cut in; heads stay unless combat removes them; what lies beyond a firebreak is demoted rather than destroyed. Large enclosures stay attemptable — and the spearhead itself survives.
+A cut is therefore expensive but survivable. You lose the region you were cut in; heads stay unless combat removes them; what lies beyond a firebreak is demoted rather than destroyed (or left as dormant marks if headless). Large enclosures stay attemptable — and the spearhead itself survives.
 
 ### 6.1a Trail invariants
 
 > **A trail is a set of arrows.** Not a walk, not a tree.
 
-Nothing about it records the order it was laid, which heads laid it, or how many times one has walked it. Every question the rules ask of a trail — where evaporation stops, whether a crossing happened, what is enclosed, what is still anchored, whether a branch was paid for — is answerable from that set plus the counts standing on it. **Trails have no memory**, and that is a load-bearing property: it is what removes head identity from the engine entirely (§3, §4), and it is the reason none of the rules below need a resolution order.
+Nothing about it records the order it was laid, which heads laid it, or how many times one has walked it. Every question the rules ask of a trail — where evaporation stops, whether a crossing happened, what is enclosed, what is still anchored — is answerable from that set plus the counts standing on it. **Trails have no memory**, and that is a load-bearing property: it is what removes head identity from the engine entirely (§3, §4), and it is the reason none of the rules below need a resolution order.
 
 Three invariants govern every trail:
 
@@ -426,11 +412,11 @@ Three invariants govern every trail:
 
 Three answers were on the table and only this one asserts nothing. *Canonical pairing* — pick one by a slot convention — routes damage down arrows the player never connected. *Immunity* — declare an ambiguous point uncuttable — is a patch with no mechanism behind it. All-to-all is not a resolution of the ambiguity; it is the observation that **the question was wrong**. It presumed a trail is a walk that pairs its entries with its exits, and a trail is a set.
 
-Branching is priced rather than restricted: §5 charges a head before a join and a head after a split, so a crossover costs two. That is what stops a lone head branching, and it is the only head the rules ever require.
+~~Branching is priced~~ — **P22 beta: branching is free.** Joins, splits, and crossovers cost no head (§5, §11 item 35).
 
-**Unanchored trail is illegal (P12).** A trail component must reach a territory root (§6.1) or carry at least one of the owner's stacks. Headless stretch that is still territory-anchored (path to clean feeders at `P0`) is ordinary wall — fill counts it, nothing charges to it, a head may walk onto it later. **Dormant** headless stretch (reaches neither) is not a legal standing state: evaporation, wipe, convert scrub, and the freeze rule keep it from arising deliberately; damage that would leave it must evaporate the orphan component.
+**Unanchored trail is legal (P22 beta; was illegal under P12).** A trail component may reach a territory root, carry an owner's stack, or reach **neither**. Headless territory-anchored stretch is ordinary wall. **Dormant** headless stretch (reaches neither) **stands** until re-attach or cut+evaporate — convert strips trail from converted arrows but does **not** scrub orphan marks (§11 item 40).
 
-**A size-1 stack-grade tip can be frozen.** Strong connectivity still means the graph has exits (§2), but leaving the only stack on a stack-grade fragment would create an unanchored trail — so that step is refused until merge-in or conversion. Size ≥ 2 may leave one head and walk.
+~~**A size-1 stack-grade tip can be frozen.**~~ — **withdrawn by P22.** A sole tip may leave; dormant marks may remain.
 
 > An earlier draft proved this the hard way, from 3-in/3-out plus no-re-trace: each visit to a point consumes one in-arrow and one out-arrow, so after *k* arrivals at most *k−1* exits are used and one is always free. **That proof is true for a path and false for a tree.** A split makes one arrival fund several departures — fan a 3-stack out of a point onto all three of its out-arrows and the accounting goes negative, stranding anything that arrives there afterwards, including the sentry the player was told to leave. The proof is not patched here because invariant 2 removes the premise it needed.
 
@@ -490,7 +476,7 @@ Conversion triggers on **state, not on event**:
 
 A group that still has a territory-grade trail (a path of its trail reaching its own territory) is **not** encircled. You cannot capture a trail-connected raider by claim alone: a cut must first evaporate up to their anchor and drop the grade (§6.1).
 
-On convert, the stack flips owner at the same head count, with **`spent` reset to 0 and any merge override dropped**, and **the victim's trail is stripped from the converted arrow(s)** — then any orphan unanchored remnant evaporates (P12; item 40 re-resolved). Converted groups sit on the claimer's territory — co-location with a pre-existing friendly group on the same arrow does not arise from claim encirclement (contact combat already forbids shared occupancy with enemies).
+On convert, the stack flips owner at the same head count, with **`spent` reset to 0 and any merge override dropped**, and **the victim's trail is stripped from the converted arrow(s)** — orphan dormant remnant **remains marked** (P22; item 40 re-resolved — no scrub). Converted groups sit on the claimer's territory — co-location with a pre-existing friendly group on the same arrow does not arise from claim encirclement (contact combat already forbids shared occupancy with enemies).
 
 Two consequences that are easy to miss:
 
@@ -509,21 +495,23 @@ This is how the head pool moves between players, and it is what makes encircleme
 
 This is the hexa.io / splix.io rule, not "any cycle of your own trail."
 
-- **An unanchored loop is nothing.** A trail severed from your realm claims no territory under any circumstance. There are no islands, no garrison forts, no founding.
+- **An unanchored loop is nothing until it lands.** A trail that never lands on your territory claims no ground. Dormant marks alone do not found islands (§6.1 / P22).
 - **A path that encloses nothing becomes a thin strip.** Travel from one holding of yours to another without surrounding anything and you have built a **land bridge** — the arrow chain itself becomes territory, one tile wide.
-- **A stack anchor pays the path, and only what the path itself rings.** A fragment that survived a cut is anchored on its own stack (§6.1). Drive it into your territory and you claim **the path itself** — a land bridge. Ordinarily it encloses nothing: a strip has no inside. What it cannot do is *found* territory out of open ground, because the claim is still only the arrows walked plus whatever those arrows surround — and that is what makes salvage worth attempting without making a parked stack a founding site (§7 forbids that outright).
+- **A stack-anchored fragment driven home pays the path (or a capped prefix).** Drive a fragment into your territory and you claim along the walk (§6.1). Ordinarily it encloses nothing: a strip has no inside. What it cannot do is *found* territory out of open ground. **P22:** if that component was **not territory-rooted before the landing**, claim only **up to the last firebreak** on the walk; trail beyond the firebreak stays marked until re-attach or cut. Territory-rooted landings still claim the full upstream walk.
 - **Self-crossings claim what they ring.** Crossing your own trail doesn't close anything on the spot. It matters when you land: the path becomes territory, and a loop the path made is then a ring of *your own ground* with a bounded inside — so that inside is yours too. Figure-eights and crossovers resolve without a special case, and an open trail that would have been a bare bridge can loop onto itself to claim something.
 - **The test is reachability, not parity.** After the path is claimed, any pocket of non-territory that cannot reach infinity is enclosed and becomes yours. An earlier draft said *even-odd fill* and that was wrong twice over: a claim is bounded by the trail on one side and by your existing territory on the other, so it is not a closed curve to take a parity of — and where the two do differ, on a trail that rings a region with two separate loops, parity would report the core *outside* while it is plainly surrounded. See §11 item 36.
 
 **Which arrows the landing claims: walk the trail backwards along the grain.**
 
-> **From the arrow the closing step departed, follow trail arrows *against* the grain — `Y` precedes `X` when `Y` is trail and `target(Y)` is `origin(X)`. Everything reached is claimed. Nothing else is.**
+> **From the arrow the closing step departed, follow trail arrows *against* the grain — `Y` precedes `X` when `Y` is trail and `target(Y)` is `origin(X)`. Everything reached is claimed — unless the **firebreak cap** applies (below). Nothing else is.**
+
+**Firebreak-capped paint (P22 beta).** When the trail component that lands was **not** territory-grade *before* the landing step, the claim walk **stops at the first firebreak** it would enter walking against the grain (an arrow of that trail occupied by the owner's stack). The walk claims arrows from the departure arrow upstream **until it would enter the firebreak arrow**; the firebreak arrow itself and distal trail **remain trail**. (Symmetric with cut halt: fronts destroy until they would enter the occupied arrow. → §11 item 42.)
 
 The trail is a set with no memory (§6.1a), so "the path you walked" is not recorded — but it does not need to be. The grain recovers it: every arrow the closing head *could* have come through is upstream of the landing, and nothing else is. Three consequences, and they are the reason this is the rule rather than *claim the whole connected stretch*:
 
 - **A fork's other arm is downstream, so it is not claimed.** It stays an open trail, now rooted on ground that has just become territory — which is exactly what the pincer below needs in order to have anything left to enclose.
-- **A cut fragment driven home is upstream, so all of it is claimed**, dead end included. That is the land bridge two bullets up, and it is why fighting a stranded stack home is worth the trip.
-- **At a merge, every trail in-arrow is claimed.** The set holds no pairing to prefer one by (§6.1a, §11 item 26), and a point is all-to-all in this direction for the same reason it is for evaporation.
+- **A cut fragment driven home is upstream.** Territory-rooted salvage claims all of it. **Unanchored reconnect (P22)** claims only up to the last firebreak; distal marks remain.
+- **At a merge, every trail in-arrow is claimed** (subject to the cap). The set holds no pairing to prefer one by (§6.1a, §11 item 26), and a point is all-to-all in this direction for the same reason it is for evaporation.
 
 ~~**The same walk says whether the landing encloses anything.**~~ — **withdrawn with even-odd (§11 item 36).** There is **no enclose-or-strip gate**: the walk claims the path either way, and what the claimed ground then rings is asked separately and answered by reachability above. A walk that dead-ends claims a strip because *a strip rings nothing*, not because a second test refused it — and a dead-ending walk that crossed itself on the way home claims the loop's inside all the same. The old wording justified "encloses nothing" by *enclosure requires territory at both ends*, which was a proxy for *the curve must close*, and a self-loop closes it.
 
@@ -551,7 +539,7 @@ A forked trail whose two branches both land on your territory **is a valid conqu
 
 The two arms never need to form a directed cycle. **Enclosure is a property of the curve, not of the flow along it** — the *interior* does not care which way anything ran. What the flow does decide is *which arrows the landing claims*, which is the backward walk above: each arm is claimed by its own landing, and neither has to reach the other.
 
-This gives forking an offensive identity rather than a purely defensive one: two arms sweep out, both come home, and the ground between them falls. Paid for by splitting (which slows both arms and costs an anchor on each, §5), by having two trails to defend instead of one, and by the stem being a single point of failure — a cut there destroys its region and demotes *both* arms at once (§6.1), so the stem is the stretch most worth garrisoning and the stretch the defender most wants to reach.
+This gives forking an offensive identity rather than a purely defensive one: two arms sweep out, both come home, and the ground between them falls. Paid for by splitting (which slows both arms — branching itself is free under P22, §5), by having two trails to defend instead of one, and by the stem being a single point of failure — a cut there destroys its region and demotes *both* arms at once (§6.1), so the stem is the stretch most worth garrisoning and the stretch the defender most wants to reach.
 
 ### Why this kills the corridor exploit
 
@@ -868,7 +856,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 **Tuning — none of these block a paper playtest**
 6. ~~Crossing target~~ — ~~re-resolved as contested-point 1:1~~ — **re-resolved again: contact combat.** The two-step gate-and-charge is gone, and so is the intervening *stacks pointing into the same point fight 1:1* reading. An attack is an ordinary step onto an enemy-occupied arrow; losses follow the threat-weighted floor rule in §6.2; equals favour the attacker; merely sharing a point ahead is not a fight. Evaporation still halts per arrow (item 27) and is a separate axis. See §6.2, §11 item 37. *(Original: deterministic attrition, defender wins ties. Then: contested-point 1:1. Now: contact.)*
 7. ~~Merging cost~~ — **resolved.** Free and automatic on contact. See §3.
-8. ~~Fork branch whose head dies / dormant trail~~ — **re-resolved by P12: unanchored (dormant) trail is illegal.** Territory-anchored headless stretch remains ordinary wall. Stack-grade size-1 tips that cannot leave without creating dormant trail are frozen. See §6.1, §6.1a.
+8. ~~Fork branch whose head dies / dormant trail~~ — ~~re-resolved by P12: unanchored illegal~~ — **re-resolved by P22 beta: dormant trail is legal.** Headless marks persist until re-attach or cut+evaporate. Size-1 freeze withdrawn. See §6.1, §6.1a, packet P22.
 9. ~~Converted stack size~~ — **resolved.** Stacks convert intact. See §6.3.
 10. ~~Multi-prong bonus~~ — **re-resolved: there is no bonus, and none is needed.** Under contact combat (§6.2 / item 37), coordinating two stacks means two separate contact steps over time (or against different arrows) — each resolves on its own *A*∶*D*. Pooling-and-tie-flip was the price of instantaneous attrition; there is still no special-case bonus constant. See §6.2.
 11. ~~Board size~~ — ~~resolved as configurable: the lattice mod `(n, m)`~~ — **re-resolved: there is no board size.** The board is unbounded (item 4), so the knob is no longer how big the world is but **how big the part worth having is**: the spawner cutoff radius *R*, plus the band radii inside it (§7, *the radial gradient*). One number where there were two, and it has a direct meaning — *R* is the distance past which the map stops paying.
@@ -912,9 +900,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     This also settled a latent question in §6.1a: a lagging group standing on an arrow the front group laid is **not** re-tracing. Invariant 2 constrains the trail's arrow set, not where heads walk.
 
-23. ~~Is a sentry at a branch point mandatory, or only subject to the minimum?~~ — **re-resolved: mandatory, and it is the only head the rules ever require.** One head on the in-arrow before a join, one on the out-arrow after a split, two at a crossover (§5). The earlier answer — *only the minimum, an ungarrisoned fork is legal* — was reached against a floor that put heads on every arrow anyway, so the mandate looked redundant. It isn't: linear trail is now bare, and a branch is the one place the game charges.
-
-    Its rejection rested on one objection: *"a mandate is unenforceable in exactly the case it was written for — damage can empty a fork, and no rule can repair it."* Still true, and now **harmless**, because the mandate is not what makes evaporation well-defined. **All-to-all point semantics does that**, with or without anchors (§6.1a). What the mandate buys instead is a price for branching, and the fact that a **lone head cannot pay it** — which is the whole answer to *"what if the tip is too small?"*, arrived at without a clause about singles.
+23. ~~Is a sentry at a branch point mandatory, or only subject to the minimum?~~ — ~~re-resolved: mandatory branch toll~~ — **re-resolved by P22 beta: no mandatory branch head.** Branching is free; sentries are entirely discretionary firebreaks. See §5, packet P22. *(Was: one head per join/split; item 35.)*
 
 24. ~~Does the arrow of a stack that dies absorbing a cut survive?~~ — **resolved, and the question changed shape.** A dying stack does not absorb at all. **Each evaporation front carries one kill: it spends that kill on the first head it meets and halts at the next head**, which survives with its arrow and the point it shields. So a lone head is a toll and a pair is a wall, in both directions. Two is not one-per-side; it is the smallest garrison that halts anything. That arithmetic survived the floor it was originally written to justify (item 27) — it is now the reason a player *chooses* pairs, rather than the reason a rule demands them. See §6.1.
 
@@ -934,9 +920,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     **No code impact.** Every cuttable configuration has determined chords, so `chordsCross` stands as written and is simply called once per chord.
 
-27. ~~How many heads must a move leave behind?~~ — **resolved: none, except to pay for a branch** (§5). The rule this replaced — *"you may not leave fewer heads on an arrow than it has open sides"*, two mid-trail — was **broken, not merely mistuned**. It read the arrow being *vacated*, so leaving zero counted as leaving fewer than two: a 2-stack mid-trail could not move at all, an N-stack shed two heads per arrow of trail laid, and maximum reach was about N/2. It also contradicted §5's own framing of the garrison as a *choice* rather than a tax.
-
-    What replaced it inverts the default. Linear trail carries **no** heads; sentries are entirely discretionary; and the one mandatory head is the anchor a join or a split costs. A single head can walk freely and **cannot branch**, which is where the old rule's real intent lands without any clause about singles.
+27. ~~How many heads must a move leave behind?~~ — ~~resolved: none, except to pay for a branch~~ — **re-resolved by P22: none, ever, for branching.** Linear trail carries no heads; sentries are discretionary; branch toll withdrawn. Stay-behind for *attacks* (§6.2) is unchanged.
 
 28. ~~Can something other than territory anchor a trail?~~ — **resolved: a stack can, at a lesser grade.** Trail beyond a halting stack is anchored on that stack — live, extendable, defendable — rather than dormant. But the grades are not interchangeable, and keeping them apart is what holds two other rules up:
 
@@ -990,7 +974,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
     **The answer removes the curve rather than closing it**, in two passes:
 
-    1. **Claim the path.** From the closing arrow, follow the trail backwards along the grain until it reaches your territory **or the stack anchor the trail starts from** — a prefix evaporated up to an anchor is the ordinary way that happens (§6.1). Every arrow walked is claimed.
+    1. **Claim the path.** From the closing arrow, follow the trail backwards along the grain — ordinarily the full upstream walk. **P22 / item 42:** when the component was not territory-grade *before* the landing, stop before the first firebreak on that walk; otherwise claim the full walk (including through mid sentries). Every arrow walked is claimed.
     2. **Claim what the claimed ground rings.** With the path now territory, any pocket of non-territory that **cannot reach infinity** is enclosed and claimed too.
 
     So there is no parity, no territory-outline arc to trace, and no degenerate ray to perturb — which matters, because `GeometryPort` exposes no coordinate to perturb *with*. What survives unchanged is §2's chord test: reachability is over arrows, and two of your arrows meeting at one point form a barrier though no tile sits in the gap, or every enclosure leaks through the seam.
@@ -1035,10 +1019,14 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 40. ~~What happens to `spent` / trail / co-location on convert?~~ — **resolved.** Three precision calls, one item:
 
     1. **Reset.** Converted stacks keep head count, set `spent` to 0, and drop any merge override.
-    2. **Trail.** **Re-resolved by P12: conversion strips the victim's trail from converted arrows**, then evaporates any orphan unanchored remnant. A territory-grade trail still prevents conversion until a cut demotes it (§6.1).
+    2. **Trail.** Conversion strips the victim's trail from converted arrows. ~~then evaporates orphan~~ — **P22: orphan dormant remnant stays marked** (no scrub). Territory-grade trail still prevents conversion until a cut demotes it (§6.1).
     3. **Co-location.** Claim encirclement puts converted units on the claimer's territory; sharing an arrow with a pre-existing friendly group does not arise (and contact forbids enemy co-occupancy beforehand). Out of scope.
 
-    → **§6.3**, → **P07**.
+    → **§6.3**, → **P07**, → **P22**.
+
+**P22 beta — firebreak-capped paint**
+
+42. ~~When an unanchored fragment lands home, how much of the trail becomes territory?~~ — **resolved by P22.** If the component was **not** territory-rooted before landing, the claim walk against the grain **stops before entering the first firebreak** (owner-occupied trail arrow); that firebreak and distal marks remain trail. Territory-rooted landings claim the full upstream walk (and fill if enclosed). Paint trigger remains: head lands on own territory. → **§7**, → **P22**.
 
 **Spawner accrual timing and spawn-merge — resolved by P08**
 
@@ -1075,22 +1063,9 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
 **~~A branch was priced twice, at two different numbers~~ — resolved: one head per branch, and the strand carrying it is not asked**
 
-35. ~~Do §5 and §6.1 price a fork at one head or two?~~ — **resolved: one, per branch.** §5's mandate charges the *creating* move — "at least one head on the out-arrow it departed onto" — and §6.1 totals it as a price list: *"one head per join, one per split, two at a crossover."* But §5, four paragraphs earlier, calls a branch "several **mini-trails** meeting at a point, and **each of them needs its own anchored end**." At a fork those give different numbers and both are literal.
+35. ~~Do §5 and §6.1 price a fork at one head or two?~~ — ~~resolved: one, per branch~~ — **re-resolved by P22 beta: zero — branching is free.** The entire toll debate (per branch vs per strand) is withdrawn for the beta. Joins, splits, and crossovers cost no head. May revert after playtest. → **§5**, → **P22**. *(Historical: P05 chose per-branch; prose below records that reasoning.)*
 
-    Take linear trail `in → P → X`, then step off `in` onto `Y`, so P now has two trail out-arrows. §5's mandate and §6.1's list both charge **one** head, on `Y`. *Each mini-trail needs its own anchored end* charges **two**, because `X` is a mini-trail too and its end is also at P.
-
-    The arithmetic was never the difficulty. **The trail holds no pairing to price against** (§6.1a, item 26): the set records neither which arm was second nor which in-arrow arrived last, so "the out-arrow it departed onto" names something the state does not carry — the same defect as item 33's "that stack". Two readings survive that, and both are implementable:
-
-    - **Per branch** — *chosen.* A join must keep at least one of its owner's heads somewhere among its in-arrows, a split at least one among its out-arrows. A fork costs one and a crossover two, which is §6.1's list and §5's *one before, one after* exactly. A sibling arm carries the toll for the whole junction, so any arm may be wholly vacated while another holds it.
-    - **Per strand.** Every in-arrow of a join and every out-arrow of a split must keep a head to be vacated, individually.
-
-    **Both charge the same to *build* a branch**, and that is why the difference hid. Forming a crossover costs two heads under either — one before, one after — because the second strand's arrival is what pays. They part on every move afterwards: per strand pins each of the junction's four arrows separately, so a lagging group walking up the first in-arrow, or reinforcements sent down the first out-arrow, are stuck on arrival as well, up to four heads immobilised at one point and none of them required by any rule. Per branch keeps the toll at one head a side however many strands run through, and lets any single arrow empty while a sibling holds it.
-
-    Three sentences to one decided it. Per strand contradicts both of §5's own numbers *and* §6.1's list, and it would make branching roughly twice the price §6.1 quotes — which pushes play toward single-threaded trails and quietly removes the choice §6.1 calls "trail shape stays a strategic choice". The mini-trail sentence is motivation for why a branch costs anything at all, not a second price. **It is also the reading that keeps the toll a toll**: one head at a junction buys one arrow of delay against evaporation (§6.1), and a player who wants a junction to stop something leaves two, exactly as anywhere else.
-
-    *Which* strand holds it is not asked, and cannot be — that is item 26's answer applied to the anchor rather than to damage, and it is the same shape: the question presumed a pairing the representation does not hold. What replaces it is a **strip rule**: a move may not take a branch's last head. Locality does the rest — only the two branches the vacated arrow itself belongs to are examined, so a branch damage already emptied constrains no later move and the board cannot freeze (§5, *this constrains what you may leave, not what may exist*).
-
-    Reachable in the most ordinary play there is — any fork whose two arms both carry heads, which is how a fork is normally walked — and **not** discriminated by any approved P05 scenario, since every one of them puts heads on at most one strand per side, where the readings agree. P05's implementation had done *per strand*; its review caught the choice, and the fix landed with three properties that tell the readings apart. → **§5** (*branching costs an anchor*), → **§6.1** (*forks are ordinary trail*), → **P05**.
+    ~~Take linear trail `in → P → X`, then step off `in` onto `Y`…~~ *(struck: toll arithmetic no longer applies under P22.)*
 
 ---
 

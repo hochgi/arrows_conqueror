@@ -94,7 +94,8 @@ Feature: Closure — the pincer, the degenerate claims, and the seams
       When player A tries to land that head on their own territory
       Then the step is refused with a contract violation
       And nothing is claimed
-      # §5's branch toll does not have an exemption for the winning move.
+      # ARCHIVE (P22): branch toll withdrawn — tests assert the step is legal.
+      # See docs/spec/trails-simple/ and closure.edge-cases.test.ts (P22).
 
   Rule: Purity and determinism
 

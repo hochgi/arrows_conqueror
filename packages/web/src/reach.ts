@@ -7,8 +7,8 @@
  * out loud; this module is what lets the renderer show it.
  *
  * **Computed by simulation, never by re-deriving the rules.** For each portion size
- * this walks the real `apply` and keeps whatever it accepted, so allowance, the branch
- * toll (§5), enemy-occupied ground (§6.2) and a closure landing mid-path (§7) are all
+ * this walks the real `apply` and keeps whatever it accepted, so allowance,
+ * enemy-occupied ground (§6.2) and a closure landing mid-path (§7) are all
  * respected because the engine was asked rather than imitated. An adapter that
  * recomputed `speed()` here would drift the moment a rule moved.
  *
@@ -18,7 +18,7 @@
  * a player means by "send these six there".
  */
 
-import { ContractViolation, speed, step } from '@arrows/contracts';
+import { speed, step } from '@arrows/contracts';
 import type { ArrowId, GameState, GeometryPort, Move, RulesPort } from '@arrows/contracts';
 
 /** One arrow a portion could reach, and the price of reaching it. */
@@ -32,13 +32,12 @@ export interface ReachEntry {
   /** Exits to walk, per portion size. The renderer hands one back to be applied. */
   readonly plans: ReadonlyMap<number, readonly ArrowId[]>;
   /**
-   * True when getting here leaves a head stuck on a join/split (§5). Painted red so
-   * a lone remaining unit is not spent into the toll by accident.
+   * Always false under P22 (branching is free). Kept so the Board paint API stays
+   * stable without teaching a withdrawn toll.
    */
   readonly paysBranchToll: boolean;
   /**
-   * Soft danger (amber): a size-1 stack merging onto its own trail spine — can only
-   * follow existing outs; opening a new out is a split it cannot pay.
+   * Always false under P22 (no size-1 freeze / merge trap). Kept for API stability.
    */
   readonly mergeTrap: boolean;
 }
@@ -54,28 +53,6 @@ interface Mutable {
   maxCount: number;
   plans: Map<number, readonly ArrowId[]>;
 }
-
-/**
- * Would taking the *whole* stack out `exit` leave a join/split unpaid?
- *
- * Asked of `apply` rather than re-derived: the mandate lives in trails, and the
- * adapter only needs the verdict for paint. Combat stay-behind and merge bars fail
- * for other reasons and must not light the toll colour.
- */
-const fullStackLeavesUnpaidBranch = (
-  rules: RulesPort,
-  state: GameState,
-  from: ArrowId,
-  exit: ArrowId,
-  heads: number,
-): boolean => {
-  try {
-    rules.apply(state, step(from, exit, heads));
-    return false;
-  } catch (err) {
-    return err instanceof ContractViolation && /\bis a (join|split) of\b/.test(err.message);
-  }
-};
 
 /**
  * Every arrow the group on `from` could reach this turn, keyed by arrow.
@@ -147,37 +124,15 @@ export const reachFrom = (
     walk(state, from, []);
   }
 
-  // Per first-exit: does emptying `from` that way leave a branch unpaid?
-  const tollByExit = new Map<string, boolean>();
-  const exitPaysToll = (exit: ArrowId): boolean => {
-    const key = String(exit);
-    const cached = tollByExit.get(key);
-    if (cached !== undefined) return cached;
-    const pays = fullStackLeavesUnpaidBranch(rules, state, from, exit, group.heads);
-    tollByExit.set(key, pays);
-    return pays;
-  };
-
-  // Size-1 merging onto own trail: soft amber trap (cannot afford a split out).
-  const ownTrail = state.trails.get(group.owner);
-
   const out = new Map<ArrowId, ReachEntry>();
   for (const [arrow, seen] of found) {
-    const plan = seen.plans.get(seen.minCount);
-    const first = plan?.[0];
-    const paysBranchToll =
-      first !== undefined &&
-      seen.minCount < group.heads &&
-      exitPaysToll(first);
-    const mergeTrap =
-      group.heads === 1 && !paysBranchToll && (ownTrail?.has(arrow) ?? false);
     out.set(arrow, {
       distance: seen.distance,
       minCount: seen.minCount,
       maxCount: seen.maxCount,
       plans: seen.plans,
-      paysBranchToll,
-      mergeTrap,
+      paysBranchToll: false,
+      mergeTrap: false,
     });
   }
   return out;

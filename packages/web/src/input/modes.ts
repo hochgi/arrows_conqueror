@@ -96,7 +96,7 @@ abstract class BaseMode implements InputMode {
     return this.reset();
   }
 
-  /** Select `from`, or report it stuck when nothing is reachable (§5's branch toll). */
+  /** Select `from`, or report it stuck when nothing is reachable. */
   protected select(from: ArrowId, state: GameState, rules: RulesPort): InputSnapshot {
     this.reach = reachFrom(this.geometry, rules, state, from);
     const targets = new Set(this.reach.keys());

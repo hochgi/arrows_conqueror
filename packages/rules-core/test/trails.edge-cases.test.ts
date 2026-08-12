@@ -1,13 +1,13 @@
 /**
  * docs/spec/trails/trails.edge-cases.feature — one test per scenario.
  *
- * The centre of gravity is the branch mandate. §5 states it in one sentence that is
- * grammatically ambiguous about *when* it bites, and two of the three available
- * readings freeze the board the first time damage legally empties a fork. The test
- * that tells them apart is "an already-unanchored branch does not freeze the board",
- * and it is the most load-bearing assertion in the packet.
+ * P22 beta inverted the branch-toll and size-1-freeze scenarios: joins/splits are
+ * free and dormant marks are legal. Grade / purity / overlap scenarios are unchanged.
  *
- * @see docs/spec/trails/trails.md — "The branch-anchor rule, and why the reading matters"
+ * Historical P13 D2–D4 Gherkin in docs/spec/trails/ remains as archive; live
+ * expectations for branching live in docs/spec/trails-simple/.
+ *
+ * @see docs/spec/trails-simple/trails-simple.md
  */
 
 import { describe, expect, it } from 'vitest';
@@ -44,34 +44,24 @@ const aJoin = (
   return { paying, other, onward, trail: [other, paying, onward] };
 };
 
-// ── Rule: the mandate is local to the move ───────────────────────────────────
+// ── Rule: branching is free (P22) ────────────────────────────────────────────
 
-describe('the branch mandate constrains what you may leave', () => {
-  it('refuses a step that walks the last head off a branch anchor', () => {
-    // "Stepping away from a branch anchor is refused". This is where the split
-    // anchor actually bites: arriving paid it, and leaving must not un-pay it.
+describe('branching is free — vacating a join or split is legal (P22)', () => {
+  it('lets a step walk the last head off a branch anchor', () => {
     const table = onBoard();
     const { paying, trail } = aJoin(table);
     const before = stateOf([{ arrow: paying, owner: A, heads: 1 }], A, { trail: { A: trail } });
 
-    expect(() =>
-      table.rules.apply(before, step(paying, anExitFrom(table.geometry, paying), 1)),
-    ).toThrow(ContractViolation);
-  });
+    const after = table.rules.apply(
+      before,
+      step(paying, anExitFrom(table.geometry, paying), 1),
+    );
 
-  it('names the branch it would have stripped', () => {
-    const table = onBoard();
-    const { paying, trail } = aJoin(table);
-    const before = stateOf([{ arrow: paying, owner: A, heads: 1 }], A, { trail: { A: trail } });
-
-    expect(() =>
-      table.rules.apply(before, step(paying, anExitFrom(table.geometry, paying), 1)),
-    ).toThrow(new RegExp(String(paying)));
+    expect(after.groups.get(paying)).toBeUndefined();
+    expect(isTrail(after, A, paying)).toBe(true);
   });
 
   it('permits stepping away from an anchor while leaving a head on it', () => {
-    // "Stepping away from a branch anchor while leaving a head is legal". The price
-    // is one head, not immobility.
     const table = onBoard();
     const { paying, trail } = aJoin(table);
     const before = stateOf([{ arrow: paying, owner: A, heads: 2 }], A, { trail: { A: trail } });
@@ -85,45 +75,21 @@ describe('the branch mandate constrains what you may leave', () => {
   });
 
   it('does not freeze the board when a branch is already unanchored', () => {
-    // **The distinguishing scenario.** §5 and §6.1 both say damage can empty a
-    // branch point and that the state is legal — it simply could not have been
-    // created deliberately. Under a whole-trail invariant this move would be
-    // illegal for a violation it did not cause and cannot repair, and the game
-    // would be stuck for the rest of the match.
     const table = onBoard();
     const { onward, trail } = aJoin(table);
-    // Downstream of the join, not on either of its in-arrows — the Given the
-    // scenario opens with. `anArrow` would *not* do: `aJoin` derives P as its
-    // target, so the group would stand on one of the very anchors the previous
-    // scenario refuses stepping off, and this would assert the opposite of it.
     const elsewhere = pathFrom(table.geometry, onward, 2);
     const from = arrowAt(elsewhere, 0);
     const to = arrowAt(elsewhere, 1);
     const before = stateOf([{ arrow: from, owner: A, heads: 1 }], A, {
-      // The join is authored with no head anywhere on it — exactly what a cut leaves.
       trail: { A: trail },
     });
 
     const after = table.rules.apply(before, step(from, to, 1));
 
     expect(after.groups.get(to)?.heads).toBe(1);
-
-    // The contrast is the whole assertion, and it is what keeps this test from
-    // passing merely because no mandate exists yet: the *anchored* version of the
-    // same board refuses the same shape of move.
-    const { paying, trail: anchored } = aJoin(table);
-    const guarded = stateOf([{ arrow: paying, owner: A, heads: 1 }], A, {
-      trail: { A: anchored },
-    });
-    expect(() =>
-      table.rules.apply(guarded, step(paying, anExitFrom(table.geometry, paying), 1)),
-    ).toThrow(ContractViolation);
   });
 
   it('does not charge a move for a branch it does not touch', () => {
-    // "A move elsewhere is not charged for a branch it does not touch". The check is
-    // against what the move changes, so a properly anchored branch across the board
-    // is simply not the move's business.
     const table = onBoard();
     const { paying, trail } = aJoin(table);
     const elsewhere = pathFrom(table.geometry, anExitFrom(table.geometry, paying), 2);
@@ -145,9 +111,6 @@ describe('the branch mandate constrains what you may leave', () => {
   });
 
   it('lets a singleton leave a territory-rooted home fork', () => {
-    // Bare trail from home is legal (§5 / §6.1); a second exit off the same territory
-    // root is the same reading applied to a fork — territory anchors both arms, so the
-    // branch toll must not freeze the size-1 tip.
     const table = onBoard();
     const spine = anArrow(table.geometry);
     const root = table.geometry.origin(spine);
@@ -166,7 +129,8 @@ describe('the branch mandate constrains what you may leave', () => {
     expect([...after.groups.values()].some((g) => g.owner === A && g.heads === 1)).toBe(true);
   });
 
-  it('still refuses stripping a mid-trail split with no territory root', () => {
+  it('lets a singleton strip a mid-trail split with no territory root', () => {
+    // P22: mid-trail splits are free — no toll.
     const table = onBoard();
     const spine = anArrow(table.geometry);
     const root = table.geometry.origin(spine);
@@ -177,40 +141,42 @@ describe('the branch mandate constrains what you may leave', () => {
       trail: { A: [armA, armB] },
     });
 
-    expect(() =>
-      table.rules.apply(before, step(armB, anExitFrom(table.geometry, armB), 1)),
-    ).toThrow(ContractViolation);
+    const after = table.rules.apply(before, step(armB, anExitFrom(table.geometry, armB), 1));
+
+    expect(after.groups.get(armB)).toBeUndefined();
+    expect(isTrail(after, A, armA)).toBe(true);
+    expect(isTrail(after, A, armB)).toBe(true);
   });
 });
 
-// ── Rule: a lone head is an anchor, not a brancher ───────────────────────────
+// ── Rule: a lone head may branch (P22) ───────────────────────────────────────
 
-describe('a lone head is an anchor, not a brancher', () => {
+describe('a lone head may branch (P22)', () => {
   const branches = [
     { label: 'a join — a second trail in-arrow', crossover: false },
     { label: 'a crossover — a join and a split at once', crossover: true },
   ] as const;
 
-  it.each(branches)('refuses a lone head forming $label', ({ crossover }) => {
+  it.each(branches)('lets a lone head form $label', ({ crossover }) => {
     const table = onBoard();
     const { ins, outs } = slotsAt(table.geometry, table.geometry.target(anArrow(table.geometry)));
     const arriving = pick(ins, 1);
     const marked = crossover
       ? [pick(ins, 0), pick(outs, 0), arriving]
       : [pick(ins, 0), arriving];
+    const away = pick(outs, crossover ? 1 : 0);
     const before = stateOf([{ arrow: arriving, owner: A, heads: 1 }], A, {
       trail: { A: marked },
     });
 
-    expect(() =>
-      table.rules.apply(before, step(arriving, pick(outs, crossover ? 1 : 0), 1)),
-    ).toThrow(ContractViolation);
-    expect(before.groups.get(arriving)?.heads).toBe(1);
+    const after = table.rules.apply(before, step(arriving, away, 1));
+
+    expect(after.groups.get(arriving)).toBeUndefined();
+    expect(after.groups.get(away)?.heads).toBe(1);
+    expect(isTrail(after, A, arriving)).toBe(true);
   });
 
   it('lets a lone head lay ordinary linear trail', () => {
-    // "A lone head may still lay ordinary linear trail". Linear trail carries no
-    // heads (§5); the bill is for branching only.
     const table = onBoard();
     const path = pathFrom(table.geometry, anArrow(table.geometry), 2);
     const n1 = arrowAt(path, 0);
@@ -222,9 +188,8 @@ describe('a lone head is an anchor, not a brancher', () => {
     expect(isTrail(after, A, n2)).toBe(true);
   });
 
-  it('lets a pair cross over, with nothing left to continue', () => {
-    // "A pair may cross over, and arrives with nothing left to continue". §5's
-    // arithmetic: two heads, two anchors, one each side, and the tip is spent.
+  it('lets a pair cross over without leaving an anchor', () => {
+    // P22: whole-stack crossover is legal.
     const table = onBoard();
     const { ins, outs } = slotsAt(table.geometry, table.geometry.target(anArrow(table.geometry)));
     const arriving = pick(ins, 1);
@@ -233,10 +198,10 @@ describe('a lone head is an anchor, not a brancher', () => {
       trail: { A: [pick(ins, 0), pick(outs, 0), arriving] },
     });
 
-    const after = table.rules.apply(before, step(arriving, secondArm, 1));
+    const after = table.rules.apply(before, step(arriving, secondArm, 2));
 
-    expect(after.groups.get(arriving)?.heads).toBe(1);
-    expect(after.groups.get(secondArm)?.heads).toBe(1);
+    expect(after.groups.get(arriving)).toBeUndefined();
+    expect(after.groups.get(secondArm)?.heads).toBe(2);
   });
 });
 

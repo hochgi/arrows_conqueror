@@ -77,7 +77,8 @@ describe('Galcon input', () => {
     expect(committed.pending).toHaveLength(1);
   });
 
-  it('marks a branch-stuck stack as blocked instead of empty destinations', () => {
+  it('offers destinations from a join that formerly paid a branch toll (P22)', () => {
+    // P22: branching is free — a lone head on a join is selectable with reach, not blocked.
     const geometry = makeTiling();
     const rules = makeRules(geometry);
     const opening = makeMatch();
@@ -111,9 +112,9 @@ describe('Galcon input', () => {
       trails: new Map([[A, trailA]]),
     };
     const mode = new GalconInput(geometry);
-    const blocked = mode.onArrowClick(arrow('tiling:a:5,1,0'), state, rules);
-    expect(blocked.phase.kind).toBe('blocked');
-    expect(blocked.highlights.targets.size).toBe(0);
+    const atJoin = mode.onArrowClick(arrow('tiling:a:5,1,0'), state, rules);
+    expect(atJoin.phase.kind).toBe('source');
+    expect(atJoin.highlights.targets.size).toBeGreaterThan(0);
 
     const movable = mode.onArrowClick(arrow('tiling:a:5,1,2'), state, rules);
     expect(movable.phase.kind).toBe('source');

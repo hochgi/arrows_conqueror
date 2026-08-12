@@ -1,7 +1,9 @@
 # language: en
 # Overview: docs/spec/trails/trails.md
-# SPEC §5 (branching costs an anchor), §6.1a (trail invariants), §6.1 (grades),
-# §11 items 21–24, 27
+# SPEC §5, §6.1a (trail invariants), §6.1 (grades), §11 items 21–24, 27
+#
+# ARCHIVE NOTE (P22): Branch-toll / mandate scenarios below are historical.
+# Live branching/dormant rules: docs/spec/trails-simple/. Tests assert P22.
 
 Feature: Trails — the anchor a move may not strip, and the states damage leaves behind
   As the author of the rules engine

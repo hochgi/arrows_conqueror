@@ -14,7 +14,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ContractViolation, endTurn, skip, step } from '@arrows/contracts';
+import { endTurn, skip, step } from '@arrows/contracts';
 import {
   A,
   B,
@@ -194,12 +194,10 @@ describe('a trail is a set', () => {
   });
 });
 
-// ── Rule: branching costs an anchor ──────────────────────────────────────────
+// ── Rule: branching is free (P22 — supersedes P13 branch toll) ───────────────
 
-describe('branching costs an anchor — one before a join, one after a split', () => {
+describe('branching is free — joins and splits cost nothing (P22)', () => {
   it('lets a join through when a head stays on the arrow it arrived by', () => {
-    // "Forming a join requires a head on the arrow you arrived by". The join is at
-    // P, the arriving arrow is its second trail in-arrow, and one head stays there.
     const table = onBoard();
     const { point, ins, outs } = slotsAt(table.geometry, table.geometry.target(anArrow(table.geometry)));
     const already = pick(ins, 0);
@@ -217,40 +215,25 @@ describe('branching costs an anchor — one before a join, one after a split', (
     expect(String(point)).toBe(String(table.geometry.target(arriving)));
   });
 
-  it('refuses a join formed by the whole stack', () => {
-    // "Forming a join with the whole stack is refused". The mandate constrains what
-    // you may *leave* (§5), and leaving nothing is the case it was written for.
+  it('lets a join formed by the whole stack', () => {
+    // P22: no branch toll — vacating the join strand is legal.
     const table = onBoard();
     const { ins, outs } = slotsAt(table.geometry, table.geometry.target(anArrow(table.geometry)));
     const already = pick(ins, 0);
     const arriving = pick(ins, 1);
+    const away = pick(outs, 0);
     const before = stateOf([{ arrow: arriving, owner: A, heads: 2 }], A, {
       trail: { A: [already, arriving] },
     });
 
-    expect(() => table.rules.apply(before, step(arriving, pick(outs, 0), 2))).toThrow(
-      ContractViolation,
-    );
+    const after = table.rules.apply(before, step(arriving, away, 2));
+
+    expect(headsOn(after, arriving)).toBe(0);
+    expect(headsOn(after, away)).toBe(2);
+    expect(isTrail(after, A, arriving)).toBe(true);
   });
 
-  it('names the unpaid join in the refusal', () => {
-    // A message that says only "illegal" turns a rules question into a hunt. The
-    // branch is nameable, so it is named.
-    const table = onBoard();
-    const { point, ins, outs } = slotsAt(table.geometry, table.geometry.target(anArrow(table.geometry)));
-    const arriving = pick(ins, 1);
-    const before = stateOf([{ arrow: arriving, owner: A, heads: 2 }], A, {
-      trail: { A: [pick(ins, 0), arriving] },
-    });
-
-    expect(() => table.rules.apply(before, step(arriving, pick(outs, 0), 2))).toThrow(
-      new RegExp(`${String(point)}|${String(arriving)}`),
-    );
-  });
-
-  it('lets a split through, paid by the arriving heads', () => {
-    // "Forming a split requires a head on the arrow you departed onto" — and the
-    // movers land there, so arriving pays it. What it costs is the *next* move.
+  it('lets a split through without leaving a sentry', () => {
     const table = onBoard();
     const { ins, outs } = slotsAt(table.geometry, table.geometry.target(anArrow(table.geometry)));
     const arriving = pick(ins, 0);
@@ -264,39 +247,41 @@ describe('branching costs an anchor — one before a join, one after a split', (
 
     expect(headsOn(after, secondArm)).toBe(1);
     expect(isTrail(after, A, secondArm)).toBe(true);
+    expect(isTrail(after, A, firstArm)).toBe(true);
   });
 
-  it('charges both anchors at a crossover', () => {
-    // "A crossover pays both anchors" (§5): a join followed by a split, so one head
-    // before and one after. A 2-stack pays its whole self and nothing continues.
+  it('lets a whole stack cross a crossover', () => {
+    // P22: crossover is free — no join/split toll.
     const table = onBoard();
     const { ins, outs } = slotsAt(table.geometry, table.geometry.target(anArrow(table.geometry)));
     const arriving = pick(ins, 1);
+    const away = pick(outs, 1);
     const before = stateOf([{ arrow: arriving, owner: A, heads: 2 }], A, {
       trail: { A: [pick(ins, 0), pick(outs, 0), arriving] },
     });
 
-    const after = table.rules.apply(before, step(arriving, pick(outs, 1), 1));
+    const after = table.rules.apply(before, step(arriving, away, 2));
 
-    expect(headsOn(after, arriving)).toBe(1);
-    expect(headsOn(after, pick(outs, 1))).toBe(1);
+    expect(headsOn(after, arriving)).toBe(0);
+    expect(headsOn(after, away)).toBe(2);
+    expect(isTrail(after, A, arriving)).toBe(true);
   });
 
-  it('refuses a lone head forming a join, and leaves it standing', () => {
-    // "A lone head cannot form a join" (§5): it pays its only head and stops there,
-    // becoming the anchor rather than passing through. Too small to pay and unable
-    // to act are the same state, and the rules already handle it.
+  it('lets a lone head form a join', () => {
+    // P22: a lone head may branch.
     const table = onBoard();
     const { ins, outs } = slotsAt(table.geometry, table.geometry.target(anArrow(table.geometry)));
     const arriving = pick(ins, 1);
+    const away = pick(outs, 0);
     const before = stateOf([{ arrow: arriving, owner: A, heads: 1 }], A, {
       trail: { A: [pick(ins, 0), arriving] },
     });
 
-    expect(() => table.rules.apply(before, step(arriving, pick(outs, 0), 1))).toThrow(
-      ContractViolation,
-    );
-    expect(headsOn(before, arriving)).toBe(1);
+    const after = table.rules.apply(before, step(arriving, away, 1));
+
+    expect(headsOn(after, arriving)).toBe(0);
+    expect(headsOn(after, away)).toBe(1);
+    expect(isTrail(after, A, arriving)).toBe(true);
   });
 });
 

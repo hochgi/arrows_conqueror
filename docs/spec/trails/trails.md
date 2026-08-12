@@ -1,8 +1,13 @@
-# trails — the board's memory, and the one head the rules require
+# trails — the board's memory (P05 archive; branching superseded by P22)
+
+> **P22 beta:** live branching / dormant / paint-cap rules are in
+> [`docs/spec/trails-simple/`](../trails-simple/trails-simple.md). Branch-toll and
+> size-1-freeze scenarios in the `.feature` files below are **historical**; tests
+> assert P22. Marking, set representation, and grades remain load-bearing.
 
 **Packet:** [P05 — Trails, sentries & crossings](../../design/packets/P05-trails-crossings.md)
-**SPEC:** §5 (the safety rule, sentries, branching costs an anchor), §6.1a (trail
-invariants), §6.1 (the two grades of anchor — reachability only), §11 items 21–24, 27
+**SPEC:** §5 (safety rule, sentries; branching free under P22), §6.1a (trail
+invariants), §6.1 (anchor grades — reachability only), §11 items 21–24, 27
 **Features:** [core](./trails.core.feature) · [edge cases](./trails.edge-cases.feature)
 **Sibling:** [crossings](../crossings/crossings.md) — the same trail, asked a different question
 
@@ -17,13 +22,13 @@ Three ideas, in dependency order:
    laid it or how often it was walked.
 2. **Moving inside your own territory lays no trail** (§5) — the safety rule, and
    everything about exposure follows from it.
-3. **Branching is the one place the rules require a head** (§5, §11 item 23).
-   Everything else a player leaves behind is a choice.
+3. ~~**Branching is the one place the rules require a head**~~ — **withdrawn by P22.**
+   Branching is free; sentries are discretionary firebreaks (§5, §11 items 23, 35).
 
 ## Scope
 
-In: trail and territory state, what a step marks, branch-anchor legality, anchor
-grade as reachability.
+In: trail and territory state, what a step marks, ~~branch-anchor legality~~ (P22:
+branching free — see trails-simple), anchor grade as reachability.
 
 Out: **closure and fill** (P05b) — a step landing on your own territory marks
 nothing here and claims nothing, which is a seam, not a rule. **Cuts, evaporation
@@ -75,13 +80,16 @@ because a set holds no duplicates.
 Stepping into **enemy** territory marks trail. It is hostile ground — enterable,
 and exposing while you are there (§7).
 
-## The branch-anchor rule, and why the reading matters
+## The branch-anchor rule ~~(historical — withdrawn by P22)~~
 
-§5 states it once:
+> **P22:** branching is free; this section records the P05 reading for archive.
+> Live rule: [trails-simple](../trails-simple/trails-simple.md).
 
-> **A move that gives a point a second trail in-arrow must leave at least one head
+§5 *formerly* stated it once:
+
+> ~~**A move that gives a point a second trail in-arrow must leave at least one head
 > on the in-arrow it arrived by. A move that gives a point a second trail
-> out-arrow must leave at least one head on the out-arrow it departed onto.**
+> out-arrow must leave at least one head on the out-arrow it departed onto.**~~
 
 Three readings of *when* it bites are grammatically available, and **two of them
 freeze the board**:
