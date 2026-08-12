@@ -27,6 +27,7 @@ import { spawnerInfoAt, spawnerProminence, yieldSoonByArrow } from './spawnerInf
 import type { YieldSoon } from './spawnerInfo';
 import type { Viewport } from './viewport';
 import { toScreen } from './viewport';
+import type { EvaporationBurst } from './fx/evaporation';
 
 export interface BoardProps {
   readonly geometry: GeometryPort;
@@ -40,6 +41,8 @@ export interface BoardProps {
   readonly movable: ReadonlySet<ArrowId>;
   /** The spawner under the cursor, if any — ringed here, detailed in `SpawnerTip`. */
   readonly hoveredSpawner?: VertexId;
+  /** Active trail-evaporation bursts (cut FX). */
+  readonly evaporation?: readonly EvaporationBurst[];
   readonly onPointerDown: (e: PointerEvent<SVGSVGElement>) => void;
   readonly onPointerMove: (e: PointerEvent<SVGSVGElement>) => void;
   readonly onPointerUp: (e: PointerEvent<SVGSVGElement>) => void;
@@ -240,6 +243,7 @@ export const Board = ({
   highlights,
   movable,
   hoveredSpawner,
+  evaporation,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -439,6 +443,61 @@ export const Board = ({
           />
         );
       })}
+      {(evaporation ?? []).map((burst) => (
+        <g key={burst.id} className="evaporation-burst" style={{ pointerEvents: 'none' }}>
+          {burst.arrows.map((cell) => {
+            const poly = layout.polygon(cell.arrow);
+            if (poly.length === 0) return null;
+            const points = polyPoints(viewport, poly);
+            const s = styleFor(cell.player);
+            const originWorld = layout.pointPosition(geometry.origin(cell.arrow));
+            const tipWorld = layout.pointPosition(geometry.target(cell.arrow));
+            const origin = toScreen(viewport, originWorld.x, originWorld.y);
+            const tip = toScreen(viewport, tipWorld.x, tipWorld.y);
+            const delay = `${String(cell.delayMs)}ms`;
+            return (
+              <g key={`evap-${burst.id}-${String(cell.arrow)}-${String(cell.player)}`}>
+                <polygon
+                  points={points}
+                  fill={s.fill}
+                  stroke={s.stroke}
+                  strokeWidth={1.4}
+                  className="trail-evaporate-fill"
+                  style={{ animationDelay: delay }}
+                />
+                <line
+                  x1={origin.x}
+                  y1={origin.y}
+                  x2={tip.x}
+                  y2={tip.y}
+                  stroke={s.stroke}
+                  strokeWidth={Math.max(2, viewport.scale * 0.07)}
+                  strokeLinecap="round"
+                  className="trail-evaporate-line"
+                  style={{ animationDelay: delay }}
+                />
+              </g>
+            );
+          })}
+          {burst.cutArrow !== undefined
+            ? (() => {
+                const poly = layout.polygon(burst.cutArrow);
+                if (poly.length === 0) return null;
+                const points = polyPoints(viewport, poly);
+                return (
+                  <polygon
+                    key={`spark-${burst.id}`}
+                    points={points}
+                    fill="#f4efe4"
+                    stroke="#f0c96a"
+                    strokeWidth={2.2}
+                    className="cut-spark"
+                  />
+                );
+              })()
+            : null}
+        </g>
+      ))}
     </svg>
   );
 };
