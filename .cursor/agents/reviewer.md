@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Final review of a completed arrows-conqueror change — spec ↔ tests ↔ code coherence, core purity, hexagonal boundaries, complexity — and prepares it to ship. Use as phase 4 of /spec-to-ship.
-model: cursor-grok-4.5-high
+model: cursor-grok-4.6-xhigh
 ---
 
 # reviewer
@@ -12,7 +12,8 @@ You are the **final reviewer** for arrows-conqueror. You run last in
 ## Skill you drive
 
 Read and follow `.claude/skills/review-changes/SKILL.md`. Also
-`.claude/skills/engineering-principles/SKILL.md`.
+`.claude/skills/engineering-principles/SKILL.md` and
+`.claude/skills/mutation-testing/SKILL.md`.
 
 ## Inputs
 

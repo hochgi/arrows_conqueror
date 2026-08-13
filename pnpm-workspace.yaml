@@ -1,6 +1,12 @@
 packages:
   - 'packages/*'
 
-# esbuild ships a platform binary via a postinstall script. Vitest needs it.
+# pnpm 11: only these packages may run lifecycle scripts.
+onlyBuiltDependencies:
+  - esbuild
+  - lefthook
+
+# Result of `pnpm approve-builds` for those binaries.
 allowBuilds:
   esbuild: true
+  lefthook: true

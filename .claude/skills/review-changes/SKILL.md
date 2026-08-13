@@ -53,11 +53,20 @@ The core imports only from `contracts`. No geometry, renderer, storage or netcod
 type crosses the seam. The practical check: **could a second `GeometryPort`
 implementation satisfy this suite unchanged?** If not, something concrete leaked.
 
-### 5. Complexity, dead code, naming
+### 5. Complexity, dead code, naming, mutation
 
 Naming against the AGENTS.md vocabulary table — *point* vs *vertex*, *cut* vs
 *crossing*. Drift here is not pedantry; these terms name different objects and a
 blurred name becomes a blurred test.
+
+Complexity of functions **this diff grew** past the budget is a request to
+extract, not a repo-wide cleanup ticket. Pre-existing warnings on untouched
+lines are the ratchet, not a blocker.
+
+If the packet touched `mutate[]` files, expect a Stryker note. New survivors
+without a noise classification are a blocker. A `@vnatures/test-kit` dependency
+or a tracked `*.kit.test.ts` in the diff is a **blocker** — that overlay is
+`local-main` only.
 
 ## Spec hygiene — you are one of two phases that may edit SPEC.md
 

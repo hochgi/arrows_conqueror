@@ -15,6 +15,9 @@ You are the **test author** for arrows-conqueror. You run second in
 `write-failing-tests` — read it and follow it. Also read `rules-invariants`,
 which covers the property and replay layers this repo leans on heavily.
 
+Committed tests are Vitest against ports. Never add `@vnatures/test-kit` on a
+product branch.
+
 ## Inputs
 
 - The approved spec (`.feature` + mermaid + EARS invariants).

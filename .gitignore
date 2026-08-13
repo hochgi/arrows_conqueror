@@ -9,3 +9,7 @@ coverage/
 
 # throwaway visual validation — not part of the build
 .scratch/
+
+# mutation / coverage artefacts
+.stryker-tmp/
+reports/

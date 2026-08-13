@@ -39,6 +39,10 @@ export default tseslint.config(
       '**/*.d.ts',
       'packages/web/dist/**',
       'tools/byok-turn-runner/**',
+      'scripts/**',
+      'reports/**',
+      'coverage/**',
+      '.stryker-tmp/**',
     ],
   },
   js.configs.recommended,
@@ -79,6 +83,23 @@ export default tseslint.config(
     rules: {
       'no-restricted-globals': ['error', ...impureGlobals],
       'no-restricted-properties': ['error', ...impureProperties],
+    },
+  },
+  {
+    // Production-code complexity ratchet (P24). Warn-only. Tests are exempt —
+    // Gherkin scenarios are allowed to be long. Do not flip to error until
+    // boy-scouting has brought the core under budget. Coverage can hide high
+    // complexity in CRAP — this is the number we will eventually gate.
+    files: [
+      'packages/contracts/src/**/*.ts',
+      'packages/rules-core/src/**/*.ts',
+      'packages/geometry-*/src/**/*.ts',
+    ],
+    rules: {
+      complexity: ['warn', 12],
+      'max-depth': ['warn', 4],
+      'max-lines-per-function': ['warn', { max: 80, skipBlankLines: true, skipComments: true }],
+      'max-params': ['warn', 5],
     },
   },
   {

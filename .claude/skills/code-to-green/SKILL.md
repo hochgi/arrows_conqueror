@@ -15,7 +15,12 @@ tests. Your job is to make them pass without changing what they mean.
    rule or splitting a function arbitrarily to duck a line count.
 3. **Replay.** Re-run the replay fixtures. Green unit tests plus a drifted
    replay means you introduced nondeterminism.
-4. Repeat until green, clean, and stable.
+4. **Stryker.** `pnpm test:mutation:incremental` on files you touched that sit
+   in `mutate[]`. Triage per `mutation-testing`. No new survivors.
+5. **CRAP glance.** `pnpm crap` is advisory. If you grew a function you
+   touched past the complexity budget, extract. Do not churn the rest of the
+   file to silence a warning you did not cause.
+6. Repeat until green, clean, and stable.
 
 ## What you may not do
 
@@ -78,5 +83,9 @@ between turns — see `speed` in `packages/contracts/src/move.ts`.
 ## Gate
 
 You do not stop mid-loop and you do **not** open the PR. Hand to the reviewer
-with: green state, lint/typecheck status, replay fixture results, and every
-question you kicked back rather than answered.
+reporting green state, lint/typecheck status, Stryker triage (new survivors
+killed vs ignored), and — importantly — every question you had to kick back
+rather than answer.
+
+Never add `@vnatures/test-kit` or `*.kit.test.ts` on a product branch. Those
+exist only on never-pushed `local-main`.

@@ -44,14 +44,15 @@ scheduled early in the first place.
 | P21 | Findings planner | adapter | — | P11, P15 | **[packet](./packets/P21-findings-planner.md).** Deterministic findings list; heuristic + BYOK target locks. Web only |
 | P22 | Simple trails | rules | §5–7 | P05–P07, P13 | **[packet](./packets/P22-beta-simple-trails.md).** **Landed.** No branch toll; dormant legal; no size-1 freeze; firebreak-capped paint on unanchored reconnect |
 | P23 | Intercept findings | adapter | — | P21 | **[packet](./packets/P23-intercept-findings.md).** **Ready to ship.** Timed `intercept` vs projected tip-frontier triangles; in-time gate; layout wired into heuristic + BYOK |
+| P24 | Delivery harness | tooling | — | — | **[packet](./packets/P24-delivery-harness.md).** Grok 4.6 xhigh, Stryker, CRAP hint, complexity warn, `local-main` test-kit overlay, verify CI. Lands before the online track. Skips Gherkin. |
 | ~~P12~~ | ~~AI opponent~~ | — | — | — | **out of MVP** (hot-seat). Kept in the graph because P10 exists partly to make it cheap later |
-| P14 | Online ADR | architecture | — | ADR 0001, P10 | **[packet](./packets/P14-online-adr.md).** Cheap async multiplayer decisions (Google OIDC, S3 index, WS notify, DNS) |
-| P15 | Local BYOK LLM bot | adapter | — | P11 | **[packet](./packets/P15-byok-llm-bot.md).** Browser-only OpenAI-compatible seat; legalMoves filter; keys never leave session |
-| P16 | Online infra | adapter | — | P14 | **[packet](./packets/P16-online-infra.md).** SAM + CI + `api.games` / `ws.games` CNAMEs — **personal AWS only, never employer** |
-| P17 | Online auth & invites | adapter | — | P16 | **[packet](./packets/P17-online-auth-invites.md)** |
-| P18 | Online moves + WS | adapter | — | P17 | **[packet](./packets/P18-online-moves-ws.md)** |
-| P19 | Online web adapter | adapter | — | P18 | **[packet](./packets/P19-online-web-adapter.md)** |
-| P20+ | Deferred follow-ons | — | — | — | **[packet](./packets/P20-deferred-online-followons.md).** Juice, Elo, N-player online |
+| P14 | Online ADR | architecture | — | ADR 0001, P10, P24 | **[packet](./packets/P14-online-adr.md).** Cheap async multiplayer — 3/6 seats, invite links, S3, WS, path-prefixed `api.games`/`ws.games`, personal AWS, `hochgi` SAM deploy. **Next spec-to-ship** (ADR only; skip red/green). |
+| P15 | Local BYOK LLM bot | adapter | — | P11 | **[packet](./packets/P15-byok-llm-bot.md).** **Landed.** Browser-only OpenAI-compatible seat; legalMoves filter; keys never leave session |
+| P16 | Online infra | adapter | — | P14 | **[packet](./packets/P16-online-infra.md).** SAM + OIDC CI + base-path `/arrows_conqueror` — **personal AWS only, never employer** |
+| P17 | Online auth & invites | adapter | — | P16 | **[packet](./packets/P17-online-auth-invites.md).** Google OIDC, lobby 3/6, ≥1 human, `/my-games` |
+| P18 | Online moves + WS | adapter | — | P17 | **[packet](./packets/P18-online-moves-ws.md).** `apply` + heuristic burst in one Lambda put; WS `stateChanged` |
+| P19 | Online web adapter | adapter | — | P18 | **[packet](./packets/P19-online-web-adapter.md).** Pages Sign-In, invite UX, library, WS refresh |
+| P20+ | Deferred follow-ons | — | — | — | **[packet](./packets/P20-deferred-online-followons.md).** Viewers, fork, arena, replay button, Elo, online BYOK |
 
 ## Dependency graph
 
@@ -74,6 +75,12 @@ flowchart TD
   P09 --> P11
   P09 -.-> P12["P12 AI opponent — post-MVP"]
   P10 -.-> P12
+  P24["P24 harness"] --> P14["P14 online ADR"]
+  P14 --> P16["P16 SAM infra"]
+  P16 --> P17["P17 auth + invites"]
+  P17 --> P18["P18 moves + WS"]
+  P18 --> P19["P19 web online"]
+  P19 -.-> P20["P20+ wishes"]
 ```
 
 ## Build order and why
@@ -124,6 +131,22 @@ territory*, so there is nothing to accrue to until territory exists.
 **P10 early enough to matter.** The replay harness is worth landing as soon as
 there is a turn loop to replay. Its value is not regression coverage, it is that
 it catches nondeterminism *while the core is still small enough to find it*.
+
+## Post-playtest online track
+
+Playtest changed seating (3 or 6 only) and landed local BYOK (P15). Online is a
+**new adapter track**, not a rewrite of `SPEC.md`. Ship order after this
+harness (P24):
+
+1. **P14** — ADR 0002 (docs; skip red/green)
+2. **P16** — SAM + DNS + OIDC on `hochgi/arrows_conqueror`
+3. **P17** — auth, invites, library
+4. **P18** — moves, heuristic burst, WebSocket
+5. **P19** — Pages client
+6. **P20+** — wishes only (viewers, fork, arena, replay button, Elo, online BYOK)
+
+One `/spec-to-ship` per packet. Do not Gherkin-dump P16–P19 before the ADR
+exists — later packets would invent contracts the ADR will change.
 
 ## Open items this plan inherits
 
@@ -201,7 +224,7 @@ absorbing it.
 
 ## Packet docs
 
-Individual packet docs live in `./packets/PNN-<slug>.md` and are written
-just-in-time, immediately before the `/spec-to-ship` run that consumes them.
-Writing them all up front would bake in assumptions that earlier packets are
-about to invalidate.
+Individual packet docs live in `./packets/PNN-<slug>.md`. Rules packets are
+written just-in-time before `/spec-to-ship`. The **online track** (P14–P20) has
+docs now because the architecture conversation already happened; Gherkin is
+still written in phase 1 of each packet, not all at once.

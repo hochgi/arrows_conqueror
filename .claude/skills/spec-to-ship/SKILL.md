@@ -51,7 +51,7 @@ archaeology to notice.**
   ┌──────────────────────────────┴───────────────────────────────────┐
   │ PHASE 3 — CODE TO GREEN    agent: coder                          │
   │   implement behind the ports, refactor within budget, keep the   │
-  │   core pure.  skill: code-to-green                               │
+  │   core pure, triage Stryker survivors.  skill: code-to-green     │
   └──────────────────────────────┬───────────────────────────────────┘
                ▟ HUMAN GATE 3: approve the implementation ▙
   ┌──────────────────────────────┴───────────────────────────────────┐
@@ -90,14 +90,20 @@ moves the design, and the work is thrown away.
 
 ## When NOT to run the full pipeline
 
-Typo fixes, doc-only changes, mechanical refactors with no observable delta, and
-dependency bumps skip the pipeline — ship a small change with a one-line scope
-note. Everything that touches the rules engine runs the pipeline.
+Typo fixes, doc-only changes, mechanical refactors with no observable delta,
+dependency bumps, and **tooling/harness packets** (Stryker, hooks, agent pins)
+skip the four-phase Gherkin loop — ship with a one-line scope note. Everything
+that touches the rules engine, or an online adapter's observable behaviour,
+runs the pipeline.
+
+**Committed tests are the pipeline.** Phase 2 writes Vitest against ports.
+`@vnatures/test-kit` and `*.kit.test.ts` live only on the never-pushed
+`local-main` overlay — they are not the red suite the coder implements against.
 
 ## References
 
 - Command: `.claude/commands/spec-to-ship.md`
 - Phase skills: `write-spec`, `write-failing-tests`, `code-to-green`, `review-changes`
-- Support skills: `rules-invariants`, `engineering-principles`
+- Support skills: `rules-invariants`, `engineering-principles`, `mutation-testing`
 - Design source of truth: `SPEC.md`
 - Packet index: `docs/design/02-work-packets.md`

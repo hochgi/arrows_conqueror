@@ -13,7 +13,7 @@ Claude Code’s parallel file is [`CLAUDE.md`](./CLAUDE.md).
 Project agents: [`.cursor/agents/`](./.cursor/agents/) — `spec-author`,
 `test-author`, `coder`, `reviewer`.
 
-Each frontmatter pins **`model: cursor-grok-4.5-high`**. When Cursor publishes a
+Each frontmatter pins **`model: cursor-grok-4.6-xhigh`**. When Cursor publishes a
 newer Grok id, update all four in one pass. Do not use `inherit` here: the human
 may run the parent on another family, and these phases must stay on Grok.
 
@@ -24,7 +24,8 @@ may run the parent on another family, and these phases must stay on Grok.
 
 Unchanged location: [`.claude/skills/`](./.claude/skills/) (`spec-to-ship`,
 `write-spec`, `write-failing-tests`, `code-to-green`, `review-changes`,
-`rules-invariants`, `engineering-principles`). Agents reference those paths.
+`rules-invariants`, `engineering-principles`, `mutation-testing`). Agents
+reference those paths.
 
 ## Model selection when launching Task
 
@@ -39,3 +40,8 @@ Phase 1 runs in the **main thread** (must consult the human). Cursor has no
 ## Local-only branches
 
 When the human says the branch is local-only, **never push or open a PR**.
+
+`local-main` is always local-only. It may carry `@vnatures/test-kit` and
+`*.kit.test.ts`. **Never push it.** Product packets always branch from `main`.
+The pre-push hook refuses `local-main` and refuses a lockfile/`package.json`
+that names test-kit.

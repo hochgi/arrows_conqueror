@@ -65,7 +65,8 @@ reason to ask, not a licence to decide.
 - **`packages/rules-core`** — the pure engine behind those ports.
 - **`packages/geometry-*`** — pluggable tiling implementations.
 - **Adapters at the edges** — renderer, input, AI, persistence, netcode. Never
-  referenced from the core.
+  referenced from the core. Online handlers will live in `packages/online-api/`
+  (P16+) and still depend inward on contracts + rules-core.
 
 **Why geometry is pluggable and not just a constant table:** every rule
 downstream must be testable against small hand-authored fixture boards with known
@@ -84,10 +85,19 @@ their own.
 TypeScript (strict) + Vitest + pnpm workspaces. Landed in P01.
 
 ```bash
-pnpm verify      # typecheck && lint && test — run this before saying you are done
+pnpm verify                      # typecheck && lint && test — before saying you are done
+pnpm crap                        # coverage + CRAP report (advisory, not a gate)
+pnpm test:mutation               # Stryker on rules-core (local; advisory)
+pnpm test:mutation:incremental   # Stryker, changed mutants only
 ```
 
 Also `pnpm build`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:watch`.
+
+Complexity budget is **warn** on `contracts` / `rules-core` / `geometry-*`
+(cyclomatic ≤ 12, depth ≤ 4, 80 lines, 5 params). `pnpm verify` still passes.
+Boy-scout functions you touch; we will flip to error as hotspots shrink.
+CRAP is a hint for under-tested complexity — coverage can hide a god function,
+so the eventual gate is raw complexity, not CRAP.
 
 `tsconfig.base.json` is deliberately strict beyond `"strict": true` —
 `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` in particular. Both
@@ -121,6 +131,30 @@ Three layers, each catching a different class of defect:
    golden replay covers an enormous rules surface per line of test code, and any
    accidental nondeterminism shows up immediately as a replay mismatch.
 
+Those three layers are **committed Vitest**, written against ports. They are the
+spec-to-ship contract.
+
+A fourth layer is **local-only**: `@vnatures/test-kit` component tests on a
+never-pushed `local-main` branch, rebased onto `main`. They must not appear in
+`package.json`, `pnpm-lock.yaml`, or tracked `*.kit.test.ts` on any branch that
+is pushed. The pre-push hook enforces that. Do not implement a packet against
+kit tests — implement against the committed suite.
+
+Stryker (`pnpm test:mutation`) is the mutation layer on `rules-core`. Advisory
+(`break: null`); triage new survivors. See the `mutation-testing` skill.
+
+### `local-main` overlay
+
+```bash
+git branch local-main main          # once
+git checkout local-main && git rebase main   # after main moves
+```
+
+On `local-main` only: add `@vnatures/test-kit` as a file: or private registry
+dep, write `*.kit.test.ts`. Never merge that branch. Never push it. Product
+packets always branch from `main`. After a packet lands on `main`, rebase
+`local-main` and re-add any kit tests that still apply.
+
 ## The spec→ship workflow
 
 Take one work packet all the way to a PR through **four phases**, with an explicit
@@ -130,7 +164,8 @@ Take one work packet all the way to a PR through **four phases**, with an explic
    as `#59;`) + EARS invariants → **human approves the spec**.
 2. **test-author** drives `write-failing-tests` → one failing test per scenario
    plus compiling skeletons → **human approves the tests**.
-3. **coder** drives `code-to-green` → red → green → refactor within budget.
+3. **coder** drives `code-to-green` → red → green → refactor within budget,
+   incremental Stryker, CRAP glance on touched files.
 4. **reviewer** drives `review-changes` → spec ↔ tests ↔ code coherence,
    boundaries, purity → **human approves to ship**.
 

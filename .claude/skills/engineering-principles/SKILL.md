@@ -70,9 +70,20 @@ rules quietly diverge.
 
 ## 6. Complexity budget
 
-Keep functions small enough to hold in your head. When one exceeds the budget,
-**extract** — do not disable the rule and do not split arbitrarily at a line
-count. Red → green → **refactor**; the third step is not optional.
+Keep functions small enough to hold in your head. The standing budget is
+cyclomatic complexity ≤ 12, max-depth ≤ 4, max-lines-per-function ≤ 80,
+max-params ≤ 5. **ESLint warns today; it does not fail `pnpm verify`.** When
+you exceed the budget on a function you touched, **extract** — do not disable
+the rule and do not split arbitrarily at a line count. Red → green →
+**refactor**; the third step is not optional.
+
+`pnpm crap` is a hint, not a gate. CRAP shrinks when coverage rises, so a
+well-tested god function looks "fine" on CRAP and still needs extracting.
+Boy-scout functions you already edited; as the hotspot list shrinks we will
+flip complexity from warn to error, then tighten the numbers.
+
+Do not churn a file you did not otherwise need to touch just to silence a
+pre-existing warning.
 
 ## 7. When the rules and the code disagree, the rules win
 

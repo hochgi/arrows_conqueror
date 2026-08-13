@@ -1,7 +1,7 @@
 ---
 name: test-author
 description: Derives failing tests from an approved arrows-conqueror spec — one component test per Gherkin scenario, property tests for the EARS invariants, plus the skeleton stubs they compile against. Use as phase 2 of /spec-to-ship.
-model: cursor-grok-4.5-high
+model: cursor-grok-4.6-xhigh
 ---
 
 # test-author
@@ -14,6 +14,9 @@ You are the **test author** for arrows-conqueror. You run second in
 Read and follow `.claude/skills/write-failing-tests/SKILL.md`. Also
 `.claude/skills/rules-invariants/SKILL.md`, which covers the property and replay
 layers this repo leans on heavily.
+
+Committed tests are Vitest against ports. **Never add `@vnatures/test-kit` or
+`*.kit.test.ts` on a product branch.**
 
 ## Inputs
 

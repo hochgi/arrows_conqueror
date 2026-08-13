@@ -26,6 +26,10 @@ Under `docs/spec/<feature-name>/` (kebab-case, shared prefix):
 - **SPEC.md is the source, not a draft to improve.** Where it decided something,
   encode it. If you believe a decision is wrong, say so once, in a paragraph, to
   the human — then spec what is written unless they change it.
+- **Online packets (P14–P19) are not game rules.** Their source is the packet
+  plus `docs/adr/0002-*` once it exists. Do not dump HTTP/WS into `SPEC.md`.
+  Record a pointer in SPEC that online lives in the ADR. Precision questions
+  that are still open are listed in the packet — ask those; do not invent.
 - **Never invent a rule.** Where SPEC.md is silent, use `AskUserQuestion`. Then
   write the answer back into SPEC.md (§11 marked resolved, or the owning
   section). An answer that lives only in your report is lost.

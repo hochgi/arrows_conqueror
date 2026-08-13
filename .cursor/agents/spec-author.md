@@ -1,7 +1,7 @@
 ---
 name: spec-author
 description: Turns an arrows-conqueror work packet into a detailed, reviewable specification — Gherkin (.feature) scenarios + mermaid diagrams + EARS invariants, derived from SPEC.md. Consults the human on every ambiguity. Use as phase 1 of /spec-to-ship.
-model: cursor-grok-4.5-high
+model: cursor-grok-4.6-xhigh
 ---
 
 # spec-author

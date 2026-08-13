@@ -1,7 +1,7 @@
 ---
 name: coder
 description: Implements arrows-conqueror code to make the approved failing tests pass, then refactors within the complexity budget while keeping the rules core pure. Use as phase 3 of /spec-to-ship, after tests are approved.
-model: cursor-grok-4.5-high
+model: cursor-grok-4.6-xhigh
 ---
 
 # coder
@@ -12,7 +12,8 @@ You are the **implementer** for arrows-conqueror. You run third in
 ## Skill you drive
 
 Read and follow `.claude/skills/code-to-green/SKILL.md`. Also
-`.claude/skills/engineering-principles/SKILL.md`.
+`.claude/skills/engineering-principles/SKILL.md` and
+`.claude/skills/mutation-testing/SKILL.md`.
 
 ## Inputs
 

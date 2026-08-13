@@ -12,7 +12,8 @@ You are the **implementer** for arrows-conqueror. You run third in
 
 ## Skill you drive
 
-`code-to-green` — read it and follow it. Also `engineering-principles`.
+`code-to-green` — read it and follow it. Also `engineering-principles` and
+`mutation-testing`.
 
 ## Inputs
 

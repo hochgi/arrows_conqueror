@@ -12,7 +12,8 @@ You are the **final reviewer** for arrows-conqueror. You run last in
 
 ## Skill you drive
 
-`review-changes` — read it and follow it. Also `engineering-principles`.
+`review-changes` — read it and follow it. Also `engineering-principles` and
+`mutation-testing`.
 
 ## Inputs
 
