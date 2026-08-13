@@ -10,8 +10,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ContractViolation, mintArrowId, mintPointId, mintVertexId } from '@arrows/contracts';
-import type { ArrowId, GeometryPort, PointId, Slot, VertexId } from '@arrows/contracts';
+import { ContractViolation, mintArrowId, mintPointId, mintVertexId } from '@conquarrow/contracts';
+import type { ArrowId, GeometryPort, PointId, Slot, VertexId } from '@conquarrow/contracts';
 import {
   DIRECTIONS,
   OUT_DIRECTIONS,

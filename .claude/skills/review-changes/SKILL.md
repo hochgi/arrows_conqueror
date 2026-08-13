@@ -1,6 +1,6 @@
 ---
 name: review-changes
-description: Final review of a completed arrows-conqueror change — hunt invented rules, verify core purity and exact arithmetic, check spec↔tests↔code coherence and hexagonal boundaries, and keep SPEC.md self-consistent. Use as phase 4 of spec-to-ship, or when reviewing any rules-engine diff.
+description: Final review of a completed conquarrow change — hunt invented rules, verify core purity and exact arithmetic, check spec↔tests↔code coherence and hexagonal boundaries, and keep SPEC.md self-consistent. Use as phase 4 of spec-to-ship, or when reviewing any rules-engine diff.
 ---
 
 # review-changes — the coherence pass

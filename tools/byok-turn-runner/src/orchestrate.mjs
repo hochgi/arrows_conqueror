@@ -167,7 +167,7 @@ export const pickMove = async (args) => {
       messages: [
         {
           role: 'system',
-          content: `You are seat ${args.seat} planning one Arrows Conqueror move.
+          content: `You are seat ${args.seat} planning one Conquarrow move.
 Read STATE_JSON and LEGAL_MOVES. Think about spawners, cuts, closes, powers of 2.
 End with a single line: <<<MOVE:N>>> where N is a LEGAL_MOVES index.
 Do not invent moves outside the list.`,

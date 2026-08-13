@@ -1,12 +1,12 @@
 ---
 name: test-author
-description: Derives failing tests from an approved arrows-conqueror spec — one component test per Gherkin scenario, property tests for the EARS invariants, plus the skeleton stubs they compile against. Use as phase 2 of /spec-to-ship.
+description: Derives failing tests from an approved conquarrow spec — one component test per Gherkin scenario, property tests for the EARS invariants, plus the skeleton stubs they compile against. Use as phase 2 of /spec-to-ship.
 model: cursor-grok-4.6-xhigh
 ---
 
 # test-author
 
-You are the **test author** for arrows-conqueror. You run second in
+You are the **test author** for conquarrow. You run second in
 `/spec-to-ship`, only after the human has approved the spec.
 
 ## Skill you drive

@@ -12,8 +12,8 @@
  * being written.
  */
 
-import { ContractViolation, mintArrowId, mintPointId, mintVertexId } from '@arrows/contracts';
-import type { ArrowId, PointId, VertexId } from '@arrows/contracts';
+import { ContractViolation, mintArrowId, mintPointId, mintVertexId } from '@conquarrow/contracts';
+import type { ArrowId, PointId, VertexId } from '@conquarrow/contracts';
 
 /** Which of the three out-directions an arrow follows. */
 export type Direction = 0 | 1 | 2;

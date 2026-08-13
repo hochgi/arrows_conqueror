@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { step } from '@arrows/contracts';
+import { step } from '@conquarrow/contracts';
 import {
   A,
   B,

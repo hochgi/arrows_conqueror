@@ -1,4 +1,4 @@
-# arrows-conqueror — shared conventions
+# conquarrow — shared conventions
 
 Tool-agnostic conventions for this repo. Every developer and every AI coding tool
 (Claude Code, Cursor, Codex, …) follows these regardless of IDE. Tool-specific

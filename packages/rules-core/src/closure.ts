@@ -32,7 +32,7 @@
  * @see docs/spec/fill/fill.md
  */
 
-import { ContractViolation, chord, chordsInterleave } from '@arrows/contracts';
+import { ContractViolation, chord, chordsInterleave } from '@conquarrow/contracts';
 import type {
   ArrowId,
   BoardWindow,
@@ -44,7 +44,7 @@ import type {
   PlayerId,
   PointId,
   StepMove,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 import { resetAccumulatorsOnCapture } from './economy';
 import { compareArrows } from './order';
 import { makeTrailRules } from './trails';

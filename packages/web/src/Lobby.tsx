@@ -281,7 +281,7 @@ export const Lobby = ({ plan, onPlan, onStart }: LobbyProps): ReactElement => {
         ) : null}
 
         <p className="lobby-byok-note">
-          OpenAI blocks browser CORS. Local play: <code>pnpm --filter @arrows/web dev</code>{' '}
+          OpenAI blocks browser CORS. Local play: <code>pnpm --filter @conquarrow/web dev</code>{' '}
           (auto <code>/__byok</code>). Point different seats at different models to watch
           AIs fight. Keys stay in this browser.
         </p>

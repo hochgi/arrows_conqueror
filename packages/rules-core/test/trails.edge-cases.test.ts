@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ContractViolation, step } from '@arrows/contracts';
+import { ContractViolation, step } from '@conquarrow/contracts';
 import {
   A,
   B,

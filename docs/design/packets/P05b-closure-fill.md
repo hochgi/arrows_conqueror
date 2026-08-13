@@ -218,7 +218,7 @@ is the reading that makes both of §7's sentences true at once.
 ## Definition of done
 
 - [x] `pnpm verify` green.
-- [x] `packages/rules-core` still depends only on `@arrows/contracts`. `geometry-tiling`
+- [x] `packages/rules-core` still depends only on `@conquarrow/contracts`. `geometry-tiling`
       is a **dev** dependency, for the suites only; `src/` imports it nowhere.
 - [x] The fill suite runs against `geometry-tiling`, and its scenarios are the ones a
       fixture board provably cannot host.

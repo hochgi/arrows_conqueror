@@ -1,4 +1,4 @@
-import type { GameState, PlayerId } from '@arrows/contracts';
+import type { GameState, PlayerId } from '@conquarrow/contracts';
 import type { ReactElement } from 'react';
 import { styleFor } from './colors';
 import type { InputPhase } from './input/modes';

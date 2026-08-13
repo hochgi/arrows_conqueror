@@ -14,7 +14,7 @@ import {
   forceAtRadius,
   mintPlayerId,
   rational,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 import type {
   ArrowId,
   GameState,
@@ -23,7 +23,7 @@ import type {
   PlayerId,
   Spawner,
   VertexId,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 import {
   cellArrow,
   cellPoint,

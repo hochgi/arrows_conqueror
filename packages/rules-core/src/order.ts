@@ -12,7 +12,7 @@
  * parse them.
  */
 
-import type { ArrowId, VertexId } from '@arrows/contracts';
+import type { ArrowId, VertexId } from '@conquarrow/contracts';
 
 /** A total order on arrows, so an ordered answer never rests on map or set order. */
 export const compareArrows = (left: ArrowId, right: ArrowId): number => {

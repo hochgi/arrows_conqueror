@@ -5,7 +5,7 @@ import {
   mintArrowId,
   mintPlayerId,
   step,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 import {
   appendMoves,
   createMatchLog,

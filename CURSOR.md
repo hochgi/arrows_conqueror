@@ -1,4 +1,4 @@
-# arrows-conqueror (Cursor)
+# conquarrow (Cursor)
 
 The shared, tool-agnostic conventions for this repo live in [`AGENTS.md`](./AGENTS.md)
 — read them first; they are the base every tool follows.

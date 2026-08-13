@@ -183,7 +183,7 @@ Nothing remains for phase 1 to ask; the Gherkin session is pure translation.
 ## Definition of done — met
 
 - [x] `pnpm verify` green. 466 tests, none skipped.
-- [x] `packages/rules-core` depends only on `@arrows/contracts` — `geometry-fixtures`
+- [x] `packages/rules-core` depends only on `@conquarrow/contracts` — `geometry-fixtures`
       is a devDependency, for the boards the tests run on.
 - [x] No trail, combat, territory or economy behaviour in the implementation. The
       whole engine is 269 lines and the only board question it asks is the grain.

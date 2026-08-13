@@ -10,8 +10,8 @@
  * `accrueRound`, not restated from the prose.
  */
 
-import type { ArrowId, GameState, GeometryPort, PlayerId, Rational, VertexId } from '@arrows/contracts';
-import { add, wholeSteps } from '@arrows/contracts';
+import type { ArrowId, GameState, GeometryPort, PlayerId, Rational, VertexId } from '@conquarrow/contracts';
+import { add, wholeSteps } from '@conquarrow/contracts';
 
 /** Why a share is not accruing this round, when it is not. */
 export type ShareStatus =

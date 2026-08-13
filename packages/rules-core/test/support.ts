@@ -17,10 +17,10 @@
  * this packet (P02 measurement 2).
  */
 
-import { makeFixture, MINIMAL } from '@arrows/geometry-fixtures';
-import { makeTiling } from '@arrows/geometry-tiling';
-import type { BoardDescription } from '@arrows/geometry-fixtures';
-import { chord, chordsCross, chordsInterleave, mintPlayerId } from '@arrows/contracts';
+import { makeFixture, MINIMAL } from '@conquarrow/geometry-fixtures';
+import { makeTiling } from '@conquarrow/geometry-tiling';
+import type { BoardDescription } from '@conquarrow/geometry-fixtures';
+import { chord, chordsCross, chordsInterleave, mintPlayerId } from '@conquarrow/contracts';
 import type {
   ArrowId,
   Chord,
@@ -36,7 +36,7 @@ import type {
   StepMove,
   Traversal,
   VertexId,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 import { makeRules } from '../src/index';
 
 export const A: PlayerId = mintPlayerId('A');
@@ -483,7 +483,7 @@ export const aThreeCycle = (
   throw new Error('setup: this board has no directed 3-cycle, so its girth is not 3');
 };
 
-export { MINIMAL, SPACIOUS } from '@arrows/geometry-fixtures';
+export { MINIMAL, SPACIOUS } from '@conquarrow/geometry-fixtures';
 export type { ArrowId, Chord, GameState, PlayerId, PointId, Traversal };
 
 /** Undirected diameters of the two fixture boards — a test-author fact (P02). */

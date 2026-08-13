@@ -4,7 +4,7 @@
  * Not rules-core. Pure: no Date, no Math.random, no I/O. Caps bound work.
  */
 
-import { speed } from '@arrows/contracts';
+import { speed } from '@conquarrow/contracts';
 import type {
   ArrowId,
   GameState,
@@ -15,7 +15,7 @@ import type {
   RulesPort,
   StepMove,
   VertexId,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 
 export type FindingKind =
   | 'claim_share'
@@ -48,7 +48,7 @@ export const DEFAULT_FINDINGS_CAPS: FindingsCaps = {
 
 /**
  * Layout positions for Euclidean triangle interior (P23). Satisfied by
- * `TilingLayout` from `@arrows/geometry-tiling`.
+ * `TilingLayout` from `@conquarrow/geometry-tiling`.
  */
 export interface FindingsLayout {
   pointPosition(point: PointId): { readonly x: number; readonly y: number };

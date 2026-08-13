@@ -3,7 +3,7 @@ name: rules-invariants
 description: >-
   How to test a deterministic rules engine — property tests for the invariants
   SPEC.md states, replay fixtures for turn flow, and fixture boards instead of
-  the real tiling. Use when writing or reviewing tests for arrows-conqueror,
+  the real tiling. Use when writing or reviewing tests for conquarrow,
   when an EARS invariant needs encoding, when a bug reproduces only after many
   turns, or when checking that the core is genuinely deterministic.
 ---

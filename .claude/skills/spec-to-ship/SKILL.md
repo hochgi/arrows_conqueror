@@ -2,7 +2,7 @@
 name: spec-to-ship
 description: >-
   Orchestrator overview of the 4-phase, multi-agent delivery pipeline for
-  arrows-conqueror: spec-author → test-author → coder → reviewer, with a human
+  conquarrow: spec-author → test-author → coder → reviewer, with a human
   gate between every phase. Use as the entry point when starting ANY non-trivial
   work packet, and to understand how the /spec-to-ship command, the four agents,
   and the phase skills fit together.
@@ -10,7 +10,7 @@ description: >-
 
 # Spec-to-Ship (multi-agent pipeline)
 
-The delivery workflow for every non-trivial change in arrows-conqueror. It exists
+The delivery workflow for every non-trivial change in conquarrow. It exists
 because plausible-looking-but-wrong code is the dominant failure mode in
 agent-driven development. The loop kills it by forcing the design conversation
 before tests, tests before code, and a coherence check after.

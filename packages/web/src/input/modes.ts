@@ -7,8 +7,8 @@
  * cannot arrive is the fastest way to make a correct rule look broken.
  */
 
-import { endTurn, skip } from '@arrows/contracts';
-import type { ArrowId, GameState, GeometryPort, Move, RulesPort } from '@arrows/contracts';
+import { endTurn, skip } from '@conquarrow/contracts';
+import type { ArrowId, GameState, GeometryPort, Move, RulesPort } from '@conquarrow/contracts';
 import { pathForDestination, planMoves, reachFrom } from '../reach';
 import type { Reach, ReachEntry } from '../reach';
 

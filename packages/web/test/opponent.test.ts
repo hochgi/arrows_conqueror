@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { endTurn, mintArrowId, step } from '@arrows/contracts';
-import type { Move, StepMove } from '@arrows/contracts';
-import { makeMatch, makeTiling } from '@arrows/geometry-tiling';
-import { makeRules } from '@arrows/rules-core';
+import { endTurn, mintArrowId, step } from '@conquarrow/contracts';
+import type { Move, StepMove } from '@conquarrow/contracts';
+import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
+import { makeRules } from '@conquarrow/rules-core';
 import {
   chooseMove,
   closeUrgency,

@@ -288,7 +288,7 @@ rather than translate:
 ## Definition of done — met
 
 - [x] `pnpm verify` green. — 583 tests, 19 files; typecheck 0 errors; ESLint clean.
-- [x] `packages/rules-core` still depends only on `@arrows/contracts`. — `fixtures`
+- [x] `packages/rules-core` still depends only on `@conquarrow/contracts`. — `fixtures`
       is a dev dependency, used by tests only.
 - [x] No closure, fill, evaporation, conversion or economy behaviour. — nothing
       removes a trail arrow and nothing writes `territory`; the closure seam is the

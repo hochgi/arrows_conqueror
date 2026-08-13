@@ -8,8 +8,8 @@
  * Returns the moves it applied so a match log can record them (playtest review).
  */
 
-import { endTurn } from '@arrows/contracts';
-import type { GameState, Move, RulesPort } from '@arrows/contracts';
+import { endTurn } from '@conquarrow/contracts';
+import type { GameState, Move, RulesPort } from '@conquarrow/contracts';
 
 export const hasLegalStep = (rules: RulesPort, state: GameState): boolean =>
   rules.legalMoves(state).some((m) => m.kind === 'step');

@@ -5,8 +5,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { endTurn, rational, step } from '@arrows/contracts';
-import type { ArrowId, VertexId } from '@arrows/contracts';
+import { endTurn, rational, step } from '@conquarrow/contracts';
+import type { ArrowId, VertexId } from '@conquarrow/contracts';
 import { orderedBorders } from '../src/economy';
 import {
   A,

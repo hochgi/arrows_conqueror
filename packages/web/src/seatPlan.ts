@@ -6,7 +6,7 @@
  * centre. Two-player mirror play felt directionally unfair in local BYOK tests.
  */
 
-import { mintPlayerId, type PlayerId } from '@arrows/contracts';
+import { mintPlayerId, type PlayerId } from '@conquarrow/contracts';
 import {
   DEFAULT_BYOK,
   isByokReady,
@@ -14,7 +14,7 @@ import {
   type ByokConfig,
 } from './byokConfig';
 
-export const SEAT_PLAN_STORAGE_KEY = 'arrows-conqueror:seat-plan';
+export const SEAT_PLAN_STORAGE_KEY = 'conquarrow:seat-plan';
 
 /** Playtest lobby only offers rotationally fair counts. */
 export const PLAYTEST_PLAYER_COUNTS = [3, 6] as const;

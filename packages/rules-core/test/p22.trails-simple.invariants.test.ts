@@ -7,8 +7,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { step } from '@arrows/contracts';
-import type { ArrowId, GameState } from '@arrows/contracts';
+import { step } from '@conquarrow/contracts';
+import type { ArrowId, GameState } from '@conquarrow/contracts';
 import {
   A,
   B,

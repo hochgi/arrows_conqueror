@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { endTurn, rational } from '@arrows/contracts';
-import { makeTiling } from '@arrows/geometry-tiling';
+import { endTurn, rational } from '@conquarrow/contracts';
+import { makeTiling } from '@conquarrow/geometry-tiling';
 import { orderedBorders } from '../src/economy';
 import { makeRules } from '../src/index';
 import { applyElimination, shareCountOf, tickDomination } from '../src/victory';

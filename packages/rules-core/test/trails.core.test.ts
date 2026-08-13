@@ -14,7 +14,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { endTurn, skip, step } from '@arrows/contracts';
+import { endTurn, skip, step } from '@conquarrow/contracts';
 import {
   A,
   B,

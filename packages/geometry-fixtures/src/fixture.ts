@@ -10,13 +10,13 @@
  * where it is written, naming the offending point or arrow), and answers every
  * `GeometryPort` query.
  *
- * There is deliberately **no dependency on `@arrows/geometry-tiling`** (P02 DoD):
- * a fixture must stand entirely on `@arrows/contracts`, so that the two port
+ * There is deliberately **no dependency on `@conquarrow/geometry-tiling`** (P02 DoD):
+ * a fixture must stand entirely on `@conquarrow/contracts`, so that the two port
  * implementations are genuinely independent evidence for interchangeability.
  */
 
-import { ContractViolation } from '@arrows/contracts';
-import type { ArrowId, BoardWindow, GeometryPort, PointId, Slot, VertexId } from '@arrows/contracts';
+import { ContractViolation } from '@conquarrow/contracts';
+import type { ArrowId, BoardWindow, GeometryPort, PointId, Slot, VertexId } from '@conquarrow/contracts';
 import type { BoardDescription } from './boards';
 import { fixtureArrow, fixturePoint, fixtureVertex } from './ids';
 

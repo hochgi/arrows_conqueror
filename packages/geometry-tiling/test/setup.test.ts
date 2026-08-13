@@ -8,7 +8,7 @@ import {
   densityAtRadius,
   forceAtRadius,
   rational,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 import { hexCorners, homeCellsFor, makeLayout, makeMatch, makeTiling, reflectCell } from '../src/index';
 import { thinningSample } from '../src/setup';
 import { cellPoint, cellVertex, pointCell, vertexCell } from '../src/cells';

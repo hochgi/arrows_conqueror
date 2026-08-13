@@ -33,5 +33,5 @@
 
 ## Layout boundary
 
-Layout stays in `@arrows/geometry-tiling` (lattice space). This package owns
+Layout stays in `@conquarrow/geometry-tiling` (lattice space). This package owns
 viewport, hit-testing, and style — never the reverse.

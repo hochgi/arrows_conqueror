@@ -17,7 +17,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { skip } from '@arrows/contracts';
+import { skip } from '@conquarrow/contracts';
 import {
   A,
   B,

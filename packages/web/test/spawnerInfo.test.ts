@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { endTurn, rational } from '@arrows/contracts';
-import type { ArrowId, GameState, PlayerId, VertexId } from '@arrows/contracts';
-import { makeMatch, makeTiling } from '@arrows/geometry-tiling';
-import { makeRules } from '@arrows/rules-core';
+import { endTurn, rational } from '@conquarrow/contracts';
+import type { ArrowId, GameState, PlayerId, VertexId } from '@conquarrow/contracts';
+import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
+import { makeRules } from '@conquarrow/rules-core';
 import { spawnerInfoAt, spawnerProminence, yieldSoonByArrow } from '../src/spawnerInfo';
 
 const geometry = makeTiling();

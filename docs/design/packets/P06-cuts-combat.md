@@ -164,7 +164,7 @@ independent of heads). Settled by the human for P06.
 ## Definition of done
 
 - [x] `pnpm verify` green.
-- [x] `packages/rules-core` still depends only on `@arrows/contracts`.
+- [x] `packages/rules-core` still depends only on `@conquarrow/contracts`.
 - [x] P04's "contact is P06" refusal is gone; combat scenarios own that seam.
 - [x] Cut suite runs on fixture boards; failures print.
 - [x] No conversion, no accumulator, no victory — those packets' scenarios do

@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { makeRules } from '../src/index';
-import { step } from '@arrows/contracts';
+import { step } from '@conquarrow/contracts';
 import {
   A,
   B,

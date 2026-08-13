@@ -269,7 +269,7 @@ like anywhere else — but the packet does not anticipate one.
       naming the point or arrow at fault.
 - [x] No `Date`, `Math.random` or insertion-order dependence; every derived id from
       a canonical key.
-- [x] `packages/geometry-fixtures` importing `@arrows/contracts` and nothing else —
+- [x] `packages/geometry-fixtures` importing `@conquarrow/contracts` and nothing else —
       `geometry-tiling` appears only in comments saying it is deliberately absent.
 - [x] SPEC §11 item 29's floor corrected to 7 points / 21 arrows, and the reason
       recorded.

@@ -1,4 +1,4 @@
-# arrows-conqueror (Claude Code)
+# conquarrow (Claude Code)
 
 The shared, tool-agnostic conventions for this repo live in AGENTS.md — read them
 first; they are the base every tool follows.

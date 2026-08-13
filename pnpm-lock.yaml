@@ -44,7 +44,7 @@ importers:
 
   packages/geometry-fixtures:
     dependencies:
-      '@arrows/contracts':
+      '@conquarrow/contracts':
         specifier: workspace:*
         version: link:../contracts
     devDependencies:
@@ -54,7 +54,7 @@ importers:
 
   packages/geometry-tiling:
     dependencies:
-      '@arrows/contracts':
+      '@conquarrow/contracts':
         specifier: workspace:*
         version: link:../contracts
     devDependencies:
@@ -66,14 +66,14 @@ importers:
 
   packages/rules-core:
     dependencies:
-      '@arrows/contracts':
+      '@conquarrow/contracts':
         specifier: workspace:*
         version: link:../contracts
     devDependencies:
-      '@arrows/geometry-fixtures':
+      '@conquarrow/geometry-fixtures':
         specifier: workspace:*
         version: link:../geometry-fixtures
-      '@arrows/geometry-tiling':
+      '@conquarrow/geometry-tiling':
         specifier: workspace:*
         version: link:../geometry-tiling
       vitest:
@@ -82,13 +82,13 @@ importers:
 
   packages/web:
     dependencies:
-      '@arrows/contracts':
+      '@conquarrow/contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@arrows/geometry-tiling':
+      '@conquarrow/geometry-tiling':
         specifier: workspace:*
         version: link:../geometry-tiling
-      '@arrows/rules-core':
+      '@conquarrow/rules-core':
         specifier: workspace:*
         version: link:../rules-core
       react:

@@ -1,5 +1,5 @@
 /**
- * `@arrows/geometry-tiling` — the generated board and its drawable shapes.
+ * `@conquarrow/geometry-tiling` — the generated board and its drawable shapes.
  *
  * Two independent stateless factories (P03 D6):
  *
@@ -26,8 +26,8 @@ export {
   homeCellsFor,
   mintPlayers,
 } from './setup';
-export { DEFAULT_MATCH_CONFIG, forceAtRadius } from '@arrows/contracts';
-export type { MatchConfig } from '@arrows/contracts';
+export { DEFAULT_MATCH_CONFIG, forceAtRadius } from '@conquarrow/contracts';
+export type { MatchConfig } from '@conquarrow/contracts';
 export {
   MEASURED_SILHOUETTE,
   TILE_AREA,

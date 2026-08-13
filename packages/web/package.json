@@ -1,5 +1,5 @@
 {
-  "name": "@arrows/web",
+  "name": "@conquarrow/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,9 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@arrows/contracts": "workspace:*",
-    "@arrows/geometry-tiling": "workspace:*",
-    "@arrows/rules-core": "workspace:*",
+    "@conquarrow/contracts": "workspace:*",
+    "@conquarrow/geometry-tiling": "workspace:*",
+    "@conquarrow/rules-core": "workspace:*",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

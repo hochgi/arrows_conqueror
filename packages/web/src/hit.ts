@@ -2,8 +2,8 @@
  * Hit-test lattice polygons against a screen click.
  */
 
-import type { ArrowId, VertexId } from '@arrows/contracts';
-import type { Point2, TilingLayout } from '@arrows/geometry-tiling';
+import type { ArrowId, VertexId } from '@conquarrow/contracts';
+import type { Point2, TilingLayout } from '@conquarrow/geometry-tiling';
 import type { Viewport } from './viewport';
 import { toLattice, toScreen } from './viewport';
 

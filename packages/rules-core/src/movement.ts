@@ -16,7 +16,7 @@
  * @see docs/spec/movement/movement.md
  */
 
-import { ContractViolation, endTurn, isSatisfiableBy, skip, speed, step } from '@arrows/contracts';
+import { ContractViolation, endTurn, isSatisfiableBy, skip, speed, step } from '@conquarrow/contracts';
 import type {
   ArrowId,
   GameState,
@@ -28,7 +28,7 @@ import type {
   RulesPort,
   SkipMove,
   StepMove,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 import { makeCombatRules, resolveBattle } from './combat';
 import { makeClosureRules } from './closure';
 import { makeCutRules } from './cuts';
@@ -42,7 +42,7 @@ import { applyElimination, tickDomination } from './victory';
  * Refuse a move. An illegal move is never a plausible no-op (P04 D2, D9): a
  * wrong step must not become a silent wrong board state.
  *
- * Local rather than imported: `reject` is internal to `@arrows/contracts`, and
+ * Local rather than imported: `reject` is internal to `@conquarrow/contracts`, and
  * the error type is the part of it that is public.
  */
 const reject = (message: string): never => {

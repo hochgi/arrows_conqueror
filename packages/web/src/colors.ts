@@ -10,7 +10,7 @@
  * a player.
  */
 
-import type { PlayerId } from '@arrows/contracts';
+import type { PlayerId } from '@conquarrow/contracts';
 
 export interface PlayerStyle {
   /** Closed territory: solid (§7). */

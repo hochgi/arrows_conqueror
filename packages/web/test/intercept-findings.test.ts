@@ -6,16 +6,16 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { rational, speed } from '@arrows/contracts';
+import { rational, speed } from '@conquarrow/contracts';
 import type {
   ArrowId,
   GameState,
   PlayerId,
   PointId,
   StepMove,
-} from '@arrows/contracts';
-import { makeLayout, makeMatch, makeTiling } from '@arrows/geometry-tiling';
-import { makeRules } from '@arrows/rules-core';
+} from '@conquarrow/contracts';
+import { makeLayout, makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
+import { makeRules } from '@conquarrow/rules-core';
 import {
   bestFindingMove,
   collectFindings,

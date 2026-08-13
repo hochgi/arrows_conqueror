@@ -28,8 +28,8 @@ import type {
   PlayerId,
   RulesPort,
   StepMove,
-} from '@arrows/contracts';
-import { endTurn, speed } from '@arrows/contracts';
+} from '@conquarrow/contracts';
+import { endTurn, speed } from '@conquarrow/contracts';
 import { bestFindingMove } from './findings';
 import { playLayout } from './playLayout';
 

@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { endTurn, rational } from '@arrows/contracts';
-import type { ArrowId, VertexId } from '@arrows/contracts';
+import { endTurn, rational } from '@conquarrow/contracts';
+import type { ArrowId, VertexId } from '@conquarrow/contracts';
 import { orderedBorders } from '../src/economy';
 import { A, B, anArrow, headsOn, onBoard, owned, snapshot, stateOf } from './support';
 

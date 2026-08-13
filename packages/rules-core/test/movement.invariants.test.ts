@@ -12,8 +12,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ContractViolation, endTurn, skip, speed, step } from '@arrows/contracts';
-import type { GameState, Move } from '@arrows/contracts';
+import { ContractViolation, endTurn, skip, speed, step } from '@conquarrow/contracts';
+import type { GameState, Move } from '@conquarrow/contracts';
 import {
   A,
   B,

@@ -27,7 +27,7 @@
  * @see docs/spec/crossings/crossings.md
  */
 
-import { ContractViolation, chord, chordsCross, chordsInterleave } from '@arrows/contracts';
+import { ContractViolation, chord, chordsCross, chordsInterleave } from '@conquarrow/contracts';
 import type {
   AnchorGrade,
   ArrowId,
@@ -38,12 +38,12 @@ import type {
   PointId,
   StepMove,
   Traversal,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 import { compareArrows } from './order';
 
 /**
  * Refuse. Local rather than imported for the same reason as in `movement.ts`:
- * `reject` is internal to `@arrows/contracts` and the error *type* is the public
+ * `reject` is internal to `@conquarrow/contracts` and the error *type* is the public
  * part of it.
  */
 const reject = (message: string): never => {

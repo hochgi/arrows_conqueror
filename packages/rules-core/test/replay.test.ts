@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ContractViolation, endTurn, step } from '@arrows/contracts';
-import type { Move } from '@arrows/contracts';
+import { ContractViolation, endTurn, step } from '@conquarrow/contracts';
+import type { Move } from '@conquarrow/contracts';
 import { replay, replayIsDeterministic } from '../src/replay';
 import { A, B, anArrow, anExitFrom, onBoard, owned, snapshot, stateOf } from './support';
 

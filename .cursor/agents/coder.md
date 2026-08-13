@@ -1,12 +1,12 @@
 ---
 name: coder
-description: Implements arrows-conqueror code to make the approved failing tests pass, then refactors within the complexity budget while keeping the rules core pure. Use as phase 3 of /spec-to-ship, after tests are approved.
+description: Implements conquarrow code to make the approved failing tests pass, then refactors within the complexity budget while keeping the rules core pure. Use as phase 3 of /spec-to-ship, after tests are approved.
 model: cursor-grok-4.6-xhigh
 ---
 
 # coder
 
-You are the **implementer** for arrows-conqueror. You run third in
+You are the **implementer** for conquarrow. You run third in
 `/spec-to-ship`, only after the human has approved the failing tests.
 
 ## Skill you drive

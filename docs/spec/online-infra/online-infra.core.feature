@@ -5,7 +5,7 @@
 Feature: Cheap online edge — SAM, DNS mapping, CI
   As the operator of a hobby game on personal AWS
   I want HTTP and WebSocket APIs under shared games hostnames
-  So that arrows-conqueror can ship without a per-game subdomain or idle database
+  So that conquarrow can ship without a per-game subdomain or idle database
 
   Background:
     Given ADR 0002 is accepted

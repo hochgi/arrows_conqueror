@@ -1,11 +1,11 @@
 /**
- * `@arrows/rules-core` — the pure engine behind `RulesPort`.
+ * `@conquarrow/rules-core` — the pure engine behind `RulesPort`.
  *
  * ```
  * makeRules(geometry): RulesPort
  * ```
  *
- * Depends on `@arrows/contracts` and nothing else. No clock, no randomness, no
+ * Depends on `@conquarrow/contracts` and nothing else. No clock, no randomness, no
  * I/O, no mutation of an input state (AGENTS.md, ADR 0001) — the whole appeal of
  * the design is that an attentive player, an AI search and a replay all compute
  * the same next state.

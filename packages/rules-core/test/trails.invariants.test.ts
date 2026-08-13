@@ -18,8 +18,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ContractViolation, chordsCross, chordsInterleave, endTurn, step } from '@arrows/contracts';
-import type { GameState } from '@arrows/contracts';
+import { ContractViolation, chordsCross, chordsInterleave, endTurn, step } from '@conquarrow/contracts';
+import type { GameState } from '@conquarrow/contracts';
 import {
   A,
   B,

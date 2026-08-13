@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { makeMatch, makeTiling } from '@arrows/geometry-tiling';
-import { makeRules } from '@arrows/rules-core';
+import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
+import { makeRules } from '@conquarrow/rules-core';
 import { GalconInput } from '../src/input/modes';
 
 const activeGroup = (state: ReturnType<typeof makeMatch>) =>
@@ -87,7 +87,7 @@ describe('Galcon input', () => {
     expect(A).toBeDefined();
     expect(B).toBeDefined();
     if (A === undefined || B === undefined) return;
-    const arrow = (s: string) => s as import('@arrows/contracts').ArrowId;
+    const arrow = (s: string) => s as import('@conquarrow/contracts').ArrowId;
     const trailA = new Set(
       [
         'tiling:a:4,2,0',

@@ -14,7 +14,7 @@ import type {
   PlayerId,
   RulesPort,
   StepMove,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 import {
   collectFindings,
   grainDistance,

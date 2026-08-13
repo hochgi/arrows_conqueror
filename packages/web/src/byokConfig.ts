@@ -7,7 +7,7 @@
  * Authorization header of that request).
  */
 
-export const BYOK_STORAGE_KEY = 'arrows-conqueror:byok';
+export const BYOK_STORAGE_KEY = 'conquarrow:byok';
 
 /** Hosts a same-origin / player-owned relay may forward to (SSRF guard). */
 export const BYOK_UPSTREAM_ALLOWLIST: readonly string[] = [

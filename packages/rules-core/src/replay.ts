@@ -10,9 +10,9 @@
  * not a game a player could have played.
  */
 
-import { ContractViolation } from '@arrows/contracts';
-import type { GameState, Move, RulesPort } from '@arrows/contracts';
-import { movesEqual } from '@arrows/contracts';
+import { ContractViolation } from '@conquarrow/contracts';
+import type { GameState, Move, RulesPort } from '@conquarrow/contracts';
+import { movesEqual } from '@conquarrow/contracts';
 
 export interface ReplayOptions {
   /**

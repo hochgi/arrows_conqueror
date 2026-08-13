@@ -16,7 +16,7 @@ import {
   add,
   fractionalPart,
   wholeSteps,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 import type {
   ArrowId,
   GameState,
@@ -26,7 +26,7 @@ import type {
   Rational,
   Spawner,
   VertexId,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 import { compareArrows, compareVertices } from './order';
 
 const asGroup = (owner: PlayerId, heads: number, spent: number, override?: 0 | 1): Group =>

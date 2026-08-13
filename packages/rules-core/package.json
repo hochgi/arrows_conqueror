@@ -1,5 +1,5 @@
 {
-  "name": "@arrows/rules-core",
+  "name": "@conquarrow/rules-core",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,11 +10,11 @@
     "typecheck": "tsc --build --force"
   },
   "dependencies": {
-    "@arrows/contracts": "workspace:*"
+    "@conquarrow/contracts": "workspace:*"
   },
   "devDependencies": {
-    "@arrows/geometry-fixtures": "workspace:*",
-    "@arrows/geometry-tiling": "workspace:*",
+    "@conquarrow/geometry-fixtures": "workspace:*",
+    "@conquarrow/geometry-tiling": "workspace:*",
     "vitest": "^2.1.8"
   }
 }

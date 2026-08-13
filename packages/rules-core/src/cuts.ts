@@ -10,7 +10,7 @@
  * @see docs/design/packets/P12-trail-fire-anchors.md
  */
 
-import { chord, chordsCross } from '@arrows/contracts';
+import { chord, chordsCross } from '@conquarrow/contracts';
 import type {
   ArrowId,
   GameState,
@@ -20,7 +20,7 @@ import type {
   PlayerId,
   PointId,
   StepMove,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 import { compareArrows } from './order';
 
 export interface CutRules {

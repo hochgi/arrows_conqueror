@@ -13,8 +13,8 @@ import type {
   Move,
   PlayerId,
   RulesPort,
-} from '@arrows/contracts';
-import { endTurn } from '@arrows/contracts';
+} from '@conquarrow/contracts';
+import { endTurn } from '@conquarrow/contracts';
 import type { ByokConfig } from './byokConfig';
 import {
   BYOK_UPSTREAM_HEADER,
@@ -681,7 +681,7 @@ export const testByokConnection = async (
       ok: false,
       reason:
         via.length === 0
-          ? `fetch failed: ${msg} (OpenAI blocks browser CORS — play via pnpm --filter @arrows/web dev, or set Proxy URL to a relay on your personal infra)`
+          ? `fetch failed: ${msg} (OpenAI blocks browser CORS — play via pnpm --filter @conquarrow/web dev, or set Proxy URL to a relay on your personal infra)`
           : `fetch failed: ${msg}`,
     };
   }

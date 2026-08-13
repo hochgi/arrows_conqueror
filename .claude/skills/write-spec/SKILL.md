@@ -1,6 +1,6 @@
 ---
 name: write-spec
-description: Turn an arrows-conqueror work packet into a detailed, test-derivable technical spec — Gherkin .feature files (core + edge cases), mermaid diagrams, and EARS one-liners for invariants. Use as phase 1 of spec-to-ship, or when asked to "spec out" / "detail" a slice of SPEC.md. Consult the user on every ambiguity; never invent a rule.
+description: Turn a conquarrow work packet into a detailed, test-derivable technical spec — Gherkin .feature files (core + edge cases), mermaid diagrams, and EARS one-liners for invariants. Use as phase 1 of spec-to-ship, or when asked to "spec out" / "detail" a slice of SPEC.md. Consult the user on every ambiguity; never invent a rule.
 ---
 
 # write-spec — work packet → detailed technical spec

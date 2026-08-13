@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ArrowId, GameState, Move, PlayerId } from '@arrows/contracts';
-import { makeTiling } from '@arrows/geometry-tiling';
+import type { ArrowId, GameState, Move, PlayerId } from '@conquarrow/contracts';
+import { makeTiling } from '@conquarrow/geometry-tiling';
 import {
   burstLifetimeMs,
   createEvaporationBurst,

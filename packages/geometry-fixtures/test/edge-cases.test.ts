@@ -14,8 +14,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ContractViolation, mintPointId } from '@arrows/contracts';
-import type { ArrowId, GeometryPort, VertexId } from '@arrows/contracts';
+import { ContractViolation, mintPointId } from '@conquarrow/contracts';
+import type { ArrowId, GeometryPort, VertexId } from '@conquarrow/contracts';
 import { MINIMAL, SPACIOUS, fixtureArrow, fixturePoint, makeFixture } from '../src/index';
 import type { BoardDescription } from '../src/index';
 import { BOARDS, SPACIOUS_CASE, straightAhead } from './support';
@@ -168,7 +168,7 @@ describe('a foreign identifier fails loudly', () => {
     {
       kind: 'a point identifier minted by the tiling',
       // Synthesised in the tiling's own id shape rather than imported, because a
-      // fixture must not depend on `@arrows/geometry-tiling` (P02 DoD). The point
+      // fixture must not depend on `@conquarrow/geometry-tiling` (P02 DoD). The point
       // stands: `minimal` must reject an id from a namespace that is not its own.
       run: (g) => g.outArrows(mintPointId('tiling:p:0,0')),
     },

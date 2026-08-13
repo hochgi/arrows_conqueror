@@ -24,8 +24,8 @@
  * test, so it is authored now; resolution is behaviour and is not.
  */
 
-import { mintArrowId, mintPointId, mintVertexId } from '@arrows/contracts';
-import type { ArrowId, PointId, VertexId } from '@arrows/contracts';
+import { mintArrowId, mintPointId, mintVertexId } from '@conquarrow/contracts';
+import type { ArrowId, PointId, VertexId } from '@conquarrow/contracts';
 import type { BoardDescription } from './boards';
 
 /** The namespace prefix every fixture id carries, marking it as neither tiling nor foreign. */

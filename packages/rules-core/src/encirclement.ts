@@ -8,7 +8,7 @@
  * @see docs/spec/encirclement/encirclement.md
  */
 
-import type { AnchorGrade, ArrowId, GameState, Group, PlayerId } from '@arrows/contracts';
+import type { AnchorGrade, ArrowId, GameState, Group, PlayerId } from '@conquarrow/contracts';
 import { compareArrows } from './order';
 
 /** Rebuild a trail set sorted, so iteration order never rests on insertion luck. */

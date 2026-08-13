@@ -1,6 +1,6 @@
 ---
 name: code-to-green
-description: The red→green→refactor loop for arrows-conqueror — implement behind the ports until the approved suite passes, keep the rules core pure and its arithmetic exact, and kick back rather than invent a rule. Use as phase 3 of spec-to-ship.
+description: The red→green→refactor loop for conquarrow — implement behind the ports until the approved suite passes, keep the rules core pure and its arithmetic exact, and kick back rather than invent a rule. Use as phase 3 of spec-to-ship.
 ---
 
 # code-to-green — red suite → green implementation

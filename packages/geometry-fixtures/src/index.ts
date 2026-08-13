@@ -1,11 +1,11 @@
 /**
- * `@arrows/geometry-fixtures` — hand-authored finite boards behind `GeometryPort`.
+ * `@conquarrow/geometry-fixtures` — hand-authored finite boards behind `GeometryPort`.
  *
- * The sibling of `@arrows/geometry-tiling`: same port, same conformance suite
+ * The sibling of `@conquarrow/geometry-tiling`: same port, same conformance suite
  * (P02). Two boards ship, `minimal` and `spacious`, authored as rotation systems
  * with their vertex lattices derived (P02 D1). A fixture exists to demonstrate
  * the port is interchangeable and to give a rules failure a board it can print —
- * so it depends on `@arrows/contracts` and nothing else (P02 DoD).
+ * so it depends on `@conquarrow/contracts` and nothing else (P02 DoD).
  *
  * ```
  * makeFixture(MINIMAL): GeometryPort

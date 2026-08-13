@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ContractViolation, chordsCross, chordsInterleave, step } from '@arrows/contracts';
+import { ContractViolation, chordsCross, chordsInterleave, step } from '@conquarrow/contracts';
 import {
   A,
   B,

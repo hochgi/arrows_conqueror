@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cellPoint, makeLayout, makeTiling } from '@arrows/geometry-tiling';
+import { cellPoint, makeLayout, makeTiling } from '@conquarrow/geometry-tiling';
 import { cullArrows, nearestPoint } from '../src/cull';
 import { pointInPolygon } from '../src/hit';
 import { createViewport, toScreen } from '../src/viewport';

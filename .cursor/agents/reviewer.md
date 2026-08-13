@@ -1,12 +1,12 @@
 ---
 name: reviewer
-description: Final review of a completed arrows-conqueror change — spec ↔ tests ↔ code coherence, core purity, hexagonal boundaries, complexity — and prepares it to ship. Use as phase 4 of /spec-to-ship.
+description: Final review of a completed conquarrow change — spec ↔ tests ↔ code coherence, core purity, hexagonal boundaries, complexity — and prepares it to ship. Use as phase 4 of /spec-to-ship.
 model: cursor-grok-4.6-xhigh
 ---
 
 # reviewer
 
-You are the **final reviewer** for arrows-conqueror. You run last in
+You are the **final reviewer** for conquarrow. You run last in
 `/spec-to-ship`, after the coder reports green.
 
 ## Skill you drive

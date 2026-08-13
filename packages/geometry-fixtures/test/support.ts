@@ -11,7 +11,7 @@
  * `spacious` is `⟨(4,0),(1,2)⟩` (8 points, undirected diameter 2).
  */
 
-import type { ArrowId, GeometryPort, PointId, Slot } from '@arrows/contracts';
+import type { ArrowId, GeometryPort, PointId, Slot } from '@conquarrow/contracts';
 import type { BoardDescription } from '../src/index';
 import { MINIMAL, SPACIOUS } from '../src/index';
 

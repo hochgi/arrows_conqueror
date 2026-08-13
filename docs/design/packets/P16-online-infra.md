@@ -21,7 +21,7 @@ a later game adds another mapping instead of another subdomain.
 
 ## Hard constraint
 
-**Never deploy arrows-conqueror to employer / Versatile AWS.** Wait until the
+**Never deploy conquarrow to employer / Versatile AWS.** Wait until the
 personal account and credentials are the active target. OIDC role trusts
 `repo:hochgi/conquarrow:*` (optionally `main` only). Do not put that
 role on `shalevhoch/conquarrow`.

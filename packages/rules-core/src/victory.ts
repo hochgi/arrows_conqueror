@@ -8,7 +8,7 @@
  * already decided.)
  */
 
-import type { GameState, GeometryPort, PlayerId } from '@arrows/contracts';
+import type { GameState, GeometryPort, PlayerId } from '@conquarrow/contracts';
 import { compareArrows, compareVertices } from './order';
 
 export const headsOf = (state: GameState, player: PlayerId): number => {

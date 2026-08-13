@@ -1,5 +1,5 @@
 {
-  "name": "arrows-conqueror",
+  "name": "conquarrow",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.9.0",
@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc --build",
-    "typecheck": "tsc --build --force && pnpm --filter @arrows/web typecheck",
+    "typecheck": "tsc --build --force && pnpm --filter @conquarrow/web typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
@@ -17,7 +17,7 @@
     "test:mutation": "stryker run",
     "test:mutation:incremental": "stryker run --incremental",
     "test:mutation:report": "node scripts/format-stryker-report.cjs",
-    "dev:web": "pnpm --filter @arrows/web dev",
+    "dev:web": "pnpm --filter @conquarrow/web dev",
     "byok-turn": "node tools/byok-turn-runner/src/server.mjs",
     "byok-turn:test": "node --test tools/byok-turn-runner/test/*.test.mjs",
     "prepare": "lefthook install"

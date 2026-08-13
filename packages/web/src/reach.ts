@@ -18,8 +18,8 @@
  * a player means by "send these six there".
  */
 
-import { speed, step } from '@arrows/contracts';
-import type { ArrowId, GameState, GeometryPort, Move, RulesPort } from '@arrows/contracts';
+import { speed, step } from '@conquarrow/contracts';
+import type { ArrowId, GameState, GeometryPort, Move, RulesPort } from '@conquarrow/contracts';
 
 /** One arrow a portion could reach, and the price of reaching it. */
 export interface ReachEntry {

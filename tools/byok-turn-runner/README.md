@@ -27,7 +27,7 @@ pnpm byok-turn
 Terminal C — web:
 
 ```bash
-pnpm --filter @arrows/web dev
+pnpm --filter @conquarrow/web dev
 ```
 
 In the lobby, for a BYOK seat: enable **Turn runner**, URL `http://127.0.0.1:4010`

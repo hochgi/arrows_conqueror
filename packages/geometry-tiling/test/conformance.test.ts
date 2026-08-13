@@ -11,7 +11,7 @@
  * would assert the same facts more slowly.
  */
 
-import { runGeometryPortConformance } from '@arrows/contracts/testing';
+import { runGeometryPortConformance } from '@conquarrow/contracts/testing';
 import { makeTiling } from '../src/index';
 
 runGeometryPortConformance('generated tiling (P03)', makeTiling, { radius: 4 });

@@ -5,12 +5,12 @@
  * `makeMatch(config)` rebuilds the opening, `replay` folds the moves.
  */
 
-import type { MatchConfig, Move, PlayerId } from '@arrows/contracts';
+import type { MatchConfig, Move, PlayerId } from '@conquarrow/contracts';
 import type { SeatDriverSummary, SeatKind } from './seatPlan';
 
 export const MATCH_LOG_VERSION = 1 as const;
 
-export const LAST_MATCH_STORAGE_KEY = 'arrows-conqueror:last-match';
+export const LAST_MATCH_STORAGE_KEY = 'conquarrow:last-match';
 
 /** Aggregate how chairs were driven — never includes API keys. */
 export type BotMode = SeatDriverSummary;

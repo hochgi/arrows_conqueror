@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { makeMatch, makeTiling } from '@arrows/geometry-tiling';
-import { makeRules } from '@arrows/rules-core';
+import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
+import { makeRules } from '@conquarrow/rules-core';
 import { collectFindings } from '../src/findings';
 import { chooseMove } from '../src/opponent';
 

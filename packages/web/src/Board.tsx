@@ -1,5 +1,5 @@
-import type { ArrowId, GameState, GeometryPort, PlayerId, VertexId } from '@arrows/contracts';
-import type { Point2, TilingLayout } from '@arrows/geometry-tiling';
+import type { ArrowId, GameState, GeometryPort, PlayerId, VertexId } from '@conquarrow/contracts';
+import type { Point2, TilingLayout } from '@conquarrow/geometry-tiling';
 import type { PointerEvent, ReactElement, WheelEvent } from 'react';
 import {
   BOARD_BG,

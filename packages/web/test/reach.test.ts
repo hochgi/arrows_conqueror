@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { speed } from '@arrows/contracts';
-import type { ArrowId, GameState, PlayerId } from '@arrows/contracts';
-import { makeMatch, makeTiling } from '@arrows/geometry-tiling';
-import { makeRules } from '@arrows/rules-core';
+import { speed } from '@conquarrow/contracts';
+import type { ArrowId, GameState, PlayerId } from '@conquarrow/contracts';
+import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
+import { makeRules } from '@conquarrow/rules-core';
 import { planMoves, reachFrom, reachOpacity } from '../src/reach';
 
 const geometry = makeTiling();

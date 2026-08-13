@@ -7,9 +7,9 @@ import {
   type MatchConfig,
   type Move,
   type PlayerId,
-} from '@arrows/contracts';
-import { makeLayout, makeMatch, makeTiling } from '@arrows/geometry-tiling';
-import { makeRules } from '@arrows/rules-core';
+} from '@conquarrow/contracts';
+import { makeLayout, makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
+import { makeRules } from '@conquarrow/rules-core';
 import { hasLegalStep, passIfExhausted } from './autoEndTurn';
 import { Board } from './Board';
 import { cullArrows, cullVertices } from './cull';
@@ -115,7 +115,7 @@ const SpawnerTipFor = ({
   viewport,
 }: {
   state: GameState;
-  hover: { readonly vertex: import('@arrows/contracts').VertexId; readonly x: number; readonly y: number };
+  hover: { readonly vertex: import('@conquarrow/contracts').VertexId; readonly x: number; readonly y: number };
   viewport: Viewport;
 }): ReactElement | null => {
   const info = spawnerInfoAt(geometry, state, hover.vertex);
@@ -139,7 +139,7 @@ export const App = (): ReactElement => {
   const [snap, setSnap] = useState<InputSnapshot>(idleSnap);
   const [viewport, setViewport] = useState<Viewport>(() => createViewport(800, 600));
   const [hover, setHover] = useState<
-    { readonly vertex: import('@arrows/contracts').VertexId; readonly x: number; readonly y: number } | undefined
+    { readonly vertex: import('@conquarrow/contracts').VertexId; readonly x: number; readonly y: number } | undefined
   >(undefined);
   /** Reach destination under the cursor — drives the pulsed path preview. */
   const [hoverPath, setHoverPath] = useState<ReadonlySet<ArrowId> | undefined>(undefined);
@@ -351,19 +351,19 @@ export const App = (): ReactElement => {
   const vertices = useMemo(
     () =>
       state === undefined
-        ? new Set<import('@arrows/contracts').VertexId>()
+        ? new Set<import('@conquarrow/contracts').VertexId>()
         : cullVertices(geometry, viewport),
     [state, viewport],
   );
   const spawnerVertices = useMemo(() => {
-    const set = new Set<import('@arrows/contracts').VertexId>();
+    const set = new Set<import('@conquarrow/contracts').VertexId>();
     if (state === undefined) return set;
     for (const vertex of vertices) if (state.spawners.has(vertex)) set.add(vertex);
     return set;
   }, [state, vertices]);
 
   const movable = useMemo(() => {
-    const set = new Set<import('@arrows/contracts').ArrowId>();
+    const set = new Set<import('@conquarrow/contracts').ArrowId>();
     if (state === undefined) return set;
     if (aiSeatsRef.current.has(String(state.activePlayer))) {
       return set;

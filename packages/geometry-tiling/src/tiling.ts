@@ -15,8 +15,8 @@
  * collection cannot have one.
  */
 
-import { ContractViolation } from '@arrows/contracts';
-import type { ArrowId, BoardWindow, GeometryPort, PointId, Slot, VertexId } from '@arrows/contracts';
+import { ContractViolation } from '@conquarrow/contracts';
+import type { ArrowId, BoardWindow, GeometryPort, PointId, Slot, VertexId } from '@conquarrow/contracts';
 import {
   DIRECTIONS,
   OUT_DIRECTIONS,

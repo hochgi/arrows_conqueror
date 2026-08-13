@@ -18,7 +18,7 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [
         "--filter",
-        "@arrows/web",
+        "@conquarrow/web",
         "dev",
         "--",
         "--port",

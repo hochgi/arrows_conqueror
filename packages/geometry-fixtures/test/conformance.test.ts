@@ -18,7 +18,7 @@
  * note — a finite board wants a radius at least its own diameter.
  */
 
-import { runGeometryPortConformance } from '@arrows/contracts/testing';
+import { runGeometryPortConformance } from '@conquarrow/contracts/testing';
 import { MINIMAL, SPACIOUS, makeFixture } from '../src/index';
 
 runGeometryPortConformance('fixture minimal (P02)', () => makeFixture(MINIMAL), { radius: 1 });

@@ -3,8 +3,8 @@
  * to the viewport centre (SPEC §11 item 4: the board is unbounded).
  */
 
-import type { ArrowId, GeometryPort, PointId } from '@arrows/contracts';
-import { cellNearWorld, cellPoint } from '@arrows/geometry-tiling';
+import type { ArrowId, GeometryPort, PointId } from '@conquarrow/contracts';
+import { cellNearWorld, cellPoint } from '@conquarrow/geometry-tiling';
 import type { Viewport } from './viewport';
 import { visibleLatticeRadius } from './viewport';
 
@@ -25,7 +25,7 @@ export const cullArrows = (geometry: GeometryPort, viewport: Viewport): readonly
 export const cullVertices = (
   geometry: GeometryPort,
   viewport: Viewport,
-): ReadonlySet<import('@arrows/contracts').VertexId> => {
+): ReadonlySet<import('@conquarrow/contracts').VertexId> => {
   const centre = nearestPoint(viewport.cx, viewport.cy);
   const radius = visibleLatticeRadius(viewport, 3);
   return new Set(geometry.window(centre, radius).vertices);

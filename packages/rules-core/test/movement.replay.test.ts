@@ -25,9 +25,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { endTurn, skip, speed, step } from '@arrows/contracts';
-import type { GameState, Move } from '@arrows/contracts';
-import { MINIMAL, fixtureArrow } from '@arrows/geometry-fixtures';
+import { endTurn, skip, speed, step } from '@conquarrow/contracts';
+import type { GameState, Move } from '@conquarrow/contracts';
+import { MINIMAL, fixtureArrow } from '@conquarrow/geometry-fixtures';
 import { replay } from '../src/replay';
 import { A, B, headsOn, onBoard, ownerOf, snapshot, spentOn, stateOf, totalHeads } from './support';
 

@@ -1,5 +1,5 @@
 {
-  "name": "@arrows/geometry-tiling",
+  "name": "@conquarrow/geometry-tiling",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "typecheck": "tsc --build --force"
   },
   "dependencies": {
-    "@arrows/contracts": "workspace:*"
+    "@conquarrow/contracts": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^2.1.8"

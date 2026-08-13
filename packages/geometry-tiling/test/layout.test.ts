@@ -11,8 +11,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ContractViolation } from '@arrows/contracts';
-import type { ArrowId, GeometryPort } from '@arrows/contracts';
+import { ContractViolation } from '@conquarrow/contracts';
+import type { ArrowId, GeometryPort } from '@conquarrow/contracts';
 import {
   MEASURED_SILHOUETTE,
   TILE_AREA,

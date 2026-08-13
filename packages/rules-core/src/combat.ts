@@ -14,8 +14,8 @@
  * @see docs/spec/combat/combat.md
  */
 
-import { ContractViolation } from '@arrows/contracts';
-import type { CombatLosses, GeometryPort } from '@arrows/contracts';
+import { ContractViolation } from '@conquarrow/contracts';
+import type { CombatLosses, GeometryPort } from '@conquarrow/contracts';
 
 /** Remaining heads after a fight-to-wipe battle. */
 export interface BattleOutcome {

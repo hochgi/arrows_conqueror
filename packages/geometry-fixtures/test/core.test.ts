@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { ArrowId, BoardWindow, GeometryPort, PointId, VertexId } from '@arrows/contracts';
+import type { ArrowId, BoardWindow, GeometryPort, PointId, VertexId } from '@conquarrow/contracts';
 import { makeFixture } from '../src/index';
 import { BOARDS } from './support';
 import type { BoardCase } from './support';

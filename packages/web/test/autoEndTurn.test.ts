@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { ArrowId, GameState, Group } from '@arrows/contracts';
-import { makeMatch, makeTiling } from '@arrows/geometry-tiling';
-import { makeRules } from '@arrows/rules-core';
+import type { ArrowId, GameState, Group } from '@conquarrow/contracts';
+import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
+import { makeRules } from '@conquarrow/rules-core';
 import { hasLegalStep, passIfExhausted } from '../src/autoEndTurn';
 
 describe('passIfExhausted', () => {

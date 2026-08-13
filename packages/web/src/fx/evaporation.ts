@@ -13,7 +13,7 @@ import type {
   Move,
   PlayerId,
   StepMove,
-} from '@arrows/contracts';
+} from '@conquarrow/contracts';
 
 export interface EvaporatingArrow {
   readonly arrow: ArrowId;

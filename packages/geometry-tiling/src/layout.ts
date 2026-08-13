@@ -17,8 +17,8 @@
  * Phase 2: signatures only. Every method throws.
  */
 
-import { ContractViolation } from '@arrows/contracts';
-import type { ArrowId, PointId, VertexId } from '@arrows/contracts';
+import { ContractViolation } from '@conquarrow/contracts';
+import type { ArrowId, PointId, VertexId } from '@conquarrow/contracts';
 import {
   OUT_DIRECTIONS,
   TRIANGLE_OFFSET,

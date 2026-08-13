@@ -1,6 +1,6 @@
 ---
 name: engineering-principles
-description: The standing engineering conventions for arrows-conqueror — purity, exact arithmetic, hexagonal boundaries, naming from the spec vocabulary, and the complexity budget. Use when writing or reviewing any code in this repo, or when a judgement call about structure comes up mid-implementation.
+description: The standing engineering conventions for conquarrow — purity, exact arithmetic, hexagonal boundaries, naming from the spec vocabulary, and the complexity budget. Use when writing or reviewing any code in this repo, or when a judgement call about structure comes up mid-implementation.
 ---
 
 # Engineering principles
