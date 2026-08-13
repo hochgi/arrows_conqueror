@@ -12,7 +12,23 @@ region.
 
 - GitHub OIDC provider `token.actions.githubusercontent.com`
 - Role assumed by Actions (secret `AWS_ROLE_ARN` on **hochgi/conquarrow** only)
-- Trust `sub` = `repo:hochgi/conquarrow:ref:refs/heads/main`
+- Trust `sub` must be the **immutable** claim (repo created after 15 July 2026):
+
+```
+repo:hochgi@881075/conquarrow@1326690080:ref:refs/heads/main
+```
+
+The legacy `repo:hochgi/conquarrow:ref:refs/heads/main` will not match. In the
+role's **trust policy** (not the permissions policy), `Condition` should be:
+
+```json
+"Condition": {
+    "StringEquals": {
+        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+        "token.actions.githubusercontent.com:sub": "repo:hochgi@881075/conquarrow@1326690080:ref:refs/heads/main"
+    }
+}
+```
 
 ## First deploy
 
