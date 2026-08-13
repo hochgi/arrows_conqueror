@@ -28,6 +28,7 @@ import type { YieldSoon } from './spawnerInfo';
 import type { Viewport } from './viewport';
 import { toScreen } from './viewport';
 import type { EvaporationBurst } from './fx/evaporation';
+import { GAP_DEG, polygonCentroid, shareArcSpan } from './shareArc';
 
 export interface BoardProps {
   readonly geometry: GeometryPort;
@@ -109,8 +110,6 @@ const shareOwner = (
 
 // ── the spawner mark ──────────────────────────────────────────────────────────
 
-const GAP_DEG = 22;
-
 const arcPath = (
   cx: number,
   cy: number,
@@ -133,6 +132,7 @@ const arcPath = (
  */
 const SpawnerMark = ({
   geometry,
+  layout,
   state,
   vertex,
   cx,
@@ -141,6 +141,7 @@ const SpawnerMark = ({
   hovered,
 }: {
   geometry: GeometryPort;
+  layout: TilingLayout;
   state: GameState;
   vertex: VertexId;
   cx: number;
@@ -153,6 +154,7 @@ const SpawnerMark = ({
   const hub = owner !== undefined ? styleFor(owner).fill : SPAWNER_HUB_IDLE;
   const shares = info?.shares ?? [];
   const width = Math.max(1.4, r * 0.3);
+  const vertexPos = layout.vertexPosition(vertex);
 
   return (
     <g style={{ pointerEvents: 'none' }} opacity={hovered ? 1 : (info ? spawnerProminence(info) : 0.4)}>
@@ -160,8 +162,11 @@ const SpawnerMark = ({
         <circle cx={cx} cy={cy} r={r * 1.7} fill="none" stroke={SPAWNER_CURSOR} strokeWidth={1.2} />
       ) : null}
       {shares.map((share, k) => {
-        const from = k * 120 + GAP_DEG / 2;
-        const to = (k + 1) * 120 - GAP_DEG / 2;
+        const poly = layout.polygon(share.arrow);
+        const span = poly.length > 0
+          ? shareArcSpan(vertexPos, polygonCentroid(poly))
+          : { from: k * 120 + GAP_DEG / 2, to: (k + 1) * 120 - GAP_DEG / 2 };
+        const { from, to } = span;
         const tint = share.owner === undefined ? SPAWNER_IDLE : styleFor(share.owner).fill;
         const d = arcPath(cx, cy, r, from, to);
         return (
@@ -434,6 +439,7 @@ export const Board = ({
           <SpawnerMark
             key={String(vertex)}
             geometry={geometry}
+            layout={layout}
             state={state}
             vertex={vertex}
             cx={s.x}
