@@ -18,7 +18,7 @@ The first playable is a **stateless, client-only, hot-seat** game: two players a
 
 This is a **delivery decision, not a rules decision**. It removes netcode, persistence and AI from MVP scope without touching a mechanic. It does have one structural consequence: it makes the question of *what a move is* concrete and urgent — see §11 item 19.
 
-Post-MVP is deliberately not designed here. Ask before assuming it.
+Playtest later added local heuristic / BYOK seats and restricted fair seating to **3 or 6**. **Async online multiplayer is not specified in this document.** It is [ADR 0002](docs/adr/0002-cheap-async-online.md): Lambda re-`apply`s the same engine, S3 holds state, ≥2 humans before any AWS write. Do not read HTTP, invites, or WebSockets into the rules chapters below.
 
 ---
 

@@ -1,6 +1,6 @@
 # P14 — Online ADR (cheap async multiplayer)
 
-> **Status:** queued. Next `/spec-to-ship` after P24.
+> **Status:** ADR written (`docs/adr/0002-cheap-async-online.md`). Skip phases 2–3.
 >
 > **Layer:** architecture / docs. **Depends on:** ADR 0001, P10, P11, P24.
 > **Unblocks:** P16–P19.
