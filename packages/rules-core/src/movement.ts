@@ -80,7 +80,7 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
   const closure = makeClosureRules(geometry);
   // P06: contact-combat losses (query) and cut evaporation after a step.
   const combat = makeCombatRules(geometry);
-  const cuts = makeCutRules(geometry);
+  const cuts = makeCutRules(geometry, trails.crossesTrail);
   // P07: conversion after the rest of the step (§6.3).
 
   /**

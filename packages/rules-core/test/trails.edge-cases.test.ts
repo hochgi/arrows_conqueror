@@ -208,10 +208,9 @@ describe('a lone head may branch (P22)', () => {
 // ── Rule: two players' trails may share an arrow ─────────────────────────────
 
 describe('two players’ trails may share an arrow', () => {
-  it('marks an arrow for both when a head steps onto enemy trail', () => {
-    // "Stepping onto an arrow the enemy's trail holds marks it for both". Nothing
-    // evaporates in this packet: under P06 this state is transient, here it
-    // persists, and the representation has to allow it either way (P05 D1).
+  it('cuts the enemy trail when a head steps onto it', () => {
+    // P12: landing on an enemy trail arrow is coincide (§2). The mover marks the
+    // landing; the victim evaporates. Dual-mark was P05's stand-in until cuts existed.
     const table = onBoard();
     const n1 = anArrow(table.geometry);
     const x1 = anExitFrom(table.geometry, n1);
@@ -222,7 +221,7 @@ describe('two players’ trails may share an arrow', () => {
     const after = table.rules.apply(before, step(n1, x1, 1));
 
     expect(isTrail(after, A, x1)).toBe(true);
-    expect(isTrail(after, B, x1)).toBe(true);
+    expect(isTrail(after, B, x1)).toBe(false);
   });
 
   it('resolves combat when stepping onto an arrow the enemy occupies', () => {

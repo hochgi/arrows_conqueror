@@ -56,6 +56,8 @@ flowchart TD
 
 | the trail's shape at the point | i | o | chords |
 |---|---|---|---|
+| stub — trail leaves, nothing arrived | 0 | 1 | **0** — landing on the out is still §2 coincide |
+| tip — trail arrives, nothing leaves | 1 | 0 | **0** |
 | spine — passes through once | 1 | 1 | **1** |
 | join — two strands arrive, one leaves | 2 | 1 | **2** |
 | split — one arrives, two leave | 1 | 2 | **2** |
@@ -107,9 +109,12 @@ never the right to stand beside it.
 - The system shall present no chord for a player whose trail has no in-arrow or no
   out-arrow at the point.
 - The system shall report a crossing of an enemy trail when the traversal's chord
-  interleaves with or coincides with any chord of that trail at the point.
-- The system shall report no crossing when the traversal's chord neither
-  interleaves with nor coincides with any of them.
+  interleaves with or coincides with any chord of that trail at the point, or
+  when the traversal's exit is one of that trail's arrows (SPEC §2 coincide),
+  including when the trail presents no chord at the point.
+- The system shall report no crossing when the traversal's exit is not a trail
+  arrow of that player and the traversal's chord neither interleaves with nor
+  coincides with any chord of that trail at the point.
 - When testing against the mover's own trail, the system shall report a
   self-crossing on interleave only, and never on coincidence.
 - The system shall test the traversal against every chord the trail presents, not

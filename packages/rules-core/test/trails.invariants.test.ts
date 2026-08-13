@@ -118,7 +118,7 @@ describe('a step marks its destination unless that destination is the mover’s 
     }
   });
 
-  it('permits one arrow in both players’ trails', () => {
+  it('cuts the enemy when stepping onto a trail arrow they already hold', () => {
     const table = onBoard();
     const from = anArrow(table.geometry);
     const exit = pick(exitsFrom(table.geometry, from), 0);
@@ -129,7 +129,7 @@ describe('a step marks its destination unless that destination is the mover’s 
     const after = table.rules.apply(state, step(from, exit, 1));
 
     expect(isTrail(after, A, exit)).toBe(true);
-    expect(isTrail(after, B, exit)).toBe(true);
+    expect(isTrail(after, B, exit)).toBe(false);
   });
 
   it('keeps trail and territory across the turn boundary', () => {
@@ -646,6 +646,29 @@ describe('the crossing queries agree with the primitives, chord for chord', () =
       (state, into, exit) => table.rules.crossesTrail(state, via(into, exit), A),
       chordsCross,
     );
+  });
+
+  it.each(BOARDS)('crossesTrail treats a stub out as coincide, everywhere on $name', ({
+    description,
+    diameter,
+  }) => {
+    // SPEC §2: coincide is "exit is a trail arrow", which `i × o` chords miss when
+    // i = 0. Turning onto a different out at that point is still not a crossing.
+    const table = onBoard(description);
+    let checked = 0;
+    for (const { ins, outs } of junctionsOf(table, diameter)) {
+      for (let o = 1; o <= 3; o += 1) {
+        const marked = outs.slice(0, o);
+        const state = stateOf([], A, { trail: { A: marked } });
+        for (const into of ins) {
+          for (const exit of outs) {
+            expect(table.rules.crossesTrail(state, via(into, exit), A)).toBe(marked.includes(exit));
+            checked += 1;
+          }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
   });
 
   it.each(BOARDS)('selfCrosses is chordsInterleave over every chord, everywhere on $name', ({

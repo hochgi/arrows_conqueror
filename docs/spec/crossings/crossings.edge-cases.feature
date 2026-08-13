@@ -41,13 +41,20 @@ Feature: Crossings — degeneracies, saturation and the determinism of a verdict
       And P has <o> of player A's trail arrows pointing out
       When I ask for player A's chords at P
       Then there are <chords> of them
-      And no crossing of player A is ever reported at P
 
       Examples:
         | i | o | chords | why                                    |
         | 1 | 0 | 0      | the tip of a trail, not yet transited  |
         | 0 | 1 | 0      | the first arrow off territory          |
         | 0 | 0 | 0      | the trail does not touch P at all      |
+
+    Scenario: Landing on a stub out is still a crossing
+      Given point P has 0 of player A's trail in-arrows
+      And P has 1 of player A's trail out-arrows e1
+      When I ask whether stepping onto e1 crosses player A
+      Then it does
+      # SPEC §2: coincide is "exit is a trail arrow". No chord is required.
+      And stepping onto a different out-arrow of P does not cross player A
 
     Scenario: A trail that departs a point it never entered presents no chord
       Given arrow t1 is player A's territory and its target is P
@@ -56,7 +63,8 @@ Feature: Crossings — degeneracies, saturation and the determinism of a verdict
       Then there are none
       # The safety rule (trails spec) means the arrow you departed *from* is
       # territory, not trail — so the first step off home has an out-arrow at that
-      # point and no in-arrow. Nothing can cross a trail there yet.
+      # point and no in-arrow. There is no chord there. Landing on that out is
+      # still §2 coincide.
 
   Rule: The two predicates differ exactly by coincidence
 

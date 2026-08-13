@@ -110,19 +110,19 @@ Feature: Trails — the anchor a move may not strip, and the states damage leave
 
   Rule: Two players' trails may share an arrow
 
-    A crossing is legal and its consequences are P06's (§6.1). Until evaporation
-    exists, an arrow marked by both players simply stays marked by both — which is
-    a state this packet must represent rather than prevent.
+    A crossing is legal. The trail map can represent an arrow in two trails
+    (authored overlap, or the instant between mark and evaporate). P12 makes
+    that overlap transient: landing on an enemy trail arrow is a cut by
+    coincidence (SPEC §2).
 
-    Scenario: Stepping onto an arrow the enemy's trail holds marks it for both
+    Scenario: Stepping onto an empty enemy trail arrow cuts it
       Given arrow x1 is in player B's trail and is empty
       And arrow n1 is in player A's trail and holds 1 head belonging to player A
       And x1 is an out-arrow of the target of n1
       When player A applies a step of count 1 from n1 to x1
       Then x1 is in player A's trail
-      And x1 is still in player B's trail
-      # Nothing evaporates in this packet. Under P06 this state is transient; here
-      # it persists, and the representation has to allow it either way.
+      And x1 is no longer in player B's trail
+      # P12: coincide evaporates the victim. The mover still marks the landing.
 
     Scenario: An arrow in two trails is still one arrow of occupancy
       Given arrow x1 is in both players' trails

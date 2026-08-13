@@ -260,10 +260,15 @@ export const makeTrailRules = (geometry: GeometryPort): TrailRules => {
     trailChordsAt,
     /**
      * The **full** verdict — interleave or coincide — which §6.1's cut and §6.2's
-     * combat both take. Landing directly on one of the enemy's arrows is as much a
-     * crossing as threading between two of them (§2).
+     * combat both take. SPEC §2's coincide is the tile rule: the exit *is* one of
+     * the victim's trail arrows. That holds even when the trail presents no chord
+     * at the point (a stub out, `i = 0`), which `i × o` extraction alone would miss.
+     * Self-crossing stays interleave-only — re-traversing your own arrow must not
+     * invert fill.
      */
-    crossesTrail: (state, traversal, victim) => crosses(state, traversal, victim, chordsCross),
+    crossesTrail: (state, traversal, victim) =>
+      trailOf(state, victim).has(traversal.exit) ||
+      crosses(state, traversal, victim, chordsCross),
     /**
      * The **narrow** verdict — interleave only — which §7's even-odd takes.
      * Coincidence cannot invert anything: re-traversing an arrow already in the set

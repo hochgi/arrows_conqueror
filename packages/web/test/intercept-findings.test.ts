@@ -51,10 +51,16 @@ const E_TRAIL_4 = [
 /** Interleaving cut: from this arrow onto the trail (not an immediate approach). */
 const CUTTER = 'tiling:a:1,5,1' as ArrowId;
 const CUT_EXIT = 'tiling:a:0,6,0' as ArrowId;
-/** Two grain steps from CUTTER; stepping here is not itself a cut. */
-const APPROACH_FROM = 'tiling:a:-1,5,0' as ArrowId;
-/** Six grain steps from CUTTER — in-window but too late vs enemyETA=4. */
-const LATE_FROM = 'tiling:a:-5,5,0' as ArrowId;
+/**
+ * Off-trail arrow from which a step onto the trail's first out (stub at home)
+ * cuts by §2 coincide. The in-time / too-late race is toward this, not CUTTER —
+ * landing on a trail arrow is a cut even when the trail presents no chord there.
+ */
+const STUB_CUTTER = 'tiling:a:-1,5,0' as ArrowId;
+/** Two grain steps from STUB_CUTTER; stepping here is not itself a cut. */
+const APPROACH_FROM = 'tiling:a:-3,5,0' as ArrowId;
+/** Five grain steps from STUB_CUTTER — in-window but too late vs enemyETA=4. */
+const LATE_FROM = 'tiling:a:-6,5,0' as ArrowId;
 
 const seats = (opening: GameState): { E: PlayerId; Bot: PlayerId } => {
   const E = opening.players[0];
@@ -192,7 +198,7 @@ const bestForceInside = (
   return best;
 };
 
-const grainToCutFrom = (from: ArrowId): number => grainDistance(geometry, from, CUTTER, 24);
+const grainToCutFrom = (from: ArrowId): number => grainDistance(geometry, from, STUB_CUTTER, 24);
 
 // ── Core scenarios ───────────────────────────────────────────────────────────
 
@@ -261,8 +267,8 @@ describe('intercept findings — core', () => {
     const hit = hits[0];
     expect(hit).toBeDefined();
     if (hit === undefined) return;
-    const d0 = grainDistance(geometry, hit.move.from, CUTTER, 24);
-    const d1 = grainDistance(geometry, hit.move.exit, CUTTER, 24);
+    const d0 = grainDistance(geometry, hit.move.from, STUB_CUTTER, 24);
+    const d1 = grainDistance(geometry, hit.move.exit, STUB_CUTTER, 24);
     expect(d1).toBeLessThan(d0);
     expect(hit.cost).toBe(Math.max(1, n));
     expect(hit.reward).toBe(expectedReward(x, n));
@@ -288,7 +294,7 @@ describe('intercept findings — core', () => {
 
     const dClose = distanceToTerritory(geometry, state, E, tip);
     const enemyETA = ceilDiv(dClose, speed(1));
-    const n = grainDistance(geometry, LATE_FROM, CUTTER, 48);
+    const n = grainDistance(geometry, LATE_FROM, STUB_CUTTER, 48);
     const botETA = ceilDiv(n, speed(1));
     expect(n).toBeLessThanOrEqual(12); // still inside default distCap
     expect(botETA).toBeGreaterThan(enemyETA);
@@ -434,7 +440,7 @@ describe('intercept findings — EARS invariants', () => {
     const opening = makeMatch(MATCH);
     const { state, E, Bot, tip } = stateWithEnemyTrail(opening, E_TRAIL_4, LATE_FROM);
     const enemyETA = ceilDiv(distanceToTerritory(geometry, state, E, tip), speed(1));
-    const botETA = ceilDiv(grainDistance(geometry, LATE_FROM, CUTTER, 48), speed(1));
+    const botETA = ceilDiv(grainDistance(geometry, LATE_FROM, STUB_CUTTER, 48), speed(1));
     expect(botETA).toBeGreaterThan(enemyETA);
 
     expect(

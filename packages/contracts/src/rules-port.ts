@@ -139,11 +139,10 @@ export interface RulesPort {
   /**
    * Does this traversal cross `victim`'s trail at the point it transits?
    *
-   * The **full** verdict — `chordsCross`, interleave **or** coincide — which is
-   * what §6.1's cut and §6.2's combat take. Coincidence matters here: an enemy
-   * cannot stand on your trail arrow without entering through its tail point, which
-   * your trail also uses, so landing directly on one of their arrows is a crossing
-   * (§2).
+   * The **full** verdict — interleave **or** coincide — which is what §6.1's cut
+   * takes. SPEC §2's coincide is the tile rule: the exit *is* one of the victim's
+   * trail arrows. That holds even when the trail presents no chord at the point
+   * (a stub out, `i = 0`). Chord-level `chordsCross` covers the rest.
    *
    * A **query**. It refuses nothing, destroys nothing, and changes no state —
    * crossing is a decision the player commits to by choosing an exit, and what the

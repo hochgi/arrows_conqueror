@@ -103,9 +103,10 @@ describe('a trail with nothing on one side of a point presents nothing', () => {
     });
 
     expect(table.rules.trailChordsAt(state, point, A)).toEqual([]);
+    const markedOuts = new Set(outs.slice(0, o));
     for (const into of table.geometry.inArrows(point)) {
       for (const exit of table.geometry.outArrows(point)) {
-        expect(table.rules.crossesTrail(state, via(into, exit), A)).toBe(false);
+        expect(table.rules.crossesTrail(state, via(into, exit), A)).toBe(markedOuts.has(exit));
       }
     }
   });
@@ -113,7 +114,7 @@ describe('a trail with nothing on one side of a point presents nothing', () => {
   it('presents no chord where a trail departs a point it never entered', () => {
     // The safety rule means the arrow you departed *from* is territory, not trail —
     // so the first step off home leaves an out-arrow at that point and no in-arrow.
-    // Nothing can cross a trail there yet.
+    // No chord. Landing on that out is still §2 coincide.
     const table = onBoard();
     const t1 = anArrow(table.geometry);
     const point = table.geometry.target(t1);

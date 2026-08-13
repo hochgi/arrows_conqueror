@@ -10,7 +10,6 @@
  * @see docs/design/packets/P12-trail-fire-anchors.md
  */
 
-import { chord, chordsCross } from '@conquarrow/contracts';
 import type {
   ArrowId,
   GameState,
@@ -19,7 +18,7 @@ import type {
   Move,
   PlayerId,
   PointId,
-  StepMove,
+  Traversal,
 } from '@conquarrow/contracts';
 import { compareArrows } from './order';
 
@@ -71,7 +70,10 @@ interface Front {
 const canonical = (arrows: readonly ArrowId[]): ReadonlySet<ArrowId> =>
   new Set([...new Set(arrows)].toSorted(compareArrows));
 
-export const makeCutRules = (geometry: GeometryPort): CutRules => {
+export const makeCutRules = (
+  geometry: GeometryPort,
+  crossesTrail: (state: GameState, traversal: Traversal, victim: PlayerId) => boolean,
+): CutRules => {
   const trailOuts = (point: PointId, trail: ReadonlySet<ArrowId>): readonly ArrowId[] =>
     geometry.outArrows(point).filter((a) => trail.has(a));
 
@@ -88,21 +90,6 @@ export const makeCutRules = (geometry: GeometryPort): CutRules => {
         ? trailOuts(geometry.target(arrow), trail)
         : trailIns(geometry.origin(arrow), trail);
     return [...next].toSorted(compareArrows);
-  };
-
-  const trailCrosses = (state: GameState, move: StepMove, victim: PlayerId): boolean => {
-    const victimTrail = state.trails.get(victim);
-    if (victimTrail === undefined || victimTrail.size === 0) return false;
-    const point = geometry.target(move.from);
-    if (!geometry.outArrows(point).includes(move.exit)) return false;
-    const drawn = chord(geometry.slotOf(point, move.from), geometry.slotOf(point, move.exit));
-    const ins = geometry.inArrows(point).filter((a) => victimTrail.has(a));
-    const outs = geometry.outArrows(point).filter((a) => victimTrail.has(a));
-    return ins.some((into) =>
-      outs.some((out) =>
-        chordsCross(drawn, chord(geometry.slotOf(point, into), geometry.slotOf(point, out))),
-      ),
-    );
   };
 
   const runFronts = (
@@ -206,8 +193,9 @@ export const makeCutRules = (geometry: GeometryPort): CutRules => {
   const evaporate = (state: GameState, move: Move, mover: PlayerId): GameState => {
     if (move.kind !== 'step') return state;
 
+    // Same predicate as RulesPort.crossesTrail — including stub-out coincide (§2).
     const victims = state.players.filter(
-      (player) => player !== mover && trailCrosses(state, move, player),
+      (player) => player !== mover && crossesTrail(state, move, player),
     );
     if (victims.length === 0) return state;
 

@@ -143,6 +143,22 @@ describe('a traversal crosses an enemy trail on interleave or on coincidence', (
     expect(table.rules.crossesTrail(state, via(ourIn, theirOut), B)).toBe(true);
   });
 
+  it('reports a crossing when landing on a trail stub with no in-arrow at the point', () => {
+    // SPEC §2: coincide means the exit *is* a trail arrow. A dormant fragment's
+    // tail presents no chord (`i = 0`); landing on that out is still a crossing.
+    const table = onBoard();
+    const { ins, outs } = junction(table);
+    const theirOut = pick(outs, 0);
+    const aside = pick(outs, 1);
+    const ourIn = pick(ins, 0);
+    const state = stateOf([{ arrow: ourIn, owner: A, heads: 1 }], A, {
+      trail: { A: [ourIn], B: [theirOut] },
+    });
+
+    expect(table.rules.crossesTrail(state, via(ourIn, theirOut), B)).toBe(true);
+    expect(table.rules.crossesTrail(state, via(ourIn, aside), B)).toBe(false);
+  });
+
   it('reports no crossing when the traversal turns aside', () => {
     // §2: a chord that stays on one side — turning aside rather than through — is
     // not a crossing. This is what makes shadowing possible at all.

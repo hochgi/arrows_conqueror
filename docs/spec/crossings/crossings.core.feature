@@ -72,6 +72,15 @@ Feature: A trail's chords at a point, and who crossed whom
       # subsumes the tile rule — an enemy cannot stand on your trail arrow without
       # entering through its tail point, which your trail also uses.
 
+    Scenario: Landing on a trail stub is a crossing
+      Given player B's trail uses out-arrow e1 of point P and no in-arrow of P
+      And player A holds a head on an in-arrow of P
+      When I ask whether stepping from that head onto e1 crosses player B
+      Then it does
+      # SPEC §2: coincide means the exit *is* a trail arrow. A dormant fragment's
+      # tail presents no chord (i = 0), and landing on it is still a cut.
+      And stepping onto a different out-arrow of P does not cross player B
+
     Scenario: Turning aside is not a crossing
       Given player B's trail passes through point P on one in-arrow and one out-arrow
       And player A holds a head on an in-arrow of P

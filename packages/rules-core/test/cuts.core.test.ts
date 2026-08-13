@@ -64,21 +64,22 @@ describe('a cut is an ordinary step that crosses an enemy trail', () => {
   });
 
   it('cuts by coincidence when landing on a trail arrow', () => {
-    // "Landing on a trail arrow is a cut by coincidence". §2: coinciding with a
-    // trail arrow is a crossing.
+    // "Landing on a trail arrow is a cut by coincidence". SPEC §2: coincide means
+    // the exit *is* a trail arrow — the Gherkin only requires B's out, not an in.
+    // A dormant stub presents no chord at its tail (`i = 0`); the cut still fires.
     const table = onBoard();
     const { ins, outs } = junction(table);
-    const theirIn = pick(ins, 0);
     const theirOut = pick(outs, 0);
-    const ourIn = pick(ins, 1);
+    const ourIn = pick(ins, 0);
     const before = stateOf([{ arrow: ourIn, owner: A, heads: 1 }], A, {
-      trail: { A: [ourIn], B: [theirIn, theirOut] },
+      trail: { A: [ourIn], B: [theirOut] },
     });
     expect(table.rules.crossesTrail(before, via(ourIn, theirOut), B)).toBe(true);
 
     const after = table.rules.apply(before, step(ourIn, theirOut, 1));
 
-    expect(trailOf(after, B).length).toBeLessThan(trailOf(before, B).length);
+    expect(isTrail(after, B, theirOut)).toBe(false);
+    expect(trailOf(after, A)).toContain(String(theirOut));
   });
 
   it('does not cut when turning aside', () => {
