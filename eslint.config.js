@@ -52,7 +52,11 @@ export default tseslint.config(
       parserOptions: {
         projectService: {
           // Root tooling config lives outside any package's tsconfig.
-          allowDefaultProject: ['vitest.config.ts', 'packages/web/vite.config.ts'],
+          allowDefaultProject: [
+            'vitest.config.ts',
+            'packages/web/vite.config.ts',
+            'packages/online-api/test/infra.test.ts',
+          ],
         },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -105,7 +109,12 @@ export default tseslint.config(
   {
     // Root tooling config. Type-aware linting buys nothing here and these files
     // sit outside every package's tsconfig by design.
-    files: ['**/*.js', 'vitest.config.ts', 'packages/web/vite.config.ts'],
+    files: [
+      '**/*.js',
+      'vitest.config.ts',
+      'packages/web/vite.config.ts',
+      'packages/online-api/test/infra.test.ts',
+    ],
     ...tseslint.configs.disableTypeChecked,
   },
 );

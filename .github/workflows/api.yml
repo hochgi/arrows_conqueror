@@ -1,0 +1,48 @@
+# Deploy the Conquarrow HTTP + WebSocket APIs to personal AWS (OIDC).
+# Never run this on employer credentials. Do not add this workflow to the Pages fork.
+
+name: api
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - 'packages/online-api/**'
+      - 'packages/rules-core/**'
+      - 'packages/contracts/**'
+      - 'packages/geometry-*/**'
+      - '.github/workflows/api.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: api-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: eu-central-1
+      SAM_CLI_TELEMETRY: 0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: eu-central-1
+      - name: sam build and deploy
+        working-directory: infra
+        run: |
+          sam build
+          sam deploy --no-confirm-changeset --no-fail-on-empty-changeset --capabilities CAPABILITY_IAM

@@ -1,0 +1,14 @@
+{
+  "name": "@arrows/online-api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./health": "./src/health.ts",
+    "./moves": "./src/moves.ts",
+    "./ws": "./src/ws.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --build --force"
+  }
+}

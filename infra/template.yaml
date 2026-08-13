@@ -1,0 +1,202 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Conquarrow online edge (P16) — health, WS stubs, private bucket. Personal AWS only.
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures: [arm64]
+    Timeout: 10
+    MemorySize: 256
+
+Parameters:
+  HttpCertificateArn:
+    Type: String
+    Default: ''
+    Description: ACM cert ARN in eu-central-1 for api.games.hochgi.com. Empty skips custom domain.
+  WsCertificateArn:
+    Type: String
+    Default: ''
+    Description: ACM cert ARN in eu-central-1 for ws.games.hochgi.com. Empty skips custom domain.
+
+Conditions:
+  HasHttpCert: !Not [!Equals [!Ref HttpCertificateArn, '']]
+  HasWsCert: !Not [!Equals [!Ref WsCertificateArn, '']]
+
+Resources:
+  MatchBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'conquarrow-match-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      CorsConfiguration:
+        AllowOrigins:
+          - https://games.hochgi.com
+          - http://localhost:5173
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - '*'
+
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: health.handler
+      CodeUri: ../packages/online-api/src
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /health
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: cjs
+        Target: es2022
+        Sourcemap: false
+        EntryPoints:
+          - health.ts
+
+  MoveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: moves.handler
+      CodeUri: ../packages/online-api/src
+      Timeout: 60
+      MemorySize: 1024
+      Environment:
+        Variables:
+          MATCH_BUCKET: !Ref MatchBucket
+          MATCH_PREFIX: conquarrow/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource: !GetAtt MatchBucket.Arn
+              Condition:
+                StringLike:
+                  s3:prefix:
+                    - conquarrow
+                    - conquarrow/*
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource: !Sub '${MatchBucket.Arn}/conquarrow/*'
+      Events:
+        Moves:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /moves
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: cjs
+        Target: es2022
+        Sourcemap: false
+        EntryPoints:
+          - moves.ts
+
+  WsApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: conquarrow-ws
+      StageName: prod
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+
+  WsConnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: ws.handler
+      CodeUri: ../packages/online-api/src
+      Events:
+        Connect:
+          Type: WebSocket
+          Properties:
+            Route: $connect
+            ApiId: !Ref WsApi
+        Disconnect:
+          Type: WebSocket
+          Properties:
+            Route: $disconnect
+            ApiId: !Ref WsApi
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: cjs
+        Target: es2022
+        Sourcemap: false
+        EntryPoints:
+          - ws.ts
+
+  HttpDomain:
+    Type: AWS::ApiGatewayV2::DomainName
+    Condition: HasHttpCert
+    Properties:
+      DomainName: api.games.hochgi.com
+      DomainNameConfigurations:
+        - EndpointType: REGIONAL
+          CertificateArn: !Ref HttpCertificateArn
+
+  HttpMapping:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    Condition: HasHttpCert
+    Properties:
+      DomainName: !Ref HttpDomain
+      ApiId: !Ref HttpApi
+      Stage: $default
+      ApiMappingKey: conquarrow
+
+  WsDomain:
+    Type: AWS::ApiGatewayV2::DomainName
+    Condition: HasWsCert
+    Properties:
+      DomainName: ws.games.hochgi.com
+      DomainNameConfigurations:
+        - EndpointType: REGIONAL
+          CertificateArn: !Ref WsCertificateArn
+
+  WsMapping:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    Condition: HasWsCert
+    Properties:
+      DomainName: !Ref WsDomain
+      ApiId: !Ref WsApi
+      Stage: prod
+      ApiMappingKey: conquarrow
+
+Outputs:
+  HealthUrl:
+    Description: First-deploy health URL (execute-api). Custom domain after ACM.
+    Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/health'
+  WsUrl:
+    Description: First-deploy WebSocket URL. Custom domain after ACM.
+    Value: !Sub 'wss://${WsApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
+  MatchBucketName:
+    Value: !Ref MatchBucket
+  HttpApiId:
+    Value: !Ref HttpApi
+  WsApiId:
+    Value: !Ref WsApi

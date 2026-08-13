@@ -1,6 +1,6 @@
 # P16 — Online infra (SAM + CI + DNS)
 
-> **Status:** spec drafted (`docs/spec/online-infra/`). Waiting on human gate 1.
+> **Status:** implementing (SAM + OIDC CI). Custom domains wait on ACM in `infra/README.md`.
 
 ## Intent
 

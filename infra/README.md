@@ -1,0 +1,75 @@
+# Conquarrow online edge — operator notes
+
+Personal AWS only. **Never** point this stack at employer / Versatile credentials.
+There is **no AWS CLI profile on the work laptop**; deploys are GitHub Actions
+OIDC from `hochgi/conquarrow` `main`.
+
+Account (personal): the 12-digit id on the IAM role ARN.
+Region: **eu-central-1** (Frankfurt). ACM certs for the APIs must be in this
+region.
+
+## Already done (console)
+
+- GitHub OIDC provider `token.actions.githubusercontent.com`
+- Role assumed by Actions (secret `AWS_ROLE_ARN` on **hochgi/conquarrow** only)
+- Trust `sub` = `repo:hochgi/conquarrow:ref:refs/heads/main`
+
+## First deploy
+
+Push `infra/**` or `packages/online-api/**` to `hochgi` `main`, or run the **api**
+workflow (`workflow_dispatch`). Stack name: `conquarrow-online`.
+
+Outputs `HealthUrl` and `WsUrl` are `execute-api` URLs until custom domains exist.
+`GET` that HealthUrl — no Google token. Expect `{ "ok": true, "service": "conquarrow" }`.
+
+`POST …/moves` returns **501** until P18.
+
+## Custom domains (after the stack exists)
+
+Do this in the **isolated personal** browser, region Frankfurt.
+
+### ACM (two certs, same region as the APIs)
+
+1. ACM → Request public certificate.
+2. Names:
+   - `api.games.hochgi.com`
+   - `ws.games.hochgi.com`  
+   (one cert per name is simplest; a single cert with both SANs is also fine —
+   then the same ARN goes to both SAM parameters.)
+3. Validation: **DNS**.
+4. ACM shows CNAME records (`_abc123.api.games.hochgi.com` → ACM value).
+5. In **Namecheap** (not Route53): add those **ACM validation CNAMEs**.
+6. Wait until the cert status is **Issued**. Copy the cert ARN(s).
+
+Do **not** create a Route53 hosted zone for `games.hochgi.com`. Pages already
+uses Namecheap → GitHub. A hosted zone would fight that.
+
+### Namecheap — API targets
+
+After a deploy, CloudFormation outputs (or API Gateway → Custom domain names)
+show target hostnames like `d-xxxx.execute-api.eu-central-1.amazonaws.com`.
+
+Add CNAMEs (still Namecheap):
+
+| Host | Value |
+|---|---|
+| `api.games` | HTTP API custom-domain target (after SAM has the cert) |
+| `ws.games` | WebSocket custom-domain target |
+
+### Feed certs into SAM
+
+GitHub → Actions → **api** → Run workflow is enough if we later add repository
+variables `HTTP_CERTIFICATE_ARN` / `WS_CERTIFICATE_ARN`. Until then, a one-line
+parameter override can wait; execute-api URLs work for P16.
+
+Public URLs once mapped:
+
+- `https://api.games.hochgi.com/conquarrow/health`
+- `wss://ws.games.hochgi.com/conquarrow`
+
+## Do not
+
+- `aws configure` / extra profiles on the work laptop
+- Access keys in GitHub secrets
+- Put `AWS_ROLE_ARN` on `shalevhoch/conquarrow`
+- NS-delegate `games.hochgi.com` to Route53
