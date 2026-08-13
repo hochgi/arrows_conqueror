@@ -84,7 +84,8 @@ describe('online-infra — edge cases', () => {
   it('WebSocket connect accepts without writing group or game objects', async () => {
     const res = await ws();
     expect(res.statusCode).toBe(200);
-    expect(template).toContain('Route: $connect');
-    expect(template).toContain('Route: $disconnect');
+    expect(template).toContain('AWS::Serverless::WebSocketApi');
+    expect(template).toContain('$connect:');
+    expect(template).toContain('$disconnect:');
   });
 });

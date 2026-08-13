@@ -119,29 +119,22 @@ Resources:
           - moves.ts
 
   WsApi:
-    Type: AWS::Serverless::Api
+    Type: AWS::Serverless::WebSocketApi
     Properties:
       Name: conquarrow-ws
       StageName: prod
-      ProtocolType: WEBSOCKET
       RouteSelectionExpression: $request.body.action
+      Routes:
+        $connect:
+          FunctionArn: !GetAtt WsConnectFunction.Arn
+        $disconnect:
+          FunctionArn: !GetAtt WsConnectFunction.Arn
 
   WsConnectFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: ws.handler
       CodeUri: ../packages/online-api/src
-      Events:
-        Connect:
-          Type: WebSocket
-          Properties:
-            Route: $connect
-            ApiId: !Ref WsApi
-        Disconnect:
-          Type: WebSocket
-          Properties:
-            Route: $disconnect
-            ApiId: !Ref WsApi
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
