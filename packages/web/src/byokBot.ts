@@ -71,13 +71,13 @@ onto_home with trailLen=0 and no expansion is wasted tempo.`;
 {"move":N,"why":"short reason"}
 N is a LEGAL_MOVES index. Read tags and tipDist. Do not invent moves. Do not reprint STATE_JSON.`;
   if (reasoning) {
-    return `You are seat ${String(me)} in Arrows Conqueror (territorial conquest on directed arrows).
+    return `You are seat ${String(me)} in Conquarrow (territorial conquest on directed arrows).
 Choose the best LEGAL_MOVES index for this seat.
 ${priorities}
 
 ${contract}`;
   }
-  return `You are seat ${String(me)} in Arrows Conqueror.
+  return `You are seat ${String(me)} in Conquarrow.
 Choose the best LEGAL_MOVES index for this seat.
 ${priorities}
 

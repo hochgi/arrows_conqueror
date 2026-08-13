@@ -48,7 +48,7 @@ scheduled early in the first place.
 | ~~P12~~ | ~~AI opponent~~ | — | — | — | **out of MVP** (hot-seat). Kept in the graph because P10 exists partly to make it cheap later |
 | P14 | Online ADR | architecture | — | ADR 0001, P10, P24 | **[packet](./packets/P14-online-adr.md).** **Landed** as [ADR 0002](../adr/0002-cheap-async-online.md). 3/6 seats, ≥2 humans for AWS, groupHash = sorted Google subs, rematch = next game number. |
 | P15 | Local BYOK LLM bot | adapter | — | P11 | **[packet](./packets/P15-byok-llm-bot.md).** **Landed.** Browser-only OpenAI-compatible seat; legalMoves filter; keys never leave session |
-| P16 | Online infra | adapter | — | P14 | **[packet](./packets/P16-online-infra.md).** SAM + OIDC CI + base-path `/arrows_conqueror` — **personal AWS only, never employer** |
+| P16 | Online infra | adapter | — | P14 | **[packet](./packets/P16-online-infra.md).** SAM + OIDC CI + base-path `/conquarrow` — **personal AWS only, never employer** |
 | P17 | Online auth & invites | adapter | — | P16 | **[packet](./packets/P17-online-auth-invites.md).** Google OIDC, lobby 3/6, ≥2 humans, `/my-games` |
 | P18 | Online moves + WS | adapter | — | P17 | **[packet](./packets/P18-online-moves-ws.md).** `apply` + heuristic burst in one Lambda put; WS `stateChanged` |
 | P19 | Online web adapter | adapter | — | P18 | **[packet](./packets/P19-online-web-adapter.md).** Pages Sign-In, invite UX, library, WS refresh |
@@ -139,7 +139,7 @@ Playtest changed seating (3 or 6 only) and landed local BYOK (P15). Online is a
 harness (P24):
 
 1. **P14** — ADR 0002 (docs; skip red/green)
-2. **P16** — SAM + DNS + OIDC on `hochgi/arrows_conqueror`
+2. **P16** — SAM + DNS + OIDC on `hochgi/conquarrow`
 3. **P17** — auth, invites, library
 4. **P18** — moves, heuristic burst, WebSocket
 5. **P19** — Pages client

@@ -6,7 +6,7 @@
 
 ## Context
 
-Playtest is a client-only game on GitHub Pages (`games.hochgi.com/arrows_conqueror/`). The rules engine is a pure `apply(state, move) → state` (ADR 0001). That makes an authoritative server cheap: re-`apply` on the server, store state + log, never invent a second rules engine.
+Playtest is a client-only game on GitHub Pages (`games.hochgi.com/conquarrow/`). The rules engine is a pure `apply(state, move) → state` (ADR 0001). That makes an authoritative server cheap: re-`apply` on the server, store state + log, never invent a second rules engine.
 
 Constraints that drove the rest:
 
@@ -56,16 +56,16 @@ Start is allowed only when every **human** seat is bound and there are ≥2 of t
 
 ### 6. Store and notify
 
-S3 is the database. Key prefix `arrows_conqueror/` so another game can share the bucket.
+S3 is the database. Key prefix `conquarrow/` so another game can share the bucket.
 
 ```text
-arrows_conqueror/users/<userHash>/groups/<groupHash>
-arrows_conqueror/groups/<groupHash>/meta.json          # nextGameNumber, membership
-arrows_conqueror/groups/<groupHash>/games/NNNNNN/meta.json
-arrows_conqueror/groups/<groupHash>/games/NNNNNN/state.json
-arrows_conqueror/groups/<groupHash>/games/NNNNNN/log.jsonl
-arrows_conqueror/invites/<token>.json
-arrows_conqueror/connections/<userHash>/<connectionId>
+conquarrow/users/<userHash>/groups/<groupHash>
+conquarrow/groups/<groupHash>/meta.json          # nextGameNumber, membership
+conquarrow/groups/<groupHash>/games/NNNNNN/meta.json
+conquarrow/groups/<groupHash>/games/NNNNNN/state.json
+conquarrow/groups/<groupHash>/games/NNNNNN/log.jsonl
+conquarrow/invites/<token>.json
+conquarrow/connections/<userHash>/<connectionId>
 ```
 
 `GET /my-games` is that user's membership pointers only.
@@ -78,15 +78,15 @@ Move Lambda: **60 s timeout, 1024 MB**. Worst burst: 4 consecutive heuristic sea
 
 | Surface | URL |
 |---|---|
-| FE | `https://games.hochgi.com/arrows_conqueror/` (Pages, `shalevhoch` fork) |
-| HTTP | `https://api.games.hochgi.com/arrows_conqueror/…` |
-| WS | `wss://ws.games.hochgi.com/arrows_conqueror` |
+| FE | `https://games.hochgi.com/conquarrow/` (Pages, `shalevhoch` fork) |
+| HTTP | `https://api.games.hochgi.com/conquarrow/…` |
+| WS | `wss://ws.games.hochgi.com/conquarrow` |
 
-API Gateway **base-path mapping** `/arrows_conqueror` on shared custom domains. A later game adds a mapping, not a hostname.
+API Gateway **base-path mapping** `/conquarrow` on shared custom domains. A later game adds a mapping, not a hostname.
 
 Namecheap CNAMEs only. No NS-delegation of `games`. No new Route53 zone.
 
-Code: TypeScript in-repo (`infra/` + `packages/online-api/`), bundles `rules-core`. **SAM + GitHub Actions OIDC from `hochgi/arrows_conqueror` to the owner's personal AWS account.** Do not put that OIDC role on the son's fork. Do not deploy to employer AWS.
+Code: TypeScript in-repo (`infra/` + `packages/online-api/`), bundles `rules-core`. **SAM + GitHub Actions OIDC from `hochgi/conquarrow` to the owner's personal AWS account.** Do not put that OIDC role on the son's fork. Do not deploy to employer AWS.
 
 ```mermaid
 flowchart TB

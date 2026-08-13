@@ -4,7 +4,7 @@
 
 ## Intent
 
-GitHub Pages client on `games.hochgi.com/arrows_conqueror/`:
+GitHub Pages client on `games.hochgi.com/conquarrow/`:
 
 - Google Sign-In (public client id)
 - Online lobby: 3 or 6, mark seats human/heuristic, copy invite link
@@ -16,8 +16,8 @@ GitHub Pages client on `games.hochgi.com/arrows_conqueror/`:
 Finished games: members can open the **current/final** position. Auto-replay
 button is P20+.
 
-Env: `VITE_API_BASE=https://api.games.hochgi.com/arrows_conqueror`,
-`VITE_WS_URL=wss://ws.games.hochgi.com/arrows_conqueror`,
+Env: `VITE_API_BASE=https://api.games.hochgi.com/conquarrow`,
+`VITE_WS_URL=wss://ws.games.hochgi.com/conquarrow`,
 `VITE_GOOGLE_CLIENT_ID`.
 
 ## Scenario inventory (for spec-author)

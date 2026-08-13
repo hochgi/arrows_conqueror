@@ -36,24 +36,24 @@ Freeze the cheap online architecture before any infra lands. Game rules stay in
 | Auth | DIY Google OIDC JWT in Lambda. No Cognito. `sub` → stable player id |
 | Store | S3 only. No DynamoDB |
 | DNS | Namecheap CNAMEs. No NS-delegation of `games`. No Route53 hosted zone |
-| Hosts | FE `https://games.hochgi.com/arrows_conqueror/`. HTTP `https://api.games.hochgi.com/arrows_conqueror`. WS `wss://ws.games.hochgi.com/arrows_conqueror`. Path is the game; hostnames are shared for future games via API Gateway base-path mapping |
+| Hosts | FE `https://games.hochgi.com/conquarrow/`. HTTP `https://api.games.hochgi.com/conquarrow`. WS `wss://ws.games.hochgi.com/conquarrow`. Path is the game; hostnames are shared for future games via API Gateway base-path mapping |
 | Code | Lambda TypeScript, same repo, bundles `rules-core`. Path `infra/` + `packages/online-api/` |
-| Deploy | SAM from **`hochgi/arrows_conqueror`** via GitHub Actions OIDC to **personal AWS only**. Pages stays on `shalevhoch` |
+| Deploy | SAM from **`hochgi/conquarrow`** via GitHub Actions OIDC to **personal AWS only**. Pages stays on `shalevhoch` |
 | Language | TypeScript. Do not rewrite the engine in Go/Rust |
 
 ## S3 layout
 
 ```text
-arrows_conqueror/users/<userHash>/groups/<groupHash>
-arrows_conqueror/groups/<groupHash>/meta.json
-arrows_conqueror/groups/<groupHash>/games/000001/meta.json
-arrows_conqueror/groups/<groupHash>/games/000001/state.json
-arrows_conqueror/groups/<groupHash>/games/000001/log.jsonl
-arrows_conqueror/invites/<token>.json
-arrows_conqueror/connections/<userHash>/<connectionId>
+conquarrow/users/<userHash>/groups/<groupHash>
+conquarrow/groups/<groupHash>/meta.json
+conquarrow/groups/<groupHash>/games/000001/meta.json
+conquarrow/groups/<groupHash>/games/000001/state.json
+conquarrow/groups/<groupHash>/games/000001/log.jsonl
+conquarrow/invites/<token>.json
+conquarrow/connections/<userHash>/<connectionId>
 ```
 
-(Prefix `arrows_conqueror/` so a future game can share a bucket or not.)
+(Prefix `conquarrow/` so a future game can share a bucket or not.)
 
 Ids: SHA-256 truncated (16 bytes). `groupHash = H(sorted human userHashes)`.
 `groups/<groupHash>/meta.json` holds `nextGameNumber` (or equivalent). Start

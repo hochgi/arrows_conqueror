@@ -61,7 +61,7 @@ export const Lobby = ({ plan, onPlan, onStart }: LobbyProps): ReactElement => {
   return (
     <div className="lobby">
       <div className="lobby-card lobby-card-wide">
-        <h1>Arrows Conqueror</h1>
+        <h1>Conquarrow</h1>
         <p className="lobby-lead">Playtest match on the arrow tiling</p>
 
         <label className="lobby-count">

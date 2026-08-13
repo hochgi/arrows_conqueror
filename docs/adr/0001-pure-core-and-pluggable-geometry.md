@@ -6,7 +6,7 @@
 
 ## Context
 
-Arrows Conqueror is a turn-based game whose rules were specified in full before
+Conquarrow is a turn-based game whose rules were specified in full before
 any code existed. Two properties of that specification drive this decision.
 
 **The design contains no randomness at all.** Combat is deterministic attrition

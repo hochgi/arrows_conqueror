@@ -63,7 +63,7 @@ export const Hud = ({
   const winner: PlayerId | undefined = state.winner;
   return (
     <aside className="hud">
-      <h1>Arrows Conqueror</h1>
+      <h1>Conquarrow</h1>
       {winner !== undefined ? (
         <p className="banner win">{styleFor(winner).label} wins</p>
       ) : (

@@ -1,5 +1,5 @@
 # Build the Vite playtest client and publish to GitHub Pages.
-# On shalevhoch's fork this lands at https://games.hochgi.com/arrows_conqueror/
+# On shalevhoch's fork this lands at https://games.hochgi.com/conquarrow/
 
 name: pages
 

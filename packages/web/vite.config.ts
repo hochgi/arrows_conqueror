@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 import { byokDevProxy } from './vite.byok-proxy';
 
 /**
- * GitHub Pages serves this package at `/arrows_conqueror/` under
+ * GitHub Pages serves this package at `/conquarrow/` under
  * `games.hochgi.com` (same pattern as `ninja_grip`). Use `--mode pages` for that
  * deploy; local `vite` / default `vite build` keep `/`.
  *
@@ -11,7 +11,7 @@ import { byokDevProxy } from './vite.byok-proxy';
  * Pages needs a player-owned relay URL (personal AWS later — never employer).
  */
 export default defineConfig(({ mode }) => ({
-  base: mode === 'pages' ? '/arrows_conqueror/' : '/',
+  base: mode === 'pages' ? '/conquarrow/' : '/',
   plugins: [react(), byokDevProxy()],
   root: '.',
   server: { port: 5173 },

@@ -1,4 +1,4 @@
-# Arrows Conqueror — Design Spec
+# Conquarrow — Design Spec
 
 *Working draft. Turn-based territorial conquest on an arrow tiling. Volfied's carve-and-enclose loop, rebuilt as a deterministic skirmish game.*
 
