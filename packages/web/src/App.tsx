@@ -445,23 +445,25 @@ export const App = (): ReactElement => {
           const h = hostRef.current;
           if (h === undefined) return;
           const before = stateRef.current;
+          const applied: Move[] = [];
           for (const move of pending) {
             await h.submitMove(move);
             if (h.illegal() !== undefined) break;
+            applied.push(move);
           }
           const game = hydrateState(h.board()?.state);
           if (game === undefined) {
             refresh();
             return;
           }
-          if (before !== undefined) {
-            const burst = createEvaporationBurst(before, game, pending, Date.now(), geometry);
+          if (before !== undefined && applied.length > 0) {
+            const burst = createEvaporationBurst(before, game, applied, Date.now(), geometry);
             if (burst !== undefined) {
               setEvaporation((prev) => pruneBursts([...prev, burst]));
             }
           }
           stateRef.current = game;
-          record(pending, game);
+          if (applied.length > 0) record(applied, game);
           setState(game);
           setSnap(mode.reset());
           refresh();

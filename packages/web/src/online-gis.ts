@@ -30,17 +30,17 @@ const loadGsiScript = (): Promise<void> => {
   if (gsiId() !== undefined) return Promise.resolve();
   if (typeof document === 'undefined') return Promise.resolve();
   const existing = document.querySelector(`script[src="${GSI_SRC}"]`);
-    if (existing instanceof HTMLScriptElement) {
-      if (gsiId() !== undefined) return Promise.resolve();
-      return new Promise((resolve) => {
-        existing.addEventListener('load', () => {
-          resolve();
-        });
-        existing.addEventListener('error', () => {
-          resolve();
-        });
+  if (existing instanceof HTMLScriptElement) {
+    if (gsiId() !== undefined) return Promise.resolve();
+    return new Promise((resolve) => {
+      existing.addEventListener('load', () => {
+        resolve();
       });
-    }
+      existing.addEventListener('error', () => {
+        resolve();
+      });
+    });
+  }
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = GSI_SRC;

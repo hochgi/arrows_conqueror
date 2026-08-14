@@ -398,7 +398,11 @@ const OnlineChrome = ({ online }: { readonly online: LobbyOnline }): ReactElemen
               type="button"
               className="lobby-copy"
               onClick={() => {
-                void navigator.clipboard.writeText(online.copiedUrl ?? '');
+                const url = online.copiedUrl;
+                if (url === undefined) return;
+                void navigator.clipboard?.writeText(url).catch(() => {
+                  /* insecure context / permission — URL still visible */
+                });
               }}
             >
               Copy
