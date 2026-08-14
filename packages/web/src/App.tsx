@@ -498,6 +498,11 @@ export const App = (): ReactElement => {
     return refused.size === 0 ? withPath : { ...withPath, refused };
   }, [snap, hoverPath, state]);
 
+  const victory = useMemo(
+    () => (state === undefined ? ({ kind: 'playing' } as const) : victoryFx(state, geometry)),
+    [state],
+  );
+
   const commitSnap = useCallback(
     (next: InputSnapshot) => {
       setSnap(next);
@@ -721,7 +726,6 @@ export const App = (): ReactElement => {
   const byokActive = activeSeat?.kind === 'byok' && isByokReady(byokConfigForSeat(activeSeat));
 
   const inputLocked = botBusy || activeIsAi || state.winner !== undefined;
-  const victory = victoryFx(state, geometry);
 
   const onPointerDown = (e: PointerEvent<SVGSVGElement>): void => {
     if (snap.phase.kind === 'portion') return;
