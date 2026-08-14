@@ -93,10 +93,10 @@ Feature: Refuse self-convert — combat, portions, opponent convert, adapter
       And both messages are identical
       And the message is "step onto enemy territory without a territory-grade trail would convert"
 
-    Scenario: Every remaining legalMoves step applys without throw
+    Scenario: Every remaining legalMoves step applies without throw
       Given a stack-grade fragment neighbouring enemy land
       When A lists legal moves
-      Then every offered move applys without throw
+      Then every offered move applies without throw
       # Existing movement invariant; this fixture puts the filter in the pool.
 
   Rule: Adapter clicks and hover seams

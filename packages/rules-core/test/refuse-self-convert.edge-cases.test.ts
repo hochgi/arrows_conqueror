@@ -319,7 +319,7 @@ describe('purity / port agreement', () => {
   });
 
   it('applies every remaining legalMoves step without throw when the filter is in the pool', () => {
-    // "Every remaining legalMoves step applys without throw"
+    // "Every remaining legalMoves step applies without throw"
     const table = onBoard();
     const { from, exit, state } = stackGradeAgainstEnemy(table, 4);
     if (territoryOf(state, exit) !== B) {
