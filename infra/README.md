@@ -40,6 +40,10 @@ Outputs `HealthUrl` and `WsUrl` are `execute-api` URLs until custom domains exis
 
 `POST …/moves` returns **501** until P18.
 
+P17 routes (`/me`, `/my-games`, `/invites` and accept/revoke/start) need repository
+variable `GOOGLE_CLIENT_IDS` — comma-separated OAuth client ids accepted as ID
+token `aud` (Pages origin and localhost). Empty rejects every bearer.
+
 ## Custom domains (after the stack exists)
 
 Do this in the **isolated personal** browser, region Frankfurt.

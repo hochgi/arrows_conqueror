@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { handler as health } from '../src/health.ts';
-import { handler as moves } from '../src/moves.ts';
-import { handler as ws } from '../src/ws.ts';
+import { handler as health } from '../src/health';
+import { handler as moves } from '../src/moves';
+import { handler as ws } from '../src/ws';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const template = readFileSync(resolve(root, 'infra/template.yaml'), 'utf8');
@@ -75,10 +75,10 @@ describe('online-infra — edge cases', () => {
     expect(readme).toContain('Do **not** create a Route53 hosted zone for `games.hochgi.com`');
   });
 
-  it('health is defined; moves are not implemented; no invite route', async () => {
+  it('health is defined; moves are not implemented; invite routes exist', async () => {
     expect(template).toContain('Path: /health');
     expect(template).toContain('Path: /moves');
-    expect(template).not.toContain('Path: /invites');
+    expect(template).toContain('Path: /invites');
     const move = await moves();
     expect(move.statusCode).toBe(501);
   });

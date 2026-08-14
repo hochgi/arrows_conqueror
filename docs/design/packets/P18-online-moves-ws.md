@@ -33,6 +33,24 @@ module). Must stay deterministic (stable tie-break). No `Math.random`.
 - All-human 3p: WS wakes the two others, not the mover-only
 - Disconnect GC: gone connection id is dropped, later notify skips it
 
+## P17 follow-ons (conditional store)
+
+P17 invite/Start writes are last-write-wins. When this packet adds conditional
+put for move `If-Match`, use the same primitive on lobby mutations:
+
+- **Accept:** `If-Match` on `invites/<token>.json` so two concurrent accepts
+  cannot bind the same chair; 412 → re-read and retry.
+- **Start / rematch:** `If-None-Match: *` on `games/NNNNNN/meta.json` and a
+  conditional bump of `nextGameNumber`, so concurrent Start cannot overwrite
+  a game (ADR “never overwrite”).
+- **Start retry:** if game/group writes succeed but the invite stays `open`,
+  a retry can allocate a second game. Persist a resumable start (including
+  the chosen game number) so a retry finishes the same start. Do **not**
+  change the 410-after-successful-Start rule on GET/accept; that is specified.
+
+Do not add a `membership` field to `groups/<groupHash>/meta.json`. Seats live
+on game `meta.json`; library rows are the per-user pointer keys.
+
 ## Out of scope
 
 Pages client (P19), BYOK online, viewers, fork.

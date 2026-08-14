@@ -23,9 +23,9 @@ Freeze the cheap online architecture before any infra lands. Game rules stay in
 | Who pays AWS | **≥2 human seats**, all bound, before any S3 group/game exists. 1 human + AI is browser-only (today's local lobby). All-AI is browser-only |
 | AI driver | Same move Lambda: apply human move, then `chooseMove`+`apply` while next seat is heuristic, until a human seat or the game ends. **One** state put + log append for the whole burst. Notify humans once |
 | Worst AI burst | 4 consecutive heuristic turns (6-seat: H, A, A, A, A, H). Lambda **60s / 1024 MB**. Persist-at-end so timeout is retry-safe |
-| Invites | Opaque shareable token URL. Host occupies first human seat. Invitees take the next unbound human seat. Full → 409, **no viewers** |
-| Start | Host **Start** when every human seat is bound. Materialize group + **next** game number (never overwrite) |
-| Invite life | **No TTL.** Valid until host revokes or the lobby Starts (token then 410). Games never expire |
+| Invites | Opaque shareable token URL. Creator occupies a named human seat at create (`hostSeatIndex`, default first human). Invitees take the next unbound human seat. Full → 409, **no viewers** |
+| Start | Any bound human **Start** when every human seat is bound. Materialize group + **next** game number (never overwrite). Meta only in P17 |
+| Invite life | **No TTL.** Valid until creator revokes or the lobby Starts (token then 410 `{ reason }`). Games never expire |
 | Authz | Only the active human seat whose Google `sub` maps to that binding may `POST` a move |
 | Games | Never auto-delete; resume forever from S3. Rematch = next `games/NNNNNN` under the same group |
 | Group id | `groupHash = H(sorted human userHashes)` — Google `sub`s only, order-independent. Heuristic seats and 3-vs-6 plan are **not** in the hash (they live on the game's meta). Same two people always share one group folder |
@@ -44,6 +44,7 @@ Freeze the cheap online architecture before any infra lands. Game rules stay in
 ## S3 layout
 
 ```text
+conquarrow/users/<userHash>/lobbies/<token>
 conquarrow/users/<userHash>/groups/<groupHash>
 conquarrow/groups/<groupHash>/meta.json
 conquarrow/groups/<groupHash>/games/000001/meta.json
