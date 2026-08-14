@@ -28,6 +28,7 @@ import {
   getMyGames,
   goneReason,
   groupAndGameKeys,
+  lobbyKey,
   makeHarness,
   myGamesOf,
   parseBody,
@@ -98,6 +99,18 @@ describe('Accept', () => {
     const bobChairs = seats.filter((s) => boundUserHash(s) === bobHash());
     expect(bobChairs).toHaveLength(1);
     expect(seats[1]).toEqual({ kind: 'human', userHash: bobHash() });
+  });
+
+  it('Repeat accept restores a missing lobby pointer', async () => {
+    const { api, s3 } = makeHarness();
+    const token = await createOpenInvite(api, ALICE);
+    expectStatus(await postAccept(api, token, BOB.bearer), 200);
+    s3.delete(lobbyKey(bobHash(), token));
+
+    expectStatus(await postAccept(api, token, BOB.bearer), 200);
+
+    const lib = myGamesOf(parseBody(expectStatus(await getMyGames(api, BOB.bearer), 200)));
+    expect(lib.lobbies).toContain(token);
   });
 
   it('Unauthenticated accept is 401', async () => {

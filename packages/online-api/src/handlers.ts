@@ -72,6 +72,14 @@ const writeInvite = async (s3: ObjectStore, token: string, invite: InviteRecord)
   await putObject(s3, inviteKey(token), serializeInvite(invite));
 };
 
+const writeLobbyPointer = async (
+  s3: ObjectStore,
+  userHash: string,
+  token: string,
+): Promise<void> => {
+  await putObject(s3, lobbyKey(userHash, token), POINTER);
+};
+
 const publicInvite = (token: string, seats: InviteRecord['seats']): InviteBody => ({
   token,
   seats,
@@ -132,7 +140,7 @@ export const handleCreate = async (
     creatorUserHash: user.userHash,
     seats,
   });
-  await putObject(deps.s3, lobbyKey(user.userHash, token), POINTER);
+  await writeLobbyPointer(deps.s3, user.userHash, token);
   return jsonResult(201, publicInvite(token, seats));
 };
 
@@ -159,6 +167,7 @@ export const handleAccept = async (
   const closedResult = closed(invite);
   if (closedResult !== undefined) return closedResult;
   if (indexOfBoundUser(invite.seats, user.userHash) >= 0) {
+    await writeLobbyPointer(deps.s3, user.userHash, token);
     return jsonResult(200, publicInvite(token, invite.seats));
   }
   const next = nextUnboundHumanIndex(invite.seats);
@@ -167,7 +176,7 @@ export const handleAccept = async (
     index === next ? { kind: 'human' as const, userHash: user.userHash } : seat,
   );
   await writeInvite(deps.s3, token, { ...invite, seats });
-  await putObject(deps.s3, lobbyKey(user.userHash, token), POINTER);
+  await writeLobbyPointer(deps.s3, user.userHash, token);
   return jsonResult(200, publicInvite(token, seats));
 };
 

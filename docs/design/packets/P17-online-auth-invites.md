@@ -36,3 +36,6 @@ fake S3 / fake Google verify. Kit/S3 probes stay on `local-main`.
 
 Move submit / WebSocket notify / heuristic burst (P18), FE wiring (P19),
 Google Cloud OAuth client creation (operator env `GOOGLE_CLIENT_IDS`).
+Concurrent accept/Start and rematch game-number allocation (conditional S3
+put, `If-None-Match` on `games/NNNNNN`) — P18, when ObjectStore gains
+versioned writes for moves.

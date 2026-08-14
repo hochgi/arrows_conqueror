@@ -66,7 +66,7 @@ S3 is the database. Key prefix `conquarrow/` so another game can share the bucke
 ```text
 conquarrow/users/<userHash>/lobbies/<token>      # open invite this user is seated in
 conquarrow/users/<userHash>/groups/<groupHash>
-conquarrow/groups/<groupHash>/meta.json          # nextGameNumber, membership
+conquarrow/groups/<groupHash>/meta.json          # { nextGameNumber }; membership is the per-user pointer keys, not a field here
 conquarrow/groups/<groupHash>/games/NNNNNN/meta.json
 conquarrow/groups/<groupHash>/games/NNNNNN/state.json
 conquarrow/groups/<groupHash>/games/NNNNNN/log.jsonl

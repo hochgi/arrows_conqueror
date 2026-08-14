@@ -135,15 +135,19 @@ describe('online-auth-invites invariants', () => {
     expect(seatSummaries(parseBody(res))[0]).toEqual({ kind: 'human', userHash: aliceHash() });
   });
 
-  it('When a user accepts an invite they already occupy, the system shall return that same seat and shall not occupy a second chair', async () => {
-    const { api } = makeHarness();
+  it('When a user accepts an invite they already occupy, the system shall return that same seat, shall not occupy a second chair, and shall write that user\'s lobby pointer if it is missing', async () => {
+    const { api, s3 } = makeHarness();
     const token = await createOpenInvite(api, ALICE);
     expectStatus(await postAccept(api, token, BOB.bearer), 200);
+    s3.delete(lobbyKey(bobHash(), token));
     const again = expectStatus(await postAccept(api, token, BOB.bearer), 200);
     const seats = seatSummaries(parseBody(again));
     expect(seats.filter((s) => boundUserHash(s) === bobHash())).toHaveLength(1);
     expect(seats.filter((s) => boundUserHash(s) === aliceHash())).toHaveLength(1);
     expect(seats).toHaveLength(3);
+    expect(s3.has(lobbyKey(bobHash(), token))).toBe(true);
+    const lib = myGamesOf(parseBody(expectStatus(await getMyGames(api, BOB.bearer), 200)));
+    expect(lib.lobbies).toContain(token);
   });
 
   it('When every human seat is already bound, the system shall reject a further accept with 409 and shall not add a spectator row', async () => {

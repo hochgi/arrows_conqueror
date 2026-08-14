@@ -62,6 +62,14 @@ Feature: Online auth and invites — boundaries
       Then the response is 200
       And B still occupies only seat 1
 
+    Scenario: Repeat accept restores a missing lobby pointer
+      Given an open invite by A with seats human, human, heuristic
+      And B has accepted once
+      And B's lobby pointer is missing
+      When POST /invites/:token/accept with B's bearer again
+      Then the response is 200
+      And GET /my-games with B's bearer lists that token
+
     Scenario: Unauthenticated accept is 401
       Given an open invite
       When POST /invites/:token/accept without a bearer
