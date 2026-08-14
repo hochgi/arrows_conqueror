@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-08-13
+**Amended:** 2026-08-14 (P17 spec) — creator seat index, Start/revoke authz, 410 reasons, unauthenticated invite GET, `/my-games` includes open lobbies, Start writes meta only.
 **Context:** [`SPEC.md`](../../SPEC.md) §1 (delivery shape), [ADR 0001](./0001-pure-core-and-pluggable-geometry.md), packets [P14](../design/packets/P14-online-adr.md)–[P20](../design/packets/P20-deferred-online-followons.md)
 
 ## Context
@@ -26,7 +27,7 @@ The core stays pure. Adapters may use clocks and CSPRNG (invite tokens, JWT `exp
 
 ### 2. Who is allowed to cost money
 
-**AWS is used only when a lobby has ≥2 human seats, all bound.** One human plus heuristic AI, and all-AI, stay in the browser — today's local lobby — and **must not write S3**.
+**AWS group/game objects exist only when a lobby has ≥2 human seats, all bound.** One human plus heuristic AI, and all-AI, stay in the browser — today's local lobby — and **must not** create a group or game. An **invite** object may exist in S3 as soon as create succeeds, provided the *plan* has ≥2 human seats; only the creator is bound until others accept.
 
 ### 3. Identity, groups, games
 
@@ -48,17 +49,22 @@ Length 3 or 6. The FE shows "B is AI" from this, not by guessing.
 
 ### 5. Invites
 
-Opaque token URL (not a short PIN). Host occupies the first human seat. Invitees take the next unbound human seat. Full → 409, no viewers.
+Opaque token URL (not a short PIN). **No TTL.**
 
-**No TTL.** Host may revoke. After **Start**, the token is 410. Started games never expire.
+The **creator** is the Google user who `POST /invites`. They occupy one **human** seat at create, named by `hostSeatIndex` (index into the seats array). Default: the first human seat (ADR's original "first human chair" behaviour). The named seat must be `kind: human`. Invitees `POST …/accept` and take the next unbound human seat (lowest index). Full → 409, no viewers. Same user accepting twice is idempotent (same seat).
 
-Start is allowed only when every **human** seat is bound and there are ≥2 of them. It open-or-creates the group and allocates the next game number.
+**Revoke:** only the creator. **Start:** any human already bound on that invite, and only when every human seat is bound (and therefore ≥2). After Start, and after revoke, the token is **410** with body `{ "reason": "started" }` or `{ "reason": "revoked" }`. Started games never expire.
+
+`GET /invites/:token` is **unauthenticated** while the invite is open (seat plan and which chairs are bound — `userHash` only, never Google `sub`). After revoke/Start it returns the same 410 + reason.
+
+Start open-or-creates `groupHash = H(sorted human userHashes)` and allocates the next `games/NNNNNN`. P17 persists **meta only** (invite status, group meta, game `meta.json` with seats, membership pointers). `state.json` / `log.jsonl` are P18.
 
 ### 6. Store and notify
 
 S3 is the database. Key prefix `conquarrow/` so another game can share the bucket.
 
 ```text
+conquarrow/users/<userHash>/lobbies/<token>      # open invite this user is seated in
 conquarrow/users/<userHash>/groups/<groupHash>
 conquarrow/groups/<groupHash>/meta.json          # nextGameNumber, membership
 conquarrow/groups/<groupHash>/games/NNNNNN/meta.json
@@ -68,7 +74,7 @@ conquarrow/invites/<token>.json
 conquarrow/connections/<userHash>/<connectionId>
 ```
 
-`GET /my-games` is that user's membership pointers only.
+`GET /my-games` is that user's membership pointers only: **open lobbies** they are seated in, plus **started games** under their groups. Never another user's rows.
 
 WebSocket payload is only `{ type: "stateChanged", version, groupHash, gameNumber }`. The client then GETs state. `visibilitychange` is a safety net, not a poll loop. Connection registry lives in S3 (`$connect` / `$disconnect`).
 

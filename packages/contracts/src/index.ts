@@ -46,3 +46,25 @@ export {
   SPAWNER_BANDS,
 } from './match-config';
 export type { AnchorGrade, Claim, CombatLosses, RulesPort, Traversal } from './rules-port';
+
+export type {
+  CreateInviteBody,
+  GameNumber,
+  GoneBody,
+  GroupHash,
+  InviteBody,
+  InviteSeat,
+  InviteToken,
+  MeBody,
+  MyGamesBody,
+  OnlineHeaders,
+  OnlineHttpResult,
+  OnlinePort,
+  OnlineRequest,
+  OpenLobbyRow,
+  PlannedSeatKind,
+  StartBody,
+  StartedGameRow,
+  UserHash,
+} from './online-port';
+

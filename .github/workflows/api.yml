@@ -31,9 +31,14 @@ jobs:
       SAM_CLI_TELEMETRY: 0
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - run: npm install -g esbuild
       - uses: aws-actions/setup-sam@v2
         with:
@@ -47,6 +52,7 @@ jobs:
         env:
           HTTP_CERTIFICATE_ARN: ${{ vars.HTTP_CERTIFICATE_ARN }}
           WS_CERTIFICATE_ARN: ${{ vars.WS_CERTIFICATE_ARN }}
+          GOOGLE_CLIENT_IDS: ${{ vars.GOOGLE_CLIENT_IDS }}
         run: |
           sam build
           sam deploy \
@@ -55,4 +61,5 @@ jobs:
             --capabilities CAPABILITY_IAM \
             --parameter-overrides \
               "HttpCertificateArn=${HTTP_CERTIFICATE_ARN}" \
-              "WsCertificateArn=${WS_CERTIFICATE_ARN}"
+              "WsCertificateArn=${WS_CERTIFICATE_ARN}" \
+              "GoogleClientIds=${GOOGLE_CLIENT_IDS}"

@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Conquarrow online edge (P16) — health, WS stubs, private bucket. Personal AWS only.
+Description: Conquarrow online edge (P16–P17) — health, auth/invites, WS stubs, private bucket. Personal AWS only.
 
 Globals:
   Function:
@@ -18,6 +18,10 @@ Parameters:
     Type: String
     Default: ''
     Description: ACM cert ARN in eu-central-1 for ws.games.hochgi.com. Empty skips custom domain.
+  GoogleClientIds:
+    Type: String
+    Default: ''
+    Description: Comma-separated Google OAuth client ids (ID token aud). Empty rejects all bearers.
 
 Conditions:
   HasHttpCert: !Not [!Equals [!Ref HttpCertificateArn, '']]
@@ -117,6 +121,79 @@ Resources:
         Sourcemap: false
         EntryPoints:
           - moves.ts
+
+  OnlineFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: http.handler
+      CodeUri: ../packages/online-api
+      Environment:
+        Variables:
+          MATCH_BUCKET: !Ref MatchBucket
+          MATCH_PREFIX: conquarrow/
+          GOOGLE_CLIENT_IDS: !Ref GoogleClientIds
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource: !GetAtt MatchBucket.Arn
+              Condition:
+                StringLike:
+                  s3:prefix:
+                    - conquarrow
+                    - conquarrow/*
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource: !Sub '${MatchBucket.Arn}/conquarrow/*'
+      Events:
+        Me:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /me
+            Method: GET
+        MyGames:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /my-games
+            Method: GET
+        InvitesCreate:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /invites
+            Method: POST
+        InviteGet:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /invites/{token}
+            Method: GET
+        InviteAccept:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /invites/{token}/accept
+            Method: POST
+        InviteRevoke:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /invites/{token}/revoke
+            Method: POST
+        InviteStart:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /invites/{token}/start
+            Method: POST
+    Metadata:
+      BuildMethod: makefile
 
   WsApi:
     Type: AWS::Serverless::WebSocketApi
