@@ -175,17 +175,24 @@ describe('Library', () => {
     const h = makePagesHarness({
       sessionToken: ALICE.bearer,
       fetchScript: [
+        createInviteScript(INVITE_TOKEN),
         myGamesScript([listed]),
         getGameScript(openingBoard(), listed.groupHash, listed.gameNumber),
       ],
     });
     await h.adapter.boot();
+    h.adapter.selectMode('online');
+    h.adapter.setSeatPlan(TWO_HUMAN_HEURISTIC);
+    await h.adapter.createInvite();
     await h.adapter.refreshLibrary();
+    expect(h.adapter.inviteSeats()).toBeDefined();
 
     await h.adapter.openMyGame(listed.groupHash, listed.gameNumber);
 
     expect(h.location.hash).toBe(gameHash('G', GAME_ONE));
     expect(apiCalls(h, 'GET', `/games/G/${GAME_ONE}`)).toHaveLength(1);
+    expect(h.adapter.inviteSeats()).toBeUndefined();
+    expect(h.adapter.inviteToken()).toBeUndefined();
   });
 
   it('Finished game is view-only', async () => {
@@ -207,10 +214,16 @@ describe('Library', () => {
 
 describe('Session socket', () => {
   it('Sign-In opens a WebSocket and Sign-out closes it', async () => {
-    const h = makePagesHarness();
+    const h = makePagesHarness({
+      fetchScript: [createInviteScript(INVITE_TOKEN), myGamesScript([])],
+    });
     await h.adapter.boot();
 
     await h.adapter.deliverGoogleCredential(ALICE.bearer);
+    h.adapter.selectMode('online');
+    h.adapter.setSeatPlan(TWO_HUMAN_HEURISTIC);
+    await h.adapter.createInvite();
+    await h.adapter.refreshLibrary();
 
     expect(h.sockets).toHaveLength(1);
     const socket = h.sockets[0];
@@ -218,10 +231,17 @@ describe('Session socket', () => {
     if (socket === undefined) return;
     expect(accessTokenOf(socket.url)).toBe(ALICE.bearer);
     expect(socket.url.startsWith(`${h.env.VITE_WS_URL}?`)).toBe(true);
+    expect(h.adapter.inviteSeats()).toBeDefined();
+    expect(h.adapter.myGames()).toEqual({ lobbies: [], games: [] });
 
     h.adapter.signOut();
 
     expect(socket.closed).toBe(true);
     expect(h.session.getItem(GOOGLE_ID_TOKEN_SESSION_KEY)).toBeNull();
+    expect(h.adapter.inviteSeats()).toBeUndefined();
+    expect(h.adapter.copiedInviteUrl()).toBeUndefined();
+    expect(h.adapter.board()).toBeUndefined();
+    expect(h.adapter.myGames()).toBeUndefined();
+    expect(h.location.hash).toBe('');
   });
 });

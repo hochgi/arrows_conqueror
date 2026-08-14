@@ -72,6 +72,7 @@ Feature: Online Pages adapter
       When A opens that row
       Then the hash is #/g/G/000001
       And the adapter GETs that game
+      And leftover invite seats from a previous lobby are cleared
 
     Scenario: Finished game is view-only
       Given A opens #/g/<groupHash>/<gameNumber>
@@ -88,3 +89,4 @@ Feature: Online Pages adapter
       When A signs out
       Then that WebSocket is closed
       And sessionStorage has no conquarrow:google-id-token
+      And invite seats, copied invite URL, board, and my-games are cleared

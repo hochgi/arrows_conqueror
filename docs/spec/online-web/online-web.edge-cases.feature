@@ -82,6 +82,15 @@ Feature: Online Pages adapter — boundaries
       When A attempts a move
       Then POST /moves is not called
 
+  Rule: Library
+
+    Scenario: Library resume does not apply a previous lobby's seats
+      Given A created an invite (A on seat 0)
+      And A opens a different my-games row whose active player is B
+      When A submits a move
+      Then POST /moves is called
+      And invite seats are unset
+
   Rule: Auth and refresh
 
     Scenario: 401 keeps the hash and prompts Sign-In

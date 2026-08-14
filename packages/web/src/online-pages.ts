@@ -119,6 +119,22 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
     state.socket = undefined;
   };
 
+  /** Invite chairs belong to one lobby. Library resume must not reuse them. */
+  const clearInviteScope = (): void => {
+    state.copiedUrl = undefined;
+    state.lobbyIsFull = false;
+    state.goneReason = undefined;
+    state.seats = undefined;
+    state.inviteToken = undefined;
+  };
+
+  const clearIdentityScope = (): void => {
+    state.userHash = undefined;
+    state.board = undefined;
+    state.library = undefined;
+    clearInviteScope();
+  };
+
   const openSessionSocket = (): void => {
     closeSocket();
     const access = token();
@@ -266,6 +282,7 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
   };
 
   const openMyGame = async (groupHash: GroupHash, gameNumber: GameNumber): Promise<void> => {
+    clearInviteScope();
     location.hash = formatGameHash(groupHash, gameNumber);
     await getGame(groupHash, gameNumber);
   };
@@ -333,8 +350,7 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
   const signOut = (): void => {
     closeSocket();
     clearSessionToken(session);
-    state.userHash = undefined;
-    state.board = undefined;
+    clearIdentityScope();
     location.hash = '';
   };
 

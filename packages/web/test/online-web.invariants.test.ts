@@ -112,10 +112,16 @@ describe('online-web invariants', () => {
     expect(accessTokenOf(socket.url)).toBe(ALICE.bearer);
   });
 
-  it('When the player signs out, the adapter shall remove that session key and close the WebSocket', async () => {
-    const h = makePagesHarness();
+  it('When the player signs out, the adapter shall remove that session key, close the WebSocket, and clear invite seats, copied invite URL, board, /my-games, and userHash', async () => {
+    const h = makePagesHarness({
+      fetchScript: [createInviteScript(INVITE_TOKEN), myGamesScript([])],
+    });
     await h.adapter.boot();
     await h.adapter.deliverGoogleCredential(ALICE.bearer);
+    h.adapter.selectMode('online');
+    h.adapter.setSeatPlan(TWO_HUMAN_HEURISTIC);
+    await h.adapter.createInvite();
+    await h.adapter.refreshLibrary();
     h.adapter.signOut();
 
     expect(h.session.getItem(GOOGLE_ID_TOKEN_SESSION_KEY)).toBeNull();
@@ -124,6 +130,10 @@ describe('online-web invariants', () => {
     expect(socket).toBeDefined();
     if (socket === undefined) return;
     expect(socket.closed).toBe(true);
+    expect(h.adapter.inviteSeats()).toBeUndefined();
+    expect(h.adapter.copiedInviteUrl()).toBeUndefined();
+    expect(h.adapter.board()).toBeUndefined();
+    expect(h.adapter.myGames()).toBeUndefined();
   });
 
   it('When the hash is #/invite/<token> and the player has no session token, the adapter shall peek the invite and prompt GIS before accept', async () => {
@@ -321,22 +331,31 @@ describe('online-web invariants', () => {
     expect(copied).not.toContain(BOB.sub);
   });
 
-  it("Library resume shall open #/g/<groupHash>/<gameNumber> and GET; the listed rows are that user's /my-games only", async () => {
+  it("Library resume shall open #/g/<groupHash>/<gameNumber> and GET, shall clear invite seats from a previous lobby in this adapter, and the listed rows are that user's /my-games only", async () => {
     const own = { groupHash: GROUP_HASH, gameNumber: GAME_ONE };
     const h = makePagesHarness({
       sessionToken: ALICE.bearer,
-      fetchScript: [myGamesScript([own]), getGameScript(openingBoard())],
+      fetchScript: [
+        createInviteScript(INVITE_TOKEN),
+        myGamesScript([own]),
+        getGameScript(openingBoard()),
+      ],
     });
     await h.adapter.boot();
+    h.adapter.selectMode('online');
+    h.adapter.setSeatPlan(TWO_HUMAN_HEURISTIC);
+    await h.adapter.createInvite();
     await h.adapter.refreshLibrary();
 
     expect(h.adapter.myGames()).toEqual({ lobbies: [], games: [own] });
     expect(h.adapter.myGames()?.games.some((row) => row.groupHash === OTHER_GROUP_HASH)).toBe(
       false,
     );
+    expect(h.adapter.inviteSeats()).toBeDefined();
 
     await h.adapter.openMyGame(own.groupHash, own.gameNumber);
     expect(h.location.hash).toBe(gameHash(GROUP_HASH, GAME_ONE));
     expect(apiCalls(h, 'GET', `/games/${GROUP_HASH}/${GAME_ONE}`)).toHaveLength(1);
+    expect(h.adapter.inviteSeats()).toBeUndefined();
   });
 });

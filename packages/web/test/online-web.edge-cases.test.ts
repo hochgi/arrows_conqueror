@@ -197,6 +197,39 @@ describe('Move errors', () => {
   });
 });
 
+describe('Library', () => {
+  it("Library resume does not apply a previous lobby's seats", async () => {
+    const otherTurn = boardAt(0, { activePlayer: 'B', tag: 'other-game-bobs-turn' });
+    const listed = { groupHash: OTHER_GROUP_HASH, gameNumber: GAME_ONE };
+    const h = makePagesHarness({
+      sessionToken: ALICE.bearer,
+      fetchScript: [
+        createInviteScript(INVITE_TOKEN),
+        myGamesScript([listed]),
+        getGameScript(otherTurn, listed.groupHash, listed.gameNumber),
+        postMoveScript(200, { version: 1 }, listed.groupHash, listed.gameNumber),
+        getGameScript(
+          boardAt(1, { activePlayer: 'A', tag: 'other-after' }),
+          listed.groupHash,
+          listed.gameNumber,
+        ),
+      ],
+    });
+    await h.adapter.boot();
+    h.adapter.selectMode('online');
+    h.adapter.setSeatPlan(TWO_HUMAN_HEURISTIC);
+    await h.adapter.createInvite();
+    await h.adapter.refreshLibrary();
+    expect(h.adapter.inviteSeats()).toBeDefined();
+
+    await h.adapter.openMyGame(listed.groupHash, listed.gameNumber);
+    await h.adapter.submitMove(endTurn());
+
+    expect(h.adapter.inviteSeats()).toBeUndefined();
+    expect(apiCalls(h, 'POST', `/games/${OTHER_GROUP_HASH}/${GAME_ONE}/moves`)).toHaveLength(1);
+  });
+});
+
 describe('Auth and refresh', () => {
   it('401 keeps the hash and prompts Sign-In', async () => {
     const open = gameHash(GROUP_HASH, GAME_ONE);

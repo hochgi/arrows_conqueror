@@ -69,6 +69,10 @@ export interface OnlinePagesSocket {
   close(): void;
 }
 
+/**
+ * Opens the session socket. The host forwards inbound `stateChanged` JSON to
+ * `receiveStateChanged` — the same inbound pattern as GIS → `deliverGoogleCredential`.
+ */
 export type OnlinePagesOpenSocket = (url: string) => OnlinePagesSocket;
 
 /** Outbound: the adapter asks GIS to collect a credential. */

@@ -61,8 +61,10 @@ One lobby with **Local | Online**.
   calls the API, including 1-human+AI and all-AI.
 - **Online:** Sign-In first. BYOK is not offered. Plan must have ≥2 `human`
   seats before Create. Copy-invite after create. Start enabled when every
-  **human** seat is bound (heuristic may remain). Start → `#/g/<groupHash>/<gameNumber>`.
-  Any bound human may Start (P17).
+  **human** seat is bound (heuristic may remain) — the React shell reads
+  `inviteSeats()`. This adapter POSTs Start when it holds an invite token;
+  P17 is the authority if humans are still unbound. Start →
+  `#/g/<groupHash>/<gameNumber>`. Any bound human may Start (P17).
 
 ## Play
 
@@ -75,8 +77,10 @@ Whose turn (client, BSSN): Sign-In GETs `/me` for `userHash`. Combined with
 invite `seats` still in this adapter instance and P18 `players[i]` = seat *i*,
 the adapter skips POST when it can tell the caller is not the active seat.
 `GET /games/...` is `{ version, state }` only — no seats — so a hash-boot with
-no seats in memory does **not** invent a client-side block. The server still
-answers 403 when the bearer is not the active human seat (P18).
+no seats in memory does **not** invent a client-side block. `openMyGame`
+clears invite seats so a previous lobby cannot apply to the opened game.
+Start of *this* invite keeps those seats. The server still answers 403 when
+the bearer is not the active human seat (P18).
 
 Finished: members may open the URL; the board is the terminal GET; no POST.
 
@@ -86,8 +90,15 @@ the finished board.
 ## Session and WS
 
 Sign-In stores the ID token in `sessionStorage` and opens
-`VITE_WS_URL?access_token=<token>` **while signed in** (any screen). Sign-out
-clears the key, closes the socket, and returns to the lobby hash.
+`VITE_WS_URL?access_token=<token>` **while signed in** (any screen). The
+adapter opens and closes that socket; the host forwards inbound
+`stateChanged` JSON to `receiveStateChanged` (same inbound pattern as GIS →
+`deliverGoogleCredential`). Tests call `receiveStateChanged` on the fake;
+they do not parse WebSocket frames.
+
+Sign-out clears the session key, closes the socket, clears invite seats,
+copied invite URL, board, `/my-games`, and `userHash`, and returns to the
+lobby hash.
 
 Refresh in the same tab restores the token, reconnects WS, and re-GETs if the
 hash is a game.
@@ -150,7 +161,7 @@ flowchart TD
 - When Online mode is selected, the adapter shall not offer a BYOK seat.
 - When Online create is offered, the seat plan shall contain at least two `human` seats.
 - When the player is signed in, the adapter shall keep the ID token only in `sessionStorage` under `conquarrow:google-id-token` and shall open one WebSocket with that token as `access_token`.
-- When the player signs out, the adapter shall remove that session key and close the WebSocket.
+- When the player signs out, the adapter shall remove that session key, close the WebSocket, and clear invite seats, copied invite URL, board, `/my-games`, and `userHash`.
 - When the hash is `#/invite/<token>` and the player has no session token, the adapter shall peek the invite and prompt GIS before accept.
 - When accept returns 409, the adapter shall show the lobby as full and shall not open a game board.
 - When Start succeeds, the adapter shall set the hash to `#/g/<groupHash>/<gameNumber>` and GET that game.
@@ -161,4 +172,4 @@ flowchart TD
 - When `stateChanged` names the open game, the adapter shall GET that game. When it names another game, the adapter shall not replace the open board.
 - When `visibilitychange` becomes visible and a game is open, the adapter shall GET that game.
 - The adapter shall not include Google `sub` in copied invite URLs (token only).
-- Library resume shall open `#/g/<groupHash>/<gameNumber>` and GET; the listed rows are that user's `/my-games` only.
+- Library resume shall open `#/g/<groupHash>/<gameNumber>` and GET, shall clear invite seats from a previous lobby in this adapter, and the listed rows are that user's `/my-games` only.
