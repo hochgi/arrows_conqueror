@@ -588,7 +588,7 @@ export const App = (): ReactElement => {
           saveSeatPlan(next);
         }}
         onStart={() => {
-          if (host?.mode() === 'online' && host.onlineModeOffered() === true) {
+          if (host?.mode() === 'online' && host.onlineModeOffered()) {
             void host.start().then(refresh);
             return;
           }

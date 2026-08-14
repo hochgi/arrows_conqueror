@@ -128,7 +128,7 @@ export const createOnlineHost = (deps: OnlineHostDeps): OnlineHostPort => {
     pages.inviteToken() !== undefined &&
     !inviteGoneFlag &&
     pages.inviteGoneReason() === undefined &&
-    pages.lobbyFull() === false;
+    !pages.lobbyFull();
 
   return {
     adapter: () => pages,
