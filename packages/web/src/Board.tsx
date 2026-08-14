@@ -29,6 +29,12 @@ import type { YieldSoon } from './spawnerInfo';
 import type { Viewport } from './viewport';
 import { toScreen } from './viewport';
 import type { EvaporationBurst } from './fx/evaporation';
+import {
+  isMatchOverDimmed,
+  playHighlightsAllowed,
+  yieldSoonAllowed,
+  type VictoryFx,
+} from './fx/victory';
 import { GAP_DEG, polygonCentroid, shareArcSpan } from './shareArc';
 
 export interface BoardProps {
@@ -45,6 +51,8 @@ export interface BoardProps {
   readonly hoveredSpawner?: VertexId;
   /** Active trail-evaporation bursts (cut FX). */
   readonly evaporation?: readonly EvaporationBurst[];
+  /** Match-over celebration — computed once in App, shared with Hud. */
+  readonly victory: VictoryFx;
   readonly onPointerDown: (e: PointerEvent<SVGSVGElement>) => void;
   readonly onPointerMove: (e: PointerEvent<SVGSVGElement>) => void;
   readonly onPointerUp: (e: PointerEvent<SVGSVGElement>) => void;
@@ -211,11 +219,13 @@ const YieldShine = ({
   points,
   soon,
   bounds,
+  gradId = 'yieldShineGrad',
 }: {
   clipId: string;
   points: string;
   soon: YieldSoon;
   bounds: { x: number; y: number; w: number; h: number };
+  gradId?: string;
 }): ReactElement => {
   const pad = Math.max(bounds.w, bounds.h) * 0.85;
   return (
@@ -230,7 +240,7 @@ const YieldShine = ({
           y={bounds.y - pad}
           width={bounds.w + pad * 2}
           height={bounds.h + pad * 2}
-          fill="url(#yieldShineGrad)"
+          fill={`url(#${gradId})`}
         />
       </g>
     </g>
@@ -250,14 +260,19 @@ export const Board = ({
   movable,
   hoveredSpawner,
   evaporation,
+  victory: fx,
   onPointerDown,
   onPointerMove,
   onPointerUp,
   onPointerLeave,
   onWheel,
 }: BoardProps): ReactElement => {
-  const yieldSoon = yieldSoonByArrow(geometry, state);
+  const yieldSoon = yieldSoonAllowed(fx)
+    ? yieldSoonByArrow(geometry, state)
+    : new Map<ArrowId, YieldSoon>();
   const path = highlights.path;
+  const play = playHighlightsAllowed(fx);
+  const winnerFill = fx.kind === 'over' ? styleFor(fx.winner).fill : undefined;
 
   return (
     <svg
@@ -279,20 +294,33 @@ export const Board = ({
           <stop offset="55%" stopColor="#ffffff" stopOpacity="0" />
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
         </linearGradient>
+        {winnerFill !== undefined ? (
+          <linearGradient id="victoryShineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={winnerFill} stopOpacity="0" />
+            <stop offset="45%" stopColor={winnerFill} stopOpacity="0" />
+            <stop offset="50%" stopColor={winnerFill} stopOpacity="0.55" />
+            <stop offset="55%" stopColor={winnerFill} stopOpacity="0" />
+            <stop offset="100%" stopColor={winnerFill} stopOpacity="0" />
+          </linearGradient>
+        ) : null}
       </defs>
       {arrows.map((arrow) => {
         const poly = layout.polygon(arrow);
         const points = polyPoints(viewport, poly);
         const base = fillFor(arrow, state);
-        const isSelected = highlights.selected === arrow;
-        const isPreview = highlights.preview === arrow;
-        const onPath = path?.has(arrow) === true;
-        const entry = highlights.reach?.get(arrow);
-        const refused = highlights.refused?.has(arrow) === true;
-        const isMovable = movable.has(arrow) && !isSelected;
+        const isSelected = play && highlights.selected === arrow;
+        const isPreview = play && highlights.preview === arrow;
+        const onPath = play && path?.has(arrow) === true;
+        const entry = play ? highlights.reach?.get(arrow) : undefined;
+        const refused = play && highlights.refused?.has(arrow) === true;
+        const isMovable = play && movable.has(arrow) && !isSelected;
+        const pulse = fx.kind === 'over' ? fx.pulseArrows.has(arrow) : isSelected;
+        const dimmed = isMatchOverDimmed(fx, arrow, state);
+        const soon = yieldSoon.get(arrow);
+        const victoryShine = fx.kind === 'over' && fx.shineArrows.has(arrow);
+        const shineSoon: YieldSoon | undefined = victoryShine ? 1 : soon;
         const c = centroidScreen(viewport, poly);
         const group = state.groups.get(arrow);
-        const soon = yieldSoon.get(arrow);
         const ownerStroke = group !== undefined ? styleFor(group.owner).stroke : base.stroke;
         let strokeWidth = 0.7;
         if (isSelected || isPreview || onPath) strokeWidth = isSelected ? 3.4 : 2.6;
@@ -338,7 +366,7 @@ export const Board = ({
           maxY = Math.max(maxY, s.y);
         }
         return (
-          <g key={String(arrow)}>
+          <g key={String(arrow)} className={dimmed ? 'match-over-dim' : undefined}>
             <polygon
               points={points}
               fill={base.fill}
@@ -347,7 +375,7 @@ export const Board = ({
               data-arrow={String(arrow)}
               style={refused ? { cursor: 'not-allowed' } : undefined}
             />
-            {isSelected ? (
+            {pulse ? (
               <polygon
                 points={points}
                 fill={HIGHLIGHT_STROKE}
@@ -399,11 +427,12 @@ export const Board = ({
                 style={{ pointerEvents: 'none' }}
               />
             ) : null}
-            {soon !== undefined ? (
+            {shineSoon !== undefined ? (
               <YieldShine
                 clipId={`yield-clip-${String(arrow)}`}
                 points={points}
-                soon={soon}
+                soon={shineSoon}
+                gradId={victoryShine ? 'victoryShineGrad' : 'yieldShineGrad'}
                 bounds={{ x: minX, y: minY, w: maxX - minX, h: maxY - minY }}
               />
             ) : null}

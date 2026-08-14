@@ -57,6 +57,7 @@ scheduled early in the first place.
 | P26 | Playtest online UX | adapter | — | P17–P19, P25 | **[packet](./packets/P26-playtest-online-ux.md).** GET seats, frozen roster, lobby peek, 410 started ids, online auto-pass |
 | P27 | Lobby follow-up | adapter | — | P25, P26 | **[packet](./packets/P27-lobby-followup.md).** Create wait, Online Player floor, GIS chooser after One Tap dismiss |
 | P28 | Refuse self-convert | rules + adapter | §6.3, §4 | P04, P05, P07, P11, P22 | **[packet](./packets/P28-refuse-self-convert.md).** Self-convert steps illegal; opponent-caused convert unchanged; refused-target tooltip |
+| P29 | Win board celebration | adapter | §9 (read) | P09, P11, P08 | **[packet](./packets/P29-win-board-celebration.md).** Dim the rest, shine winner shares, pulse winner stacks, name how in the banner. No splash |
 | P20+ | Deferred follow-ons | — | — | — | **[packet](./packets/P20-deferred-online-followons.md).** Viewers, fork, arena, replay button, Elo, online BYOK, under-18 GIS, admin panel |
 
 ## Dependency graph
@@ -92,6 +93,7 @@ flowchart TD
   P07 --> P28["P28 refuse self-convert"]
   P11 --> P28
   P22["P22 simple trails"] --> P28
+  P11 --> P29["P29 win board celebration"]
 ```
 
 ## Build order and why

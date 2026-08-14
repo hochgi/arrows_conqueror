@@ -31,12 +31,13 @@ behaviour is not here, it will not be built.**
 | [encirclement](./encirclement/encirclement.md) | P07 | §6.3, §11 item 40 | 16 | — | 10 |
 | [economy](./economy/economy.md) | P08 | §7, §11 item 41 | 10 | — | 8 |
 | [refuse-self-convert](./refuse-self-convert/refuse-self-convert.md) | P28 | §6.3, §4, §11 item 43 | 25 | — | 12 |
+| [win-board-celebration](./win-board-celebration/win-board-celebration.md) | P29 | §9 (read), §7 | 19 | — | 12 |
 
-390 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
+409 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
 **58 belong to P03**, **18 to P02**, **30 to P04**, **58 to P05**, **49 to P05b**,
-**32 to P06**, **16 to P07**, **10 to P08**, and **25 to P28**.
-420 concrete cases once `Examples` rows are expanded (combat Examples add more),
-203 invariants.
+**32 to P06**, **16 to P07**, **10 to P08**, **25 to P28**, and **19 to P29**.
+439 concrete cases once `Examples` rows are expanded (combat Examples add more),
+215 invariants.
 
 A `@deferred-<packet>` tag means the behaviour is decided and specified here, but
 its seam falls in another packet — an accumulator that knows its owner is not a

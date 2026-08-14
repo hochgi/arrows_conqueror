@@ -59,6 +59,7 @@ import {
   pruneBursts,
   type EvaporationBurst,
 } from './fx/evaporation';
+import { victoryFx } from './fx/victory';
 import { ConvertTip } from './ConvertTip';
 import { PortionSlider } from './PortionSlider';
 import { pathForDestination } from './reach';
@@ -720,6 +721,7 @@ export const App = (): ReactElement => {
   const byokActive = activeSeat?.kind === 'byok' && isByokReady(byokConfigForSeat(activeSeat));
 
   const inputLocked = botBusy || activeIsAi || state.winner !== undefined;
+  const victory = victoryFx(state, geometry);
 
   const onPointerDown = (e: PointerEvent<SVGSVGElement>): void => {
     if (snap.phase.kind === 'portion') return;
@@ -876,6 +878,7 @@ export const App = (): ReactElement => {
     <div className="app">
       <Hud
         state={state}
+        victory={victory}
         phase={snap.phase}
         movableCount={movable.size}
         vsBot={log.vsBot}
@@ -909,6 +912,7 @@ export const App = (): ReactElement => {
           highlights={boardHighlights}
           movable={movable}
           evaporation={evaporation}
+          victory={victory}
           {...(hover === undefined ? {} : { hoveredSpawner: hover.vertex })}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
