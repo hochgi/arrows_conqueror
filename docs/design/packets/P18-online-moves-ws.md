@@ -1,6 +1,6 @@
 # P18 — Online moves + WebSocket notify + heuristic burst
 
-> **Status:** shipping. Gate 4: PR to `hochgi/conquarrow`. **Depends on:** P14, P16, P17. Bundles `rules-core` into Lambda.
+> **Status:** landed on `hochgi/conquarrow` (`c56d7cb`, PR #4). **Depends on:** P14, P16, P17. Bundles `rules-core` into Lambda.
 
 ## Intent
 

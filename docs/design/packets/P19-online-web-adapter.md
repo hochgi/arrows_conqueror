@@ -1,6 +1,6 @@
 # P19 — Online web adapter
 
-> **Status:** queued. **Depends on:** P17, P18.
+> **Status:** shipping. Gate 4: PR to `hochgi/conquarrow`. **Depends on:** P17, P18.
 
 ## Intent
 

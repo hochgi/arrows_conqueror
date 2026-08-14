@@ -4,6 +4,7 @@
 **Date:** 2026-08-13
 **Amended:** 2026-08-14 (P17 spec) — creator seat index, Start/revoke authz, 410 reasons, unauthenticated invite GET, `/my-games` includes open lobbies, Start writes meta only.
 **Amended:** 2026-08-14 (P18 spec) — nested `/games/{groupHash}/{gameNumber}` GET+POST moves, quoted `If-Match` version from 0, first member GET ensures `makeMatch` + opening burst, WS `access_token` query, 409 finished + `meta.winner`, conditional put on accept/Start.
+**Amended:** 2026-08-14 (P19 spec) — Pages GIS Sign-In, `sessionStorage` token, `#/invite/<token>` and `#/g/<groupHash>/<gameNumber>`, Local|Online lobby toggle, 412 GET-and-drop, WS while signed in.
 **Context:** [`SPEC.md`](../../SPEC.md) §1 (delivery shape), [ADR 0001](./0001-pure-core-and-pluggable-geometry.md), packets [P14](../design/packets/P14-online-adr.md)–[P20](../design/packets/P20-deferred-online-followons.md)
 
 ## Context
@@ -83,6 +84,8 @@ HTTP play: `GET /games/{groupHash}/{gameNumber}` and `POST …/moves` (If-Match 
 WebSocket: `wss://ws.games.hochgi.com/conquarrow?access_token=<Google ID token>`. Any verified user may `$connect`. Registry `connections/<userHash>/<connectionId>` plus `connection-ids/<connectionId>` for O(1) `$disconnect`. Payload is only `{ type: "stateChanged", version, groupHash, gameNumber }`. Notify **other** bound humans, not the caller. Notify is **best-effort after persist** — a `PostToConnection` failure must not fail the HTTP response. Gone connection ids are deleted. The client then GETs state. `visibilitychange` is a safety net, not a poll loop.
 
 `state.json` (conditional put) is the **commit pointer** for If-Match and GET. `log.jsonl` and `meta.winner` follow; S3 cannot transaction two keys. A crash between them can leave a short log; GET still serves the committed version, and a client retry of that version is 412.
+
+Pages (P19): Google Identity Services. ID token in `sessionStorage` (`conquarrow:google-id-token`). Hash routes `#/invite/<token>` and `#/g/<groupHash>/<gameNumber>`. One lobby with Local | Online (Online hides BYOK, requires ≥2 human seats). WS open while signed in. After POST 200 or 412 the tab GETs; 412 **drops** the in-flight move. No optimistic local `apply` for online moves. Sign-out clears the session key and closes the socket.
 
 Move Lambda: **60 s timeout, 1024 MB**. Worst burst: 4 consecutive heuristic seats (6-player, two humans on opposite corners).
 
