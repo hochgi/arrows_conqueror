@@ -400,9 +400,13 @@ const OnlineChrome = ({ online }: { readonly online: LobbyOnline }): ReactElemen
               onClick={() => {
                 const url = online.copiedUrl;
                 if (url === undefined) return;
-                void navigator.clipboard?.writeText(url).catch(() => {
-                  /* insecure context / permission — URL still visible */
-                });
+                try {
+                  void navigator.clipboard.writeText(url).catch(() => {
+                    /* permission — URL still visible */
+                  });
+                } catch {
+                  /* no clipboard API */
+                }
               }}
             >
               Copy
