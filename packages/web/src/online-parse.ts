@@ -83,8 +83,10 @@ export const parseBoard = (raw: unknown): OnlineGameBoard | undefined => {
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 0) {
     return undefined;
   }
-  const seats = parseSeats(rec['seats']);
-  if (seats === undefined) return { version, state: rec['state'] };
+  const rawSeats = rec['seats'];
+  if (rawSeats === undefined) return { version, state: rec['state'] };
+  const seats = parseSeats(rawSeats);
+  if (seats === undefined) return undefined;
   return { version, state: rec['state'], seats };
 };
 

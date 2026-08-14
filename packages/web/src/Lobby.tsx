@@ -65,8 +65,7 @@ export const Lobby = ({ plan, onPlan, onStart, online }: LobbyProps): ReactEleme
   const incomplete = !seatPlanReady(plan);
   const onlineMode = online?.offered === true && online.mode === 'online';
   const startDisabled = onlineMode ? !online.startOffered : incomplete;
-  const frozen =
-    onlineMode && !online.seatEditsOffered && online.inviteSeats !== undefined;
+  const frozen = onlineMode && !online.seatEditsOffered;
   const rosterSeats = frozen ? online.inviteSeats : undefined;
   const kindOptions = onlineMode
     ? KIND_OPTIONS.filter((opt) => online.seatKinds.includes(opt.value))
@@ -144,6 +143,7 @@ export const Lobby = ({ plan, onPlan, onStart, online }: LobbyProps): ReactEleme
                   <select
                     value={seat.kind}
                     aria-label={`${styleFor(player).label} driver`}
+                    disabled={frozen}
                     onChange={(e) => {
                       const kind = e.target.value as SeatKind;
                       onPlan(updateSeat(plan, index, { kind }));

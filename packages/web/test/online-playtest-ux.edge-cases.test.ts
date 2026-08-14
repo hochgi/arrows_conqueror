@@ -11,6 +11,7 @@ import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
 import { makeRules } from '@conquarrow/rules-core';
 import { passIfExhausted } from '../src/autoEndTurn';
 import { isCallerToMove } from '../src/online-pages';
+import { parseBoard } from '../src/online-parse';
 import {
   ALICE,
   BOB,
@@ -40,6 +41,14 @@ describe('410 bodies', () => {
     expect(h.host.acceptOffered()).toBe(false);
     await h.host.acceptInvite();
     expect(apiCalls(h, 'POST', `/invites/${INVITE_TOKEN}/accept`)).toHaveLength(0);
+  });
+
+  it('malformed seats fail the board parse', () => {
+    expect(parseBoard({ version: 0, state: { tag: 'ok' } })).toEqual({
+      version: 0,
+      state: { tag: 'ok' },
+    });
+    expect(parseBoard({ version: 0, state: { tag: 'bad' }, seats: 'nope' })).toBeUndefined();
   });
 });
 
