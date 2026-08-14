@@ -453,31 +453,36 @@ export const App = (): ReactElement => {
     const epoch = ++botEpoch.current;
     const cancelled = (): boolean => epoch !== botEpoch.current;
     const run = async (): Promise<void> => {
-      await adapterSleep(30);
-      if (cancelled()) return;
-      const plan = await planLocalAiTurn(seatConfig, start);
-      if (cancelled()) return;
-      if (plan.moves.length === 0) {
-        setBotBusy(false);
-        return;
+      try {
+        await adapterSleep(30);
+        if (cancelled()) return;
+        const plan = await planLocalAiTurn(seatConfig, start);
+        if (cancelled()) return;
+        if (plan.moves.length === 0) return;
+        if (plan.byok !== undefined) {
+          const status = byokTurnMessage(botChair, plan.byok.delta);
+          if (status !== undefined) setByokStatus(status);
+        }
+        await applyMovesSequentially(rules, start, plan.moves, {
+          gapMs: BOT_PLAYBACK_GAP_MS,
+          sleep: adapterSleep,
+          cancelled,
+          onApplied: (move, after, index) => {
+            if (plan.byok !== undefined && index === plan.moves.length - 1) {
+              commitApplied([move], after, plan.byok.delta, plan.byok.seat);
+              return;
+            }
+            commitApplied([move], after);
+          },
+        });
+      } catch (err: unknown) {
+        if (!cancelled() && seatConfig.kind === 'byok') {
+          const detail = err instanceof Error ? err.message : 'unknown error';
+          setByokStatus(`${botChair} playback failed: ${detail}`);
+        }
+      } finally {
+        if (!cancelled()) setBotBusy(false);
       }
-      if (plan.byok !== undefined) {
-        const status = byokTurnMessage(botChair, plan.byok.delta);
-        if (status !== undefined) setByokStatus(status);
-      }
-      await applyMovesSequentially(rules, start, plan.moves, {
-        gapMs: BOT_PLAYBACK_GAP_MS,
-        sleep: adapterSleep,
-        cancelled,
-        onApplied: (move, after, index) => {
-          if (plan.byok !== undefined && index === plan.moves.length - 1) {
-            commitApplied([move], after, plan.byok.delta, plan.byok.seat);
-            return;
-          }
-          commitApplied([move], after);
-        },
-      });
-      if (!cancelled()) setBotBusy(false);
     };
     void run();
     return () => {
