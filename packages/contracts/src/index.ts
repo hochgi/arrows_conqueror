@@ -74,3 +74,20 @@ export type {
   WsDisconnectRequest,
 } from './online-port';
 
+export { GOOGLE_ID_TOKEN_SESSION_KEY } from './online-pages-port';
+export type {
+  OnlineGameBoard,
+  OnlinePagesDeps,
+  OnlinePagesEnv,
+  OnlinePagesFetch,
+  OnlinePagesGis,
+  OnlinePagesHttpRequest,
+  OnlinePagesHttpResponse,
+  OnlinePagesLocation,
+  OnlinePagesOpenSocket,
+  OnlinePagesPort,
+  OnlinePagesSession,
+  OnlinePagesSocket,
+  PagesLobbyMode,
+} from './online-pages-port';
+

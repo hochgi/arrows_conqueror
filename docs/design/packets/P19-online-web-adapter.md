@@ -1,6 +1,6 @@
 # P19 — Online web adapter
 
-> **Status:** queued. **Depends on:** P17, P18.
+> **Status:** shipping. Gate 4: PR to `hochgi/conquarrow`. **Depends on:** P17, P18.
 
 ## Intent
 
@@ -32,3 +32,6 @@ Env: `VITE_API_BASE=https://api.games.hochgi.com/conquarrow`,
 ## Out of scope
 
 Elo, juice, N-player other than 3/6, viewers, fork, arena, auto-replay, online BYOK.
+React shell wiring (`App.tsx` / `Lobby.tsx`) is a follow-up: this packet ships
+`createOnlinePages` and its port tests. The host forwards GIS credentials and
+WS `stateChanged` frames into the adapter.
