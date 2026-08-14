@@ -1,3 +1,6 @@
+# SAM must run this Makefile in-source (`sam build --build-in-source`).
+# CopySource of CodeUri alone cannot resolve `../../web/src/opponent` or pnpm
+# `@aws-sdk` / `@smithy` symlinks.
 .PHONY: build-OnlineFunction build-MoveFunction build-WsConnectFunction
 
 build-OnlineFunction build-MoveFunction:

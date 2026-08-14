@@ -1,5 +1,10 @@
 version = 0.1
 
+[default.build.parameters]
+# Makefile esbuild must see sibling packages/web (Pages chooseMove) and pnpm
+# symlinks. SAM's default CopySource drops both.
+build_in_source = true
+
 [default.deploy.parameters]
 stack_name = "conquarrow-online"
 region = "eu-central-1"
