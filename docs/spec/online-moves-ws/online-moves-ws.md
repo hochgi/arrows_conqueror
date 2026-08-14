@@ -43,9 +43,10 @@ The P16 stub `POST /moves` (501) is **removed**. Invite routes are unchanged
 POST body: `{ "move": <Move> }` (`step` \| `skip` \| `endTurn` from contracts).
 
 POST 200 body: `{ "version", "groupHash", "gameNumber" }` — the client then
-GETs state (ADR). GET 200 body: `{ "version", "state" }` where `state` is a
-JSON encoding of `GameState` (observable: `players`, `activePlayer`, `winner`,
-groups/trails/territory sufficient to replay). Google `sub` never appears.
+GETs state (ADR). GET 200 body: `{ "version", "state", "seats" }` where `state`
+is a JSON encoding of `GameState` (observable: `players`, `activePlayer`,
+`winner`, groups/trails/territory sufficient to replay) and `seats` is that
+game's meta `InviteSeat[]` (P26). Google `sub` never appears.
 
 ## WebSocket
 
@@ -133,5 +134,6 @@ flowchart TD
 - When two clients accept concurrently, the system shall not bind both to the same chair; the late writer shall retry and take the next unbound human seat or 409 if full.
 - When Start allocates `games/NNNNNN`, the system shall not overwrite an existing object at that key (`If-None-Match`).
 - When Start is retried while the invite is still open and that start's game meta already exists, the system shall finish that same start and shall not allocate a new game number.
-- When Start has completed (invite status `started`), the system shall still respond 410 `{ "reason": "started" }` on GET/accept/start of that token.
+- When Start has completed (invite status `started`), the system shall still respond 410 `{ "reason": "started" }` on GET/accept/start of that token, including `groupHash` and `gameNumber` when the invite record has them (P26).
+- When GET game succeeds, the system shall include meta `seats` in the 200 body (P26).
 - Members shall GET a finished game as 200 (version and terminal state).

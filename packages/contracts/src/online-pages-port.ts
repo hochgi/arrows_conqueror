@@ -17,6 +17,7 @@ import type {
   MyGamesBody,
   PlannedSeatKind,
   StateChangedPayload,
+  UserHash,
 } from './online-port';
 
 /** sessionStorage key for the Google ID token (ADR 0002 / P19). */
@@ -28,6 +29,8 @@ export type PagesLobbyMode = 'local' | 'online';
 export interface OnlineGameBoard {
   readonly version: number;
   readonly state: unknown;
+  /** Game meta chairs when the GET body includes them (P26). Optional so older fixtures still parse. */
+  readonly seats?: readonly InviteSeat[];
 }
 
 export interface OnlinePagesEnv {
@@ -103,6 +106,11 @@ export interface OnlinePagesPort {
   acceptInvite(): Promise<void>;
   submitMove(move: Move): Promise<void>;
   refreshLibrary(): Promise<void>;
+  /**
+   * Peek the held invite token (unauthenticated GET) and GET `/my-games` when
+   * signed in. Not a game-state poll (P26).
+   */
+  refreshLobby(): Promise<void>;
   openMyGame(groupHash: GroupHash, gameNumber: GameNumber): Promise<void>;
   signOut(): void;
   deliverGoogleCredential(idToken: string): Promise<void>;
@@ -120,4 +128,6 @@ export interface OnlinePagesPort {
   inviteSeats(): readonly InviteSeat[] | undefined;
   inviteToken(): InviteToken | undefined;
   myGames(): MyGamesBody | undefined;
+  /** `/me` hash after boot, when known (P26 Accept / roster). */
+  userHash(): UserHash | undefined;
 }

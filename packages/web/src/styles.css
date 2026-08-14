@@ -23,22 +23,31 @@ body,
 #root {
   margin: 0;
   height: 100%;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
 .app {
   display: grid;
   grid-template-columns: minmax(220px, 280px) 1fr;
   height: 100%;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .hud {
   padding: 1.25rem 1rem;
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
   background: var(--panel);
   border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   overflow: auto;
+  min-width: 0;
 }
 
 .hud h1 {
@@ -382,6 +391,12 @@ body,
   padding: 0.35rem 0.45rem;
 }
 
+.lobby-seat-occupancy {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .lobby-seat-swatch {
   width: 0.75rem;
   height: 0.75rem;
@@ -554,6 +569,7 @@ body,
     border-bottom: 1px solid var(--line);
     max-height: 28dvh;
     padding: 0.65rem 0.75rem;
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
     gap: 0.4rem;
   }
 

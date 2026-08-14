@@ -454,6 +454,19 @@ export const goneInviteEmptyBodyScript = (token: string): ScriptedFetch => ({
   rawBody: '',
 });
 
+export const goneInviteStartedScript = (
+  token: string,
+  ids?: { readonly groupHash: string; readonly gameNumber: string },
+): ScriptedFetch => ({
+  method: 'GET',
+  path: `/invites/${token}`,
+  status: 410,
+  body:
+    ids === undefined
+      ? { reason: 'started' }
+      : { reason: 'started', groupHash: ids.groupHash, gameNumber: ids.gameNumber },
+});
+
 export const acceptInviteEmpty410Script = (token: string): ScriptedFetch => ({
   method: 'POST',
   path: `/invites/${token}/accept`,

@@ -76,6 +76,9 @@ export interface MyGamesBody {
 
 export interface GoneBody {
   readonly reason: 'revoked' | 'started';
+  /** Present on `started` when the invite record can supply them (P26). */
+  readonly groupHash?: GroupHash;
+  readonly gameNumber?: GameNumber;
 }
 
 /** POST moves against a game whose `state.winner` is already set. */

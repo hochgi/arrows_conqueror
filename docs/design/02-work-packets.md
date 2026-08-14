@@ -54,7 +54,8 @@ scheduled early in the first place.
 | P18 | Online moves + WS | adapter | — | P17 | **[packet](./packets/P18-online-moves-ws.md).** `apply` + heuristic burst in one Lambda put; WS `stateChanged` |
 | P19 | Online web adapter | adapter | — | P18 | **[packet](./packets/P19-online-web-adapter.md).** **Landed** (`9898041`, PR #5). Port + tests. Shell is P25. |
 | P25 | Pages online shell | adapter | — | P19 | **[packet](./packets/P25-pages-online-shell.md).** GIS, Local\|Online lobby, hash/WS/visibility host, REST play on Pages |
-| P20+ | Deferred follow-ons | — | — | — | **[packet](./packets/P20-deferred-online-followons.md).** Viewers, fork, arena, replay button, Elo, online BYOK |
+| P26 | Playtest online UX | adapter | — | P17–P19, P25 | **[packet](./packets/P26-playtest-online-ux.md).** GET seats, frozen roster, lobby peek, 410 started ids, online auto-pass |
+| P20+ | Deferred follow-ons | — | — | — | **[packet](./packets/P20-deferred-online-followons.md).** Viewers, fork, arena, replay button, Elo, online BYOK, under-18 GIS, admin panel |
 
 ## Dependency graph
 
@@ -83,7 +84,8 @@ flowchart TD
   P17 --> P18["P18 moves + WS"]
   P18 --> P19["P19 web online adapter"]
   P19 --> P25["P25 Pages shell"]
-  P25 -.-> P20["P20+ wishes"]
+  P25 --> P26["P26 playtest UX"]
+  P26 -.-> P20["P20+ wishes"]
 ```
 
 ## Build order and why
@@ -147,7 +149,8 @@ harness (P24):
 4. **P18** — moves, heuristic burst, WebSocket
 5. **P19** — Pages adapter (`createOnlinePages`)
 6. **P25** — Pages shell (GIS, lobby, host events)
-7. **P20+** — wishes only (viewers, fork, arena, replay button, Elo, online BYOK)
+7. **P26** — playtest lobby/HUD (GET seats, frozen roster, peek, 410 ids, online auto-pass)
+8. **P20+** — wishes only (viewers, fork, arena, replay button, Elo, online BYOK)
 
 One `/spec-to-ship` per packet.
 

@@ -14,6 +14,15 @@ import type { GameState, Move, RulesPort } from '@conquarrow/contracts';
 export const hasLegalStep = (rules: RulesPort, state: GameState): boolean =>
   rules.legalMoves(state).some((m) => m.kind === 'step');
 
+/**
+ * Online auto-pass (P26): the move to POST when the GET board has no legal
+ * `step`. Must not `apply` — the adapter POSTs via `submitMove`.
+ */
+export const onlinePassMove = (rules: RulesPort, state: GameState): Move | undefined => {
+  if (state.winner !== undefined || hasLegalStep(rules, state)) return undefined;
+  return endTurn();
+};
+
 export interface PassResult {
   readonly state: GameState;
   readonly moves: readonly Move[];

@@ -83,7 +83,9 @@ export const parseBoard = (raw: unknown): OnlineGameBoard | undefined => {
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 0) {
     return undefined;
   }
-  return { version, state: rec['state'] };
+  const seats = parseSeats(rec['seats']);
+  if (seats === undefined) return { version, state: rec['state'] };
+  return { version, state: rec['state'], seats };
 };
 
 const parseLobbyRow = (raw: unknown): OpenLobbyRow | undefined => {

@@ -43,6 +43,8 @@ export interface OnlineHostPort {
   acceptInvite(): Promise<void>;
   submitMove(move: Move): Promise<void>;
   refreshLibrary(): Promise<void>;
+  /** Delegates to the adapter: peek held invite + `/my-games` (P26). */
+  refreshLobby(): Promise<void>;
   openMyGame(groupHash: GroupHash, gameNumber: GameNumber): Promise<void>;
   signOut(): void;
   /** Sign-In click — outbound GIS prompt. */
@@ -68,10 +70,15 @@ export interface OnlineHostPort {
    */
   startOffered(): boolean;
   /**
-   * Signed in, invite token present, not gone, not full.
-   * Does not auto-accept — the shell shows Accept.
+   * Signed in, invite token present, not gone, not full, and the signed-in
+   * `userHash` does not already occupy a human chair (P26). Does not auto-accept.
    */
   acceptOffered(): boolean;
+  /**
+   * Seat-kind dropdowns. False while an invite token is live and not gone
+   * (frozen roster, P26).
+   */
+  seatEditsOffered(): boolean;
   createOffered(): boolean;
   /** Current Local | Online selection. Invite/game hash selects Online on boot. */
   mode(): PagesLobbyMode;

@@ -27,8 +27,19 @@ export const preconditionRequired = (): OnlineHttpResult =>
 
 export const internalError = (): OnlineHttpResult => jsonResult(500, { error: 'internal' });
 
-export const gone = (reason: 'revoked' | 'started'): OnlineHttpResult =>
-  jsonResult(410, { reason });
+export const gone = (
+  reason: 'revoked' | 'started',
+  started?: { readonly groupHash: string; readonly gameNumber: string },
+): OnlineHttpResult => {
+  if (reason === 'started' && started !== undefined) {
+    return jsonResult(410, {
+      reason,
+      groupHash: started.groupHash,
+      gameNumber: started.gameNumber,
+    });
+  }
+  return jsonResult(410, { reason });
+};
 
 export const unprocessable = (): OnlineHttpResult =>
   jsonResult(422, { error: 'unprocessable' });

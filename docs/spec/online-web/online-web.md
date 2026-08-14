@@ -74,13 +74,11 @@ notified on WS). The board becomes that GET. Heuristic seats run on the
 server; the client does not `playBotTurn` in Online mode.
 
 Whose turn (client, BSSN): Sign-In GETs `/me` for `userHash`. Combined with
-invite `seats` still in this adapter instance and P18 `players[i]` = seat *i*,
-the adapter skips POST when it can tell the caller is not the active seat.
-`GET /games/...` is `{ version, state }` only — no seats — so a hash-boot with
-no seats in memory does **not** invent a client-side block. `openMyGame`
-clears invite seats so a previous lobby cannot apply to the opened game.
-Start of *this* invite keeps those seats. The server still answers 403 when
-the bearer is not the active human seat (P18).
+`seats` on GET `/games/...` (P26) and P18 `players[i]` = seat *i*, the adapter
+skips POST when it can tell the caller is not the active seat. `openMyGame`
+still clears a previous lobby; the following GET writes `seats` from the game
+body. The server still answers 403 when the bearer is not the active human
+seat (P18).
 
 Finished: members may open the URL; the board is the terminal GET; no POST.
 
@@ -103,7 +101,9 @@ lobby hash.
 Refresh in the same tab restores the token, reconnects WS, and re-GETs if the
 hash is a game.
 
-`visibilitychange` to visible: GET the open game (no poll loop).
+`visibilitychange` to visible: GET the open game, and peek a held invite
+token (P26). While an invite is live and no board is open, the shell ticks
+`refreshLobby` (peek + `/my-games`) — not a game-state poll.
 
 `stateChanged` for the **open** game → GET that game. For any other
 `groupHash`/`gameNumber` → refresh `/my-games` only; do not replace the open
