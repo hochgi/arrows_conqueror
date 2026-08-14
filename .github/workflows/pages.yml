@@ -19,6 +19,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.repository == 'shalevhoch/conquarrow'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,6 +45,7 @@ jobs:
           path: packages/web/dist
 
   deploy:
+    if: github.repository == 'shalevhoch/conquarrow'
     needs: build
     runs-on: ubuntu-latest
     environment:

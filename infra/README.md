@@ -33,7 +33,9 @@ role's **trust policy** (not the permissions policy), `Condition` should be:
 ## First deploy
 
 Push `infra/**` or `packages/online-api/**` to `hochgi` `main`, or run the **api**
-workflow (`workflow_dispatch`). Stack name: `conquarrow-online`.
+workflow (`workflow_dispatch`). Stack name: `conquarrow-online`. The workflow
+runs `sam build --build-in-source` so the Move/Online Lambdas can bundle Pages
+`chooseMove` from `packages/web`. It no-ops on the Pages fork.
 
 Outputs `HealthUrl` and `WsUrl` are `execute-api` URLs until custom domains exist.
 `GET` that HealthUrl — no Google token. Expect `{ "ok": true, "service": "conquarrow" }`.
