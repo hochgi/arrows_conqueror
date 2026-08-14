@@ -70,3 +70,6 @@ flowchart TD
 - **Accumulator reset on owner change** — P08.
 - **Elimination / victory** — P09.
 - **Territory combat modifiers** — §11 item 39.
+- **Self-walk-in onto foreign territory** — P28 / §11 item 43 makes that step
+  **illegal** rather than converting. The predicate here still runs on groups
+  that become encircled on *another* player's apply.

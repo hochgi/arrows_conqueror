@@ -44,8 +44,9 @@ Feature: Closure — coming home, and what that takes with you
       Then the step succeeds
       And e1 is in player A's trail
       And e1 is still player B's territory
-      # §7: enemy territory is hostile ground — enterable, and exposing. Marking is
-      # trails' rule and it is untouched here.
+      # §7 / P28: enemy territory is hostile ground — enterable from own
+      # territory or a territory-grade trail, and exposing. Marking is trails'
+      # rule and it is untouched here.
 
     Scenario: Landing while not trailing claims nothing
       Given a head of player A's stands on arrow n1, which is neutral and not in any trail

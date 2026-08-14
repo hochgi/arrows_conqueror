@@ -56,6 +56,7 @@ scheduled early in the first place.
 | P25 | Pages online shell | adapter | — | P19 | **[packet](./packets/P25-pages-online-shell.md).** GIS, Local\|Online lobby, hash/WS/visibility host, REST play on Pages |
 | P26 | Playtest online UX | adapter | — | P17–P19, P25 | **[packet](./packets/P26-playtest-online-ux.md).** GET seats, frozen roster, lobby peek, 410 started ids, online auto-pass |
 | P27 | Lobby follow-up | adapter | — | P25, P26 | **[packet](./packets/P27-lobby-followup.md).** Create wait, Online Player floor, GIS chooser after One Tap dismiss |
+| P28 | Refuse self-convert | rules + adapter | §6.3, §4 | P04, P05, P07, P11, P22 | **[packet](./packets/P28-refuse-self-convert.md).** Self-convert steps illegal; opponent-caused convert unchanged; refused-target tooltip |
 | P20+ | Deferred follow-ons | — | — | — | **[packet](./packets/P20-deferred-online-followons.md).** Viewers, fork, arena, replay button, Elo, online BYOK, under-18 GIS, admin panel |
 
 ## Dependency graph
@@ -88,6 +89,9 @@ flowchart TD
   P25 --> P26["P26 playtest UX"]
   P26 --> P27["P27 lobby follow-up"]
   P27 -.-> P20["P20+ wishes"]
+  P07 --> P28["P28 refuse self-convert"]
+  P11 --> P28
+  P22["P22 simple trails"] --> P28
 ```
 
 ## Build order and why

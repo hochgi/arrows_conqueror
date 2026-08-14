@@ -289,6 +289,8 @@ A move names a **source arrow, a destination out-arrow, and a count** — nothin
 
 **Ordering within your own turn is therefore a real tactic.** Stepping one head onto a stack to reinforce it before another head commits to a crossing is a legal and intended play — though §3's merge rule means the reinforced stack pays for it in tempo.
 
+**Illegal steps are refused, never applied.** A step against the grain, an overdraw, or a grain step onto another player's territory without territory-grade protection from the source (§6.3) is illegal: `legalMoves` omits it and `apply` throws. The stack does not move, does not fight, and does not convert.
+
 **Skipping is normal, not a fallback.** A rearguard head on an open trail is doing its job by standing still (§5): stepping forward only lengthens the trail it is there to guard, and drags it away from the stretch it defends. Expect a typical turn to move a minority of the units on the board.
 
 ---
@@ -474,6 +476,8 @@ Conversion triggers on **state, not on event**:
 
 "Anchored" here means **territory grade** (§6.1 / §11 item 28). Stack-grade and dormant do not protect. Closing a shape around enemy heads is the common case, not a separate rule — the closure simply puts them inside your territory and severs them at once. **Stacks convert intact:** encircle a 3-stack and you gain a 3-stack, not three singles and not a token survivor.
 
+A player may not step onto another player's territory unless that step would leave the landing group **territory-grade** (a continuous own-trail path that still reaches the mover's own territory — equivalently: `from` is already the mover's territory, or `from` is on a territory-grade trail of the mover). Such a step is **illegal**. It does not convert. Conversion remains the result of an opponent's apply that puts a group on foreign territory without that grade (closure, or a cut that demotes a raider already inside).
+
 A group that still has a territory-grade trail (a path of its trail reaching its own territory) is **not** encircled. You cannot capture a trail-connected raider by claim alone: a cut must first evaporate up to their anchor and drop the grade (§6.1).
 
 On convert, the stack flips owner at the same head count, with **`spent` reset to 0 and any merge override dropped**, and **the victim's trail is stripped from the converted arrow(s)** — orphan dormant remnant **remains marked** (P22; item 40 re-resolved — no scrub). Converted groups sit on the claimer's territory — co-location with a pre-existing friendly group on the same arrow does not arise from claim encirclement (contact combat already forbids shared occupancy with enemies).
@@ -549,7 +553,7 @@ Land bridges remain available, but only between holdings you *already own* — w
 
 ### Territory is contestable
 
-Enclosed land is **not permanent**. An enemy can drive a chain into your territory and close a loop inside it, carving that chunk — and any specials in it — back out. Enemy territory is hostile ground: enterable, but you are exposed there and they are not.
+Enclosed land is **not permanent**. An enemy can drive a chain into your territory and close a loop inside it, carving that chunk — and any specials in it — back out. Enemy territory is hostile ground: enterable **from own territory or a territory-grade trail** (§6.3), but you are exposed there and they are not. A step onto it without that protection is illegal — it does not convert the mover.
 
 Nothing is ever safe, so nobody snowballs. Taking a spawner early paints a target rather than winning the game.
 
@@ -836,6 +840,8 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > **Item 41 was opened and closed by P08:** accrual ticks once per **full round** (not every `endTurn`); friendly occupation accrues and merges with **no** §3 merge override (birth is not a spent move); enemy occupation still halts. → §7, → P08.
 >
+> **Item 43 was opened and closed by P28:** walking from stack-grade / marked trail onto enemy territory used to convert the mover on that same `apply`. Playtest: nobody chooses that step if they can read it. **Resolved: the step is illegal.** Conversion stays a state predicate for opponent-caused encirclement. → §6.3, → §4, → P28.
+>
 > **§11 now carries no open rules question.** What remains is a **parked tuning table**, not a gap: item 11's *R*, the band radii, force per band, and item 32's *N* are numbers only playtesting can set, and P09 owns setting them. Item **39** parks a territory-combat idea without blocking. Nothing else is blocked, and none of the tuning items changes a rule.
 >
 > **Item 34 was opened and closed by P05, and it was never a gap.** §7's closure clause granted "special tiles", which §7's *own next subsection* forbids — specials are vertices, owned in thirds by their bordering arrows, and a vertex is never enclosed. The answer was three subsections from the question, which is the failure mode a spec this cross-referential invites; the item stays as a reminder to look before opening one. → §7 (corrected), → P05b, → P08.
@@ -1027,6 +1033,10 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 **P22 beta — firebreak-capped paint**
 
 42. ~~When an unanchored fragment lands home, how much of the trail becomes territory?~~ — **resolved by P22.** If the component was **not** territory-rooted before landing, the claim walk against the grain **stops before entering the first firebreak** (owner-occupied trail arrow); that firebreak and distal marks remain trail. Territory-rooted landings claim the full upstream walk (and fill if enclosed). Paint trigger remains: head lands on own territory. → **§7**, → **P22**.
+
+**Self-convert steps — resolved by P28: illegal, not a suicide move**
+
+43. ~~May a player walk from stack-grade / marked trail onto enemy territory and convert themselves?~~ — **resolved: no, the step is illegal.** Conversion is not a suicide move the engine offers. A grain step onto another player's territory is legal only when the mover is already **territory-grade protected** from `from` (home tile, or own trail with `anchorGrade === 'territory'`). Otherwise `legalMoves` omits every count of that `(from, exit)` and `apply` throws; the stack does not move, fight, or convert. Opponent-caused encirclement is unchanged: closure claiming the tile under an unprotected group, or a cut that demotes a raider already inside, still converts intact (§6.3). Skip does not convert. → **§6.3**, → **§4**, → **P28**.
 
 **Spawner accrual timing and spawn-merge — resolved by P08**
 
