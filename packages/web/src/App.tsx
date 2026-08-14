@@ -868,7 +868,7 @@ export const App = (): ReactElement => {
       ? snap.phase.from
       : undefined;
   const convertCopy =
-    state === undefined || hoverArrow === undefined
+    hoverArrow === undefined
       ? undefined
       : convertTooltip(state, geometry, rules, selectedFrom, hoverArrow.arrow);
 
