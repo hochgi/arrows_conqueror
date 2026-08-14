@@ -58,6 +58,7 @@ export const createOnlineHost = (deps: OnlineHostDeps): OnlineHostPort => {
   let mode: PagesLobbyMode = 'local';
   let illegalMsg: string | undefined;
   let inviteGoneFlag = false;
+  let createPending = false;
 
   const noteResponse = (req: OnlinePagesHttpRequest, res: OnlinePagesHttpResponse): void => {
     const path = requestPath(req.url);
@@ -136,6 +137,16 @@ export const createOnlineHost = (deps: OnlineHostDeps): OnlineHostPort => {
     inviteGoneFlag ||
     pages.inviteGoneReason() !== undefined;
 
+  const createInvite = async (): Promise<void> => {
+    if (createPending) return;
+    createPending = true;
+    try {
+      await pages.createInvite();
+    } finally {
+      createPending = false;
+    }
+  };
+
   return {
     adapter: () => pages,
     boot,
@@ -147,7 +158,7 @@ export const createOnlineHost = (deps: OnlineHostDeps): OnlineHostPort => {
       pages.setSeatPlan(seats);
     },
     start,
-    createInvite: () => pages.createInvite(),
+    createInvite,
     acceptInvite: () => pages.acceptInvite(),
     submitMove: (move: Move) => pages.submitMove(move),
     refreshLibrary: () => pages.refreshLibrary(),
@@ -155,7 +166,7 @@ export const createOnlineHost = (deps: OnlineHostDeps): OnlineHostPort => {
     openMyGame: (groupHash, gameNumber) => pages.openMyGame(groupHash, gameNumber),
     signOut,
     promptSignIn: () => {
-      deps.gis.prompt();
+      deps.gis.offerChooser();
     },
     handleHashChange: async () => {
       await pages.boot();
@@ -175,7 +186,8 @@ export const createOnlineHost = (deps: OnlineHostDeps): OnlineHostPort => {
     startOffered,
     acceptOffered,
     seatEditsOffered,
-    createOffered: () => pages.createOffered() && signedIn(),
+    createOffered: () => pages.createOffered() && signedIn() && !createPending,
+    createInvitePending: () => createPending,
     mode: () => mode,
     illegal: () => illegalMsg,
     inviteGone: () => inviteGoneFlag || pages.inviteGoneReason() !== undefined,

@@ -21,6 +21,7 @@ import {
   type OnlinePagesSocket,
   type PlannedSeatKind,
 } from '@conquarrow/contracts';
+import type { BrowserGisId, GisPromptNotification } from '../src/online-gis';
 import { createOnlinePages } from '../src/online-pages';
 
 export const PAGES_ORIGIN = 'https://games.hochgi.com';
@@ -128,6 +129,8 @@ export type ScriptedFetch = {
   readonly body?: unknown;
   /** When set, returned as the HTTP body as-is (empty 410, non-JSON, …). */
   readonly rawBody?: string;
+  /** When set, the harness waits on this instead of resolving immediately (P27). */
+  readonly deferred?: Promise<OnlinePagesHttpResponse>;
 };
 
 export type HarnessSocket = OnlinePagesSocket & { closed: boolean };
@@ -135,6 +138,7 @@ export type HarnessSocket = OnlinePagesSocket & { closed: boolean };
 export type HarnessGis = OnlinePagesGis & {
   readonly prompted: boolean;
   readonly promptCount: number;
+  readonly offerChooserCount: number;
 };
 
 export type HarnessSession = OnlinePagesSession & {
@@ -187,15 +191,51 @@ export const memoryLocation = (hash = ''): OnlinePagesLocation => ({
 
 export const fakeGis = (): HarnessGis => {
   let promptCount = 0;
+  let offerChooserCount = 0;
   return {
     prompt: () => {
       promptCount += 1;
+    },
+    offerChooser: () => {
+      offerChooserCount += 1;
     },
     get prompted() {
       return promptCount > 0;
     },
     get promptCount() {
       return promptCount;
+    },
+    get offerChooserCount() {
+      return offerChooserCount;
+    },
+  };
+};
+
+export type GisMomentKind = 'displayed' | 'not-displayed' | 'skipped' | 'dismissed';
+
+export const gisNotification = (kind: GisMomentKind): GisPromptNotification => ({
+  isNotDisplayed: () => kind === 'not-displayed',
+  isSkippedMoment: () => kind === 'skipped',
+  isDismissedMoment: () => kind === 'dismissed',
+});
+
+export type InjectedGisId = BrowserGisId & {
+  readonly renderButtonCount: number;
+};
+
+/** Injected `google.accounts.id`: `prompt` fires the moment listener; `renderButton` is counted. */
+export const injectedGisId = (moment: GisPromptNotification): InjectedGisId => {
+  let renderButtonCount = 0;
+  return {
+    initialize: () => {},
+    prompt: (listener) => {
+      listener?.(moment);
+    },
+    renderButton: () => {
+      renderButtonCount += 1;
+    },
+    get renderButtonCount() {
+      return renderButtonCount;
     },
   };
 };
@@ -313,6 +353,7 @@ export const makePagesFakes = (overrides?: {
       if (entry === undefined) {
         return Promise.resolve({ status: 599, body: JSON.stringify({ error: 'unscripted' }) });
       }
+      if (entry.deferred !== undefined) return entry.deferred;
       const raw =
         entry.rawBody !== undefined
           ? entry.rawBody
@@ -390,6 +431,43 @@ export const createInviteScript = (token: string): ScriptedFetch => ({
   path: '/invites',
   status: 201,
   body: { token, seats: aliceHostSeats() },
+});
+
+/** POST `/invites` that stays in flight until `settle` (P27 create-pending tests). */
+export const hungCreateInvite = (): {
+  readonly script: ScriptedFetch;
+  readonly settle: (status: number, body?: unknown) => void;
+} => {
+  const box: { resolve: ((res: OnlinePagesHttpResponse) => void) | undefined } = {
+    resolve: undefined,
+  };
+  const deferred = new Promise<OnlinePagesHttpResponse>((resolve) => {
+    box.resolve = resolve;
+  });
+  return {
+    script: {
+      method: 'POST',
+      path: '/invites',
+      status: 599,
+      deferred,
+    },
+    settle: (status, body) => {
+      const resolve = box.resolve;
+      if (resolve === undefined) return;
+      box.resolve = undefined;
+      resolve({
+        status,
+        body: body === undefined ? '' : JSON.stringify(body),
+      });
+    },
+  };
+};
+
+export const createdInviteBody = (
+  token: string,
+): { readonly token: string; readonly seats: readonly InviteSeat[] } => ({
+  token,
+  seats: aliceHostSeats(),
 });
 
 export const acceptInviteScript = (

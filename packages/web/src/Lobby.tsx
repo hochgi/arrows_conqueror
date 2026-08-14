@@ -4,12 +4,14 @@ import { styleFor } from './colors';
 import { testByokConnection } from './byokBot';
 import { DEFAULT_BYOK, isByokReady } from './byokConfig';
 import {
+  CREATING_INVITE_COPY,
   rosterOccupancy,
   rosterOccupancyLabel,
 } from './online-shell-ui';
 import {
   PLAYTEST_PLAYER_COUNTS,
   byokConfigForSeat,
+  onlineSeatKindAllowed,
   resizeSeatPlan,
   seatPlanReady,
   seatPlayerId,
@@ -27,6 +29,7 @@ export interface LobbyOnline {
   readonly onSignIn: () => void;
   readonly onSignOut: () => void;
   readonly createOffered: boolean;
+  readonly createInvitePending: boolean;
   readonly onCreate: () => void;
   readonly acceptOffered: boolean;
   readonly onAccept: () => void;
@@ -146,13 +149,25 @@ export const Lobby = ({ plan, onPlan, onStart, online }: LobbyProps): ReactEleme
                     disabled={frozen}
                     onChange={(e) => {
                       const kind = e.target.value as SeatKind;
+                      if (onlineMode && !onlineSeatKindAllowed(plan, index, kind)) {
+                        return;
+                      }
                       onPlan(updateSeat(plan, index, { kind }));
                       setProbeMsg(undefined);
                       setProbeOk(undefined);
                     }}
                   >
                     {kindOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
+                      <option
+                        key={opt.value}
+                        value={opt.value}
+                        disabled={
+                          onlineMode &&
+                          opt.value === 'heuristic' &&
+                          seat.kind === 'human' &&
+                          !onlineSeatKindAllowed(plan, index, 'heuristic')
+                        }
+                      >
                         {opt.label}
                       </option>
                     ))}
@@ -338,7 +353,11 @@ export const Lobby = ({ plan, onPlan, onStart, online }: LobbyProps): ReactEleme
           <p className="lobby-byok-warn">Complete every BYOK seat before Start.</p>
         ) : null}
 
-        {onlineMode && online.signedIn && !online.createOffered && online.seatEditsOffered ? (
+        {onlineMode &&
+        online.signedIn &&
+        !online.createOffered &&
+        online.seatEditsOffered &&
+        !online.createInvitePending ? (
           <p className="lobby-byok-note">Create needs two Player seats.</p>
         ) : null}
 
@@ -438,6 +457,12 @@ const OnlineChrome = ({ online }: { readonly online: LobbyOnline }): ReactElemen
             </button>
           ) : null}
         </div>
+        {online.createInvitePending ? (
+          <p className="lobby-create-pending" role="status">
+            <span className="lobby-hourglass" aria-hidden="true" />
+            {CREATING_INVITE_COPY}
+          </p>
+        ) : null}
         {online.copiedUrl !== undefined ? (
           <p className="lobby-byok-ok">
             Invite link:{' '}

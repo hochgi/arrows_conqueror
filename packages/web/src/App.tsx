@@ -40,6 +40,7 @@ import { clearTargetLocks } from './targets';
 import {
   aiSeatIds,
   byokConfigForSeat,
+  coerceOnlineSeatPlan,
   firstHumanSeat,
   hasAiSeat,
   hasByokSeat,
@@ -651,9 +652,15 @@ export const App = (): ReactElement => {
                 offered: host.onlineModeOffered(),
                 mode: lobbyMode,
                 onMode: (next: PagesLobbyMode) => {
+                  let nextPlan = seatPlan;
+                  if (lobbyMode === 'local' && next === 'online') {
+                    nextPlan = coerceOnlineSeatPlan(seatPlan);
+                    setSeatPlan(nextPlan);
+                    saveSeatPlan(nextPlan);
+                  }
                   setLobbyMode(next);
                   host.selectMode(next);
-                  host.setSeatPlan(kindsForHost(seatPlan, next === 'online'));
+                  host.setSeatPlan(kindsForHost(nextPlan, next === 'online'));
                   refresh();
                 },
                 signedIn,
@@ -665,8 +672,11 @@ export const App = (): ReactElement => {
                   refresh();
                 },
                 createOffered: host.createOffered(),
+                createInvitePending: host.createInvitePending(),
                 onCreate: () => {
-                  void host.createInvite().then(refresh);
+                  const creating = host.createInvite();
+                  refresh();
+                  void creating.finally(refresh);
                 },
                 acceptOffered: host.acceptOffered(),
                 onAccept: () => {
