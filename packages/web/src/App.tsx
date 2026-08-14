@@ -52,6 +52,11 @@ import {
   type SeatConfig,
   type SeatPlan,
 } from './seatPlan';
+import {
+  applyMovesSequentially,
+  BOT_PLAYBACK_GAP_MS,
+  localAiChairKey,
+} from './botPlayback';
 import { playBotTurn } from './opponent';
 import {
   burstLifetimeMs,
@@ -118,6 +123,51 @@ const idleSnap = (): InputSnapshot => ({
   phase: { kind: 'idle' },
   highlights: { targets: new Set() },
 });
+
+const adapterSleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+
+const byokTurnMessage = (seatKey: string, stats: ByokRunStats): string | undefined => {
+  if (stats.llmFallbacks > 0 && stats.lastError !== undefined) {
+    return `${seatKey} LLM fallback ×${String(stats.llmFallbacks)} (hits ${String(stats.llmHits)}): ${stats.lastError}`;
+  }
+  if (stats.llmHits > 0) {
+    return `${seatKey} LLM ok · ${String(stats.llmHits)} picks this turn`;
+  }
+  return undefined;
+};
+
+type LocalAiPlan = {
+  readonly moves: readonly Move[];
+  readonly byok: { readonly delta: ByokRunStats; readonly seat: PlayerId } | undefined;
+};
+
+const planLocalAiTurn = async (seat: SeatConfig, start: GameState): Promise<LocalAiPlan> => {
+  if (seat.kind === 'byok') {
+    const turn = await playLlmBotTurn(
+      geometry,
+      rules,
+      start,
+      start.activePlayer,
+      byokConfigForSeat(seat),
+    );
+    return {
+      moves: turn.moves,
+      byok: {
+        delta: {
+          llmHits: turn.llmHits,
+          llmFallbacks: turn.llmFallbacks,
+          lastError: turn.lastError,
+        },
+        seat: start.activePlayer,
+      },
+    };
+  }
+  const { moves } = playBotTurn(geometry, rules, start, start.activePlayer);
+  return { moves, byok: undefined };
+};
 
 /** The hover read-out, or nothing when the vertex turns out to carry no spawner. */
 const SpawnerTipFor = ({
@@ -379,74 +429,61 @@ export const App = (): ReactElement => {
     };
   }, [state, refresh]);
 
+  // Local AI chair — occupancy must not restart playback (P30).
+  const botChair = localAiChairKey(state, {
+    online: onlinePlayRef.current,
+    isAiSeat: (id) => aiSeatsRef.current.has(id),
+  });
+
   // Any AI seat: heuristic or BYOK when it is their chair.
   useEffect(() => {
-    if (state === undefined || log === undefined) return;
-    if (onlinePlayRef.current) {
+    if (botChair === null) {
       setBotBusy(false);
       return;
     }
-    const active = state.activePlayer;
-    const seatKey = String(active);
-    if (state.winner !== undefined || !aiSeatsRef.current.has(seatKey)) {
-      setBotBusy(false);
-      return;
-    }
-    const seatConfig = seatConfigsRef.current.get(seatKey);
+    const start = stateRef.current;
+    if (start === undefined) return;
+    if (String(start.activePlayer) !== botChair) return;
+    const seatConfig = seatConfigsRef.current.get(botChair);
     if (seatConfig === undefined || seatConfig.kind === 'human') {
       setBotBusy(false);
       return;
     }
     setBotBusy(true);
     const epoch = ++botEpoch.current;
+    const cancelled = (): boolean => epoch !== botEpoch.current;
     const run = async (): Promise<void> => {
-      await new Promise<void>((resolve) => {
-        window.setTimeout(resolve, 30);
+      await adapterSleep(30);
+      if (cancelled()) return;
+      const plan = await planLocalAiTurn(seatConfig, start);
+      if (cancelled()) return;
+      if (plan.moves.length === 0) {
+        setBotBusy(false);
+        return;
+      }
+      if (plan.byok !== undefined) {
+        const status = byokTurnMessage(botChair, plan.byok.delta);
+        if (status !== undefined) setByokStatus(status);
+      }
+      await applyMovesSequentially(rules, start, plan.moves, {
+        gapMs: BOT_PLAYBACK_GAP_MS,
+        sleep: adapterSleep,
+        cancelled,
+        onApplied: (move, after, index) => {
+          if (plan.byok !== undefined && index === plan.moves.length - 1) {
+            commitApplied([move], after, plan.byok.delta, plan.byok.seat);
+            return;
+          }
+          commitApplied([move], after);
+        },
       });
-      if (epoch !== botEpoch.current) return;
-      if (stateRef.current !== state) return;
-      if (seatConfig.kind === 'byok') {
-        const config = byokConfigForSeat(seatConfig);
-        const turn = await playLlmBotTurn(geometry, rules, state, active, config);
-        if (epoch !== botEpoch.current) return;
-        if (turn.moves.length === 0) {
-          setBotBusy(false);
-          return;
-        }
-        if (turn.llmFallbacks > 0 && turn.lastError !== undefined) {
-          setByokStatus(
-            `${seatKey} LLM fallback ×${String(turn.llmFallbacks)} (hits ${String(turn.llmHits)}): ${turn.lastError}`,
-          );
-        } else if (turn.llmHits > 0) {
-          setByokStatus(`${seatKey} LLM ok · ${String(turn.llmHits)} picks this turn`);
-        }
-        commitApplied(
-          turn.moves,
-          turn.state,
-          {
-            llmHits: turn.llmHits,
-            llmFallbacks: turn.llmFallbacks,
-            lastError: turn.lastError,
-          },
-          active,
-        );
-        setBotBusy(false);
-        return;
-      }
-      const { state: next, moves } = playBotTurn(geometry, rules, state, active);
-      if (epoch !== botEpoch.current) return;
-      if (moves.length === 0) {
-        setBotBusy(false);
-        return;
-      }
-      commitApplied(moves, next);
-      setBotBusy(false);
+      if (!cancelled()) setBotBusy(false);
     };
     void run();
     return () => {
       botEpoch.current += 1;
     };
-  }, [state, log, commitApplied]);
+  }, [botChair, commitApplied]);
 
   const arrows = useMemo(
     () => (state === undefined ? [] : cullArrows(geometry, viewport)),
