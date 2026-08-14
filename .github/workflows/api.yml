@@ -44,6 +44,15 @@ jobs:
           aws-region: eu-central-1
       - name: sam build and deploy
         working-directory: infra
+        env:
+          HTTP_CERTIFICATE_ARN: ${{ vars.HTTP_CERTIFICATE_ARN }}
+          WS_CERTIFICATE_ARN: ${{ vars.WS_CERTIFICATE_ARN }}
         run: |
           sam build
-          sam deploy --no-confirm-changeset --no-fail-on-empty-changeset --capabilities CAPABILITY_IAM
+          sam deploy \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides \
+              "HttpCertificateArn=${HTTP_CERTIFICATE_ARN}" \
+              "WsCertificateArn=${WS_CERTIFICATE_ARN}"

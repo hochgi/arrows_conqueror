@@ -193,3 +193,11 @@ Outputs:
     Value: !Ref HttpApi
   WsApiId:
     Value: !Ref WsApi
+  HttpDomainTarget:
+    Condition: HasHttpCert
+    Description: Namecheap CNAME target for Host api.games
+    Value: !GetAtt HttpDomain.RegionalDomainName
+  WsDomainTarget:
+    Condition: HasWsCert
+    Description: Namecheap CNAME target for Host ws.games
+    Value: !GetAtt WsDomain.RegionalDomainName

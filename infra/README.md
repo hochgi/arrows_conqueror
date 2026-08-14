@@ -72,11 +72,25 @@ Add CNAMEs (still Namecheap):
 | `api.games` | HTTP API custom-domain target (after SAM has the cert) |
 | `ws.games` | WebSocket custom-domain target |
 
+### CAA (needed because `games` CNAMEs to GitHub Pages)
+
+GitHub Pages publishes CAA that does not list Amazon. Put CAA on the API
+hostnames themselves (`api.games` / `ws.games`, tag `issue`, value `amazon.com`).
+You cannot put CAA on Host `games` (CNAME cannot share a name with other records).
+When the traffic CNAMEs for `api.games` / `ws.games` go in, **delete those CAA
+rows** — CNAME and CAA cannot occupy the same Host. Keep the `_….api.games`
+validation CNAMEs.
+
 ### Feed certs into SAM
 
-GitHub → Actions → **api** → Run workflow is enough if we later add repository
-variables `HTTP_CERTIFICATE_ARN` / `WS_CERTIFICATE_ARN`. Until then, a one-line
-parameter override can wait; execute-api URLs work for P16.
+Repository **variables** (not secrets) on `hochgi/conquarrow`:
+
+- `HTTP_CERTIFICATE_ARN`
+- `WS_CERTIFICATE_ARN`
+
+Same ARN is fine when one cert covers both names. Empty skips custom domains.
+Then Actions → **api** → Run workflow. Outputs `HttpDomainTarget` / `WsDomainTarget`
+are the Namecheap traffic CNAME values.
 
 Public URLs once mapped:
 

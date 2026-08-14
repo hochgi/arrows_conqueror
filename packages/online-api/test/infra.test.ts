@@ -39,6 +39,8 @@ describe('online-infra — core', () => {
 
   it('API workflow deploys from hochgi main via OIDC secret', () => {
     expect(workflow).toContain('secrets.AWS_ROLE_ARN');
+    expect(workflow).toContain('vars.HTTP_CERTIFICATE_ARN');
+    expect(workflow).toContain('vars.WS_CERTIFICATE_ARN');
     expect(workflow).toContain('id-token: write');
     expect(workflow).toContain('sam deploy');
     expect(workflow).toContain('branches: [main]');
