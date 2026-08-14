@@ -6,17 +6,37 @@
  */
 
 import type { OnlineWsPort, WsConnectRequest, WsDisconnectRequest } from '@conquarrow/contracts';
-import type { OnlineApiDeps } from './api-types';
+import type { ObjectStore, OnlineApiDeps } from './api-types';
 import { userHashFromSub } from './hashing';
-import { connectionKey, connectionsRoot } from './s3-keys';
-import { deleteObject, listObjects, putObject } from './store-io';
+import { asRecord } from './invite-record';
+import { connectionIdKey, connectionKey } from './s3-keys';
+import { deleteObject, getObject, putObject } from './store-io';
 
 const POINTER = '{}';
 
-const lastSegment = (key: string): string | undefined => {
-  const slash = key.lastIndexOf('/');
-  if (slash < 0 || slash === key.length - 1) return undefined;
-  return key.slice(slash + 1);
+const forgetConnection = async (
+  s3: ObjectStore,
+  userHash: string,
+  connectionId: string,
+): Promise<void> => {
+  await deleteObject(s3, connectionKey(userHash, connectionId));
+  await deleteObject(s3, connectionIdKey(connectionId));
+};
+
+const userHashOfConnection = async (
+  s3: ObjectStore,
+  connectionId: string,
+): Promise<string | undefined> => {
+  const raw = await getObject(s3, connectionIdKey(connectionId));
+  if (raw === undefined) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch {
+    return undefined;
+  }
+  const hash = asRecord(parsed)?.['userHash'];
+  return typeof hash === 'string' ? hash : undefined;
 };
 
 const connect = async (
@@ -28,6 +48,7 @@ const connect = async (
   const verified = await Promise.resolve(deps.google.verify(`Bearer ${token}`));
   if (!verified.ok) return { statusCode: 401 };
   const userHash = userHashFromSub(verified.sub);
+  await putObject(deps.s3, connectionIdKey(request.connectionId), JSON.stringify({ userHash }));
   await putObject(deps.s3, connectionKey(userHash, request.connectionId), POINTER);
   return { statusCode: 200 };
 };
@@ -36,15 +57,10 @@ const disconnect = async (
   deps: OnlineApiDeps,
   request: WsDisconnectRequest,
 ): Promise<{ readonly statusCode: number }> => {
-  if (request.userHash !== undefined) {
-    await deleteObject(deps.s3, connectionKey(request.userHash, request.connectionId));
-    return { statusCode: 200 };
-  }
-  const keys = await listObjects(deps.s3, connectionsRoot());
-  for (const key of keys) {
-    if (lastSegment(key) === request.connectionId) {
-      await deleteObject(deps.s3, key);
-    }
+  const userHash =
+    request.userHash ?? (await userHashOfConnection(deps.s3, request.connectionId));
+  if (userHash !== undefined) {
+    await forgetConnection(deps.s3, userHash, request.connectionId);
   }
   return { statusCode: 200 };
 };

@@ -157,6 +157,20 @@ Feature: Online moves and notify — boundaries
       And fake S3 has no games/000002
       And the invite status is started
 
+    Scenario: Start does not claim another invite's game number
+      Given games/000001/meta.json was allocated by a different invite token
+      And this invite of the same humans is still open
+      When POST /invites/:token/start
+      Then the new game number is 000002
+      And games/000001/meta.json still names the other token
+
+    Scenario: Concurrent Start on the same token allocates one game
+      Given an open bound invite
+      When two bound humans POST start on that token at the same time
+      Then at least one response is 200 with gameNumber 000001
+      And the other is 200 with the same number or 410 started
+      And fake S3 has no games/000002
+
     Scenario: After completed Start the token is still 410
       Given A and B have completed Start
       When POST /invites/:token/start with A's bearer again

@@ -186,7 +186,11 @@ export const seatsEqual = (
 
 export const parseGameMeta = (
   raw: string,
-): { readonly seats: readonly InviteSeat[]; readonly winner?: string } | undefined => {
+): {
+  readonly seats: readonly InviteSeat[];
+  readonly winner?: string;
+  readonly inviteToken?: string;
+} | undefined => {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw) as unknown;
@@ -198,6 +202,10 @@ export const parseGameMeta = (
   const seats = parseSeats(rec['seats']);
   if (seats === undefined) return undefined;
   const winner = rec['winner'];
-  if (typeof winner === 'string') return { seats, winner };
-  return { seats };
+  const inviteToken = rec['inviteToken'];
+  return {
+    seats,
+    ...(typeof winner === 'string' ? { winner } : {}),
+    ...(typeof inviteToken === 'string' ? { inviteToken } : {}),
+  };
 };

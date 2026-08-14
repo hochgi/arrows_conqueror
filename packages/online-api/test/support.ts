@@ -663,6 +663,9 @@ export const gameLogKey = (groupHash: string, gameNumber: string): string =>
 export const connectionKey = (userHash: string, connectionId: string): string =>
   `conquarrow/connections/${userHash}/${connectionId}`;
 
+export const connectionIdKey = (connectionId: string): string =>
+  `conquarrow/connection-ids/${connectionId}`;
+
 export const connectionKeys = (s3: ReadonlyMap<string, string>): readonly string[] =>
   [...s3.keys()]
     .filter((key) => key.includes('/connections/'))

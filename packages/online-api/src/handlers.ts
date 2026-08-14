@@ -241,27 +241,35 @@ const writeMembership = async (
   }
 };
 
-const allocateGameNumber = async (
+const gameMetaBody = (seats: InviteRecord['seats'], token: string): string =>
+  JSON.stringify({ seats, inviteToken: token });
+
+const metaBelongsToInvite = (
+  raw: string | undefined,
+  token: string,
+  seats: InviteRecord['seats'],
+): boolean => {
+  if (raw === undefined) return false;
+  const existing = parseGameMeta(raw);
+  if (existing === undefined) return false;
+  if (existing.inviteToken === token) return true;
+  return existing.inviteToken === undefined && seatsEqual(existing.seats, seats);
+};
+
+const ensureGameMeta = async (
   s3: ObjectStore,
   groupHash: string,
+  gameNumber: string,
   seats: InviteRecord['seats'],
-  startAt: number,
-): Promise<string> => {
-  let n = startAt;
-  for (;;) {
-    const padded = padGameNumber(n);
-    try {
-      await putObject(
-        s3,
-        gameMetaKey(groupHash, padded),
-        JSON.stringify({ seats }),
-        { ifNoneMatch: '*' },
-      );
-      return padded;
-    } catch (error: unknown) {
-      if (!isPreconditionFailed(error)) throw error;
-      n += 1;
-    }
+  token: string,
+): Promise<'ours' | 'taken'> => {
+  const key = gameMetaKey(groupHash, gameNumber);
+  try {
+    await putObject(s3, key, gameMetaBody(seats, token), { ifNoneMatch: '*' });
+    return 'ours';
+  } catch (error: unknown) {
+    if (!isPreconditionFailed(error)) throw error;
+    return metaBelongsToInvite(await getObject(s3, key), token, seats) ? 'ours' : 'taken';
   }
 };
 
@@ -287,25 +295,34 @@ const materialiseGame = async (
 ): Promise<{ readonly groupHash: string; readonly gameNumber: string }> => {
   const hashes = boundHumanHashes(invite.seats);
   const groupHash = groupHashFromUserHashes(hashes);
-  if (invite.gameNumber !== undefined) {
-    await finishStart(s3, token, invite, groupHash, invite.gameNumber);
-    return { groupHash, gameNumber: invite.gameNumber };
-  }
-  const n = await readNextGameNumber(s3, groupHash);
-  const padded = padGameNumber(n);
-  const existingRaw = await getObject(s3, gameMetaKey(groupHash, padded));
-  if (existingRaw !== undefined) {
-    const existing = parseGameMeta(existingRaw);
-    const groupRaw = await getObject(s3, groupMetaKey(groupHash));
-    if (seatsEqual(existing?.seats, invite.seats) && groupRaw === undefined) {
-      await finishStart(s3, token, invite, groupHash, padded);
-      return { groupHash, gameNumber: padded };
+  let current = invite;
+  let currentRaw = raw;
+  let n =
+    current.gameNumber !== undefined
+      ? Number.parseInt(current.gameNumber, 10)
+      : await readNextGameNumber(s3, groupHash);
+  if (!Number.isInteger(n) || n < 1) n = 1;
+
+  for (;;) {
+    let gameNumber = current.gameNumber;
+    if (gameNumber === undefined) {
+      gameNumber = padGameNumber(n);
+      await writeInvite(s3, token, { ...current, gameNumber }, currentRaw);
+      current = { ...current, gameNumber };
+      currentRaw = serializeInvite(current);
     }
+    const owned = await ensureGameMeta(s3, groupHash, gameNumber, current.seats, token);
+    if (owned === 'taken') {
+      n = Number.parseInt(gameNumber, 10) + 1;
+      const next = padGameNumber(n);
+      await writeInvite(s3, token, { ...current, gameNumber: next }, currentRaw);
+      current = { ...current, gameNumber: next };
+      currentRaw = serializeInvite(current);
+      continue;
+    }
+    await finishStart(s3, token, current, groupHash, gameNumber);
+    return { groupHash, gameNumber };
   }
-  const gameNumber = await allocateGameNumber(s3, groupHash, invite.seats, n);
-  await writeInvite(s3, token, { ...invite, gameNumber }, raw);
-  await finishStart(s3, token, { ...invite, gameNumber }, groupHash, gameNumber);
-  return { groupHash, gameNumber };
 };
 
 export const handleStart = async (

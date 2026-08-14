@@ -73,13 +73,16 @@ conquarrow/groups/<groupHash>/games/NNNNNN/state.json
 conquarrow/groups/<groupHash>/games/NNNNNN/log.jsonl
 conquarrow/invites/<token>.json
 conquarrow/connections/<userHash>/<connectionId>
+conquarrow/connection-ids/<connectionId>         # userHash pointer so $disconnect is O(1)
 ```
 
 `GET /my-games` is that user's membership pointers only: **open lobbies** they are seated in, plus **started games** under their groups. Never another user's rows.
 
 HTTP play: `GET /games/{groupHash}/{gameNumber}` and `POST …/moves` (If-Match `"<n>"`). The P16 `POST /moves` stub is gone. POST body is one `Move`. Missing If-Match → 428; stale → 412; illegal `apply` → 422; already finished → 409 `{ reason: "finished" }`. A persist that first sets `winner` copies that `PlayerId` onto game `meta.json`.
 
-WebSocket: `wss://ws.games.hochgi.com/conquarrow?access_token=<Google ID token>`. Any verified user may `$connect`. Registry `connections/<userHash>/<connectionId>`. Payload is only `{ type: "stateChanged", version, groupHash, gameNumber }`. Notify **other** bound humans, not the caller. Gone connection ids are deleted. The client then GETs state. `visibilitychange` is a safety net, not a poll loop.
+WebSocket: `wss://ws.games.hochgi.com/conquarrow?access_token=<Google ID token>`. Any verified user may `$connect`. Registry `connections/<userHash>/<connectionId>` plus `connection-ids/<connectionId>` for O(1) `$disconnect`. Payload is only `{ type: "stateChanged", version, groupHash, gameNumber }`. Notify **other** bound humans, not the caller. Notify is **best-effort after persist** — a `PostToConnection` failure must not fail the HTTP response. Gone connection ids are deleted. The client then GETs state. `visibilitychange` is a safety net, not a poll loop.
+
+`state.json` (conditional put) is the **commit pointer** for If-Match and GET. `log.jsonl` and `meta.winner` follow; S3 cannot transaction two keys. A crash between them can leave a short log; GET still serves the committed version, and a client retry of that version is 412.
 
 Move Lambda: **60 s timeout, 1024 MB**. Worst burst: 4 consecutive heuristic seats (6-player, two humans on opposite corners).
 
@@ -127,9 +130,10 @@ flowchart TB
 ### Costs
 
 - S3-as-index is clumsy for queries; `/my-games` is pointer-fan-in, not a scan.
-- WebSocket connection registry in S3 is not elegant; it is cheap at family scale.
+- WebSocket connection registry in S3 is not elegant; it is cheap at family scale. `$disconnect` looks up `connection-ids/<connectionId>` rather than listing the registry.
 - Split deploy: Pages on `shalevhoch`, API on `hochgi`.
 - Heuristic burst can make a human wait on Lambda time (accepted; 60s budget).
+- Persist of `state.json` + `log.jsonl` is two puts. The versioned state object is authoritative.
 
 ### Rejected alternatives
 

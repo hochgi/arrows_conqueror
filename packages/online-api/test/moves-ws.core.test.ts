@@ -20,6 +20,7 @@ import {
   aliceFayGroupHash,
   aliceHash,
   authorStarvationWrapState,
+  connectionIdKey,
   connectionKey,
   countingPutStore,
   expectNoSubLeak,
@@ -205,9 +206,10 @@ describe('WebSocket registry', () => {
     expect(connected.statusCode).toBe(200);
     expect(s3.has(connectionKey(aliceHash(), ALICE_CONN))).toBe(true);
 
-    const disconnected = await wsDisconnect(ws, ALICE_CONN, aliceHash());
+    const disconnected = await wsDisconnect(ws, ALICE_CONN);
     expect(disconnected.statusCode).toBe(200);
     expect(s3.has(connectionKey(aliceHash(), ALICE_CONN))).toBe(false);
+    expect(s3.has(connectionIdKey(ALICE_CONN))).toBe(false);
     const leftover = [...s3.keys()]
       .filter((key) => key.includes('/groups/') || key.includes('/games/'))
       .sort();

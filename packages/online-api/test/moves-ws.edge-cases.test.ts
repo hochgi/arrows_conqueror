@@ -30,6 +30,7 @@ import {
   bobHash,
   boundUserHash,
   carolHash,
+  connectionIdKey,
   connectionKey,
   connectionKeys,
   createOpenInvite,
@@ -234,6 +235,7 @@ describe('Notify hygiene', () => {
 
     expectStatus(res, 200);
     expect(s3.has(connectionKey(bobHash(), BOB_CONN))).toBe(false);
+    expect(s3.has(connectionIdKey(BOB_CONN))).toBe(false);
     expect(storedVersion(s3, groupHash, GAME_ONE)).toBe(1);
     expect(notifiesTo(notifies, CAROL_CONN).map((row) => row.payload)).toContainEqual({
       type: 'stateChanged',
@@ -257,6 +259,23 @@ describe('Notify hygiene', () => {
       .filter((row) => row.payload.version === 1)
       .map((row) => row.connectionId);
     expect(targets).toEqual([BOB_CONN]);
+  });
+
+  it('Notify failure after persist still returns 200', async () => {
+    const { api, s3, ws } = makeHarness({
+      postToConnection: async () => {
+        throw new Error('PostToConnection unavailable');
+      },
+    });
+    await startAliceBobCarol(api);
+    const groupHash = aliceBobCarolGroupHash();
+    expectWsStatus(await wsConnect(ws, BOB_CONN, BOB.bearer), 200);
+    seedOpeningState(s3, groupHash, GAME_ONE, 3);
+
+    const res = await postMove(api, groupHash, GAME_ONE, ALICE.bearer, endTurn(), 0);
+
+    expectStatus(res, 200);
+    expect(storedVersion(s3, groupHash, GAME_ONE)).toBe(1);
   });
 });
 
@@ -351,6 +370,53 @@ describe('P17 follow-on races', () => {
     expect(s3.has(gameMetaKey(groupHash, GAME_TWO))).toBe(false);
     const invite = JSON.parse(s3.get(inviteKey(token)) ?? '{}') as unknown;
     expect(asRecord(invite)['status']).toBe('started');
+  });
+
+  it("Start does not claim another invite's game number", async () => {
+    const { api, s3 } = makeHarness();
+    const token = await bindAliceAndBob(api);
+    const groupHash = aliceBobGroupHash();
+    const inviteRaw = s3.get(inviteKey(token));
+    const seats = asRecord(JSON.parse(inviteRaw ?? '{}') as unknown)?.['seats'];
+    s3.set(
+      gameMetaKey(groupHash, GAME_ONE),
+      JSON.stringify({ seats, inviteToken: 'other-token' }),
+    );
+
+    const started = expectStatus(await postStart(api, token, ALICE.bearer), 200);
+
+    expect(parseBody(started)).toEqual({ groupHash, gameNumber: GAME_TWO });
+    const kept = asRecord(JSON.parse(s3.get(gameMetaKey(groupHash, GAME_ONE)) ?? '{}') as unknown);
+    expect(kept['inviteToken']).toBe('other-token');
+  });
+
+  it('Concurrent Start on the same token allocates one game', async () => {
+    const data = new Map<string, string>();
+    const store = overlappingGetStore(
+      data,
+      (key) => key.includes('/invites/') && key.endsWith('.json'),
+    );
+    const { api, s3 } = makeHarness({ s3: data, store });
+    const token = await bindAliceAndBob(api);
+    store.arm();
+
+    const [aliceRes, bobRes] = await Promise.all([
+      postStart(api, token, ALICE.bearer),
+      postStart(api, token, BOB.bearer),
+    ]);
+
+    const groupHash = aliceBobGroupHash();
+    const succeeded = [aliceRes, bobRes].filter((res) => res.statusCode === 200);
+    const closed = [aliceRes, bobRes].filter((res) => res.statusCode === 410);
+    expect(succeeded.length).toBeGreaterThanOrEqual(1);
+    expect(succeeded.length + closed.length).toBe(2);
+    for (const res of succeeded) {
+      expect(parseBody(res)).toEqual({ groupHash, gameNumber: GAME_ONE });
+    }
+    for (const res of closed) {
+      expect(goneReason(parseBody(res))).toBe('started');
+    }
+    expect(s3.has(gameMetaKey(groupHash, GAME_TWO))).toBe(false);
   });
 
   it('After completed Start the token is still 410', async () => {

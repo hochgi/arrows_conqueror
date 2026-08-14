@@ -1,7 +1,7 @@
 import type { InviteSeat, StateChangedPayload } from '@conquarrow/contracts';
 import type { ObjectStore, PostToConnection } from './api-types';
 import { compareStrings } from './hashing';
-import { connectionKey, connectionsPrefix } from './s3-keys';
+import { connectionIdKey, connectionKey, connectionsPrefix } from './s3-keys';
 import { deleteObject, listObjects } from './store-io';
 
 const connectionIdOf = (key: string, prefix: string): string | undefined => {
@@ -41,9 +41,14 @@ export const notifyOthers = async (
       .filter((id): id is string => id !== undefined)
       .sort(compareStrings);
     for (const connectionId of ids) {
-      const status = await Promise.resolve(postToConnection(connectionId, payload));
-      if (status === 410) {
-        await deleteObject(s3, connectionKey(userHash, connectionId));
+      try {
+        const status = await Promise.resolve(postToConnection(connectionId, payload));
+        if (status === 410) {
+          await deleteObject(s3, connectionKey(userHash, connectionId));
+          await deleteObject(s3, connectionIdKey(connectionId));
+        }
+      } catch {
+        continue;
       }
     }
   }

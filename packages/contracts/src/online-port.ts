@@ -128,8 +128,8 @@ export interface WsConnectRequest {
 }
 
 /**
- * `$disconnect` — `userHash` is known to the adapter when it stored the
- * connection key; tests may pass it directly.
+ * `$disconnect` — production has only `connectionId`; the adapter looks up
+ * `connection-ids/<connectionId>`. Tests may pass `userHash` directly.
  */
 export interface WsDisconnectRequest {
   readonly connectionId: string;

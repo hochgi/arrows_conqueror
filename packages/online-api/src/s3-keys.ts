@@ -35,4 +35,5 @@ export const connectionKey = (userHash: string, connectionId: string): string =>
 export const connectionsPrefix = (userHash: string): string =>
   `${ROOT}/connections/${userHash}/`;
 
-export const connectionsRoot = (): string => `${ROOT}/connections/`;
+export const connectionIdKey = (connectionId: string): string =>
+  `${ROOT}/connection-ids/${connectionId}`;

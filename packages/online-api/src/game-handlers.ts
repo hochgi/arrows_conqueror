@@ -171,12 +171,16 @@ const wakeOthers = async (
   groupHash: string,
   gameNumber: string,
 ): Promise<void> => {
-  await notifyOthers(deps.s3, deps.postToConnection, seats, callerUserHash, {
-    type: 'stateChanged',
-    version,
-    groupHash,
-    gameNumber,
-  });
+  try {
+    await notifyOthers(deps.s3, deps.postToConnection, seats, callerUserHash, {
+      type: 'stateChanged',
+      version,
+      groupHash,
+      gameNumber,
+    });
+  } catch {
+    return;
+  }
 };
 
 const ensurePosition = async (
