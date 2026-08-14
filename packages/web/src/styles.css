@@ -556,6 +556,12 @@ body,
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .lobby-hourglass {
+    animation: none;
+  }
+}
+
 #conquarrow-gis-chooser {
   min-height: 2.5rem;
 }

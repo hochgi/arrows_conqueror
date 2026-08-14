@@ -676,7 +676,7 @@ export const App = (): ReactElement => {
                 onCreate: () => {
                   const creating = host.createInvite();
                   refresh();
-                  void creating.then(refresh);
+                  void creating.finally(refresh);
                 },
                 acceptOffered: host.acceptOffered(),
                 onAccept: () => {

@@ -95,12 +95,16 @@ const chooserParent = (): unknown => {
   if (typeof document === 'undefined') {
     return { id: GIS_CHOOSER_ID };
   }
+  const row = document.querySelector('.lobby-online-row');
+  const host = row ?? document.body;
   const existing = document.getElementById(GIS_CHOOSER_ID);
-  if (existing !== null) return existing;
+  if (existing !== null) {
+    if (existing.parentElement !== host) host.appendChild(existing);
+    return existing;
+  }
   const el = document.createElement('div');
   el.id = GIS_CHOOSER_ID;
-  const row = document.querySelector('.lobby-online-row');
-  (row ?? document.body).appendChild(el);
+  host.appendChild(el);
   return el;
 };
 
