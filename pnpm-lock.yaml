@@ -64,12 +64,21 @@ importers:
 
   packages/online-api:
     dependencies:
+      '@aws-sdk/client-apigatewaymanagementapi':
+        specifier: ^3.1109.0
+        version: 3.1109.0
       '@aws-sdk/client-s3':
         specifier: ^3.1109.0
         version: 3.1109.0
       '@conquarrow/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@conquarrow/geometry-tiling':
+        specifier: workspace:*
+        version: link:../geometry-tiling
+      '@conquarrow/rules-core':
+        specifier: workspace:*
+        version: link:../rules-core
     devDependencies:
       vitest:
         specifier: ^2.1.8
@@ -136,6 +145,10 @@ packages:
 
   '@aws-sdk/checksums@3.1000.27':
     resolution: {integrity: sha512-insWOqKKNUrbN/dohEG7BJ0U5GkyqhjbMb/NHNaLUtq+7my2M8C4EnZZZoxMmXRqCC+P9dEr+KyJA2JGGzoKLg==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/client-apigatewaymanagementapi@3.1109.0':
+    resolution: {integrity: sha512-JVhY1gPApCvfGFzGFzVS/hTy5Xg+yVX7JLBKTpek5H6ciS+fbBMLa5wdTSFEj9AIDcVY3apVfPHgyqr9Jm1/HA==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/client-s3@3.1109.0':
@@ -2250,6 +2263,17 @@ snapshots:
       '@aws-sdk/core': 3.977.7
       '@aws-sdk/types': 3.974.3
       '@smithy/core': 3.32.0
+      '@smithy/types': 4.17.0
+      tslib: 2.7.0
+
+  '@aws-sdk/client-apigatewaymanagementapi@3.1109.0':
+    dependencies:
+      '@aws-sdk/core': 3.977.7
+      '@aws-sdk/credential-provider-node': 3.972.79
+      '@aws-sdk/types': 3.974.3
+      '@smithy/core': 3.32.0
+      '@smithy/fetch-http-handler': 5.7.0
+      '@smithy/node-http-handler': 4.10.0
       '@smithy/types': 4.17.0
       tslib: 2.7.0
 

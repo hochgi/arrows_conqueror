@@ -20,5 +20,20 @@ export const groupMetaKey = (groupHash: string): string =>
 export const gameMetaKey = (groupHash: string, gameNumber: string): string =>
   `${ROOT}/groups/${groupHash}/games/${gameNumber}/meta.json`;
 
+export const gameStateKey = (groupHash: string, gameNumber: string): string =>
+  `${ROOT}/groups/${groupHash}/games/${gameNumber}/state.json`;
+
+export const gameLogKey = (groupHash: string, gameNumber: string): string =>
+  `${ROOT}/groups/${groupHash}/games/${gameNumber}/log.jsonl`;
+
 export const gamesPrefix = (groupHash: string): string =>
   `${ROOT}/groups/${groupHash}/games/`;
+
+export const connectionKey = (userHash: string, connectionId: string): string =>
+  `${ROOT}/connections/${userHash}/${connectionId}`;
+
+export const connectionsPrefix = (userHash: string): string =>
+  `${ROOT}/connections/${userHash}/`;
+
+export const connectionIdKey = (connectionId: string): string =>
+  `${ROOT}/connection-ids/${connectionId}`;

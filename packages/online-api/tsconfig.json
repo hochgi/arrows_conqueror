@@ -1,9 +1,20 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": ".",
+    "rootDir": "..",
     "outDir": "./dist"
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "test/**/*.d.ts"],
-  "references": [{ "path": "../contracts" }]
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "test/**/*.d.ts",
+    "../web/src/opponent.ts",
+    "../web/src/findings.ts",
+    "../web/src/playLayout.ts"
+  ],
+  "references": [
+    { "path": "../contracts" },
+    { "path": "../geometry-tiling" },
+    { "path": "../rules-core" }
+  ]
 }

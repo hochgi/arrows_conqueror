@@ -49,6 +49,7 @@ export type { AnchorGrade, Claim, CombatLosses, RulesPort, Traversal } from './r
 
 export type {
   CreateInviteBody,
+  FinishedBody,
   GameNumber,
   GoneBody,
   GroupHash,
@@ -61,10 +62,15 @@ export type {
   OnlineHttpResult,
   OnlinePort,
   OnlineRequest,
+  OnlineWsPort,
+  OnlineWsResult,
   OpenLobbyRow,
   PlannedSeatKind,
   StartBody,
   StartedGameRow,
+  StateChangedPayload,
   UserHash,
+  WsConnectRequest,
+  WsDisconnectRequest,
 } from './online-port';
 

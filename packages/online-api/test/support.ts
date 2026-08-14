@@ -1,5 +1,5 @@
 /**
- * Test doubles and HTTP helpers for the P17 online-auth-invites suite.
+ * Test doubles and HTTP helpers for the P17 auth-invites and P18 moves-ws suites.
  *
  * Expected hashes are computed here with `node:crypto` so assertions do not
  * import production hashing. Production hashing lives in `src/hashing.ts`.
@@ -9,13 +9,33 @@ import { createHash } from 'node:crypto';
 import { expect } from 'vitest';
 import type {
   CreateInviteBody,
+  GameState,
+  MergeOverride,
+  Move,
   OnlineHeaders,
   OnlineHttpResult,
   OnlinePort,
+  OnlineWsPort,
   PlannedSeatKind,
+  StateChangedPayload,
 } from '@conquarrow/contracts';
-import { createOnlineApi } from '../src/create-online-api';
-import type { GoogleVerifier, ObjectStore } from '../src/create-online-api';
+import {
+  DEFAULT_MATCH_CONFIG,
+  endTurn,
+  mintArrowId,
+  step,
+} from '@conquarrow/contracts';
+import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
+import { makeRules, replay } from '@conquarrow/rules-core';
+import { createOnlineApi, createOnlineWs } from '../src/create-online-api';
+import type {
+  GoogleVerifier,
+  HeuristicChooser,
+  ObjectPutOptions,
+  ObjectStore,
+  PostToConnection,
+} from '../src/create-online-api';
+import { PreconditionFailed } from '../src/create-online-api';
 
 export const GAME_ONE = '000001';
 export const GAME_TWO = '000002';
@@ -34,6 +54,27 @@ export const SIX_HUMAN: readonly PlannedSeatKind[] = [
   'human',
   'human',
 ];
+
+export const THREE_HUMAN: readonly PlannedSeatKind[] = ['human', 'human', 'human'];
+
+export const HEURISTIC_THEN_TWO_HUMANS: readonly PlannedSeatKind[] = [
+  'heuristic',
+  'human',
+  'human',
+];
+
+export const HUMAN_THEN_FOUR_HEURISTIC_THEN_HUMAN: readonly PlannedSeatKind[] = [
+  'human',
+  'heuristic',
+  'heuristic',
+  'heuristic',
+  'heuristic',
+  'human',
+];
+
+export const ALICE_CONN = 'conn-alice-1';
+export const BOB_CONN = 'conn-bob-1';
+export const CAROL_CONN = 'conn-carol-1';
 
 export interface TestUser {
   readonly bearer: string;
@@ -66,8 +107,15 @@ export const groupHashOfUserHashes = (userHashes: readonly string[]): string => 
 
 export const aliceHash = (): string => userHashOf(ALICE.sub);
 export const bobHash = (): string => userHashOf(BOB.sub);
+export const carolHash = (): string => userHashOf(CAROL.sub);
+export const daveHash = (): string => userHashOf(DAVE.sub);
+export const fayHash = (): string => userHashOf(FAY.sub);
 export const aliceBobGroupHash = (): string =>
   groupHashOfUserHashes([aliceHash(), bobHash()]);
+export const aliceBobCarolGroupHash = (): string =>
+  groupHashOfUserHashes([aliceHash(), bobHash(), carolHash()]);
+export const aliceFayGroupHash = (): string =>
+  groupHashOfUserHashes([aliceHash(), fayHash()]);
 
 export const bytesToHex = (bytes: Uint8Array): string =>
   [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -118,8 +166,18 @@ export const fakeGoogle = (): GoogleVerifier => ({
 
 export const mapStore = (data: Map<string, string>): ObjectStore => ({
   get: (key) => data.get(key),
-  put: (key, body) => {
+  put: (key, body, options?: ObjectPutOptions) => {
+    const current = data.get(key);
+    if (options?.ifNoneMatch === '*' && current !== undefined) {
+      throw new PreconditionFailed();
+    }
+    if (options?.ifMatch !== undefined && current !== options.ifMatch) {
+      throw new PreconditionFailed();
+    }
     data.set(key, body);
+  },
+  delete: (key) => {
+    data.delete(key);
   },
   listPrefix: (prefix) =>
     [...data.keys()]
@@ -127,18 +185,136 @@ export const mapStore = (data: Map<string, string>): ObjectStore => ({
       .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
 });
 
+/**
+ * Two overlapping `get`s of matching keys both observe the pre-put value.
+ * Used to express concurrent accept / ensure / Start without an HTTP If-Match
+ * on accept (the server retries internally).
+ */
+export const overlappingGetStore = (
+  data: Map<string, string>,
+  shouldBarrier: (key: string) => boolean,
+): ObjectStore & { arm: () => void } => {
+  let armed = false;
+  let arrivals = 0;
+  const waiters: Array<() => void> = [];
+  const releaseAll = (): void => {
+    for (const waiter of waiters) waiter();
+    waiters.length = 0;
+  };
+  const inner = mapStore(data);
+  return {
+    arm: () => {
+      armed = true;
+    },
+    get: async (key) => {
+      if (armed && shouldBarrier(key)) {
+        arrivals += 1;
+        if (arrivals < 2) {
+          await new Promise<void>((resolve) => {
+            waiters.push(resolve);
+          });
+        } else {
+          releaseAll();
+        }
+      }
+      return inner.get(key);
+    },
+    put: inner.put,
+    delete: inner.delete,
+    listPrefix: inner.listPrefix,
+  };
+};
+
+export const countingPutStore = (
+  data: Map<string, string>,
+): ObjectStore & { readonly puts: string[] } => {
+  const puts: string[] = [];
+  const inner = mapStore(data);
+  return {
+    get: inner.get,
+    delete: inner.delete,
+    listPrefix: inner.listPrefix,
+    put: async (key, body, options?) => {
+      await Promise.resolve(inner.put(key, body, options));
+      puts.push(key);
+    },
+    puts,
+  };
+};
+
+export const throwingPutStore = (
+  data: Map<string, string>,
+  shouldThrow: (key: string) => boolean,
+): ObjectStore => {
+  const inner = mapStore(data);
+  return {
+    get: inner.get,
+    delete: inner.delete,
+    listPrefix: inner.listPrefix,
+    put: (key, body, options?) => {
+      if (shouldThrow(key)) throw new Error('persist interrupted');
+      void inner.put(key, body, options);
+    },
+  };
+};
+
+export type NotifyRecord = {
+  readonly connectionId: string;
+  readonly payload: StateChangedPayload;
+};
+
+export const alwaysEndTurn: HeuristicChooser = (_state) => endTurn();
+
 export const makeHarness = (overrides?: {
   readonly randomBytes?: (size: number) => Uint8Array;
   readonly clock?: () => number;
-}): { api: OnlinePort; s3: Map<string, string> } => {
-  const s3 = new Map<string, string>();
-  const api = createOnlineApi({
+  readonly heuristic?: HeuristicChooser;
+  readonly postToConnection?: PostToConnection;
+  readonly s3?: Map<string, string>;
+  readonly store?: ObjectStore;
+  readonly goneConnectionIds?: ReadonlySet<string>;
+}): {
+  api: OnlinePort;
+  ws: OnlineWsPort;
+  s3: Map<string, string>;
+  notifies: NotifyRecord[];
+  heuristicAsks: GameState[];
+} => {
+  const s3 = overrides?.s3 ?? new Map<string, string>();
+  const notifies: NotifyRecord[] = [];
+  const heuristicAsks: GameState[] = [];
+  const innerHeuristic = overrides?.heuristic ?? alwaysEndTurn;
+  const heuristic: HeuristicChooser = (state) => {
+    heuristicAsks.push(state);
+    return innerHeuristic(state);
+  };
+  const gone = overrides?.goneConnectionIds ?? new Set<string>();
+  const postToConnection: PostToConnection = async (connectionId, payload) => {
+    if (overrides?.postToConnection !== undefined) {
+      const status = await Promise.resolve(
+        overrides.postToConnection(connectionId, payload),
+      );
+      notifies.push({ connectionId, payload });
+      return status;
+    }
+    notifies.push({ connectionId, payload });
+    return gone.has(connectionId) ? 410 : 200;
+  };
+  const deps = {
     google: fakeGoogle(),
-    s3: mapStore(s3),
+    s3: overrides?.store ?? mapStore(s3),
     clock: overrides?.clock ?? ((): number => 0),
     randomBytes: overrides?.randomBytes ?? sequentialBytes(),
-  });
-  return { api, s3 };
+    heuristic,
+    postToConnection,
+  };
+  return {
+    api: createOnlineApi(deps),
+    ws: createOnlineWs(deps),
+    s3,
+    notifies,
+    heuristicAsks,
+  };
 };
 
 const authHeaders = (bearer: string): OnlineHeaders => ({
@@ -312,6 +488,14 @@ export const expectStatus = (
   return res;
 };
 
+export const expectWsStatus = (
+  res: { readonly statusCode: number },
+  status: number,
+): { readonly statusCode: number } => {
+  expect(res.statusCode).toBe(status);
+  return res;
+};
+
 export const expectNoSubLeak = (res: OnlineHttpResult, sub: string): void => {
   expect(res.body).not.toContain(sub);
   const parsed: unknown = parseBody(res);
@@ -377,3 +561,386 @@ export const startAliceBob = async (api: OnlinePort): Promise<string> => {
   expectStatus(await postStart(api, token, ALICE.bearer), 200);
   return token;
 };
+
+export const startAliceBobCarol = async (api: OnlinePort): Promise<string> => {
+  const token = await createOpenInvite(api, ALICE, THREE_HUMAN);
+  expectStatus(await postAccept(api, token, BOB.bearer), 200);
+  expectStatus(await postAccept(api, token, CAROL.bearer), 200);
+  expectStatus(await postStart(api, token, ALICE.bearer), 200);
+  return token;
+};
+
+/** Seats heuristic, human, human — Alice at seat 1, Bob at seat 2. */
+export const startHeuristicThenAliceBob = async (api: OnlinePort): Promise<string> => {
+  const token = await createOpenInvite(api, ALICE, HEURISTIC_THEN_TWO_HUMANS, 1);
+  expectStatus(await postAccept(api, token, BOB.bearer), 200);
+  expectStatus(await postStart(api, token, ALICE.bearer), 200);
+  return token;
+};
+
+/** Seats human, human, heuristic — Alice at seat 1, Bob at seat 0. */
+export const startBobAliceHeuristic = async (api: OnlinePort): Promise<string> => {
+  const token = await createOpenInvite(api, ALICE, TWO_HUMAN_HEURISTIC, 1);
+  expectStatus(await postAccept(api, token, BOB.bearer), 200);
+  expectStatus(await postStart(api, token, ALICE.bearer), 200);
+  return token;
+};
+
+/** 6-seat: Alice, four heuristics, Fay. */
+export const startAliceFayBurst = async (api: OnlinePort): Promise<string> => {
+  const token = await createOpenInvite(api, ALICE, HUMAN_THEN_FOUR_HEURISTIC_THEN_HUMAN);
+  expectStatus(await postAccept(api, token, FAY.bearer), 200);
+  expectStatus(await postStart(api, token, ALICE.bearer), 200);
+  return token;
+};
+
+export const quotedVersion = (version: number): string => `"${String(version)}"`;
+
+export const gameHeaders = (bearer: string, version?: number): OnlineHeaders =>
+  version === undefined
+    ? { authorization: `Bearer ${bearer}` }
+    : { authorization: `Bearer ${bearer}`, ifMatch: quotedVersion(version) };
+
+export const getGame = (
+  api: OnlinePort,
+  groupHash: string,
+  gameNumber: string,
+  bearer?: string,
+): Promise<OnlineHttpResult> =>
+  api.handle({
+    method: 'GET',
+    path: `/games/${groupHash}/${gameNumber}`,
+    ...(bearer === undefined ? {} : { headers: gameHeaders(bearer) }),
+  });
+
+export const postMove = (
+  api: OnlinePort,
+  groupHash: string,
+  gameNumber: string,
+  bearer: string | undefined,
+  move: Move,
+  version?: number,
+): Promise<OnlineHttpResult> =>
+  api.handle({
+    method: 'POST',
+    path: `/games/${groupHash}/${gameNumber}/moves`,
+    ...(bearer === undefined
+      ? version === undefined
+        ? { body: JSON.stringify({ move }) }
+        : { headers: { ifMatch: quotedVersion(version) }, body: JSON.stringify({ move }) }
+      : {
+          headers: gameHeaders(bearer, version),
+          body: JSON.stringify({ move }),
+        }),
+  });
+
+export const wsConnect = (
+  ws: OnlineWsPort,
+  connectionId: string,
+  accessToken?: string,
+): Promise<{ readonly statusCode: number }> =>
+  ws.connect({
+    connectionId,
+    ...(accessToken === undefined ? {} : { accessToken }),
+  });
+
+export const wsDisconnect = (
+  ws: OnlineWsPort,
+  connectionId: string,
+  userHash?: string,
+): Promise<{ readonly statusCode: number }> =>
+  ws.disconnect({
+    connectionId,
+    ...(userHash === undefined ? {} : { userHash }),
+  });
+
+export const gameStateKey = (groupHash: string, gameNumber: string): string =>
+  `conquarrow/groups/${groupHash}/games/${gameNumber}/state.json`;
+
+export const gameLogKey = (groupHash: string, gameNumber: string): string =>
+  `conquarrow/groups/${groupHash}/games/${gameNumber}/log.jsonl`;
+
+export const connectionKey = (userHash: string, connectionId: string): string =>
+  `conquarrow/connections/${userHash}/${connectionId}`;
+
+export const connectionIdKey = (connectionId: string): string =>
+  `conquarrow/connection-ids/${connectionId}`;
+
+export const connectionKeys = (s3: ReadonlyMap<string, string>): readonly string[] =>
+  [...s3.keys()]
+    .filter((key) => key.includes('/connections/'))
+    .sort();
+
+export const matchConfigForSeats = (playerCount: number) => ({
+  ...DEFAULT_MATCH_CONFIG,
+  playerCount,
+});
+
+export const openingMatch = (playerCount: number): GameState =>
+  makeMatch(matchConfigForSeats(playerCount));
+
+export const firstLegalStep = (state: GameState): Move => {
+  const rules = makeRules(makeTiling());
+  const found = rules.legalMoves(state).find((move) => move.kind === 'step');
+  if (found === undefined) {
+    throw new Error('setup: opening position has no legal step');
+  }
+  return found;
+};
+
+export const illegalStep = (): Move =>
+  step(mintArrowId('no-such-from'), mintArrowId('no-such-exit'), 1);
+
+export type StateSnapshot = {
+  readonly players: readonly string[];
+  readonly activePlayer: string;
+  readonly groups: readonly {
+    readonly arrow: string;
+    readonly owner: string;
+    readonly heads: number;
+    readonly spent: number;
+    readonly speedOverride?: MergeOverride;
+  }[];
+  readonly trails: readonly { readonly player: string; readonly arrows: readonly string[] }[];
+  readonly territory: readonly { readonly arrow: string; readonly owner: string }[];
+  readonly accumulators: readonly {
+    readonly arrow: string;
+    readonly num: number;
+    readonly den: number;
+  }[];
+  readonly spawners: readonly {
+    readonly vertex: string;
+    readonly num: number;
+    readonly den: number;
+    readonly phase: number;
+  }[];
+  readonly dominationStreak: number;
+  readonly dominationN: number;
+  readonly dominationHolder?: string;
+  readonly winner?: string;
+};
+
+export const snapshotState = (state: GameState): StateSnapshot => {
+  const snap: {
+    players: readonly string[];
+    activePlayer: string;
+    groups: StateSnapshot['groups'];
+    trails: StateSnapshot['trails'];
+    territory: StateSnapshot['territory'];
+    accumulators: StateSnapshot['accumulators'];
+    spawners: StateSnapshot['spawners'];
+    dominationStreak: number;
+    dominationN: number;
+    dominationHolder?: string;
+    winner?: string;
+  } = {
+    players: [...state.players].map(String),
+    activePlayer: String(state.activePlayer),
+    groups: [...state.groups.entries()]
+      .map(([arrow, group]) =>
+        group.speedOverride === undefined
+          ? {
+              arrow: String(arrow),
+              owner: String(group.owner),
+              heads: group.heads,
+              spent: group.spent,
+            }
+          : {
+              arrow: String(arrow),
+              owner: String(group.owner),
+              heads: group.heads,
+              spent: group.spent,
+              speedOverride: group.speedOverride,
+            },
+      )
+      .toSorted((left, right) => (left.arrow < right.arrow ? -1 : 1)),
+    trails: [...state.trails.entries()]
+      .map(([player, arrows]) => ({
+        player: String(player),
+        arrows: [...arrows].map(String).toSorted(),
+      }))
+      .toSorted((left, right) => (left.player < right.player ? -1 : 1)),
+    territory: [...state.territory.entries()]
+      .map(([arrow, owner]) => ({ arrow: String(arrow), owner: String(owner) }))
+      .toSorted((left, right) => (left.arrow < right.arrow ? -1 : 1)),
+    accumulators: [...state.accumulators.entries()]
+      .map(([arrow, r]) => ({ arrow: String(arrow), num: r.num, den: r.den }))
+      .toSorted((left, right) => (left.arrow < right.arrow ? -1 : 1)),
+    spawners: [...state.spawners.entries()]
+      .map(([vertex, spawner]) => ({
+        vertex: String(vertex),
+        num: spawner.force.num,
+        den: spawner.force.den,
+        phase: spawner.phase,
+      }))
+      .toSorted((left, right) => (left.vertex < right.vertex ? -1 : 1)),
+    dominationStreak: state.dominationStreak,
+    dominationN: state.dominationN,
+  };
+  if (state.dominationHolder !== undefined) {
+    snap.dominationHolder = String(state.dominationHolder);
+  }
+  if (state.winner !== undefined) {
+    snap.winner = String(state.winner);
+  }
+  return snap;
+};
+
+export const persistEnvelope = (version: number, state: GameState): string =>
+  JSON.stringify({ version, state: snapshotState(state) });
+
+export const parsePersisted = (
+  raw: string | undefined,
+): { readonly version: number; readonly state: unknown } => {
+  if (raw === undefined) {
+    throw new Error('setup: expected state.json');
+  }
+  const rec = asRecord(JSON.parse(raw) as unknown);
+  const version = rec['version'];
+  if (typeof version !== 'number') {
+    throw new Error('expected state.json.version to be a number');
+  }
+  return { version, state: rec['state'] };
+};
+
+export const parseLogJsonl = (raw: string | undefined): readonly Move[] => {
+  if (raw === undefined || raw === '') return [];
+  return raw
+    .replace(/\n$/, '')
+    .split('\n')
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line) as Move);
+};
+
+export const foldLog = (playerCount: number, moves: readonly Move[]): GameState =>
+  replay(makeRules(makeTiling()), openingMatch(playerCount), moves);
+
+export const versionOf = (value: unknown): number => {
+  const version = asRecord(value)['version'];
+  if (typeof version !== 'number') {
+    throw new Error('expected body.version to be a number');
+  }
+  return version;
+};
+
+export const stateOfBody = (value: unknown): unknown => asRecord(value)['state'];
+
+export const winnerOf = (value: unknown): string | undefined => {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const winner = asRecord(value)['winner'];
+  return typeof winner === 'string' ? winner : undefined;
+};
+
+export const activePlayerOf = (value: unknown): string => {
+  const active = asRecord(value)['activePlayer'];
+  if (typeof active !== 'string') {
+    throw new Error('expected state.activePlayer to be a string');
+  }
+  return active;
+};
+
+export const playersOf = (value: unknown): readonly string[] => {
+  const players = asRecord(value)['players'];
+  if (!Array.isArray(players) || players.some((p) => typeof p !== 'string')) {
+    throw new Error('expected state.players to be a string array');
+  }
+  return players as readonly string[];
+};
+
+export const storedVersion = (
+  s3: ReadonlyMap<string, string>,
+  groupHash: string,
+  gameNumber: string,
+): number | undefined => {
+  const raw = s3.get(gameStateKey(groupHash, gameNumber));
+  if (raw === undefined) return undefined;
+  return parsePersisted(raw).version;
+};
+
+export const seedOpeningState = (
+  s3: Map<string, string>,
+  groupHash: string,
+  gameNumber: string,
+  playerCount: number,
+): GameState => {
+  const state = openingMatch(playerCount);
+  s3.set(gameStateKey(groupHash, gameNumber), persistEnvelope(0, state));
+  s3.set(gameLogKey(groupHash, gameNumber), '');
+  return state;
+};
+
+export const seedFinishedState = (
+  s3: Map<string, string>,
+  groupHash: string,
+  gameNumber: string,
+  playerCount: number,
+): { readonly winner: string; readonly version: number } => {
+  const opening = openingMatch(playerCount);
+  const winner = opening.players[0];
+  if (winner === undefined) throw new Error('setup: makeMatch has no players');
+  const finished: GameState = { ...opening, winner };
+  s3.set(gameStateKey(groupHash, gameNumber), persistEnvelope(0, finished));
+  s3.set(gameLogKey(groupHash, gameNumber), '');
+  const metaKey = gameMetaKey(groupHash, gameNumber);
+  const metaRaw = s3.get(metaKey);
+  if (metaRaw === undefined) throw new Error('setup: expected game meta');
+  const meta = asRecord(JSON.parse(metaRaw) as unknown);
+  s3.set(metaKey, JSON.stringify({ ...meta, winner: String(winner) }));
+  return { winner: String(winner), version: 0 };
+};
+
+/**
+ * A 3-player position where Alice (seat 1) `endTurn` leaves the last seat
+ * (heuristic) active, and that seat's `endTurn` wraps the round and awards
+ * starvation — real `makeRules(makeTiling()).apply`, not a fake RulesPort.
+ *
+ * Seat plan: Bob at 0, Alice at 1, heuristic at 2 (`startBobAliceHeuristic`).
+ */
+export const authorStarvationWrapState = (): {
+  readonly state: GameState;
+  readonly alicePlayer: string;
+  readonly heuristicPlayer: string;
+  readonly winner: string;
+} => {
+  const opening = openingMatch(3);
+  const victim = opening.players[0];
+  const alicePlayer = opening.players[1];
+  const heuristicPlayer = opening.players[2];
+  if (victim === undefined || alicePlayer === undefined || heuristicPlayer === undefined) {
+    throw new Error('setup: expected 3 players');
+  }
+  const territory = new Map(
+    [...opening.territory.entries()].filter(([, owner]) => owner !== victim),
+  );
+  const state: GameState = {
+    ...opening,
+    activePlayer: alicePlayer,
+    territory,
+    dominationStreak: 4,
+    dominationHolder: victim,
+    winner: undefined,
+  };
+  const rules = makeRules(makeTiling());
+  const afterHuman = rules.apply(state, endTurn());
+  if (afterHuman.winner !== undefined) {
+    throw new Error('setup: human endTurn already set a winner');
+  }
+  if (afterHuman.activePlayer !== heuristicPlayer) {
+    throw new Error('setup: human endTurn did not hand the heuristic seat');
+  }
+  const afterAi = rules.apply(afterHuman, endTurn());
+  if (afterAi.winner === undefined) {
+    throw new Error('setup: heuristic endTurn did not set a winner');
+  }
+  return {
+    state,
+    alicePlayer: String(alicePlayer),
+    heuristicPlayer: String(heuristicPlayer),
+    winner: String(afterAi.winner),
+  };
+};
+
+export const notifiesTo = (
+  notifies: readonly NotifyRecord[],
+  connectionId: string,
+): readonly NotifyRecord[] => notifies.filter((row) => row.connectionId === connectionId);

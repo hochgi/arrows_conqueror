@@ -14,8 +14,11 @@
     "typecheck": "tsc --build --force"
   },
   "dependencies": {
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.1109.0",
     "@aws-sdk/client-s3": "^3.1109.0",
-    "@conquarrow/contracts": "workspace:*"
+    "@conquarrow/contracts": "workspace:*",
+    "@conquarrow/geometry-tiling": "workspace:*",
+    "@conquarrow/rules-core": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^2.1.8"

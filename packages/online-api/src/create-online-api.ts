@@ -1,14 +1,17 @@
 /**
- * In-process factory for the P17 online HTTP port.
+ * In-process factory for the online HTTP port (P17 invites, P18 moves).
  *
- * Google verify, hashing, invite persistence, and Start live here. Tests inject
- * a fake verifier and a fake object store.
+ * Google verify, hashing, invite persistence, Start, GET game, POST moves, and
+ * WebSocket registry live here. Tests inject a fake verifier, a fake object
+ * store, a scripted heuristic, and a fake PostToConnection.
  *
  * @see docs/spec/online-auth-invites/online-auth-invites.md
+ * @see docs/spec/online-moves-ws/online-moves-ws.md
  */
 
 import type { OnlineHttpResult, OnlinePort, OnlineRequest } from '@conquarrow/contracts';
 import type { OnlineApiDeps } from './api-types';
+import { handleGetGame, handlePostMove } from './game-handlers';
 import {
   handleAccept,
   handleCreate,
@@ -24,9 +27,14 @@ export type {
   GoogleRejectReason,
   GoogleVerifier,
   GoogleVerifyResult,
+  HeuristicChooser,
+  ObjectPutOptions,
   ObjectStore,
   OnlineApiDeps,
+  PostToConnection,
 } from './api-types';
+export { PreconditionFailed } from './api-types';
+export { createOnlineWs } from './create-online-ws';
 
 type Route =
   | { readonly name: 'me' }
@@ -35,7 +43,9 @@ type Route =
   | { readonly name: 'get-invite'; readonly token: string }
   | { readonly name: 'accept'; readonly token: string }
   | { readonly name: 'revoke'; readonly token: string }
-  | { readonly name: 'start'; readonly token: string };
+  | { readonly name: 'start'; readonly token: string }
+  | { readonly name: 'get-game'; readonly groupHash: string; readonly gameNumber: string }
+  | { readonly name: 'post-move'; readonly groupHash: string; readonly gameNumber: string };
 
 const matchGet = (path: string): Route | undefined => {
   if (path === '/me') return { name: 'me' };
@@ -43,6 +53,12 @@ const matchGet = (path: string): Route | undefined => {
   const invite = /^\/invites\/([^/]+)$/.exec(path);
   const token = invite?.[1];
   if (token !== undefined) return { name: 'get-invite', token };
+  const game = /^\/games\/([^/]+)\/([^/]+)$/.exec(path);
+  const groupHash = game?.[1];
+  const gameNumber = game?.[2];
+  if (groupHash !== undefined && gameNumber !== undefined) {
+    return { name: 'get-game', groupHash, gameNumber };
+  }
   return undefined;
 };
 
@@ -59,6 +75,12 @@ const matchInviteAction = (path: string): Route | undefined => {
 
 const matchPost = (path: string): Route | undefined => {
   if (path === '/invites') return { name: 'create' };
+  const move = /^\/games\/([^/]+)\/([^/]+)\/moves$/.exec(path);
+  const groupHash = move?.[1];
+  const gameNumber = move?.[2];
+  if (groupHash !== undefined && gameNumber !== undefined) {
+    return { name: 'post-move', groupHash, gameNumber };
+  }
   return matchInviteAction(path);
 };
 
@@ -83,6 +105,10 @@ const dispatch = (deps: OnlineApiDeps, request: OnlineRequest): Promise<OnlineHt
       return handleRevoke(deps, request, route.token);
     case 'start':
       return handleStart(deps, request, route.token);
+    case 'get-game':
+      return handleGetGame(deps, request, route.groupHash, route.gameNumber);
+    case 'post-move':
+      return handlePostMove(deps, request, route.groupHash, route.gameNumber);
   }
 };
 

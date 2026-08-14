@@ -17,6 +17,16 @@ export const notFound = (): OnlineHttpResult => jsonResult(404, { error: 'not_fo
 
 export const conflict = (): OnlineHttpResult => jsonResult(409, { error: 'conflict' });
 
+export const finished = (): OnlineHttpResult => jsonResult(409, { reason: 'finished' });
+
+export const staleVersion = (): OnlineHttpResult =>
+  jsonResult(412, { error: 'precondition_failed' });
+
+export const preconditionRequired = (): OnlineHttpResult =>
+  jsonResult(428, { error: 'precondition_required' });
+
+export const internalError = (): OnlineHttpResult => jsonResult(500, { error: 'internal' });
+
 export const gone = (reason: 'revoked' | 'started'): OnlineHttpResult =>
   jsonResult(410, { reason });
 

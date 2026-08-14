@@ -1,4 +1,5 @@
-import type { ObjectStore } from './api-types';
+import type { ObjectPutOptions, ObjectStore } from './api-types';
+export { PreconditionFailed, isPreconditionFailed } from './api-types';
 
 export const getObject = async (
   s3: ObjectStore,
@@ -9,8 +10,13 @@ export const putObject = async (
   s3: ObjectStore,
   key: string,
   body: string,
+  options?: ObjectPutOptions,
 ): Promise<void> => {
-  await Promise.resolve(s3.put(key, body));
+  await Promise.resolve(s3.put(key, body, options));
+};
+
+export const deleteObject = async (s3: ObjectStore, key: string): Promise<void> => {
+  await Promise.resolve(s3.delete(key));
 };
 
 export const listObjects = async (

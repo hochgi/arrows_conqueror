@@ -1,5 +1,5 @@
 /**
- * Online auth, invites, and library — the inbound HTTP port (P17).
+ * Online auth, invites, library, moves, and WebSocket notify (P17–P18).
  *
  * Tests and adapters speak this surface. `userHash` / `groupHash` hashing is an
  * adapter concern (`packages/online-api`); this package stays free of `crypto`
@@ -7,9 +7,10 @@
  * client.
  *
  * Paths are those the handlers see under the `/conquarrow` mapping — `/me`,
- * `/invites/:token/accept`, not the mapped prefix.
+ * `/invites/:token/accept`, `/games/:groupHash/:gameNumber`, not the mapped prefix.
  *
  * @see docs/spec/online-auth-invites/online-auth-invites.md
+ * @see docs/spec/online-moves-ws/online-moves-ws.md
  * @see docs/adr/0002-cheap-async-online.md
  */
 
@@ -77,8 +78,26 @@ export interface GoneBody {
   readonly reason: 'revoked' | 'started';
 }
 
+/** POST moves against a game whose `state.winner` is already set. */
+export interface FinishedBody {
+  readonly reason: 'finished';
+}
+
+/**
+ * Wake-up after a persist of `state.json`. The client then GETs state.
+ * Never includes Google `sub` or a `GameState`.
+ */
+export interface StateChangedPayload {
+  readonly type: 'stateChanged';
+  readonly version: number;
+  readonly groupHash: GroupHash;
+  readonly gameNumber: GameNumber;
+}
+
 export interface OnlineHeaders {
   readonly authorization?: string;
+  /** HTTP `If-Match` — quoted decimal version, e.g. `"0"`. Required on POST moves. */
+  readonly ifMatch?: string;
 }
 
 export interface OnlineRequest {
@@ -100,4 +119,32 @@ export interface OnlineHttpResult {
  */
 export interface OnlinePort {
   handle(request: OnlineRequest): Promise<OnlineHttpResult>;
+}
+
+/** `$connect` — `access_token` is the Google ID token query parameter. */
+export interface WsConnectRequest {
+  readonly connectionId: string;
+  readonly accessToken?: string;
+}
+
+/**
+ * `$disconnect` — production has only `connectionId`; the adapter looks up
+ * `connection-ids/<connectionId>`. Tests may pass `userHash` directly.
+ */
+export interface WsDisconnectRequest {
+  readonly connectionId: string;
+  readonly userHash?: UserHash;
+}
+
+export interface OnlineWsResult {
+  readonly statusCode: number;
+}
+
+/**
+ * WebSocket registry. Any verified user may connect. Invalid or missing token
+ * → 401 and no `connections/` key.
+ */
+export interface OnlineWsPort {
+  connect(request: WsConnectRequest): Promise<OnlineWsResult>;
+  disconnect(request: WsDisconnectRequest): Promise<OnlineWsResult>;
 }

@@ -44,7 +44,7 @@ authenticated route.
 | POST | `/invites/:token/revoke` | Bearer (creator only) |
 | POST | `/invites/:token/start` | Bearer (any bound human) |
 
-`GET /health` stays unauthenticated (P16). `POST /moves` stays 501 (P18).
+`GET /health` stays unauthenticated (P16). Game GET/POST lives under `/games/:groupHash/:gameNumber` (P18). The P16 `POST /moves` stub is removed in P18.
 
 ## Flow
 

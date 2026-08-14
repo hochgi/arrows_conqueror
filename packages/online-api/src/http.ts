@@ -8,10 +8,16 @@
 
 import { randomBytes } from 'node:crypto';
 import { env } from 'node:process';
+import {
+  ApiGatewayManagementApiClient,
+  PostToConnectionCommand,
+} from '@aws-sdk/client-apigatewaymanagementapi';
 import type { OnlineHeaders, OnlineHttpResult, OnlineRequest } from '@conquarrow/contracts';
+import type { PostToConnection } from './api-types';
 import { createOnlineApi } from './create-online-api';
 import { createGoogleTokenInfoVerifier } from './google-tokeninfo';
 import { asRecord } from './invite-record';
+import { pagesHeuristic } from './pages-heuristic';
 import { createS3Store } from './s3-store';
 
 const clientIds = (): readonly string[] =>
@@ -54,8 +60,12 @@ const eventPath = (event: Record<string, unknown>): string => {
 const eventHeaders = (event: Record<string, unknown>): OnlineHeaders | undefined => {
   const raw = asRecord(event['headers']);
   const authorization = headerValue(raw, 'authorization');
-  if (authorization === undefined) return undefined;
-  return { authorization };
+  const ifMatch = headerValue(raw, 'if-match');
+  if (authorization === undefined && ifMatch === undefined) return undefined;
+  return {
+    ...(authorization === undefined ? {} : { authorization }),
+    ...(ifMatch === undefined ? {} : { ifMatch }),
+  };
 };
 
 const eventBody = (event: Record<string, unknown>): string | undefined => {
@@ -82,6 +92,41 @@ export const toOnlineRequest = (event: unknown): OnlineRequest => {
 
 const clock = (): number => Date.now();
 
+const statusOfAwsError = (error: unknown): number | undefined => {
+  if (typeof error !== 'object' || error === null) return undefined;
+  const rec = error as Record<string, unknown>;
+  if (rec['name'] === 'GoneException') return 410;
+  const meta = rec['$metadata'];
+  if (typeof meta !== 'object' || meta === null) return undefined;
+  const code = (meta as Record<string, unknown>)['httpStatusCode'];
+  return typeof code === 'number' ? code : undefined;
+};
+
+const createAwsPostToConnection = (endpoint: string): PostToConnection => {
+  const client = new ApiGatewayManagementApiClient({ endpoint });
+  return async (connectionId, payload) => {
+    try {
+      await client.send(
+        new PostToConnectionCommand({
+          ConnectionId: connectionId,
+          Data: new TextEncoder().encode(JSON.stringify(payload)),
+        }),
+      );
+      return 200;
+    } catch (error: unknown) {
+      if (statusOfAwsError(error) === 410) return 410;
+      throw error;
+    }
+  };
+};
+
+const postToConnection = (): PostToConnection | undefined => {
+  const endpoint = env['WS_MANAGEMENT_ENDPOINT'];
+  if (endpoint === undefined || endpoint === '') return undefined;
+  return createAwsPostToConnection(endpoint);
+};
+
+const post = postToConnection();
 const api = createOnlineApi({
   google: createGoogleTokenInfoVerifier({
     clientIds: clientIds(),
@@ -91,6 +136,8 @@ const api = createOnlineApi({
   s3: createS3Store(env['MATCH_BUCKET'] ?? ''),
   clock,
   randomBytes: (size) => randomBytes(size),
+  heuristic: pagesHeuristic,
+  ...(post === undefined ? {} : { postToConnection: post }),
 });
 
 export const handler = (event: unknown): Promise<OnlineHttpResult> =>

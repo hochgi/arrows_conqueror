@@ -3,7 +3,6 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { handler as health } from '../src/health';
-import { handler as moves } from '../src/moves';
 import { handler as ws } from '../src/ws';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -75,17 +74,14 @@ describe('online-infra — edge cases', () => {
     expect(readme).toContain('Do **not** create a Route53 hosted zone for `games.hochgi.com`');
   });
 
-  it('health is defined; moves are not implemented; invite routes exist', async () => {
+  it('health is defined; invite routes exist', async () => {
     expect(template).toContain('Path: /health');
-    expect(template).toContain('Path: /moves');
     expect(template).toContain('Path: /invites');
-    const move = await moves();
-    expect(move.statusCode).toBe(501);
   });
 
-  it('WebSocket connect accepts without writing group or game objects', async () => {
+  it('WebSocket connect fails closed without a token', async () => {
     const res = await ws();
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode).toBe(401);
     expect(template).toContain('AWS::Serverless::WebSocketApi');
     expect(template).toContain('$connect:');
     expect(template).toContain('$disconnect:');

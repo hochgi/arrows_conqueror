@@ -6,6 +6,7 @@ export interface InviteRecord {
   readonly status: InviteStatus;
   readonly creatorUserHash: string;
   readonly seats: readonly InviteSeat[];
+  readonly gameNumber?: string;
 }
 
 export const asRecord = (value: unknown): Record<string, unknown> | undefined => {
@@ -71,6 +72,17 @@ const parseSeat = (value: unknown): InviteSeat | undefined => {
   return { kind: 'human' };
 };
 
+export const parseSeats = (seatsRaw: unknown): InviteSeat[] | undefined => {
+  if (!Array.isArray(seatsRaw)) return undefined;
+  const seats: InviteSeat[] = [];
+  for (const item of seatsRaw) {
+    const seat = parseSeat(item);
+    if (seat === undefined) return undefined;
+    seats.push(seat);
+  }
+  return seats;
+};
+
 export const parseInvite = (raw: string): InviteRecord | undefined => {
   let parsed: unknown;
   try {
@@ -86,19 +98,22 @@ export const parseInvite = (raw: string): InviteRecord | undefined => {
   }
   const creatorUserHash = rec['creatorUserHash'];
   if (typeof creatorUserHash !== 'string') return undefined;
-  const seatsRaw = rec['seats'];
-  if (!Array.isArray(seatsRaw)) return undefined;
-  const seats: InviteSeat[] = [];
-  for (const item of seatsRaw) {
-    const seat = parseSeat(item);
-    if (seat === undefined) return undefined;
-    seats.push(seat);
+  const seats = parseSeats(rec['seats']);
+  if (seats === undefined) return undefined;
+  const gameNumber = rec['gameNumber'];
+  if (typeof gameNumber === 'string') {
+    return { status, creatorUserHash, seats, gameNumber };
   }
   return { status, creatorUserHash, seats };
 };
 
-export const serializeInvite = (invite: InviteRecord): string =>
-  JSON.stringify({
+export const serializeInvite = (invite: InviteRecord): string => {
+  const body: {
+    status: InviteStatus;
+    creatorUserHash: string;
+    seats: InviteSeat[];
+    gameNumber?: string;
+  } = {
     status: invite.status,
     creatorUserHash: invite.creatorUserHash,
     seats: invite.seats.map((seat) => {
@@ -107,7 +122,12 @@ export const serializeInvite = (invite: InviteRecord): string =>
       if (userHash === undefined) return { kind: 'human' };
       return { kind: 'human', userHash };
     }),
-  });
+  };
+  if (invite.gameNumber !== undefined) {
+    body.gameNumber = invite.gameNumber;
+  }
+  return JSON.stringify(body);
+};
 
 export const boundUserHash = (seat: InviteSeat): string | undefined =>
   seat.kind === 'human' ? seat.userHash : undefined;
@@ -147,4 +167,45 @@ export const boundHumanHashes = (seats: readonly InviteSeat[]): string[] => {
     if (hash !== undefined) hashes.push(hash);
   }
   return hashes;
+};
+
+export const seatsEqual = (
+  left: readonly InviteSeat[] | undefined,
+  right: readonly InviteSeat[],
+): boolean => {
+  if (left === undefined || left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    const a = left[i];
+    const b = right[i];
+    if (a === undefined || b === undefined) return false;
+    if (a.kind !== b.kind) return false;
+    if (a.kind === 'human' && b.kind === 'human' && a.userHash !== b.userHash) return false;
+  }
+  return true;
+};
+
+export const parseGameMeta = (
+  raw: string,
+): {
+  readonly seats: readonly InviteSeat[];
+  readonly winner?: string;
+  readonly inviteToken?: string;
+} | undefined => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch {
+    return undefined;
+  }
+  const rec = asRecord(parsed);
+  if (rec === undefined) return undefined;
+  const seats = parseSeats(rec['seats']);
+  if (seats === undefined) return undefined;
+  const winner = rec['winner'];
+  const inviteToken = rec['inviteToken'];
+  return {
+    seats,
+    ...(typeof winner === 'string' ? { winner } : {}),
+    ...(typeof inviteToken === 'string' ? { inviteToken } : {}),
+  };
 };
