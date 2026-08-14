@@ -263,7 +263,7 @@ describe('Notify hygiene', () => {
 
   it('Notify failure after persist still returns 200', async () => {
     const { api, s3, ws } = makeHarness({
-      postToConnection: async () => {
+      postToConnection: () => {
         throw new Error('PostToConnection unavailable');
       },
     });
@@ -377,7 +377,9 @@ describe('P17 follow-on races', () => {
     const token = await bindAliceAndBob(api);
     const groupHash = aliceBobGroupHash();
     const inviteRaw = s3.get(inviteKey(token));
-    const seats = asRecord(JSON.parse(inviteRaw ?? '{}') as unknown)?.['seats'];
+    expect(inviteRaw).toBeDefined();
+    if (inviteRaw === undefined) return;
+    const seats = asRecord(JSON.parse(inviteRaw) as unknown)['seats'];
     s3.set(
       gameMetaKey(groupHash, GAME_ONE),
       JSON.stringify({ seats, inviteToken: 'other-token' }),
