@@ -1,11 +1,12 @@
 import type { InviteBody, OnlineHttpResult, OnlineRequest } from '@conquarrow/contracts';
-import type { GoogleVerifier, ObjectStore, OnlineApiDeps } from './api-types';
+import type { ObjectStore, OnlineApiDeps } from './api-types';
+import { isPreconditionFailed } from './api-types';
+import { authorizationOf, requireUserHash } from './auth';
 import {
   bytesToHex,
   compareStrings,
   groupHashFromUserHashes,
   padGameNumber,
-  userHashFromSub,
 } from './hashing';
 import {
   allHumanSeatsBound,
@@ -13,8 +14,10 @@ import {
   boundHumanHashes,
   indexOfBoundUser,
   nextUnboundHumanIndex,
+  parseGameMeta,
   parseInvite,
   parseKinds,
+  seatsEqual,
   seatsFromPlan,
   serializeInvite,
   validatePlan,
@@ -26,7 +29,6 @@ import {
   gone,
   jsonResult,
   notFound,
-  unauthorized,
   unprocessable,
 } from './json-result';
 import {
@@ -43,22 +45,6 @@ import { getObject, listObjects, putObject } from './store-io';
 
 const POINTER = '{}';
 
-const authorizationOf = (request: OnlineRequest): string | undefined =>
-  request.headers?.authorization;
-
-type UserAuth =
-  | { readonly ok: true; readonly userHash: string }
-  | { readonly ok: false; readonly result: OnlineHttpResult };
-
-const requireUserHash = async (
-  google: GoogleVerifier,
-  authorization: string | undefined,
-): Promise<UserAuth> => {
-  const verified = await Promise.resolve(google.verify(authorization));
-  if (!verified.ok) return { ok: false, result: unauthorized() };
-  return { ok: true, userHash: userHashFromSub(verified.sub) };
-};
-
 const readInvite = async (
   s3: ObjectStore,
   token: string,
@@ -68,8 +54,14 @@ const readInvite = async (
   return parseInvite(raw);
 };
 
-const writeInvite = async (s3: ObjectStore, token: string, invite: InviteRecord): Promise<void> => {
-  await putObject(s3, inviteKey(token), serializeInvite(invite));
+const writeInvite = async (
+  s3: ObjectStore,
+  token: string,
+  invite: InviteRecord,
+  ifMatch?: string,
+): Promise<void> => {
+  const options = ifMatch === undefined ? undefined : { ifMatch };
+  await putObject(s3, inviteKey(token), serializeInvite(invite), options);
 };
 
 const writeLobbyPointer = async (
@@ -162,22 +154,31 @@ export const handleAccept = async (
 ): Promise<OnlineHttpResult> => {
   const user = await requireUserHash(deps.google, authorizationOf(request));
   if (!user.ok) return user.result;
-  const invite = await readInvite(deps.s3, token);
-  if (invite === undefined) return notFound();
-  const closedResult = closed(invite);
-  if (closedResult !== undefined) return closedResult;
-  if (indexOfBoundUser(invite.seats, user.userHash) >= 0) {
+  for (;;) {
+    const raw = await getObject(deps.s3, inviteKey(token));
+    if (raw === undefined) return notFound();
+    const invite = parseInvite(raw);
+    if (invite === undefined) return notFound();
+    const closedResult = closed(invite);
+    if (closedResult !== undefined) return closedResult;
+    if (indexOfBoundUser(invite.seats, user.userHash) >= 0) {
+      await writeLobbyPointer(deps.s3, user.userHash, token);
+      return jsonResult(200, publicInvite(token, invite.seats));
+    }
+    const next = nextUnboundHumanIndex(invite.seats);
+    if (next < 0) return conflict();
+    const seats = invite.seats.map((seat, index) =>
+      index === next ? { kind: 'human' as const, userHash: user.userHash } : seat,
+    );
+    try {
+      await writeInvite(deps.s3, token, { ...invite, seats }, raw);
+    } catch (error: unknown) {
+      if (isPreconditionFailed(error)) continue;
+      throw error;
+    }
     await writeLobbyPointer(deps.s3, user.userHash, token);
-    return jsonResult(200, publicInvite(token, invite.seats));
+    return jsonResult(200, publicInvite(token, seats));
   }
-  const next = nextUnboundHumanIndex(invite.seats);
-  if (next < 0) return conflict();
-  const seats = invite.seats.map((seat, index) =>
-    index === next ? { kind: 'human' as const, userHash: user.userHash } : seat,
-  );
-  await writeInvite(deps.s3, token, { ...invite, seats });
-  await writeLobbyPointer(deps.s3, user.userHash, token);
-  return jsonResult(200, publicInvite(token, seats));
 };
 
 export const handleRevoke = async (
@@ -211,29 +212,99 @@ const readNextGameNumber = async (s3: ObjectStore, groupHash: string): Promise<n
   return 1;
 };
 
-const allocateGameNumber = async (s3: ObjectStore, groupHash: string): Promise<string> => {
-  let n = await readNextGameNumber(s3, groupHash);
-  let padded = padGameNumber(n);
-  while ((await getObject(s3, gameMetaKey(groupHash, padded))) !== undefined) {
-    n += 1;
-    padded = padGameNumber(n);
+const writeGroupNext = async (
+  s3: ObjectStore,
+  groupHash: string,
+  next: number,
+): Promise<void> => {
+  const raw = await getObject(s3, groupMetaKey(groupHash));
+  if (raw !== undefined) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw) as unknown;
+    } catch {
+      parsed = undefined;
+    }
+    const current = asRecord(parsed)?.['nextGameNumber'];
+    if (typeof current === 'number' && Number.isInteger(current) && current >= next) return;
   }
-  return padded;
+  await putObject(s3, groupMetaKey(groupHash), JSON.stringify({ nextGameNumber: next }));
+};
+
+const writeMembership = async (
+  s3: ObjectStore,
+  groupHash: string,
+  hashes: readonly string[],
+): Promise<void> => {
+  for (const hash of hashes) {
+    await putObject(s3, userGroupKey(hash, groupHash), POINTER);
+  }
+};
+
+const allocateGameNumber = async (
+  s3: ObjectStore,
+  groupHash: string,
+  seats: InviteRecord['seats'],
+  startAt: number,
+): Promise<string> => {
+  let n = startAt;
+  for (;;) {
+    const padded = padGameNumber(n);
+    try {
+      await putObject(
+        s3,
+        gameMetaKey(groupHash, padded),
+        JSON.stringify({ seats }),
+        { ifNoneMatch: '*' },
+      );
+      return padded;
+    } catch (error: unknown) {
+      if (!isPreconditionFailed(error)) throw error;
+      n += 1;
+    }
+  }
+};
+
+const finishStart = async (
+  s3: ObjectStore,
+  token: string,
+  invite: InviteRecord,
+  groupHash: string,
+  gameNumber: string,
+): Promise<void> => {
+  const hashes = boundHumanHashes(invite.seats);
+  const next = Number.parseInt(gameNumber, 10) + 1;
+  await writeGroupNext(s3, groupHash, next);
+  await writeMembership(s3, groupHash, hashes);
+  await writeInvite(s3, token, { ...invite, status: 'started', gameNumber });
 };
 
 const materialiseGame = async (
   s3: ObjectStore,
+  token: string,
   invite: InviteRecord,
+  raw: string,
 ): Promise<{ readonly groupHash: string; readonly gameNumber: string }> => {
   const hashes = boundHumanHashes(invite.seats);
   const groupHash = groupHashFromUserHashes(hashes);
-  const gameNumber = await allocateGameNumber(s3, groupHash);
-  const next = Number.parseInt(gameNumber, 10) + 1;
-  await putObject(s3, gameMetaKey(groupHash, gameNumber), JSON.stringify({ seats: invite.seats }));
-  await putObject(s3, groupMetaKey(groupHash), JSON.stringify({ nextGameNumber: next }));
-  for (const hash of hashes) {
-    await putObject(s3, userGroupKey(hash, groupHash), POINTER);
+  if (invite.gameNumber !== undefined) {
+    await finishStart(s3, token, invite, groupHash, invite.gameNumber);
+    return { groupHash, gameNumber: invite.gameNumber };
   }
+  const n = await readNextGameNumber(s3, groupHash);
+  const padded = padGameNumber(n);
+  const existingRaw = await getObject(s3, gameMetaKey(groupHash, padded));
+  if (existingRaw !== undefined) {
+    const existing = parseGameMeta(existingRaw);
+    const groupRaw = await getObject(s3, groupMetaKey(groupHash));
+    if (seatsEqual(existing?.seats, invite.seats) && groupRaw === undefined) {
+      await finishStart(s3, token, invite, groupHash, padded);
+      return { groupHash, gameNumber: padded };
+    }
+  }
+  const gameNumber = await allocateGameNumber(s3, groupHash, invite.seats, n);
+  await writeInvite(s3, token, { ...invite, gameNumber }, raw);
+  await finishStart(s3, token, { ...invite, gameNumber }, groupHash, gameNumber);
   return { groupHash, gameNumber };
 };
 
@@ -244,15 +315,23 @@ export const handleStart = async (
 ): Promise<OnlineHttpResult> => {
   const user = await requireUserHash(deps.google, authorizationOf(request));
   if (!user.ok) return user.result;
-  const invite = await readInvite(deps.s3, token);
-  if (invite === undefined) return notFound();
-  const closedResult = closed(invite);
-  if (closedResult !== undefined) return closedResult;
-  if (indexOfBoundUser(invite.seats, user.userHash) < 0) return forbidden();
-  if (!allHumanSeatsBound(invite.seats)) return conflict();
-  const started = await materialiseGame(deps.s3, invite);
-  await writeInvite(deps.s3, token, { ...invite, status: 'started' });
-  return jsonResult(200, started);
+  for (;;) {
+    const raw = await getObject(deps.s3, inviteKey(token));
+    if (raw === undefined) return notFound();
+    const invite = parseInvite(raw);
+    if (invite === undefined) return notFound();
+    const closedResult = closed(invite);
+    if (closedResult !== undefined) return closedResult;
+    if (indexOfBoundUser(invite.seats, user.userHash) < 0) return forbidden();
+    if (!allHumanSeatsBound(invite.seats)) return conflict();
+    try {
+      const started = await materialiseGame(deps.s3, token, invite, raw);
+      return jsonResult(200, started);
+    } catch (error: unknown) {
+      if (isPreconditionFailed(error)) continue;
+      throw error;
+    }
+  }
 };
 
 const lastSegment = (key: string, prefix: string): string | undefined => {

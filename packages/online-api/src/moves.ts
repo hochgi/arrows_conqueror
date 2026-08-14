@@ -1,9 +1,9 @@
 import type { HttpResult } from './health.ts';
 
-/** Sized for P18 heuristic burst. Product apply lands in P18. */
+/** P16 `POST /moves` stub retired — play is nested under `/games/.../moves`. */
 export const handler = (): Promise<HttpResult> =>
   Promise.resolve({
-    statusCode: 501,
+    statusCode: 404,
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ error: 'not_implemented' }),
+    body: JSON.stringify({ error: 'not_found' }),
   });

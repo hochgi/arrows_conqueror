@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Conquarrow online edge (P16–P17) — health, auth/invites, WS stubs, private bucket. Personal AWS only.
+Description: Conquarrow online edge (P16–P18) — health, auth/invites, moves, WS connect, private bucket. Personal AWS only.
 
 Globals:
   Function:
@@ -81,14 +81,16 @@ Resources:
   MoveFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: moves.handler
-      CodeUri: ../packages/online-api/src
+      Handler: http.handler
+      CodeUri: ../packages/online-api
       Timeout: 60
       MemorySize: 1024
       Environment:
         Variables:
           MATCH_BUCKET: !Ref MatchBucket
           MATCH_PREFIX: conquarrow/
+          GOOGLE_CLIENT_IDS: !Ref GoogleClientIds
+          WS_MANAGEMENT_ENDPOINT: !Sub 'https://${WsApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
       Policies:
         - Statement:
             - Effect: Allow
@@ -106,21 +108,25 @@ Resources:
                 - s3:PutObject
                 - s3:DeleteObject
               Resource: !Sub '${MatchBucket.Arn}/conquarrow/*'
+            - Effect: Allow
+              Action:
+                - execute-api:ManageConnections
+              Resource: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WsApi}/*'
       Events:
-        Moves:
+        GetGame:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /moves
+            Path: /games/{groupHash}/{gameNumber}
+            Method: GET
+        PostMove:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /games/{groupHash}/{gameNumber}/moves
             Method: POST
     Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Format: cjs
-        Target: es2022
-        Sourcemap: false
-        EntryPoints:
-          - moves.ts
+      BuildMethod: makefile
 
   OnlineFunction:
     Type: AWS::Serverless::Function
@@ -211,15 +217,31 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: ws.handler
-      CodeUri: ../packages/online-api/src
+      CodeUri: ../packages/online-api
+      Environment:
+        Variables:
+          MATCH_BUCKET: !Ref MatchBucket
+          MATCH_PREFIX: conquarrow/
+          GOOGLE_CLIENT_IDS: !Ref GoogleClientIds
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource: !GetAtt MatchBucket.Arn
+              Condition:
+                StringLike:
+                  s3:prefix:
+                    - conquarrow
+                    - conquarrow/*
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource: !Sub '${MatchBucket.Arn}/conquarrow/*'
     Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Format: cjs
-        Target: es2022
-        Sourcemap: false
-        EntryPoints:
-          - ws.ts
+      BuildMethod: makefile
 
   HttpDomain:
     Type: AWS::ApiGatewayV2::DomainName

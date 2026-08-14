@@ -38,7 +38,7 @@ workflow (`workflow_dispatch`). Stack name: `conquarrow-online`.
 Outputs `HealthUrl` and `WsUrl` are `execute-api` URLs until custom domains exist.
 `GET` that HealthUrl — no Google token. Expect `{ "ok": true, "service": "conquarrow" }`.
 
-`POST …/moves` returns **501** until P18.
+Game play is `GET` / `POST /games/{groupHash}/{gameNumber}` (and `…/moves`). The P16 stub `POST /moves` is gone (404).
 
 P17 routes (`/me`, `/my-games`, `/invites` and accept/revoke/start) need repository
 variable `GOOGLE_CLIENT_IDS` — comma-separated OAuth client ids accepted as ID
