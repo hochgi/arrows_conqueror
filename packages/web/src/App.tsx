@@ -59,8 +59,10 @@ import {
   pruneBursts,
   type EvaporationBurst,
 } from './fx/evaporation';
+import { ConvertTip } from './ConvertTip';
 import { PortionSlider } from './PortionSlider';
 import { pathForDestination } from './reach';
+import { convertTooltip, refusedConvertExits } from './refusedConvert';
 import { spawnerInfoAt } from './spawnerInfo';
 import { SpawnerTip } from './SpawnerTip';
 import type { Viewport } from './viewport';
@@ -153,6 +155,10 @@ export const App = (): ReactElement => {
   const [viewport, setViewport] = useState<Viewport>(() => createViewport(800, 600));
   const [hover, setHover] = useState<
     { readonly vertex: import('@conquarrow/contracts').VertexId; readonly x: number; readonly y: number } | undefined
+  >(undefined);
+  /** Arrow under the cursor — convert-refusal tooltip (P28) when the grain out is refused. */
+  const [hoverArrow, setHoverArrow] = useState<
+    { readonly arrow: ArrowId; readonly x: number; readonly y: number } | undefined
   >(undefined);
   /** Reach destination under the cursor — drives the pulsed path preview. */
   const [hoverPath, setHoverPath] = useState<ReadonlySet<ArrowId> | undefined>(undefined);
@@ -474,14 +480,22 @@ export const App = (): ReactElement => {
   const boardHighlights = useMemo(() => {
     // Portion / confirm owns the path via the slider. Otherwise hover a blue tile
     // to pulse the route that would be walked.
+    let withPath = snap.highlights;
     if (snap.phase.kind === 'portion' && snap.highlights.path !== undefined) {
-      return snap.highlights;
+      withPath = snap.highlights;
+    } else if (hoverPath !== undefined && hoverPath.size > 0) {
+      withPath = { ...snap.highlights, path: hoverPath };
     }
-    if (hoverPath !== undefined && hoverPath.size > 0) {
-      return { ...snap.highlights, path: hoverPath };
-    }
-    return snap.highlights;
-  }, [snap, hoverPath]);
+    const from =
+      snap.phase.kind === 'source' ||
+      snap.phase.kind === 'blocked' ||
+      snap.phase.kind === 'portion'
+        ? snap.phase.from
+        : undefined;
+    if (from === undefined || state === undefined) return withPath;
+    const refused = refusedConvertExits(state, geometry, rules, from);
+    return refused.size === 0 ? withPath : { ...withPath, refused };
+  }, [snap, hoverPath, state]);
 
   const commitSnap = useCallback(
     (next: InputSnapshot) => {
@@ -756,6 +770,7 @@ export const App = (): ReactElement => {
         if (Math.abs(factor - 1) > 0.001 || Math.hypot(midX - prev.midX, midY - prev.midY) > 1) {
           pinch.current = { dist, midX, midY, moved: true };
           setHover(undefined);
+          setHoverArrow(undefined);
           setHoverPath(undefined);
           setViewport((v) => {
             const zoomed = zoomAt(v, prev.midX, prev.midY, factor);
@@ -771,6 +786,8 @@ export const App = (): ReactElement => {
     if (drag.current === null) {
       const vertex = hitSpawnerVertex(layout, viewport, x, y, spawnerVertices, 16);
       setHover(vertex === undefined ? undefined : { vertex, x, y });
+      const over = hitArrow(layout, viewport, x, y, arrows);
+      setHoverArrow(over === undefined ? undefined : { arrow: over, x, y });
 
       const reach = snap.highlights.reach;
       if (
@@ -779,7 +796,6 @@ export const App = (): ReactElement => {
         snap.phase.kind !== 'idle' &&
         snap.phase.kind !== 'blocked'
       ) {
-        const over = hitArrow(layout, viewport, x, y, arrows);
         if (over !== undefined && reach.has(over) && over !== snap.highlights.selected) {
           setHoverPath(pathForDestination(reach, over));
         } else {
@@ -791,6 +807,7 @@ export const App = (): ReactElement => {
       return;
     }
     setHover(undefined);
+    setHoverArrow(undefined);
     setHoverPath(undefined);
     const dx = e.clientX - drag.current.x;
     const dy = e.clientY - drag.current.y;
@@ -833,6 +850,7 @@ export const App = (): ReactElement => {
     pointers.current.clear();
     pinch.current = null;
     setHover(undefined);
+    setHoverArrow(undefined);
     setHoverPath(undefined);
   };
 
@@ -842,6 +860,17 @@ export const App = (): ReactElement => {
     const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
     setViewport((v) => zoomAt(v, e.clientX - rect.left, e.clientY - rect.top, factor));
   };
+
+  const selectedFrom =
+    snap.phase.kind === 'source' ||
+    snap.phase.kind === 'blocked' ||
+    snap.phase.kind === 'portion'
+      ? snap.phase.from
+      : undefined;
+  const convertCopy =
+    hoverArrow === undefined
+      ? undefined
+      : convertTooltip(state, geometry, rules, selectedFrom, hoverArrow.arrow);
 
   return (
     <div className="app">
@@ -887,7 +916,15 @@ export const App = (): ReactElement => {
           onPointerLeave={onPointerLeave}
           onWheel={onWheel}
         />
-        {hover !== undefined && snap.phase.kind !== 'portion' ? (
+        {convertCopy !== undefined && hoverArrow !== undefined ? (
+          <ConvertTip
+            text={convertCopy}
+            x={hoverArrow.x}
+            y={hoverArrow.y}
+            stageWidth={viewport.width}
+            stageHeight={viewport.height}
+          />
+        ) : hover !== undefined && snap.phase.kind !== 'portion' ? (
           <SpawnerTipFor state={state} hover={hover} viewport={viewport} />
         ) : null}
         {snap.phase.kind === 'portion' && !inputLocked ? (

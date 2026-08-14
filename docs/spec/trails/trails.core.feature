@@ -57,8 +57,8 @@ Feature: Trails, sentries and the anchor a branch costs
       When player A applies a step of count 1 from n1 to e1
       Then player A's trail is exactly { n1, e1 }
       And e1 is still player B's territory
-      # §7: enemy territory is hostile ground — enterable, and exposing while you
-      # are on it. Only your *own* territory is safe.
+      # §7 / P28: enemy territory is hostile ground — enterable from own
+      # territory or a territory-grade trail, and exposing while you are on it.
 
     Scenario: The arrow a head stands on is trail
       Given arrow t1 is player A's territory and holds 1 head belonging to player A

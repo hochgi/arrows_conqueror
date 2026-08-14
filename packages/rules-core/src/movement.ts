@@ -35,6 +35,7 @@ import { makeCutRules } from './cuts';
 import { convertEncircled } from './encirclement';
 import { accrueRound } from './economy';
 import { compareArrows } from './order';
+import { isSelfConvertStep, SELF_CONVERT_MESSAGE } from './selfConvert';
 import { makeTrailRules } from './trails';
 import { applyElimination, tickDomination } from './victory';
 
@@ -140,7 +141,8 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
    * place, so no caller can take a step past a check by accident.
    *
    * Enemy-occupied destinations are legal here: contact combat (§6.2) resolves
-   * them inside `applyStep` rather than refusing the step.
+   * them inside `applyStep` rather than refusing the step. P28 self-convert
+   * steps are refused here, before stay-behind or occupancy writes.
    */
   const moversFor = (state: GameState, move: StepMove): Group => {
     const movers = requireActive(state, move.from);
@@ -159,6 +161,9 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
       reject(
         `the group on ${String(move.from)} has spent ${String(movers.spent)} of its ${String(allowance)}`,
       );
+    }
+    if (isSelfConvertStep(state, move.from, move.exit, movers.owner, trails.anchorGrade)) {
+      reject(SELF_CONVERT_MESSAGE);
     }
     return movers;
   };
@@ -338,6 +343,7 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     const moves: Move[] = [];
     for (const [arrow, group] of movable(state)) {
       for (const exit of exitsFrom(arrow)) {
+        if (isSelfConvertStep(state, arrow, exit, group.owner, trails.anchorGrade)) continue;
         const standing = state.groups.get(exit);
         const isAttack = standing !== undefined && standing.owner !== group.owner;
         const maxCount = isAttack ? group.heads - 1 : group.heads;

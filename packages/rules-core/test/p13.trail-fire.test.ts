@@ -103,7 +103,12 @@ describe('territory-root cut (P12)', () => {
           A: otherFeeders.filter((a) => a !== lastFeeder),
           B: [trail0, trail1],
         },
-        territory: territoryFeeders.map((arrow) => ({ arrow, owner: B })),
+        // P28: stepping onto B's feeder is a raid — A must be territory-grade
+        // protected from `approachArrow` (home tile). The cut is the claim.
+        territory: [
+          ...territoryFeeders.map((arrow) => ({ arrow, owner: B })),
+          { arrow: approachArrow, owner: A },
+        ],
       },
     );
 

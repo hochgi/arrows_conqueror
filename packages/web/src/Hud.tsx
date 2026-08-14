@@ -101,7 +101,8 @@ export const Hud = ({
       <p className="help">
         Drag to pan · pinch or wheel to zoom · gold outline = movable this turn
         (auto-selects and pans to the next after you finish or skip one) · selected
-        stack pulses · blue = reachable · fade with distance · hover a reach tile
+        stack pulses · blue = reachable · fade with distance · refused
+        (not-allowed) grain = would convert with no trail home · hover a reach tile
         to pulse the path · bold tile edge = occupied · trail chords stay visible
         under enemy stacks (overlap is legal until a cut) · solid fill = territory,
         thin fill = open trail · turn passes when nothing can step · pan stays

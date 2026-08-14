@@ -77,8 +77,9 @@ marks nothing, territory → neutral starts a trail, trail → neutral extends i
 trail → own territory marks nothing, and stepping onto your own trail adds nothing
 because a set holds no duplicates.
 
-Stepping into **enemy** territory marks trail. It is hostile ground — enterable,
-and exposing while you are there (§7).
+Stepping into **enemy** territory marks trail. It is hostile ground — enterable
+**from own territory or a territory-grade trail** (§6.3 / P28), and exposing
+while you are there (§7). An unprotected walk-in is illegal, not a convert.
 
 ## The branch-anchor rule ~~(historical — withdrawn by P22)~~
 

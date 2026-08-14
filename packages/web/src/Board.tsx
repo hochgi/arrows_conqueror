@@ -13,6 +13,7 @@ import {
   PREVIEW_STROKE,
   REACH_FILL,
   REACH_INK,
+  TOLL_REACH_FILL,
   SPAWNER_CURSOR,
   SPAWNER_HUB_IDLE,
   SPAWNER_IDLE,
@@ -287,6 +288,7 @@ export const Board = ({
         const isPreview = highlights.preview === arrow;
         const onPath = path?.has(arrow) === true;
         const entry = highlights.reach?.get(arrow);
+        const refused = highlights.refused?.has(arrow) === true;
         const isMovable = movable.has(arrow) && !isSelected;
         const c = centroidScreen(viewport, poly);
         const group = state.groups.get(arrow);
@@ -343,6 +345,7 @@ export const Board = ({
               stroke={strokeColor}
               strokeWidth={strokeWidth}
               data-arrow={String(arrow)}
+              style={refused ? { cursor: 'not-allowed' } : undefined}
             />
             {isSelected ? (
               <polygon
@@ -385,6 +388,14 @@ export const Board = ({
                 points={points}
                 fill={PATH_WASH}
                 className="path-pulse"
+                style={{ pointerEvents: 'none' }}
+              />
+            ) : null}
+            {refused && !isSelected ? (
+              <polygon
+                points={points}
+                fill={TOLL_REACH_FILL}
+                fillOpacity={0.32}
                 style={{ pointerEvents: 'none' }}
               />
             ) : null}

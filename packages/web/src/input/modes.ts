@@ -40,6 +40,11 @@ export interface InputHighlights {
    * Empty when no destination is committed yet.
    */
   readonly path?: ReadonlySet<ArrowId>;
+  /**
+   * Grain-adjacent self-convert exits of the selected stack (P28). Painted as a
+   * refused wash — not reach, not a click target.
+   */
+  readonly refused?: ReadonlySet<ArrowId>;
 }
 
 export interface InputSnapshot {

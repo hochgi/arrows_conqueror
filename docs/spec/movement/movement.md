@@ -72,6 +72,9 @@ Only one direction is asserted — **everything `legalMoves` offers, `apply`
 accepts** — and the consequence for records is that a recorded turn follows
 `legalMoves`, never the wider `apply`. The golden replay therefore contains no
 move the engine would not have offered, which is what P10 will replay against.
+P28's self-convert filter lives in both halves (`legalMoves` omits, `apply`
+throws), so this ⊆ still holds. See
+[refuse-self-convert](../refuse-self-convert/refuse-self-convert.md).
 
 ## Invariants
 
