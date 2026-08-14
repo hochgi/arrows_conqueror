@@ -85,6 +85,29 @@ export const defaultSeatPlan = (playerCount: PlaytestPlayerCount = 3): SeatPlan 
   return { playerCount, seats };
 };
 
+/** Local → Online: seats 0 and 1 become `human`; leftover `byok` becomes `heuristic`. */
+export const coerceOnlineSeatPlan = (plan: SeatPlan): SeatPlan => ({
+  playerCount: plan.playerCount,
+  seats: plan.seats.map((seat, index) => {
+    if (index === 0 || index === 1) return { ...seat, kind: 'human' };
+    if (seat.kind === 'byok') return { ...seat, kind: 'heuristic' };
+    return seat;
+  }),
+});
+
+/** Online: a `human` → `heuristic` change is applied only when the plan has ≥ 3 `human` chairs. */
+export const onlineSeatKindAllowed = (
+  plan: SeatPlan,
+  index: number,
+  nextKind: SeatKind,
+): boolean => {
+  const current = plan.seats[index];
+  if (current?.kind === 'human' && nextKind === 'heuristic') {
+    return plan.seats.filter((seat) => seat.kind === 'human').length >= 3;
+  }
+  return true;
+};
+
 export const resizeSeatPlan = (plan: SeatPlan, playerCount: PlaytestPlayerCount): SeatPlan => {
   const seats = [...plan.seats];
   while (seats.length < playerCount) seats.push(defaultSeat('heuristic'));

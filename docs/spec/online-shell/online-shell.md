@@ -34,7 +34,7 @@ No new AWS. GIS ID-token Sign-In is the existing public client.
 | WS text JSON `stateChanged` | `receiveStateChanged` (ignore invalid JSON) |
 | `hashchange` | `boot` |
 | `visibilitychange` → visible | `becomeVisible` |
-| Sign-In click | `gis.prompt()` |
+| Sign-In click | `gis.offerChooser()` (P27; One Tap `prompt()` stays auto unsigned-invite / 401) |
 
 HTTP **410** on invite is gone even when `reason` is missing (P19 boy-scout).
 
@@ -64,6 +64,7 @@ flowchart TD
 - When any of `VITE_API_BASE`, `VITE_WS_URL`, or `VITE_GOOGLE_CLIENT_ID` is empty, the host shall not offer Online mode.
 - When Local mode Starts, the host shall not `fetch` `VITE_API_BASE` and shall not open a WebSocket.
 - When GIS yields an ID token, the host shall call `deliverGoogleCredential` with that token.
+- When the unsigned player clicks Sign-In, the host shall call GIS `offerChooser` (P27). Auto unsigned-invite / 401 still One Tap `prompt`.
 - When a WebSocket message is valid `stateChanged` JSON, the host shall call `receiveStateChanged`. When it is not valid JSON or not that type, the host shall not replace the open board.
 - When `hashchange` fires, the host shall `boot`.
 - When the hash is `#/invite/<token>` or `#/g/…` and Online env is ready, the host shall select Online mode.

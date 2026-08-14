@@ -80,7 +80,10 @@ export type OnlinePagesOpenSocket = (url: string) => OnlinePagesSocket;
 
 /** Outbound: the adapter asks GIS to collect a credential. */
 export interface OnlinePagesGis {
+  /** One Tap — auto unsigned-invite / 401. */
   prompt(): void;
+  /** User-gesture Sign-In after One Tap skip/dismiss (P27). */
+  offerChooser(): void;
 }
 
 export interface OnlinePagesDeps {

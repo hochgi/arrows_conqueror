@@ -55,6 +55,7 @@ scheduled early in the first place.
 | P19 | Online web adapter | adapter | — | P18 | **[packet](./packets/P19-online-web-adapter.md).** **Landed** (`9898041`, PR #5). Port + tests. Shell is P25. |
 | P25 | Pages online shell | adapter | — | P19 | **[packet](./packets/P25-pages-online-shell.md).** GIS, Local\|Online lobby, hash/WS/visibility host, REST play on Pages |
 | P26 | Playtest online UX | adapter | — | P17–P19, P25 | **[packet](./packets/P26-playtest-online-ux.md).** GET seats, frozen roster, lobby peek, 410 started ids, online auto-pass |
+| P27 | Lobby follow-up | adapter | — | P25, P26 | **[packet](./packets/P27-lobby-followup.md).** Create wait, Online Player floor, GIS chooser after One Tap dismiss |
 | P20+ | Deferred follow-ons | — | — | — | **[packet](./packets/P20-deferred-online-followons.md).** Viewers, fork, arena, replay button, Elo, online BYOK, under-18 GIS, admin panel |
 
 ## Dependency graph
@@ -85,7 +86,8 @@ flowchart TD
   P18 --> P19["P19 web online adapter"]
   P19 --> P25["P25 Pages shell"]
   P25 --> P26["P26 playtest UX"]
-  P26 -.-> P20["P20+ wishes"]
+  P26 --> P27["P27 lobby follow-up"]
+  P27 -.-> P20["P20+ wishes"]
 ```
 
 ## Build order and why
@@ -150,7 +152,8 @@ harness (P24):
 5. **P19** — Pages adapter (`createOnlinePages`)
 6. **P25** — Pages shell (GIS, lobby, host events)
 7. **P26** — playtest lobby/HUD (GET seats, frozen roster, peek, 410 ids, online auto-pass)
-8. **P20+** — wishes only (viewers, fork, arena, replay button, Elo, online BYOK)
+8. **P27** — create wait, Online Player floor, GIS chooser after One Tap dismiss
+9. **P20+** — wishes only (viewers, fork, arena, replay button, Elo, online BYOK)
 
 One `/spec-to-ship` per packet.
 

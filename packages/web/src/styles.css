@@ -529,6 +529,37 @@ body,
   gap: 0.45rem;
 }
 
+.lobby-create-pending {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.lobby-hourglass {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: lobby-hourglass-spin 0.8s linear infinite;
+}
+
+@keyframes lobby-hourglass-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#conquarrow-gis-chooser {
+  min-height: 2.5rem;
+}
+
 .lobby-copy {
   font: inherit;
   margin-right: 0.45rem;

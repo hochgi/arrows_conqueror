@@ -12,6 +12,10 @@ import {
 import { createMatchLog, type MatchLog, type SeatDriverLog } from './matchLog';
 import type { SeatPlan } from './seatPlan';
 
+/** Shell copy while `POST /invites` is in flight (P27). */
+export const CREATING_INVITE_COPY =
+  'Creating your unique invite link - this may take a few moments…';
+
 export const kindsForHost = (
   plan: SeatPlan,
   online: boolean,

@@ -47,7 +47,7 @@ export interface OnlineHostPort {
   refreshLobby(): Promise<void>;
   openMyGame(groupHash: GroupHash, gameNumber: GameNumber): Promise<void>;
   signOut(): void;
-  /** Sign-In click — outbound GIS prompt. */
+  /** Sign-In click — GIS `offerChooser` (P27). Auto unsigned-invite / 401 still One Tap `prompt`. */
   promptSignIn(): void;
 
   /** `hashchange` → adapter `boot`. Tests set `location.hash` first. */
@@ -80,6 +80,8 @@ export interface OnlineHostPort {
    */
   seatEditsOffered(): boolean;
   createOffered(): boolean;
+  /** True while `POST /invites` has not settled (P27). */
+  createInvitePending(): boolean;
   /** Current Local | Online selection. Invite/game hash selects Online on boot. */
   mode(): PagesLobbyMode;
   /** Short shell string after POST moves 422; otherwise undefined. */
