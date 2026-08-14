@@ -33,6 +33,11 @@ jobs:
       - name: Build workspace declarations
         run: pnpm build
       - name: Build web client for GitHub Pages
+        env:
+          VITE_API_BASE: https://api.games.hochgi.com/conquarrow
+          VITE_WS_URL: wss://ws.games.hochgi.com/conquarrow
+          # Pages OAuth Web client id (public). Empty → Online toggle hidden.
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
         run: pnpm --filter @conquarrow/web exec vite build --mode pages
       - uses: actions/upload-pages-artifact@v3
         with:

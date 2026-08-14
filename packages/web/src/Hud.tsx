@@ -17,6 +17,7 @@ export interface HudProps {
   readonly onSkip: () => void;
   readonly onDownloadLog: () => void;
   readonly onNewMatch: () => void;
+  readonly illegal: string | undefined;
 }
 
 const phaseHint = (
@@ -58,6 +59,7 @@ export const Hud = ({
   onSkip,
   onDownloadLog,
   onNewMatch,
+  illegal,
 }: HudProps): ReactElement => {
   const active = styleFor(state.activePlayer);
   const winner: PlayerId | undefined = state.winner;
@@ -77,6 +79,7 @@ export const Hud = ({
       )}
       <p className="hint">{phaseHint(phase, movableCount, botBusy, vsBot, byokActive)}</p>
       {byokStatus !== undefined ? <p className="hint byok-status">{byokStatus}</p> : null}
+      {illegal !== undefined ? <p className="hint lobby-byok-warn">{illegal}</p> : null}
       <p className="meta">Seats: {seatSummary}</p>
       <p className="meta">Moves logged: {moveCount}</p>
 

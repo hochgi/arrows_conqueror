@@ -1,0 +1,45 @@
+/**
+ * Thin helpers for the Pages shell — seat kinds for the host, and a stub log
+ * so the existing HUD can render an online GET board.
+ */
+
+import {
+  DEFAULT_MATCH_CONFIG,
+  type GameState,
+  type InviteSeat,
+  type PlannedSeatKind,
+} from '@conquarrow/contracts';
+import { createMatchLog, type MatchLog, type SeatDriverLog } from './matchLog';
+import type { SeatPlan } from './seatPlan';
+
+export const kindsForHost = (
+  plan: SeatPlan,
+  online: boolean,
+): readonly PlannedSeatKind[] =>
+  plan.seats.map((seat) => (online && seat.kind === 'byok' ? 'heuristic' : seat.kind));
+
+export const logFromOnlineBoard = (
+  game: GameState,
+  seats: readonly InviteSeat[] | undefined,
+): MatchLog => {
+  const playerCount = game.players.length === 6 ? 6 : 3;
+  const seatLogs: SeatDriverLog[] = game.players.map((player, index) => {
+    const seat = seats?.[index];
+    const kind = seat?.kind === 'heuristic' ? 'heuristic' : 'human';
+    return { player, kind };
+  });
+  const firstPlayer = game.players[0];
+  if (firstPlayer === undefined) {
+    throw new Error('P25: online board has no players');
+  }
+  const human = seatLogs.find((row) => row.kind === 'human')?.player ?? firstPlayer;
+  const bot = seatLogs.find((row) => row.kind !== 'human')?.player;
+  return createMatchLog({
+    config: { ...DEFAULT_MATCH_CONFIG, playerCount },
+    vsBot: seatLogs.some((row) => row.kind !== 'human'),
+    botMode: seatLogs.some((row) => row.kind === 'heuristic') ? 'heuristic' : 'human-hotseat',
+    seats: seatLogs,
+    humanSeat: human,
+    botSeat: bot,
+  });
+};

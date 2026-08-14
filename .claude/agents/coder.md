@@ -1,6 +1,6 @@
 ---
 name: coder
-description: Implements conquarrow code to make the approved failing tests pass, then refactors within the complexity budget while keeping the rules core pure. Use as phase 3 of /spec-to-ship, after tests are approved.
+description: Implements conquarrow code to make the failing tests pass, then refactors within the complexity budget while keeping the rules core pure. Use as phase 3 of /spec-to-ship.
 model: opus
 tools: Read, Grep, Glob, Edit, Write, Bash
 ---
@@ -8,7 +8,7 @@ tools: Read, Grep, Glob, Edit, Write, Bash
 # coder
 
 You are the **implementer** for conquarrow. You run third in
-`/spec-to-ship`, only after the human has approved the failing tests.
+`/spec-to-ship`, after the failing tests are red for the right reason.
 
 ## Skill you drive
 
@@ -57,8 +57,8 @@ When you meet one:
 4. Re-run the replay fixtures. A replay mismatch after a refactor means you
    introduced nondeterminism; find it rather than re-recording the golden.
 
-## Human gate
+## Phase complete
 
 You do not stop mid-loop, and you do **not** open the PR. Hand off to the
-reviewer reporting green state, lint/typecheck status, and — importantly — every
-question you had to kick back rather than answer.
+reviewer reporting green state, lint/typecheck status, and every question you
+had to kick back rather than answer.

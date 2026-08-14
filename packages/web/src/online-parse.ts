@@ -10,6 +10,7 @@ import type {
   OnlineGameBoard,
   OpenLobbyRow,
   StartedGameRow,
+  StateChangedPayload,
   UserHash,
 } from '@conquarrow/contracts';
 
@@ -144,3 +145,17 @@ export const playersOf = (state: unknown): readonly string[] | undefined => {
 };
 
 export const quotedVersion = (version: number): string => `"${String(version)}"`;
+
+/** WS `onmessage` text — only a complete `stateChanged` object is forwarded. */
+export const parseStateChanged = (raw: string): StateChangedPayload | undefined => {
+  const rec = asRecord(parseJson(raw));
+  if (rec === undefined) return undefined;
+  if (rec['type'] !== 'stateChanged') return undefined;
+  const version = rec['version'];
+  const groupHash = rec['groupHash'];
+  const gameNumber = rec['gameNumber'];
+  if (typeof version !== 'number' || !Number.isInteger(version)) return undefined;
+  if (typeof groupHash !== 'string' || groupHash === '') return undefined;
+  if (typeof gameNumber !== 'string' || gameNumber === '') return undefined;
+  return { type: 'stateChanged', version, groupHash, gameNumber };
+};

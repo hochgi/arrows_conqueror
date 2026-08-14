@@ -52,6 +52,8 @@ interface AdapterState {
   copiedUrl: string | undefined;
   board: OnlineGameBoard | undefined;
   lobbyIsFull: boolean;
+  /** HTTP 410 on peek/accept — blocks another POST even when `reason` is absent. */
+  inviteGone: boolean;
   goneReason: 'revoked' | 'started' | undefined;
   seats: readonly InviteSeat[] | undefined;
   inviteToken: InviteToken | undefined;
@@ -67,6 +69,7 @@ const emptyState = (): AdapterState => ({
   copiedUrl: undefined,
   board: undefined,
   lobbyIsFull: false,
+  inviteGone: false,
   goneReason: undefined,
   seats: undefined,
   inviteToken: undefined,
@@ -123,6 +126,7 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
   const clearInviteScope = (): void => {
     state.copiedUrl = undefined;
     state.lobbyIsFull = false;
+    state.inviteGone = false;
     state.goneReason = undefined;
     state.seats = undefined;
     state.inviteToken = undefined;
@@ -185,12 +189,18 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
     if (hash !== undefined) state.userHash = hash;
   };
 
+  const markInviteGone = (raw: unknown): void => {
+    state.inviteGone = true;
+    state.goneReason = parseGoneReason(raw);
+  };
+
   const applyInviteBody = (raw: unknown): void => {
     const rec = asRecord(raw);
     const inviteToken = parseInviteToken(rec?.['token']);
     const seats = parseSeats(rec?.['seats']);
     if (inviteToken !== undefined) state.inviteToken = inviteToken;
     if (seats !== undefined) state.seats = seats;
+    state.inviteGone = false;
     state.goneReason = undefined;
     state.lobbyIsFull = false;
   };
@@ -200,7 +210,7 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
     state.inviteToken = inviteToken;
     const res = await request('GET', `/invites/${inviteToken}`, { auth: false });
     if (res.status === 410) {
-      state.goneReason = parseGoneReason(parseJson(res.body));
+      markInviteGone(parseJson(res.body));
       return;
     }
     if (res.status !== 200) return;
@@ -231,7 +241,7 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
   const acceptInvite = async (): Promise<void> => {
     if (!onlineReady()) return;
     const inviteToken = state.inviteToken;
-    if (inviteToken === undefined || state.goneReason !== undefined) return;
+    if (inviteToken === undefined || state.inviteGone) return;
     const res = await request('POST', `/invites/${inviteToken}/accept`, { body: {} });
     if (onUnauthorized(res.status)) return;
     if (res.status === 409) {
@@ -240,7 +250,7 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
       return;
     }
     if (res.status === 410) {
-      state.goneReason = parseGoneReason(parseJson(res.body));
+      markInviteGone(parseJson(res.body));
       return;
     }
     if (res.status === 200) applyInviteBody(parseJson(res.body));
@@ -340,7 +350,7 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
     openSessionSocket();
     await loadMe();
     const route = parsePagesHash(location.hash);
-    if (route.kind === 'invite' && state.goneReason === undefined) {
+    if (route.kind === 'invite' && !state.inviteGone) {
       await acceptInvite();
       return;
     }

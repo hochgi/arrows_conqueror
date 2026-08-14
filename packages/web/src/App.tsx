@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent, ReactElement, WheelEvent } from 'react';
 import {
   DEFAULT_MATCH_CONFIG,
+  GOOGLE_ID_TOKEN_SESSION_KEY,
   type ArrowId,
   type GameState,
   type MatchConfig,
   type Move,
+  type PagesLobbyMode,
   type PlayerId,
 } from '@conquarrow/contracts';
 import { makeLayout, makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
@@ -18,6 +20,10 @@ import { Hud } from './Hud';
 import type { InputMode, InputSnapshot } from './input/modes';
 import { createInputMode } from './input/modes';
 import { Lobby } from './Lobby';
+import { hydrateState } from './online-hydrate';
+import { parsePagesHash } from './online-hash';
+import { usePagesHost } from './online-runtime';
+import { kindsForHost, logFromOnlineBoard } from './online-shell-ui';
 import type { ByokRunStats, MatchLog, SeatDriverLog } from './matchLog';
 import {
   appendMoves,
@@ -132,6 +138,11 @@ const SpawnerTipFor = ({
 };
 
 export const App = (): ReactElement => {
+  const { host, gen, refresh } = usePagesHost();
+  const hostRef = useRef(host);
+  hostRef.current = host;
+  const onlinePlayRef = useRef(false);
+  const [lobbyMode, setLobbyMode] = useState<PagesLobbyMode>('local');
   const [seatPlan, setSeatPlan] = useState<SeatPlan>(() => loadSeatPlan());
   const [state, setState] = useState<GameState | undefined>(undefined);
   const [log, setLog] = useState<MatchLog | undefined>(undefined);
@@ -163,6 +174,39 @@ export const App = (): ReactElement => {
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  useEffect(() => {
+    host?.setSeatPlan(kindsForHost(seatPlan, lobbyMode === 'online'));
+  }, [host, seatPlan, lobbyMode]);
+
+  useEffect(() => {
+    if (host === undefined) return;
+    setLobbyMode(host.mode());
+  }, [host, gen]);
+
+  useEffect(() => {
+    const current = hostRef.current;
+    if (current === undefined) return;
+    if (parsePagesHash(window.location.hash).kind !== 'game') return;
+    const board = current.board();
+    if (board === undefined) return;
+    const game = hydrateState(board.state);
+    if (game === undefined) return;
+    onlinePlayRef.current = true;
+    aiSeatsRef.current = new Set();
+    seatConfigsRef.current = new Map();
+    stateRef.current = game;
+    setState(game);
+    setLog((prev) => prev ?? logFromOnlineBoard(game, current.adapter().inviteSeats()));
+    setSnap(mode.reset());
+  }, [gen, mode]);
+
+  useEffect(() => {
+    const current = host;
+    if (current === undefined || state !== undefined) return;
+    if (sessionStorage.getItem(GOOGLE_ID_TOKEN_SESSION_KEY) === null) return;
+    void current.refreshLibrary().then(refresh);
+  }, [host, state, refresh]);
 
   useEffect(() => {
     const el = shellRef.current;
@@ -245,6 +289,7 @@ export const App = (): ReactElement => {
   const softLockKey = useRef<string | null>(null);
   useEffect(() => {
     if (state === undefined) return;
+    if (onlinePlayRef.current) return;
     if (state.winner !== undefined) {
       softLockKey.current = null;
       return;
@@ -282,6 +327,10 @@ export const App = (): ReactElement => {
   // Any AI seat: heuristic or BYOK when it is their chair.
   useEffect(() => {
     if (state === undefined || log === undefined) return;
+    if (onlinePlayRef.current) {
+      setBotBusy(false);
+      return;
+    }
     const active = state.activePlayer;
     const seatKey = String(active);
     if (state.winner !== undefined || !aiSeatsRef.current.has(seatKey)) {
@@ -390,6 +439,37 @@ export const App = (): ReactElement => {
     (next: InputSnapshot) => {
       setSnap(next);
       if (next.pending === undefined) return;
+      if (onlinePlayRef.current) {
+        const pending = next.pending;
+        void (async () => {
+          const h = hostRef.current;
+          if (h === undefined) return;
+          const before = stateRef.current;
+          const applied: Move[] = [];
+          for (const move of pending) {
+            await h.submitMove(move);
+            if (h.illegal() !== undefined) break;
+            applied.push(move);
+          }
+          const game = hydrateState(h.board()?.state);
+          if (game === undefined) {
+            refresh();
+            return;
+          }
+          if (before !== undefined && applied.length > 0) {
+            const burst = createEvaporationBurst(before, game, applied, Date.now(), geometry);
+            if (burst !== undefined) {
+              setEvaporation((prev) => pruneBursts([...prev, burst]));
+            }
+          }
+          stateRef.current = game;
+          if (applied.length > 0) record(applied, game);
+          setState(game);
+          setSnap(mode.reset());
+          refresh();
+        })();
+        return;
+      }
       const s = stateRef.current;
       if (s === undefined) return;
       const { state: applied, applied: moves } = applyMoves(s, next.pending);
@@ -423,7 +503,7 @@ export const App = (): ReactElement => {
       const focus = arrowCentroid(pick);
       setViewport((v) => centerOn(v, focus.x, focus.y));
     },
-    [commitApplied, mode],
+    [commitApplied, mode, record, refresh],
   );
 
   const previewPortion = useCallback(
@@ -434,6 +514,10 @@ export const App = (): ReactElement => {
   );
 
   const returnToLobby = (): void => {
+    onlinePlayRef.current = false;
+    if (parsePagesHash(window.location.hash).kind === 'game') {
+      window.location.hash = '';
+    }
     setState(undefined);
     stateRef.current = undefined;
     setLog(undefined);
@@ -449,6 +533,7 @@ export const App = (): ReactElement => {
 
   const startMatch = (plan: SeatPlan): void => {
     if (!seatPlanReady(plan)) return;
+    onlinePlayRef.current = false;
     const config: MatchConfig = {
       ...DEFAULT_MATCH_CONFIG,
       playerCount: plan.playerCount,
@@ -494,6 +579,9 @@ export const App = (): ReactElement => {
   };
 
   if (state === undefined || log === undefined) {
+    const signedIn =
+      typeof sessionStorage !== 'undefined' &&
+      sessionStorage.getItem(GOOGLE_ID_TOKEN_SESSION_KEY) !== null;
     return (
       <Lobby
         plan={seatPlan}
@@ -502,8 +590,53 @@ export const App = (): ReactElement => {
           saveSeatPlan(next);
         }}
         onStart={() => {
+          if (host?.mode() === 'online' && host.onlineModeOffered()) {
+            void host.start().then(refresh);
+            return;
+          }
+          void host?.start();
           startMatch(seatPlan);
         }}
+        {...(host === undefined
+          ? {}
+          : {
+              online: {
+                offered: host.onlineModeOffered(),
+                mode: lobbyMode,
+                onMode: (next: PagesLobbyMode) => {
+                  setLobbyMode(next);
+                  host.selectMode(next);
+                  host.setSeatPlan(kindsForHost(seatPlan, next === 'online'));
+                  refresh();
+                },
+                signedIn,
+                onSignIn: () => {
+                  host.promptSignIn();
+                },
+                onSignOut: () => {
+                  host.signOut();
+                  refresh();
+                },
+                createOffered: host.createOffered(),
+                onCreate: () => {
+                  void host.createInvite().then(refresh);
+                },
+                acceptOffered: host.acceptOffered(),
+                onAccept: () => {
+                  void host.acceptInvite().then(refresh);
+                },
+                copiedUrl: host.copiedInviteUrl(),
+                startOffered: host.startOffered(),
+                inviteGone: host.inviteGone(),
+                goneReason: host.adapter().inviteGoneReason(),
+                lobbyFull: host.adapter().lobbyFull(),
+                games: host.adapter().myGames()?.games ?? [],
+                onOpenGame: (groupHash, gameNumber) => {
+                  void host.openMyGame(groupHash, gameNumber).then(refresh);
+                },
+                seatKinds: host.seatKindOptions(),
+              },
+            })}
       />
     );
   }
@@ -674,6 +807,7 @@ export const App = (): ReactElement => {
           downloadMatchLog(withWinner(log, state.winner));
         }}
         onNewMatch={returnToLobby}
+        illegal={host?.illegal()}
       />
       <div className="stage" ref={shellRef}>
         <Board

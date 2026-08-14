@@ -479,8 +479,67 @@ body,
   font-weight: 600;
 }
 
-.lobby-start:hover {
-  filter: brightness(1.05);
+.lobby-online {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.lobby-mode {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.lobby-mode-btn {
+  font: inherit;
+  flex: 1;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--field);
+  color: inherit;
+  cursor: pointer;
+}
+
+.lobby-mode-btn.on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.lobby-online-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.lobby-copy {
+  font: inherit;
+  margin-right: 0.45rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--field);
+  color: inherit;
+  cursor: pointer;
+}
+
+.lobby-invite-url {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  word-break: break-all;
+  opacity: 0.85;
+}
+
+.lobby-games {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 @media (max-width: 720px) {

@@ -55,9 +55,9 @@ You are one of the two phases allowed to edit SPEC.md. Check that:
 ## Outputs
 
 A review verdict with actionable findings, and — when clean — a prepared PR
-(title, body linking the packet and the spec files).
+(title, body starting with `🤖: `, linking the packet and the spec files).
 
-## Human gate
+## Ship
 
-Opening or merging a PR is human-gated and side-effectful. STOP before pushing
-or opening anything; present the review and the proposed PR for approval.
+The **orchestrator** pushes, opens the PR, requests Copilot, triages, and
+squash-merges. You do not push.

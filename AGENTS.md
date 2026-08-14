@@ -157,19 +157,24 @@ packets always branch from `main`. After a packet lands on `main`, rebase
 
 ## The spec→ship workflow
 
-Take one work packet all the way to a PR through **four phases**, with an explicit
-**human gate** between them. In Claude Code: `/spec-to-ship <path-to-packet>`.
+Take one work packet all the way to a merged PR through **four phases**. Do not
+stop for a human thumbs-up between them. In Claude Code / Cursor:
+`/spec-to-ship <path-to-packet>`.
 
 1. **spec-author** drives `write-spec` → Gherkin `.feature` + mermaid (escape `;`
-   as `#59;`) + EARS invariants → **human approves the spec**.
+   as `#59;`) + EARS invariants. Escalate only for a SPEC.md game-rule gap, a
+   substantial unexpected cost, or a big behavioral shift; otherwise decide BSSN
+   and write it into the spec / ADR.
 2. **test-author** drives `write-failing-tests` → one failing test per scenario
-   plus compiling skeletons → **human approves the tests**.
+   plus compiling skeletons, red for the right reason.
 3. **coder** drives `code-to-green` → red → green → refactor within budget,
    incremental Stryker, CRAP glance on touched files.
 4. **reviewer** drives `review-changes` → spec ↔ tests ↔ code coherence,
-   boundaries, purity → **human approves to ship**.
+   boundaries, purity. Then **open the PR**, request a **Copilot** review, wait,
+   triage (fix / defer / reject), squash-merge to `hochgi/conquarrow`.
 
-Do not skip gates or collapse phases. Opening a PR is human-gated.
+Do not collapse phases. Do not invent a game rule. Online/infra BSSN is in-bounds
+when documented. Never push `shalevhoch` or `local-main`.
 
 **How this differs from cycle-processing:** there, phase 1's input was a
 high-level spec living outside the repo. Here **SPEC.md is already that document**

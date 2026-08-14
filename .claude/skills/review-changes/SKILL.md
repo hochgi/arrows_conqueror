@@ -81,10 +81,11 @@ or a tracked `*.kit.test.ts` in the diff is a **blocker** — that overlay is
 ## Output
 
 A verdict with actionable findings, most severe first, each naming the file and
-line and the SPEC sentence (or its absence). When clean, prepare the PR: title,
-body linking the packet and the spec files, and a note of any §11 movement.
+line and the SPEC / ADR sentence (or its absence). When clean, prepare the PR:
+title, body (starts with `🤖: `) linking the packet and the spec files.
 
-## Gate
+## Ship
 
-Opening or merging a PR is human-gated and side-effectful. STOP before pushing or
-opening anything.
+The **orchestrator** pushes, opens the PR, requests Copilot, triages, and
+squash-merges. The reviewer does **not** push. Never push `shalevhoch` or
+`local-main`.
