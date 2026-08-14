@@ -125,7 +125,9 @@ export type ScriptedFetch = {
   readonly method: 'GET' | 'POST';
   readonly path: string;
   readonly status: number;
-  readonly body: unknown;
+  readonly body?: unknown;
+  /** When set, returned as the HTTP body as-is (empty 410, non-JSON, …). */
+  readonly rawBody?: string;
 };
 
 export type HarnessSocket = OnlinePagesSocket & { closed: boolean };
@@ -139,15 +141,21 @@ export type HarnessSession = OnlinePagesSession & {
   keys(): readonly string[];
 };
 
-export type PagesHarness = {
-  readonly adapter: OnlinePagesPort;
+export type FetchSpy = {
   readonly env: OnlinePagesEnv;
+  readonly fetchLog: OnlinePagesHttpRequest[];
+};
+
+export type PagesFakes = FetchSpy & {
   readonly session: HarnessSession;
   readonly location: OnlinePagesLocation;
   readonly gis: HarnessGis;
-  readonly fetchLog: OnlinePagesHttpRequest[];
   readonly sockets: HarnessSocket[];
   readonly deps: OnlinePagesDeps;
+};
+
+export type PagesHarness = PagesFakes & {
+  readonly adapter: OnlinePagesPort;
 };
 
 const USER_BY_BEARER: Readonly<Record<string, { readonly userHash: string }>> = {
@@ -241,7 +249,7 @@ export const parseJson = (raw: string | undefined): unknown => {
 };
 
 export const apiCalls = (
-  h: PagesHarness,
+  h: FetchSpy,
   method: 'GET' | 'POST',
   path: string,
 ): readonly OnlinePagesHttpRequest[] =>
@@ -249,7 +257,7 @@ export const apiCalls = (
     (req) => req.method === method && pathOf(req.url, h.env.VITE_API_BASE) === path,
   );
 
-export const apiCalled = (h: PagesHarness): boolean =>
+export const apiCalled = (h: FetchSpy): boolean =>
   h.fetchLog.some((req) => req.url.startsWith(h.env.VITE_API_BASE));
 
 const defaultGetMe = (
@@ -279,12 +287,12 @@ const defaultGetMyGames = (
   return { status: 200, body: JSON.stringify({ lobbies: [], games: [] }) };
 };
 
-export const makePagesHarness = (overrides?: {
+export const makePagesFakes = (overrides?: {
   readonly env?: Partial<OnlinePagesEnv>;
   readonly hash?: string;
   readonly sessionToken?: string;
   readonly fetchScript?: readonly ScriptedFetch[];
-}): PagesHarness => {
+}): PagesFakes => {
   const env: OnlinePagesEnv = { ...DEFAULT_ENV, ...overrides?.env };
   const session = memorySession(overrides?.sessionToken);
   const location = memoryLocation(overrides?.hash);
@@ -305,9 +313,15 @@ export const makePagesHarness = (overrides?: {
       if (entry === undefined) {
         return Promise.resolve({ status: 599, body: JSON.stringify({ error: 'unscripted' }) });
       }
+      const raw =
+        entry.rawBody !== undefined
+          ? entry.rawBody
+          : entry.body === undefined
+            ? ''
+            : JSON.stringify(entry.body);
       return Promise.resolve({
         status: entry.status,
-        body: JSON.stringify(entry.body),
+        body: raw,
       });
     }
     const me = defaultGetMe(request, env.VITE_API_BASE);
@@ -330,16 +344,17 @@ export const makePagesHarness = (overrides?: {
   };
 
   const deps: OnlinePagesDeps = { env, session, location, fetch, openSocket, gis };
-  return {
-    adapter: createOnlinePages(deps),
-    env,
-    session,
-    location,
-    gis,
-    fetchLog,
-    sockets,
-    deps,
-  };
+  return { env, session, location, gis, fetchLog, sockets, deps };
+};
+
+export const makePagesHarness = (overrides?: {
+  readonly env?: Partial<OnlinePagesEnv>;
+  readonly hash?: string;
+  readonly sessionToken?: string;
+  readonly fetchScript?: readonly ScriptedFetch[];
+}): PagesHarness => {
+  const fakes = makePagesFakes(overrides);
+  return { ...fakes, adapter: createOnlinePages(fakes.deps) };
 };
 
 export const peekInviteScript = (
@@ -430,6 +445,20 @@ export const myGamesScript = (
   path: '/my-games',
   status: 200,
   body: { lobbies: [], games },
+});
+
+export const goneInviteEmptyBodyScript = (token: string): ScriptedFetch => ({
+  method: 'GET',
+  path: `/invites/${token}`,
+  status: 410,
+  rawBody: '',
+});
+
+export const acceptInviteEmpty410Script = (token: string): ScriptedFetch => ({
+  method: 'POST',
+  path: `/invites/${token}/accept`,
+  status: 410,
+  rawBody: '',
 });
 
 export const quotedVersion = (version: number): string => `"${String(version)}"`;

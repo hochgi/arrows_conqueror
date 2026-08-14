@@ -1,13 +1,13 @@
 ---
 name: write-failing-tests
-description: Turn an approved conquarrow spec into a red suite — one component test per Gherkin scenario, property tests per EARS invariant, replay fixtures for turn flow, plus compiling skeletons. Use as phase 2 of spec-to-ship, or when asked to write failing tests from a spec.
+description: Turn a conquarrow spec into a red suite — one component test per Gherkin scenario, property tests per EARS invariant, replay fixtures for turn flow, plus compiling skeletons. Use as phase 2 of spec-to-ship.
 ---
 
 # write-failing-tests — approved spec → red suite
 
-You are the **test-author** phase. You run only after the human approved the
-spec. Your output is a suite that fails for the *right* reasons and a set of
-skeletons thin enough that nobody mistakes them for an implementation.
+You are the **test-author** phase. You run after phase 1 wrote the spec. Your
+output is a suite that fails for the *right* reasons and a set of skeletons
+thin enough that nobody mistakes them for an implementation.
 
 ## What you produce
 

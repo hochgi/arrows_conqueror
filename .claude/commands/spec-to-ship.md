@@ -1,80 +1,65 @@
 ---
-description: Orchestrate the full spec→ship pipeline (spec → tests → code → review) for one work packet, with a human gate between phases.
+description: Orchestrate spec→tests→code→review→PR+Copilot+merge for one work packet. No human gates.
 argument-hint: <path-to-work-packet>
 ---
 
 # /spec-to-ship
 
-Drive one work packet all the way to a shippable PR through four phases,
-delegating each phase to its dedicated subagent via the **Agent** tool and
-**stopping at every human gate** for explicit approval.
+Drive one work packet all the way to a squash-merged PR through four phases,
+delegating each phase to its dedicated subagent via the **Agent** tool.
+**Do not stop for human approval between phases.**
 
 The packet to work from: `$ARGUMENTS` — a path under
 `docs/design/packets/`. If it is missing, list the packet index from
-`docs/design/02-work-packets.md`, ask which one, and stop.
+`docs/design/02-work-packets.md`, pick the next unblocked packet, and run.
 
-Read the `spec-to-ship` skill first for the pipeline and the gates. Do not skip
-gates and do not collapse phases.
+Read the `spec-to-ship` skill first. Do not collapse phases.
 
-**Before anything else**, read `AGENTS.md` and the packet's section of `SPEC.md`.
-Two conventions govern every phase of this pipeline and are the most common way
-a run goes wrong:
+**Before anything else**, read `AGENTS.md` and the packet (game packets: the
+relevant `SPEC.md` sections; online packets: ADR 0002).
 
 - **The core is pure.** No `Date.now()`, no `Math.random()`, no I/O in the rules
   engine, ever.
-- **Never invent a rule.** If a behaviour is not in SPEC.md, it is an open
-  question. Add it to §11 and surface it — do not choose a sensible default.
+- **Never invent a game rule.** SPEC.md silence is an escalate, not a default.
+  Online/infra BSSN: decide, document, continue.
 
-**Who runs where.** Human gates and any phase that must consult the user live in
-the **main thread**, because a delegated background subagent cannot ask the user
-questions or pause for approval.
+**Escalate and wait** only for: a substantial unexpected cost, a big behavioral
+shift versus SPEC.md / ADR 0002 / a shipped packet, or a SPEC.md game-rule gap.
 
-- **Phase 1 runs interactively in the main thread** — adopt the `spec-author`
-  role and follow `write-spec` yourself, using `AskUserQuestion` directly. Do not
-  delegate it; consulting the user is its entire job.
-- **Phases 2–4 are delegated** via the Agent tool. Collect each result and run
-  the human gate yourself before launching the next phase.
+**Who runs where.**
+
+- **Phase 1** — adopt `spec-author` in the main thread (context quality). Do
+  not AskUserQuestion on inferable BSSN.
+- **Phases 2–4** — delegate via the Agent tool. On each result, launch the next
+  phase immediately unless the agent kicked back to phase 1 or an escalate item
+  appeared.
 
 **Model selection.** Omit the `model` argument when launching a subagent unless
-the human explicitly named one. Agent frontmatter is authoritative.
+the human explicitly named one.
 
-## Phase 1 — Specify (role: `spec-author`, skill: `write-spec`, main thread)
+## Phase 1 — Specify (role: `spec-author`, skill: `write-spec`)
 
-Adopt the **spec-author** role and follow `write-spec` interactively. Turn the
-packet's scope into Gherkin `.feature` files, mermaid diagrams (escape every
-literal `;` as `#59;`), and EARS invariants under `docs/spec/<feature>/`.
+Turn the packet into Gherkin, mermaid (`#59;` for `;`), and EARS under
+`docs/spec/<feature>/`. Encode decided prose. Record BSSN in the spec / ADR.
 
-Because SPEC.md is already a complete design, your questions are **precision
-questions, not product questions**: which §11 gaps this packet must close, what
-the exact boundary behaviour is, which scenarios are in scope. Where SPEC.md
-already decided something, encode it — do not reopen it.
-
-→ **HUMAN GATE 1: approve the spec.** Present the scenario count, the invariants,
-the §11 items closed or added, and the file paths. STOP. Loop back for changes.
+Then start phase 2. Do not present a gate.
 
 ## Phase 2 — Red (agent: `test-author`, skill: `write-failing-tests`)
 
-Delegate to **test-author** with the approved spec. It writes one failing
-component test per scenario, property tests for the EARS invariants (see
-`rules-invariants`), and the minimal skeletons so the suite compiles and fails
-for the *right* reason.
-
-→ **HUMAN GATE 2: approve the failing tests.** Present scenario coverage and the
-red state. STOP.
+One failing component test per scenario, property tests, skeletons. Confirm red
+for the right reason. Then phase 3.
 
 ## Phase 3 — Green (agent: `coder`, skill: `code-to-green`)
 
-Delegate to **coder** with the approved tests. It implements until green, then
-refactors within budget. It does not change the spec, weaken a test, or invent a
-rule — any of those means kicking back to phase 1.
+Implement until green. Kick back to phase 1 rather than invent a rule. Then
+phase 4.
 
-→ **HUMAN GATE 3: approve the implementation.** Present green state,
-lint/typecheck status, and anything it had to kick back. STOP.
+## Phase 4 — Review (agent: `reviewer`, skill: `review-changes`)
 
-## Phase 4 — Review & ship (agent: `reviewer`, skill: `review-changes`)
+Coherence, purity, boundaries. Reviewer prepares title/body; does not push.
 
-Delegate to **reviewer**. It checks spec ↔ tests ↔ code coherence, hexagonal
-boundaries, core purity, and complexity, then prepares the PR.
+## Ship
 
-→ **HUMAN GATE 4: approve to ship.** Opening or merging a PR is human-gated.
-Present the verdict and the proposed PR. STOP.
+Orchestrator: commit, push `hochgi`, open PR (`🤖: `), request Copilot review,
+wait, triage comments (fix / defer / reject, reply `🤖: `), squash-merge when
+CI is green. Never push `shalevhoch` or `local-main`.

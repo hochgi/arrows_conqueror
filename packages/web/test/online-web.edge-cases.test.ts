@@ -24,6 +24,7 @@ import {
   fullHumanSeats,
   gameHash,
   getGameScript,
+  goneInviteEmptyBodyScript,
   inviteHash,
   makePagesHarness,
   myGamesScript,
@@ -110,6 +111,17 @@ describe('Invite edges', () => {
 
     expect(apiCalls(h, 'POST', `/invites/${INVITE_TOKEN}/accept`)).toHaveLength(0);
     expect(h.adapter.inviteGoneReason()).toBe('started');
+  });
+
+  it('Dead invite with empty 410 body is not accepted', async () => {
+    const h = makePagesHarness({
+      hash: inviteHash(INVITE_TOKEN),
+      fetchScript: [goneInviteEmptyBodyScript(INVITE_TOKEN)],
+    });
+    await h.adapter.boot();
+    await h.adapter.deliverGoogleCredential(ALICE.bearer);
+
+    expect(apiCalls(h, 'POST', `/invites/${INVITE_TOKEN}/accept`)).toHaveLength(0);
   });
 });
 

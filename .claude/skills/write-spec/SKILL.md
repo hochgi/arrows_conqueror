@@ -1,6 +1,6 @@
 ---
 name: write-spec
-description: Turn a conquarrow work packet into a detailed, test-derivable technical spec — Gherkin .feature files (core + edge cases), mermaid diagrams, and EARS one-liners for invariants. Use as phase 1 of spec-to-ship, or when asked to "spec out" / "detail" a slice of SPEC.md. Consult the user on every ambiguity; never invent a rule.
+description: Turns a conquarrow work packet into a detailed, test-derivable technical spec — Gherkin .feature files (core + edge cases), mermaid diagrams, and EARS one-liners for invariants. Use as phase 1 of spec-to-ship, or when asked to "spec out" / "detail" a slice of SPEC.md. Escalate only for SPEC.md game-rule gaps, unexpected cost, or a big behavioral shift; otherwise decide BSSN and write it down. Never invent a game rule.
 ---
 
 # write-spec — work packet → detailed technical spec
@@ -30,9 +30,9 @@ Under `docs/spec/<feature-name>/` (kebab-case, shared prefix):
   plus `docs/adr/0002-*` once it exists. Do not dump HTTP/WS into `SPEC.md`.
   Record a pointer in SPEC that online lives in the ADR. Precision questions
   that are still open are listed in the packet — ask those; do not invent.
-- **Never invent a rule.** Where SPEC.md is silent, use `AskUserQuestion`. Then
-  write the answer back into SPEC.md (§11 marked resolved, or the owning
-  section). An answer that lives only in your report is lost.
+- **Never invent a game rule.** Where SPEC.md is silent, escalate (add to §11
+  and ask). Online/infra BSSN: decide and write the answer into the packet spec
+  or ADR 0002. An answer that lives only in your report is lost.
 - **Use the vocabulary table in AGENTS.md exactly.** Several terms are near
   misses for each other — *point* vs *vertex*, *head* vs *stack*, *cut* vs
   *crossing*. A spec that blurs them produces tests that blur them.
@@ -42,8 +42,8 @@ Under `docs/spec/<feature-name>/` (kebab-case, shared prefix):
 
 ## Edge cases this game is dense in
 
-Do not stop at the happy path. Enumerate these explicitly and ask the human which
-are in scope for the packet:
+Do not stop at the happy path. Enumerate these explicitly and mark which are in
+scope for the packet (later packet if out of scope — do not ask for a list):
 
 - a cut landing mid-closure, one arrow from completion
 - a cut on a fork stem (kills both arms) versus on one branch (the other survives)
@@ -81,8 +81,8 @@ These become `write-failing-tests`' property tests — see `rules-invariants`.
 - `Scenario Outline` + `Examples` for parameterised boundary cases — especially
   stack sizes, forces, and accumulator states.
 
-## Gate
+## After writing
 
-Stop after writing the three files. Present: scenario count, invariant count,
-SPEC §11 items closed or added, and the decisions you resolved with the user.
-Do not proceed to tests.
+Write the three files. Record scenario count, invariant count, and any §11 / ADR
+BSSN in the spec itself. Do not wait for approval — the orchestrator starts
+tests.

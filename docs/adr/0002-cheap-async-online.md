@@ -5,6 +5,7 @@
 **Amended:** 2026-08-14 (P17 spec) — creator seat index, Start/revoke authz, 410 reasons, unauthenticated invite GET, `/my-games` includes open lobbies, Start writes meta only.
 **Amended:** 2026-08-14 (P18 spec) — nested `/games/{groupHash}/{gameNumber}` GET+POST moves, quoted `If-Match` version from 0, first member GET ensures `makeMatch` + opening burst, WS `access_token` query, 409 finished + `meta.winner`, conditional put on accept/Start.
 **Amended:** 2026-08-14 (P19 spec) — Pages GIS Sign-In, `sessionStorage` token, `#/invite/<token>` and `#/g/<groupHash>/<gameNumber>`, Local|Online lobby toggle, 412 GET-and-drop, WS while signed in.
+**Amended:** 2026-08-14 (P25 spec) — Pages **host** binds GIS, `hashchange`, `visibilitychange`, and WS `onmessage` to `createOnlinePages`. No new AWS.
 **Context:** [`SPEC.md`](../../SPEC.md) §1 (delivery shape), [ADR 0001](./0001-pure-core-and-pluggable-geometry.md), packets [P14](../design/packets/P14-online-adr.md)–[P20](../design/packets/P20-deferred-online-followons.md)
 
 ## Context
@@ -151,4 +152,4 @@ flowchart TB
 
 ## Follow-on packets
 
-P16 SAM/CI/DNS → P17 auth+invites → P18 moves+WS → P19 Pages client.
+P16 SAM/CI/DNS → P17 auth+invites → P18 moves+WS → P19 Pages adapter → P25 Pages host.

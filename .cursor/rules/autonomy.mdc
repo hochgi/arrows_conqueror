@@ -1,0 +1,35 @@
+---
+description: No phase gates; escalate only for cost or real behavior shifts; Copilot on every packet PR
+alwaysApply: true
+---
+
+# Autonomy (2026-08-14)
+
+The human does **not** approve spec, tests, code, or ship. Phase gates are
+redundant. Run spec → tests → code → review → PR without stopping for a thumbs-up.
+
+## Escalate (stop and ask)
+
+Only when **one** of these is true:
+
+- A **substantial unexpected cost** (new always-on AWS, a second account, paid
+  Google APIs beyond GIS ID-token Sign-In, anything that is not the cheap-async
+  shape in ADR 0002).
+- A **big behavioral shift** you want to make versus SPEC.md, ADR 0002, or an
+  already-shipped packet (game rules, seating, whose-turn, persist, 412 drop).
+- A **SPEC.md game-rule gap** (§11). Never invent a movement/combat/economy
+  rule. Online/infra BSSN: decide, write it into the packet spec / ADR, move on.
+
+Precision questions you can answer from the packet, ADR, existing API, or BSSN
+are **not** escalate. Do not delegate those.
+
+## Ship loop (every packet PR)
+
+1. Push to `hochgi/conquarrow` only. Never `shalevhoch`.
+2. Open the PR (`🤖: ` body prefix).
+3. Request a Copilot review (`request_copilot_review`).
+4. Wait for the comments. Triage each: fix / defer / reject. Reply `🤖: `.
+5. Squash-merge when CI is green and Copilot is addressed, unless an escalate
+   item appeared.
+
+`local-main` and explicit local-only branches still never push.

@@ -34,8 +34,9 @@ slug overrides frontmatter. Never force a cheap/fast tier onto phases 1–4.
 
 ## Spec-author
 
-Phase 1 runs in the **main thread** (must consult the human). Cursor has no
-`AskUserQuestion` tool — ask in chat and wait.
+Phase 1 runs in the **main thread**. Do **not** ask the human on inferable BSSN.
+Escalate only for a SPEC.md game-rule gap, a substantial unexpected cost, or a
+big behavioral shift. Then continue to tests without a gate.
 
 ## Local-only branches
 

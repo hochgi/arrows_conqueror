@@ -91,3 +91,5 @@ export type {
   PagesLobbyMode,
 } from './online-pages-port';
 
+export type { OnlineHostDeps, OnlineHostPort } from './online-host-port';
+

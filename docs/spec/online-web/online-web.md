@@ -118,7 +118,7 @@ board.
 | 409 `finished` | GET terminal, stop POSTing |
 | 401 | prompt GIS again; keep the current hash |
 | 409 on accept | "game full"; do not enter as viewer |
-| 410 on invite | show `revoked` or `started`; do not accept |
+| 410 on invite | show `revoked` or `started` when present; gone even if `reason` is missing (P25 boy-scout); do not accept |
 
 Google `sub` never appears in UI copy that echoes API bodies (API already omits
 it). The session key holds the JWT, not `sub`.

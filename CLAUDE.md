@@ -13,9 +13,10 @@ conventions above.
 ## Command, subagents & skills available here
 
 - **Command**: `/spec-to-ship <path-to-packet>` orchestrates the four-phase
-  pipeline, delegating each phase to a subagent and **stopping at every human
-  gate**. Phase 1 runs interactively in the main thread (it must consult the user
-  via `AskUserQuestion`); phases 2–4 are delegated via the Agent tool.
+  pipeline, then opens a PR, waits for Copilot, and squash-merges. **No human
+  gate between phases.** Escalate only for unexpected cost, a big behavioral
+  shift, or a SPEC.md game-rule gap. Phase 1 runs in the main thread; phases
+  2–4 are delegated via the Agent tool.
 - **Subagents** (`.claude/agents/`): `spec-author`, `test-author`, `coder`,
   `reviewer`.
 - **Skills** (`.claude/skills/`): `spec-to-ship`, `write-spec`,

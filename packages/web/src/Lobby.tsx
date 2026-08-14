@@ -1,4 +1,5 @@
 import { useState, type ReactElement } from 'react';
+import type { PagesLobbyMode, PlannedSeatKind } from '@conquarrow/contracts';
 import { styleFor } from './colors';
 import { testByokConnection } from './byokBot';
 import { DEFAULT_BYOK, isByokReady } from './byokConfig';
@@ -14,10 +15,32 @@ import {
   type SeatPlan,
 } from './seatPlan';
 
+export interface LobbyOnline {
+  readonly offered: boolean;
+  readonly mode: PagesLobbyMode;
+  readonly onMode: (mode: PagesLobbyMode) => void;
+  readonly signedIn: boolean;
+  readonly onSignIn: () => void;
+  readonly onSignOut: () => void;
+  readonly createOffered: boolean;
+  readonly onCreate: () => void;
+  readonly acceptOffered: boolean;
+  readonly onAccept: () => void;
+  readonly copiedUrl: string | undefined;
+  readonly startOffered: boolean;
+  readonly inviteGone: boolean;
+  readonly goneReason: 'revoked' | 'started' | undefined;
+  readonly lobbyFull: boolean;
+  readonly games: readonly { readonly groupHash: string; readonly gameNumber: string }[];
+  readonly onOpenGame: (groupHash: string, gameNumber: string) => void;
+  readonly seatKinds: readonly PlannedSeatKind[];
+}
+
 export interface LobbyProps {
   readonly plan: SeatPlan;
   readonly onPlan: (next: SeatPlan) => void;
   readonly onStart: () => void;
+  readonly online?: LobbyOnline;
 }
 
 const PLACEMENT_BLURB: Record<PlaytestPlayerCount, string> = {
@@ -31,8 +54,13 @@ const KIND_OPTIONS: readonly { value: SeatKind; label: string }[] = [
   { value: 'byok', label: 'BYOK LLM' },
 ];
 
-export const Lobby = ({ plan, onPlan, onStart }: LobbyProps): ReactElement => {
+export const Lobby = ({ plan, onPlan, onStart, online }: LobbyProps): ReactElement => {
   const incomplete = !seatPlanReady(plan);
+  const onlineMode = online?.offered === true && online.mode === 'online';
+  const startDisabled = onlineMode ? !online.startOffered : incomplete;
+  const kindOptions = onlineMode
+    ? KIND_OPTIONS.filter((opt) => online.seatKinds.includes(opt.value))
+    : KIND_OPTIONS;
   const [probeSeat, setProbeSeat] = useState<number | undefined>(undefined);
   const [probeMsg, setProbeMsg] = useState<string | undefined>(undefined);
   const [probeOk, setProbeOk] = useState<boolean | undefined>(undefined);
@@ -63,6 +91,7 @@ export const Lobby = ({ plan, onPlan, onStart }: LobbyProps): ReactElement => {
       <div className="lobby-card lobby-card-wide">
         <h1>Conquarrow</h1>
         <p className="lobby-lead">Playtest match on the arrow tiling</p>
+        {online?.offered === true ? <OnlineChrome online={online} /> : null}
 
         <label className="lobby-count">
           Players (3 or 6 — rotationally fair)
@@ -106,14 +135,14 @@ export const Lobby = ({ plan, onPlan, onStart }: LobbyProps): ReactElement => {
                       setProbeOk(undefined);
                     }}
                   >
-                    {KIND_OPTIONS.map((opt) => (
+                    {kindOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
                       </option>
                     ))}
                   </select>
                 </div>
-                {seat.kind === 'byok' ? (
+                {seat.kind === 'byok' && !onlineMode ? (
                   <div className="lobby-seat-byok">
                     <label className="lobby-count">
                       Base URL
@@ -280,17 +309,25 @@ export const Lobby = ({ plan, onPlan, onStart }: LobbyProps): ReactElement => {
           </p>
         ) : null}
 
-        <p className="lobby-byok-note">
-          OpenAI blocks browser CORS. Local play: <code>pnpm --filter @conquarrow/web dev</code>{' '}
-          (auto <code>/__byok</code>). Point different seats at different models to watch
-          AIs fight. Keys stay in this browser.
-        </p>
+        {onlineMode ? null : (
+          <p className="lobby-byok-note">
+            OpenAI blocks browser CORS. Local play:{' '}
+            <code>pnpm --filter @conquarrow/web dev</code> (auto <code>/__byok</code>). Point
+            different seats at different models to watch AIs fight. Keys stay in this browser.
+          </p>
+        )}
 
-        {incomplete ? (
+        {incomplete && !onlineMode ? (
           <p className="lobby-byok-warn">Complete every BYOK seat before Start.</p>
         ) : null}
 
-        <button type="button" className="lobby-start" disabled={incomplete} onClick={onStart}>
+        {onlineMode && !online.startOffered ? (
+          <p className="lobby-byok-note">
+            Start is enabled when every human seat on the invite is signed in.
+          </p>
+        ) : null}
+
+        <button type="button" className="lobby-start" disabled={startDisabled} onClick={onStart}>
           Start match
         </button>
       </div>
@@ -299,3 +336,96 @@ export const Lobby = ({ plan, onPlan, onStart }: LobbyProps): ReactElement => {
 };
 
 const PLAYER_LABEL = (index: number): string => String(seatPlayerId(index));
+
+const goneCopy = (reason: 'revoked' | 'started' | undefined): string => {
+  if (reason === 'revoked') return 'This invite was revoked.';
+  if (reason === 'started') return 'This invite already started.';
+  return 'This invite is gone.';
+};
+
+const OnlineChrome = ({ online }: { readonly online: LobbyOnline }): ReactElement => (
+  <div className="lobby-online">
+    <div className="lobby-mode" role="group" aria-label="Play mode">
+      <button
+        type="button"
+        className={online.mode === 'local' ? 'lobby-mode-btn on' : 'lobby-mode-btn'}
+        onClick={() => {
+          online.onMode('local');
+        }}
+      >
+        Local
+      </button>
+      <button
+        type="button"
+        className={online.mode === 'online' ? 'lobby-mode-btn on' : 'lobby-mode-btn'}
+        onClick={() => {
+          online.onMode('online');
+        }}
+      >
+        Online
+      </button>
+    </div>
+    {online.mode === 'online' ? (
+      <>
+        <div className="lobby-online-row">
+          {online.signedIn ? (
+            <button type="button" className="lobby-byok-test" onClick={online.onSignOut}>
+              Sign out
+            </button>
+          ) : (
+            <button type="button" className="lobby-start" onClick={online.onSignIn}>
+              Sign in with Google
+            </button>
+          )}
+          <button
+            type="button"
+            className="lobby-byok-test"
+            disabled={!online.createOffered}
+            onClick={online.onCreate}
+          >
+            Create invite
+          </button>
+          {online.acceptOffered ? (
+            <button type="button" className="lobby-start" onClick={online.onAccept}>
+              Accept invite
+            </button>
+          ) : null}
+        </div>
+        {online.copiedUrl !== undefined ? (
+          <p className="lobby-byok-ok">
+            Invite link:{' '}
+            <button
+              type="button"
+              className="lobby-copy"
+              onClick={() => {
+                void navigator.clipboard.writeText(online.copiedUrl ?? '');
+              }}
+            >
+              Copy
+            </button>
+            <code className="lobby-invite-url">{online.copiedUrl}</code>
+          </p>
+        ) : null}
+        {online.inviteGone ? <p className="lobby-byok-warn">{goneCopy(online.goneReason)}</p> : null}
+        {online.lobbyFull ? <p className="lobby-byok-warn">That lobby is full.</p> : null}
+        {online.games.length > 0 ? (
+          <ul className="lobby-games">
+            {online.games.map((row) => (
+              <li key={`${row.groupHash}/${row.gameNumber}`}>
+                <button
+                  type="button"
+                  className="lobby-byok-test"
+                  onClick={() => {
+                    online.onOpenGame(row.groupHash, row.gameNumber);
+                  }}
+                >
+                  Resume {row.gameNumber}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </>
+    ) : null}
+  </div>
+);

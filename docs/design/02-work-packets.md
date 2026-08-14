@@ -2,10 +2,11 @@
 
 > **Status:** Draft for review.
 > Each packet is one encapsulated unit of work, sized for a single `/spec-to-ship`
-> run (spec → tests → code → review, human gate between phases). A packet doc is
-> the **phase-1 input**: it fixes scope, decisions, invariants and a scenario
-> inventory; the spec-author session turns those into Gherkin + EARS with the
-> human in the loop.
+> run (spec → tests → code → review → PR + Copilot + merge). A packet doc is the
+> **phase-1 input**: it fixes scope, decisions, invariants and a scenario
+> inventory; the spec-author turns those into Gherkin + EARS. No human gate
+> between phases. Escalate only for unexpected cost, a big behavioral shift, or
+> a SPEC.md game-rule gap.
 >
 > Everything here is derived from [`SPEC.md`](../../SPEC.md). The § references
 > point at the section that owns the behaviour.
@@ -51,7 +52,8 @@ scheduled early in the first place.
 | P16 | Online infra | adapter | — | P14 | **[packet](./packets/P16-online-infra.md).** SAM + OIDC CI + base-path `/conquarrow` — **personal AWS only, never employer** |
 | P17 | Online auth & invites | adapter | — | P16 | **[packet](./packets/P17-online-auth-invites.md).** Google OIDC, lobby 3/6, ≥2 humans, `/my-games` |
 | P18 | Online moves + WS | adapter | — | P17 | **[packet](./packets/P18-online-moves-ws.md).** `apply` + heuristic burst in one Lambda put; WS `stateChanged` |
-| P19 | Online web adapter | adapter | — | P18 | **[packet](./packets/P19-online-web-adapter.md).** Pages Sign-In, invite UX, library, WS refresh |
+| P19 | Online web adapter | adapter | — | P18 | **[packet](./packets/P19-online-web-adapter.md).** **Landed** (`9898041`, PR #5). Port + tests. Shell is P25. |
+| P25 | Pages online shell | adapter | — | P19 | **[packet](./packets/P25-pages-online-shell.md).** GIS, Local\|Online lobby, hash/WS/visibility host, REST play on Pages |
 | P20+ | Deferred follow-ons | — | — | — | **[packet](./packets/P20-deferred-online-followons.md).** Viewers, fork, arena, replay button, Elo, online BYOK |
 
 ## Dependency graph
@@ -79,8 +81,9 @@ flowchart TD
   P14 --> P16["P16 SAM infra"]
   P16 --> P17["P17 auth + invites"]
   P17 --> P18["P18 moves + WS"]
-  P18 --> P19["P19 web online"]
-  P19 -.-> P20["P20+ wishes"]
+  P18 --> P19["P19 web online adapter"]
+  P19 --> P25["P25 Pages shell"]
+  P25 -.-> P20["P20+ wishes"]
 ```
 
 ## Build order and why
@@ -142,11 +145,11 @@ harness (P24):
 2. **P16** — SAM + DNS + OIDC on `hochgi/conquarrow`
 3. **P17** — auth, invites, library
 4. **P18** — moves, heuristic burst, WebSocket
-5. **P19** — Pages client
-6. **P20+** — wishes only (viewers, fork, arena, replay button, Elo, online BYOK)
+5. **P19** — Pages adapter (`createOnlinePages`)
+6. **P25** — Pages shell (GIS, lobby, host events)
+7. **P20+** — wishes only (viewers, fork, arena, replay button, Elo, online BYOK)
 
-One `/spec-to-ship` per packet. Do not Gherkin-dump P16–P19 before the ADR
-exists — later packets would invent contracts the ADR will change.
+One `/spec-to-ship` per packet.
 
 ## Open items this plan inherits
 

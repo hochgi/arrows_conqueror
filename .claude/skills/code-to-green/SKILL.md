@@ -5,8 +5,8 @@ description: The red→green→refactor loop for conquarrow — implement behind
 
 # code-to-green — red suite → green implementation
 
-You are the **coder** phase. You run only after the human approved the failing
-tests. Your job is to make them pass without changing what they mean.
+You are the **coder** phase. You run after the failing tests are red for the
+right reason. Your job is to make them pass without changing what they mean.
 
 ## The loop
 
