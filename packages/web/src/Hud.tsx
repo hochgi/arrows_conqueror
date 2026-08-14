@@ -1,10 +1,12 @@
-import type { GameState, PlayerId } from '@conquarrow/contracts';
+import type { GameState } from '@conquarrow/contracts';
 import type { ReactElement } from 'react';
 import { styleFor } from './colors';
+import { controlsLocked, type VictoryFx } from './fx/victory';
 import type { InputPhase } from './input/modes';
 
 export interface HudProps {
   readonly state: GameState;
+  readonly victory: VictoryFx;
   readonly phase: InputPhase;
   readonly movableCount: number;
   readonly vsBot: boolean;
@@ -47,6 +49,7 @@ const phaseHint = (
 
 export const Hud = ({
   state,
+  victory,
   phase,
   movableCount,
   vsBot,
@@ -62,12 +65,12 @@ export const Hud = ({
   illegal,
 }: HudProps): ReactElement => {
   const active = styleFor(state.activePlayer);
-  const winner: PlayerId | undefined = state.winner;
+  const locked = controlsLocked(victory);
   return (
     <aside className="hud">
       <h1>Conquarrow</h1>
-      {winner !== undefined ? (
-        <p className="banner win">{styleFor(winner).label} wins</p>
+      {victory.kind === 'over' ? (
+        <p className="banner win">{victory.banner}</p>
       ) : (
         <p className="banner" style={{ borderColor: active.fill }}>
           Turn: <strong style={{ color: active.fill }}>{active.label}</strong>
@@ -77,17 +80,21 @@ export const Hud = ({
             : null}
         </p>
       )}
-      <p className="hint">{phaseHint(phase, movableCount, botBusy, vsBot, byokActive)}</p>
+      <p className="hint">
+        {victory.kind === 'over'
+          ? victory.hint
+          : phaseHint(phase, movableCount, botBusy, vsBot, byokActive)}
+      </p>
       {byokStatus !== undefined ? <p className="hint byok-status">{byokStatus}</p> : null}
       {illegal !== undefined ? <p className="hint lobby-byok-warn">{illegal}</p> : null}
       <p className="meta">Seats: {seatSummary}</p>
       <p className="meta">Moves logged: {moveCount}</p>
 
       <div className="actions">
-        <button type="button" onClick={onSkip} disabled={phase.kind === 'idle' || botBusy}>
+        <button type="button" onClick={onSkip} disabled={locked || phase.kind === 'idle' || botBusy}>
           Skip group
         </button>
-        <button type="button" onClick={onEndTurn} disabled={winner !== undefined || botBusy}>
+        <button type="button" onClick={onEndTurn} disabled={locked || botBusy}>
           End turn
         </button>
         <button type="button" onClick={onDownloadLog}>

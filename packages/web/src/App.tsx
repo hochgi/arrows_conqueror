@@ -59,6 +59,7 @@ import {
   pruneBursts,
   type EvaporationBurst,
 } from './fx/evaporation';
+import { victoryFx } from './fx/victory';
 import { ConvertTip } from './ConvertTip';
 import { PortionSlider } from './PortionSlider';
 import { pathForDestination } from './reach';
@@ -497,6 +498,11 @@ export const App = (): ReactElement => {
     return refused.size === 0 ? withPath : { ...withPath, refused };
   }, [snap, hoverPath, state]);
 
+  const victory = useMemo(
+    () => (state === undefined ? ({ kind: 'playing' } as const) : victoryFx(state, geometry)),
+    [state],
+  );
+
   const commitSnap = useCallback(
     (next: InputSnapshot) => {
       setSnap(next);
@@ -876,6 +882,7 @@ export const App = (): ReactElement => {
     <div className="app">
       <Hud
         state={state}
+        victory={victory}
         phase={snap.phase}
         movableCount={movable.size}
         vsBot={log.vsBot}
@@ -909,6 +916,7 @@ export const App = (): ReactElement => {
           highlights={boardHighlights}
           movable={movable}
           evaporation={evaporation}
+          victory={victory}
           {...(hover === undefined ? {} : { hoveredSpawner: hover.vertex })}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}

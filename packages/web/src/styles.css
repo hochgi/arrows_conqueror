@@ -195,6 +195,10 @@ body,
   pointer-events: none;
 }
 
+.match-over-dim {
+  opacity: 0.4;
+}
+
 .portion-backdrop {
   position: absolute;
   inset: 0;
@@ -557,7 +561,9 @@ body,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lobby-hourglass {
+  .lobby-hourglass,
+  .yield-shine-band,
+  .selected-pulse {
     animation: none;
   }
 }
