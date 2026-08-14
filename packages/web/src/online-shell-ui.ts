@@ -18,6 +18,32 @@ export const kindsForHost = (
 ): readonly PlannedSeatKind[] =>
   plan.seats.map((seat) => (online && seat.kind === 'byok' ? 'heuristic' : seat.kind));
 
+/** HUD / roster labels — API kinds stay `human` | `heuristic`. */
+export const displaySeatKind = (kind: 'human' | 'heuristic' | 'byok'): string => {
+  if (kind === 'heuristic') return 'AI';
+  if (kind === 'byok') return 'BYOK';
+  return 'Player';
+};
+
+export const rosterOccupancy = (
+  seat: InviteSeat,
+  userHash: string | undefined,
+): 'you' | 'waiting' | 'player' | 'ai' => {
+  if (seat.kind === 'heuristic') return 'ai';
+  if (seat.userHash === undefined) return 'waiting';
+  if (userHash !== undefined && seat.userHash === userHash) return 'you';
+  return 'player';
+};
+
+export const rosterOccupancyLabel = (
+  occupancy: 'you' | 'waiting' | 'player' | 'ai',
+): string => {
+  if (occupancy === 'you') return 'you';
+  if (occupancy === 'waiting') return 'waiting';
+  if (occupancy === 'ai') return 'AI';
+  return 'Player';
+};
+
 export const logFromOnlineBoard = (
   game: GameState,
   seats: readonly InviteSeat[] | undefined,

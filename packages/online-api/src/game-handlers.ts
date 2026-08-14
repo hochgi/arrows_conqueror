@@ -293,7 +293,11 @@ export const handleGetGame = async (
     member.userHash,
   );
   if ('statusCode' in position) return position;
-  return jsonResult(200, { version: position.version, state: position.state });
+  return jsonResult(200, {
+    version: position.version,
+    state: position.state,
+    seats: member.seats,
+  });
 };
 
 const isActiveHuman = (

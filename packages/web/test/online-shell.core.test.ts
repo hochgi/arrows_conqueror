@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { endTurn, GOOGLE_ID_TOKEN_SESSION_KEY } from '@conquarrow/contracts';
 import {
   ALICE,
+  BOB,
   GAME_ONE,
   GROUP_HASH,
   INVITE_TOKEN,
@@ -107,7 +108,7 @@ describe('Hash and invite', () => {
 
   it('Signed-in invite offers Accept and does not auto-accept', async () => {
     const h = makeHostHarness({
-      sessionToken: ALICE.bearer,
+      sessionToken: BOB.bearer,
       hash: inviteHash(INVITE_TOKEN),
       fetchScript: [peekInviteScript(INVITE_TOKEN, aliceHostSeats())],
     });

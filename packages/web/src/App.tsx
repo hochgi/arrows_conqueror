@@ -12,7 +12,7 @@ import {
 } from '@conquarrow/contracts';
 import { makeLayout, makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
 import { makeRules } from '@conquarrow/rules-core';
-import { hasLegalStep, passIfExhausted } from './autoEndTurn';
+import { hasLegalStep, onlinePassMove, passIfExhausted } from './autoEndTurn';
 import { Board } from './Board';
 import { cullArrows, cullVertices } from './cull';
 import { hitArrow, hitSpawnerVertex } from './hit';
@@ -22,8 +22,9 @@ import { createInputMode } from './input/modes';
 import { Lobby } from './Lobby';
 import { hydrateState } from './online-hydrate';
 import { parsePagesHash } from './online-hash';
+import { isCallerToMove } from './online-pages';
 import { usePagesHost } from './online-runtime';
-import { kindsForHost, logFromOnlineBoard } from './online-shell-ui';
+import { displaySeatKind, kindsForHost, logFromOnlineBoard } from './online-shell-ui';
 import type { ByokRunStats, MatchLog, SeatDriverLog } from './matchLog';
 import {
   appendMoves,
@@ -197,7 +198,7 @@ export const App = (): ReactElement => {
     seatConfigsRef.current = new Map();
     stateRef.current = game;
     setState(game);
-    setLog((prev) => prev ?? logFromOnlineBoard(game, current.adapter().inviteSeats()));
+    setLog((prev) => prev ?? logFromOnlineBoard(game, board.seats));
     setSnap(mode.reset());
   }, [gen, mode]);
 
@@ -207,6 +208,18 @@ export const App = (): ReactElement => {
     if (sessionStorage.getItem(GOOGLE_ID_TOKEN_SESSION_KEY) === null) return;
     void current.refreshLibrary().then(refresh);
   }, [host, state, refresh]);
+
+  useEffect(() => {
+    if (host === undefined || state !== undefined) return;
+    if (host.adapter().inviteToken() === undefined) return;
+    if (host.board() !== undefined) return;
+    const id = window.setInterval(() => {
+      void host.refreshLobby().then(refresh);
+    }, 2000);
+    return () => {
+      window.clearInterval(id);
+    };
+  }, [host, state, refresh, gen]);
 
   useEffect(() => {
     const el = shellRef.current;
@@ -323,6 +336,40 @@ export const App = (): ReactElement => {
       passEpoch.current += 1;
     };
   }, [state, snap.phase.kind, commitApplied]);
+
+  useEffect(() => {
+    if (state === undefined || !onlinePlayRef.current) return;
+    const move = onlinePassMove(rules, state);
+    if (move === undefined) return;
+    const epoch = ++passEpoch.current;
+    const handle = window.setTimeout(() => {
+      if (epoch !== passEpoch.current) return;
+      if (stateRef.current !== state) return;
+      const h = hostRef.current;
+      if (h === undefined) return;
+      const seats = h.board()?.seats ?? h.adapter().inviteSeats();
+      if (
+        !isCallerToMove(
+          seats,
+          h.adapter().userHash(),
+          state.players.map((id) => String(id)),
+          String(state.activePlayer),
+        )
+      ) {
+        return;
+      }
+      const before = h.board();
+      void h.submitMove(move).then(() => {
+        if (epoch !== passEpoch.current) return;
+        if (h.board() === before) return;
+        refresh();
+      });
+    }, 0);
+    return () => {
+      window.clearTimeout(handle);
+      passEpoch.current += 1;
+    };
+  }, [state, refresh]);
 
   // Any AI seat: heuristic or BYOK when it is their chair.
   useEffect(() => {
@@ -635,6 +682,9 @@ export const App = (): ReactElement => {
                   void host.openMyGame(groupHash, gameNumber).then(refresh);
                 },
                 seatKinds: host.seatKindOptions(),
+                seatEditsOffered: host.seatEditsOffered(),
+                inviteSeats: host.adapter().inviteSeats(),
+                userHash: host.adapter().userHash(),
               },
             })}
       />
@@ -793,7 +843,7 @@ export const App = (): ReactElement => {
         byokActive={byokActive}
         byokStatus={byokStatus ?? log.byokStats?.lastError}
         botBusy={botBusy}
-        seatSummary={log.seats.map((s) => `${String(s.player)}=${s.kind}`).join(' · ')}
+        seatSummary={log.seats.map((s) => `${String(s.player)}=${displaySeatKind(s.kind)}`).join(' · ')}
         moveCount={log.moves.length}
         onEndTurn={() => {
           if (inputLocked) return;

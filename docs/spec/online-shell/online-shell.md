@@ -71,6 +71,9 @@ flowchart TD
 - When `visibilitychange` becomes visible, the host shall `becomeVisible`.
 - When Online mode has an invite whose human seats are not all bound, the host shall not offer Start.
 - When Online mode has an invite whose human seats are all bound, the host shall offer Start.
+- When the signed-in user already occupies a human chair on the held invite, the host shall not offer Accept (P26).
+- When the held invite has a token and is not gone, the host shall not offer seat-kind edits (P26).
+- When `refreshLobby` runs with a held invite token and no open board, the adapter shall GET that invite (P26).
 - When the host submits an online move, the board shall be the adapter GET board — not a local `apply`.
 - When invite GET or accept returns HTTP 410, the host shall not POST accept, even if `reason` is missing.
 - When POST moves returns 422, the host shall surface `illegal` and shall keep the last GET board.

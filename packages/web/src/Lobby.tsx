@@ -1,8 +1,12 @@
 import { useState, type ReactElement } from 'react';
-import type { PagesLobbyMode, PlannedSeatKind } from '@conquarrow/contracts';
+import type { InviteSeat, PagesLobbyMode, PlannedSeatKind } from '@conquarrow/contracts';
 import { styleFor } from './colors';
 import { testByokConnection } from './byokBot';
 import { DEFAULT_BYOK, isByokReady } from './byokConfig';
+import {
+  rosterOccupancy,
+  rosterOccupancyLabel,
+} from './online-shell-ui';
 import {
   PLAYTEST_PLAYER_COUNTS,
   byokConfigForSeat,
@@ -34,6 +38,9 @@ export interface LobbyOnline {
   readonly games: readonly { readonly groupHash: string; readonly gameNumber: string }[];
   readonly onOpenGame: (groupHash: string, gameNumber: string) => void;
   readonly seatKinds: readonly PlannedSeatKind[];
+  readonly seatEditsOffered: boolean;
+  readonly inviteSeats: readonly InviteSeat[] | undefined;
+  readonly userHash: string | undefined;
 }
 
 export interface LobbyProps {
@@ -49,8 +56,8 @@ const PLACEMENT_BLURB: Record<PlaytestPlayerCount, string> = {
 };
 
 const KIND_OPTIONS: readonly { value: SeatKind; label: string }[] = [
-  { value: 'human', label: 'Human' },
-  { value: 'heuristic', label: 'Heuristic AI' },
+  { value: 'human', label: 'Player' },
+  { value: 'heuristic', label: 'AI' },
   { value: 'byok', label: 'BYOK LLM' },
 ];
 
@@ -58,6 +65,8 @@ export const Lobby = ({ plan, onPlan, onStart, online }: LobbyProps): ReactEleme
   const incomplete = !seatPlanReady(plan);
   const onlineMode = online?.offered === true && online.mode === 'online';
   const startDisabled = onlineMode ? !online.startOffered : incomplete;
+  const frozen = onlineMode && !online.seatEditsOffered;
+  const rosterSeats = frozen ? online.inviteSeats : undefined;
   const kindOptions = onlineMode
     ? KIND_OPTIONS.filter((opt) => online.seatKinds.includes(opt.value))
     : KIND_OPTIONS;
@@ -97,6 +106,7 @@ export const Lobby = ({ plan, onPlan, onStart, online }: LobbyProps): ReactEleme
           Players (3 or 6 — rotationally fair)
           <select
             value={plan.playerCount}
+            disabled={frozen}
             onChange={(e) => {
               const n = Number(e.target.value) as PlaytestPlayerCount;
               onPlan(resizeSeatPlan(plan, n));
@@ -115,8 +125,13 @@ export const Lobby = ({ plan, onPlan, onStart, online }: LobbyProps): ReactEleme
         <p className="lobby-blurb">{PLACEMENT_BLURB[plan.playerCount]}</p>
 
         <fieldset className="lobby-seats">
-          <legend>Seats — each can be human or a different AI</legend>
-          {plan.seats.map((seat, index) => {
+          <legend>
+            {frozen ? 'Seats — Player, AI, waiting, or you' : 'Seats — each can be Player or AI'}
+          </legend>
+          {rosterSeats !== undefined ? (
+            <FrozenRoster seats={rosterSeats} userHash={online?.userHash} />
+          ) : (
+            plan.seats.map((seat, index) => {
             const player = seatPlayerId(index);
             const color = styleFor(player).fill;
             const byokIncomplete = seat.kind === 'byok' && !isByokReady(byokConfigForSeat(seat));
@@ -128,6 +143,7 @@ export const Lobby = ({ plan, onPlan, onStart, online }: LobbyProps): ReactEleme
                   <select
                     value={seat.kind}
                     aria-label={`${styleFor(player).label} driver`}
+                    disabled={frozen}
                     onChange={(e) => {
                       const kind = e.target.value as SeatKind;
                       onPlan(updateSeat(plan, index, { kind }));
@@ -292,7 +308,8 @@ export const Lobby = ({ plan, onPlan, onStart, online }: LobbyProps): ReactEleme
                 ) : null}
               </div>
             );
-          })}
+          })
+          )}
         </fieldset>
 
         {probeMsg !== undefined ? (
@@ -321,9 +338,13 @@ export const Lobby = ({ plan, onPlan, onStart, online }: LobbyProps): ReactEleme
           <p className="lobby-byok-warn">Complete every BYOK seat before Start.</p>
         ) : null}
 
+        {onlineMode && online.signedIn && !online.createOffered && online.seatEditsOffered ? (
+          <p className="lobby-byok-note">Create needs two Player seats.</p>
+        ) : null}
+
         {onlineMode && !online.startOffered ? (
           <p className="lobby-byok-note">
-            Start is enabled when every human seat on the invite is signed in.
+            Start is enabled when every Player seat is filled — waiting chairs must bind.
           </p>
         ) : null}
 
@@ -336,6 +357,32 @@ export const Lobby = ({ plan, onPlan, onStart, online }: LobbyProps): ReactEleme
 };
 
 const PLAYER_LABEL = (index: number): string => String(seatPlayerId(index));
+
+const FrozenRoster = ({
+  seats,
+  userHash,
+}: {
+  readonly seats: readonly InviteSeat[];
+  readonly userHash: string | undefined;
+}): ReactElement => (
+  <>
+    {seats.map((seat, index) => {
+      const player = seatPlayerId(index);
+      const color = styleFor(player).fill;
+      return (
+        <div key={String(player)} className="lobby-seat">
+          <div className="lobby-seat-head">
+            <span className="lobby-seat-swatch" style={{ background: color }} />
+            <strong style={{ color }}>{styleFor(player).label}</strong>
+            <span className="lobby-seat-occupancy">
+              {rosterOccupancyLabel(rosterOccupancy(seat, userHash))}
+            </span>
+          </div>
+        </div>
+      );
+    })}
+  </>
+);
 
 const goneCopy = (reason: 'revoked' | 'started' | undefined): string => {
   if (reason === 'revoked') return 'This invite was revoked.';

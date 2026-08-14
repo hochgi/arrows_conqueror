@@ -10,6 +10,7 @@ import { endTurn, GOOGLE_ID_TOKEN_SESSION_KEY } from '@conquarrow/contracts';
 import type { OnlinePagesEnv } from '@conquarrow/contracts';
 import {
   ALICE,
+  BOB,
   GAME_ONE,
   GROUP_HASH,
   INVITE_TOKEN,
@@ -148,7 +149,7 @@ describe('online-shell invariants', () => {
 
   it('When signed in on an open invite that is not gone and not full, the host shall offer Accept and shall not auto-accept', async () => {
     const h = makeHostHarness({
-      sessionToken: ALICE.bearer,
+      sessionToken: BOB.bearer,
       hash: inviteHash(INVITE_TOKEN),
       fetchScript: [peekInviteScript(INVITE_TOKEN, aliceHostSeats())],
     });

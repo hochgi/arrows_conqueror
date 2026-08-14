@@ -83,7 +83,7 @@ P17 does **not** write `state.json` or `log.jsonl`.
 - While an invite is open, the system shall serve `GET /invites/:token` without a Google token and shall not include Google `sub` in the body.
 - When a user accepts an invite they already occupy, the system shall return that same seat, shall not occupy a second chair, and shall write that user's lobby pointer if it is missing.
 - When every human seat is already bound, the system shall reject a further accept with 409 and shall not add a spectator row.
-- When the creator revokes, or when Start has succeeded, the system shall respond 410 with `reason` `revoked` or `started` on GET/accept/start of that token.
+- When the creator revokes, or when Start has succeeded, the system shall respond 410 with `reason` `revoked` or `started` on GET/accept/start of that token. A `started` 410 includes `groupHash` and `gameNumber` when the invite record has them (P26).
 - If the caller is not the creator, then the system shall reject revoke with 403.
 - If the caller is not a bound human on that invite, then the system shall reject Start with 403.
 - When human seats are not all bound, the system shall reject Start with 409 and shall not write group or game objects.

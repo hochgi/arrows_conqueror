@@ -6,6 +6,7 @@
 **Amended:** 2026-08-14 (P18 spec) — nested `/games/{groupHash}/{gameNumber}` GET+POST moves, quoted `If-Match` version from 0, first member GET ensures `makeMatch` + opening burst, WS `access_token` query, 409 finished + `meta.winner`, conditional put on accept/Start.
 **Amended:** 2026-08-14 (P19 spec) — Pages GIS Sign-In, `sessionStorage` token, `#/invite/<token>` and `#/g/<groupHash>/<gameNumber>`, Local|Online lobby toggle, 412 GET-and-drop, WS while signed in.
 **Amended:** 2026-08-14 (P25 spec) — Pages **host** binds GIS, `hashchange`, `visibilitychange`, and WS `onmessage` to `createOnlinePages`. No new AWS.
+**Amended:** 2026-08-14 (P26 spec) — GET game includes meta `seats`; HTTP 410 `started` includes `groupHash` and `gameNumber` when known.
 **Context:** [`SPEC.md`](../../SPEC.md) §1 (delivery shape), [ADR 0001](./0001-pure-core-and-pluggable-geometry.md), packets [P14](../design/packets/P14-online-adr.md)–[P20](../design/packets/P20-deferred-online-followons.md)
 
 ## Context
@@ -56,9 +57,9 @@ Opaque token URL (not a short PIN). **No TTL.**
 
 The **creator** is the Google user who `POST /invites`. They occupy one **human** seat at create, named by `hostSeatIndex` (index into the seats array). Default: the first human seat (ADR's original "first human chair" behaviour). The named seat must be `kind: human`. Invitees `POST …/accept` and take the next unbound human seat (lowest index). Full → 409, no viewers. Same user accepting twice is idempotent (same seat).
 
-**Revoke:** only the creator. **Start:** any human already bound on that invite, and only when every human seat is bound (and therefore ≥2). After Start, and after revoke, the token is **410** with body `{ "reason": "started" }` or `{ "reason": "revoked" }`. Started games never expire.
+**Revoke:** only the creator. **Start:** any human already bound on that invite, and only when every human seat is bound (and therefore ≥2). After Start, and after revoke, the token is **410** with `reason` `started` or `revoked`. A `started` 410 also includes `groupHash` and `gameNumber` when the invite record has them (P26, additive). Revoke stays `{ "reason": "revoked" }`. Started games never expire.
 
-`GET /invites/:token` is **unauthenticated** while the invite is open (seat plan and which chairs are bound — `userHash` only, never Google `sub`). After revoke/Start it returns the same 410 + reason.
+`GET /invites/:token` is **unauthenticated** while the invite is open (seat plan and which chairs are bound — `userHash` only, never Google `sub`). After revoke/Start it returns the same 410 + `reason` (and started ids when known).
 
 Start open-or-creates `groupHash = H(sorted human userHashes)` and allocates the next `games/NNNNNN` with `If-None-Match` (never overwrite). A retry while the invite is still open **finishes that same start**. After invite status is `started`, GET/accept/start of the token stay **410**. P17 persists **meta only**. First bound-human GET (or POST moves) **ensures** `state.json` / `log.jsonl`: `makeMatch` with default config and the seat-plan `playerCount`, then the opening heuristic burst if seat 0 is heuristic, persist at **version 0**.
 
@@ -80,7 +81,7 @@ conquarrow/connection-ids/<connectionId>         # userHash pointer so $disconne
 
 `GET /my-games` is that user's membership pointers only: **open lobbies** they are seated in, plus **started games** under their groups. Never another user's rows.
 
-HTTP play: `GET /games/{groupHash}/{gameNumber}` and `POST …/moves` (If-Match `"<n>"`). The P16 `POST /moves` stub is gone. POST body is one `Move`. Missing If-Match → 428; stale → 412; illegal `apply` → 422; already finished → 409 `{ reason: "finished" }`. A persist that first sets `winner` copies that `PlayerId` onto game `meta.json`.
+HTTP play: `GET /games/{groupHash}/{gameNumber}` and `POST …/moves` (If-Match `"<n>"`). The P16 `POST /moves` stub is gone. POST body is one `Move`. GET 200 is `{ version, state, seats }` (`seats` from game meta; P26). Missing If-Match → 428; stale → 412; illegal `apply` → 422; already finished → 409 `{ reason: "finished" }`. A persist that first sets `winner` copies that `PlayerId` onto game `meta.json`. HTTP 410 on a started invite includes `groupHash` and `gameNumber` when known so the waiting host can open the match.
 
 WebSocket: `wss://ws.games.hochgi.com/conquarrow?access_token=<Google ID token>`. Any verified user may `$connect`. Registry `connections/<userHash>/<connectionId>` plus `connection-ids/<connectionId>` for O(1) `$disconnect`. Payload is only `{ type: "stateChanged", version, groupHash, gameNumber }`. Notify **other** bound humans, not the caller. Notify is **best-effort after persist** — a `PostToConnection` failure must not fail the HTTP response. Gone connection ids are deleted. The client then GETs state. `visibilitychange` is a safety net, not a poll loop.
 
@@ -152,4 +153,4 @@ flowchart TB
 
 ## Follow-on packets
 
-P16 SAM/CI/DNS → P17 auth+invites → P18 moves+WS → P19 Pages adapter → P25 Pages host.
+P16 SAM/CI/DNS → P17 auth+invites → P18 moves+WS → P19 Pages adapter → P25 Pages host → P26 playtest UX.

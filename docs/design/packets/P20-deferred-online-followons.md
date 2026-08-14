@@ -14,3 +14,5 @@
 | Visual juice / onboarding | Accessibility over elegance (old critique). |
 | Search AI (non-LLM) | BYOK local may postpone this a long time. |
 | Seats other than 3/6 | Playtest found 2 unfair on grain. Not online v1. |
+| Under-18 Sign-In | Google Family Link / under-18 blocks GIS ID tokens. Publishing OAuth to Production lets any 18+ Gmail in (no Test users). Designed-for-families is compliance, not a code packet. |
+| Admin panel | Family scale: S3 `conquarrow/` prefixes + CloudWatch. No extra AWS app. |

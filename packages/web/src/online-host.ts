@@ -19,7 +19,7 @@ import type {
   PlannedSeatKind,
 } from '@conquarrow/contracts';
 import { parsePagesHash } from './online-hash';
-import { createOnlinePages } from './online-pages';
+import { createOnlinePages, occupiesHumanChair } from './online-pages';
 import { parseStateChanged } from './online-parse';
 import { readSessionToken } from './online-session';
 
@@ -128,7 +128,13 @@ export const createOnlineHost = (deps: OnlineHostDeps): OnlineHostPort => {
     pages.inviteToken() !== undefined &&
     !inviteGoneFlag &&
     pages.inviteGoneReason() === undefined &&
-    !pages.lobbyFull();
+    !pages.lobbyFull() &&
+    !occupiesHumanChair(pages.inviteSeats(), pages.userHash());
+
+  const seatEditsOffered = (): boolean =>
+    pages.inviteToken() === undefined ||
+    inviteGoneFlag ||
+    pages.inviteGoneReason() !== undefined;
 
   return {
     adapter: () => pages,
@@ -145,6 +151,7 @@ export const createOnlineHost = (deps: OnlineHostDeps): OnlineHostPort => {
     acceptInvite: () => pages.acceptInvite(),
     submitMove: (move: Move) => pages.submitMove(move),
     refreshLibrary: () => pages.refreshLibrary(),
+    refreshLobby: () => pages.refreshLobby(),
     openMyGame: (groupHash, gameNumber) => pages.openMyGame(groupHash, gameNumber),
     signOut,
     promptSignIn: () => {
@@ -167,6 +174,7 @@ export const createOnlineHost = (deps: OnlineHostDeps): OnlineHostPort => {
     onlineModeOffered: () => pages.onlineModeOffered(),
     startOffered,
     acceptOffered,
+    seatEditsOffered,
     createOffered: () => pages.createOffered() && signedIn(),
     mode: () => mode,
     illegal: () => illegalMsg,

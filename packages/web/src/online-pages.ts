@@ -94,19 +94,41 @@ const ownSeatIndex = (seats: readonly InviteSeat[], userHash: UserHash): number 
   return -1;
 };
 
-/** When seats and /me are known, seat i is players[i] (P18). Unknown → allow POST. */
-const callerIsToMove = (state: AdapterState): boolean => {
-  const board = state.board;
-  const seats = state.seats;
-  const userHash = state.userHash;
-  if (board === undefined || seats === undefined || userHash === undefined) return true;
+export const occupiesHumanChair = (
+  seats: readonly InviteSeat[] | undefined,
+  userHash: UserHash | undefined,
+): boolean => {
+  if (seats === undefined || userHash === undefined) return false;
+  return ownSeatIndex(seats, userHash) >= 0;
+};
+
+/**
+ * When seats and `/me` are known, seat i is `players[i]` (P18). Unknown → allow
+ * POST. Used by submitMove and by online auto-pass (P26: only the caller's turn).
+ */
+export const isCallerToMove = (
+  seats: readonly InviteSeat[] | undefined,
+  userHash: UserHash | undefined,
+  players: readonly string[] | undefined,
+  active: string | undefined,
+): boolean => {
+  if (seats === undefined || userHash === undefined) return true;
   const index = ownSeatIndex(seats, userHash);
   if (index < 0) return false;
-  const players = playersOf(board.state);
-  const active = activePlayerOf(board.state);
   const mine = players?.[index];
   if (mine === undefined || active === undefined) return true;
   return mine === active;
+};
+
+const callerIsToMove = (state: AdapterState): boolean => {
+  const board = state.board;
+  if (board === undefined) return true;
+  return isCallerToMove(
+    state.seats,
+    state.userHash,
+    playersOf(board.state),
+    activePlayerOf(board.state),
+  );
 };
 
 export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
@@ -205,26 +227,47 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
     state.lobbyIsFull = false;
   };
 
-  const peekInvite = async (inviteToken: InviteToken): Promise<void> => {
-    if (!onlineReady()) return;
-    state.inviteToken = inviteToken;
-    const res = await request('GET', `/invites/${inviteToken}`, { auth: false });
-    if (res.status === 410) {
-      markInviteGone(parseJson(res.body));
-      return;
-    }
-    if (res.status !== 200) return;
-    applyInviteBody(parseJson(res.body));
-    if (token() === undefined) gis.prompt();
-  };
-
   const getGame = async (groupHash: GroupHash, gameNumber: GameNumber): Promise<void> => {
     if (!onlineReady() || token() === undefined) return;
     const res = await request('GET', `/games/${groupHash}/${gameNumber}`);
     if (onUnauthorized(res.status)) return;
     if (res.status !== 200) return;
     const board = parseBoard(parseJson(res.body));
-    if (board !== undefined) state.board = board;
+    if (board === undefined) return;
+    state.board = board;
+    if (board.seats !== undefined) state.seats = board.seats;
+  };
+
+  const openStartedFromGone = async (body: unknown): Promise<void> => {
+    if (parseGoneReason(body) !== 'started') return;
+    const ids = parseStartIds(body);
+    if (ids === undefined) return;
+    location.hash = formatGameHash(ids.groupHash, ids.gameNumber);
+    await getGame(ids.groupHash, ids.gameNumber);
+  };
+
+  const peekHeldInvite = async (options: {
+    readonly promptIfUnsigned: boolean;
+    readonly followStarted: boolean;
+  }): Promise<void> => {
+    const inviteToken = state.inviteToken;
+    if (!onlineReady() || inviteToken === undefined) return;
+    const res = await request('GET', `/invites/${inviteToken}`, { auth: false });
+    if (res.status === 410) {
+      const body = parseJson(res.body);
+      markInviteGone(body);
+      if (options.followStarted) await openStartedFromGone(body);
+      return;
+    }
+    if (res.status !== 200) return;
+    applyInviteBody(parseJson(res.body));
+    if (options.promptIfUnsigned && token() === undefined) gis.prompt();
+  };
+
+  const peekInvite = async (inviteToken: InviteToken): Promise<void> => {
+    if (!onlineReady()) return;
+    state.inviteToken = inviteToken;
+    await peekHeldInvite({ promptIfUnsigned: true, followStarted: false });
   };
 
   const routeFromHash = async (): Promise<void> => {
@@ -291,6 +334,14 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
     if (library !== undefined) state.library = library;
   };
 
+  const refreshLobby = async (): Promise<void> => {
+    if (!onlineReady()) return;
+    if (state.inviteToken !== undefined && state.board === undefined) {
+      await peekHeldInvite({ promptIfUnsigned: false, followStarted: true });
+    }
+    if (token() !== undefined) await refreshLibrary();
+  };
+
   const openMyGame = async (groupHash: GroupHash, gameNumber: GameNumber): Promise<void> => {
     clearInviteScope();
     location.hash = formatGameHash(groupHash, gameNumber);
@@ -330,9 +381,12 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
   };
 
   const becomeVisible = async (): Promise<void> => {
+    if (!onlineReady()) return;
     const route = parsePagesHash(location.hash);
-    if (route.kind !== 'game') return;
-    await getGame(route.groupHash, route.gameNumber);
+    if (route.kind === 'game') {
+      await getGame(route.groupHash, route.gameNumber);
+    }
+    await refreshLobby();
   };
 
   const boot = async (): Promise<void> => {
@@ -380,6 +434,7 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
     acceptInvite,
     submitMove,
     refreshLibrary,
+    refreshLobby,
     openMyGame,
     signOut,
     deliverGoogleCredential,
@@ -398,5 +453,6 @@ export const createOnlinePages = (deps: OnlinePagesDeps): OnlinePagesPort => {
     inviteSeats: () => state.seats,
     inviteToken: () => state.inviteToken,
     myGames: () => state.library,
+    userHash: () => state.userHash,
   };
 };

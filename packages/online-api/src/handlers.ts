@@ -77,8 +77,21 @@ const publicInvite = (token: string, seats: InviteRecord['seats']): InviteBody =
   seats,
 });
 
+const startedIds = (
+  invite: InviteRecord,
+): { readonly groupHash: string; readonly gameNumber: string } | undefined => {
+  if (invite.gameNumber === undefined) return undefined;
+  const hashes = boundHumanHashes(invite.seats);
+  if (hashes.length === 0) return undefined;
+  return {
+    groupHash: groupHashFromUserHashes(hashes),
+    gameNumber: invite.gameNumber,
+  };
+};
+
 const closed = (invite: InviteRecord): OnlineHttpResult | undefined => {
   if (invite.status === 'open') return undefined;
+  if (invite.status === 'started') return gone('started', startedIds(invite));
   return gone(invite.status);
 };
 

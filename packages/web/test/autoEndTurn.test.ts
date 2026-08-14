@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { ArrowId, GameState, Group } from '@conquarrow/contracts';
+import { endTurn } from '@conquarrow/contracts';
 import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
 import { makeRules } from '@conquarrow/rules-core';
-import { hasLegalStep, passIfExhausted } from '../src/autoEndTurn';
+import { hasLegalStep, onlinePassMove, passIfExhausted } from '../src/autoEndTurn';
 
 describe('passIfExhausted', () => {
   it('leaves an opening position alone', () => {
@@ -41,5 +42,34 @@ describe('passIfExhausted', () => {
     expect(next.activePlayer).toBe(B);
     expect(hasLegalStep(rules, next)).toBe(true);
     expect(moves).toEqual([{ kind: 'endTurn' }]);
+  });
+});
+
+describe('onlinePassMove', () => {
+  it('is endTurn when no legal step and does not apply', () => {
+    const geometry = makeTiling();
+    const rules = makeRules(geometry);
+    const opening = makeMatch();
+    expect(hasLegalStep(rules, opening)).toBe(true);
+    expect(onlinePassMove(rules, opening)).toBeUndefined();
+
+    const A = opening.players[0];
+    expect(A).toBeDefined();
+    if (A === undefined) return;
+    const from = [...opening.groups.entries()].find(([, g]) => g.owner === A)?.[0];
+    expect(from).toBeDefined();
+    if (from === undefined) return;
+    const state: GameState = {
+      ...opening,
+      activePlayer: A,
+      groups: new Map<ArrowId, Group>([
+        [from, { owner: A, heads: 1, spent: 1 }],
+        ...[...opening.groups.entries()].filter(([, g]) => g.owner !== A),
+      ]),
+    };
+    expect(hasLegalStep(rules, state)).toBe(false);
+    const activeBefore = state.activePlayer;
+    expect(onlinePassMove(rules, state)).toEqual(endTurn());
+    expect(state.activePlayer).toBe(activeBefore);
   });
 });
