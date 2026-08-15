@@ -36,7 +36,10 @@ pulse. Unique-portion trips that today auto-apply without a dialog get a
   `> 1`. That is the "on tap, before / as the slider opens" reveal.
 - **Path-only while a send dialog is open.** Portion or confirm: paint
   selected + path (and the dest as part of the path). Do **not** paint
-  other reach washes. Hovering another dest does not restore them.
+  other reach washes. Hovering another dest does not restore them. The
+  initial path is the **largest** allowed portion — the slider's default —
+  so the board matches the dialog from the first frame (not `minCount`
+  until `onPreview` runs).
 - **Commit kind from the allowed set, not from a new input phase.** Keep
   `phase.kind === 'portion'` for both skins.
   - unique allowed portion `=== 1` → **auto-apply** (scout step; no dialog)

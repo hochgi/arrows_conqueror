@@ -74,6 +74,8 @@ selectionPaint({ phase, highlights, hoverArrow, pointer }):
       dest = phase.exit
       if dest's minCount > 1: { dest } else empty
     selectedEmphasis = selected is set
+    path is highlights.path (Galcon seeds this with the largest allowed
+    portion — the slider default — then previewPortion updates it)
     return { selected, reachWash, path, minCountArrows, selectedEmphasis }
 
   if phase.kind is source:

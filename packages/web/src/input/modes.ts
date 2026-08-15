@@ -156,7 +156,8 @@ abstract class BaseMode implements InputMode {
         targets: new Set(this.reach.keys()),
         preview: exit,
         reach: this.reach,
-        path: pathFor(this.reach, exit, entry.minCount),
+        // Slider defaults to the largest allowed portion; paint that path from frame 0.
+        path: pathFor(this.reach, exit, allowed[allowed.length - 1] ?? entry.minCount),
       },
     };
     return this.snap;

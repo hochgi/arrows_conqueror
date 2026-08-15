@@ -65,6 +65,7 @@ Feature: Quieter selection chrome — reach, cost, path, selected halo
       Then phase is portion
       And portionDialogKind is slider
       And pending is unset
+      And highlights.path is the route for the largest allowed portion
 
   Rule: A send dialog lights only the path; the selected stack is obvious
 

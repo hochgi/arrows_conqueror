@@ -81,7 +81,7 @@ describe('Selection chrome — pointer kind, hover leak, unique full-speed, puri
     const { from, mode, state, source } = pickSource(4);
     const reach = reachOf(source);
     const d2 = destAtDistance(reach, 2);
-    const path = pathTo(reach, d2);
+    const path = pathTo(reach, d2, requireEntry(reach, d2).maxCount);
     const d3 = destOffPath(reach, path, from);
     const opened = mode.onArrowClick(d2, state, rules);
     expect(opened.phase.kind).toBe('portion');

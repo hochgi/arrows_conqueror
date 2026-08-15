@@ -97,7 +97,7 @@ describe('selection-chrome invariants', () => {
       const { from, mode, state, source } = pickSource(row.heads);
       const reach = reachOf(source);
       const dest = destAtDistance(reach, row.distance);
-      const path = pathTo(reach, dest);
+      const path = pathTo(reach, dest, requireEntry(reach, dest).maxCount);
       const other = destOffPath(reach, path, from);
       const opened = mode.onArrowClick(dest, state, rules);
       expect(opened.phase.kind, `heads=${String(row.heads)} d=${String(row.distance)}`).toBe(

@@ -118,8 +118,8 @@ export const destOffPath = (reach: Reach, path: ReadonlySet<ArrowId>, from: Arro
     'off the committed path',
   );
 
-export const pathTo = (reach: Reach, dest: ArrowId): ReadonlySet<ArrowId> =>
-  pathForDestination(reach, dest);
+export const pathTo = (reach: Reach, dest: ArrowId, count?: number): ReadonlySet<ArrowId> =>
+  count === undefined ? pathForDestination(reach, dest) : pathForDestination(reach, dest, count);
 
 export const paintFor = (
   snap: Pick<InputSnapshot, 'phase' | 'highlights'>,

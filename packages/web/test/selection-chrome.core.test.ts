@@ -121,13 +121,18 @@ describe('Quieter selection chrome — reach, cost, path, selected halo', () => 
     expect(opened.pending).toBeUndefined();
     if (opened.phase.kind !== 'portion') return;
     expect(portionDialogKind(opened.phase.allowed)).toBe('slider');
+    const largest = opened.phase.allowed[opened.phase.allowed.length - 1];
+    expect(largest).toBeDefined();
+    if (largest === undefined) return;
+    expect(sortedIds(opened.highlights.path ?? [])).toEqual(sortedIds(pathTo(reach, d1, largest)));
   });
 
   it('Commit dialog open washes only the path', () => {
     const { from, mode, state, source } = pickSource(4);
     const reach = reachOf(source);
     const d2 = destAtDistance(reach, 2);
-    const path = pathTo(reach, d2);
+    const entry = requireEntry(reach, d2);
+    const path = pathTo(reach, d2, entry.maxCount);
     const d3 = destOffPath(reach, path, from);
     const opened = mode.onArrowClick(d2, state, rules);
     expect(opened.phase.kind).toBe('portion');
