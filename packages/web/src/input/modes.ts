@@ -11,6 +11,7 @@ import { endTurn, skip } from '@conquarrow/contracts';
 import type { ArrowId, GameState, GeometryPort, Move, RulesPort } from '@conquarrow/contracts';
 import { pathForDestination, planMoves, reachFrom } from '../reach';
 import type { Reach, ReachEntry } from '../reach';
+import { commitKind } from '../selectionChrome';
 
 export type InputPhase =
   | { readonly kind: 'idle' }
@@ -81,6 +82,13 @@ const isOwn = (arrow: ArrowId, state: GameState): boolean =>
 const pathFor = (reach: Reach, exit: ArrowId, count: number): ReadonlySet<ArrowId> =>
   pathForDestination(reach, exit, count);
 
+const withoutSource = (from: ArrowId, reach: Reach): Reach => {
+  if (!reach.has(from)) return reach;
+  const trimmed = new Map(reach);
+  trimmed.delete(from);
+  return trimmed;
+};
+
 abstract class BaseMode implements InputMode {
   abstract readonly id: string;
   abstract readonly label: string;
@@ -103,7 +111,9 @@ abstract class BaseMode implements InputMode {
 
   /** Select `from`, or report it stuck when nothing is reachable. */
   protected select(from: ArrowId, state: GameState, rules: RulesPort): InputSnapshot {
-    this.reach = reachFrom(this.geometry, rules, state, from);
+    // A hop that lands back on the source is not a Galcon dest — clicking it
+    // deselects — and selected chrome is the halo, not a reach wash.
+    this.reach = withoutSource(from, reachFrom(this.geometry, rules, state, from));
     const targets = new Set(this.reach.keys());
     this.snap =
       targets.size === 0
@@ -115,17 +125,18 @@ abstract class BaseMode implements InputMode {
     return this.snap;
   }
 
-  /** The portion dialog for a reachable exit, floored at what actually arrives. */
+  /** Auto-apply a unique 1-head trip, or open the commit dialog (confirm / slider). */
   protected openPortion(from: ArrowId, exit: ArrowId, entry: ReachEntry): InputSnapshot {
-    // One legal portion — stack of 1, or exactly 2^(steps-1) for a full-speed trip —
-    // is not a choice; skipping the slider was the playtest ask.
-    if (entry.minCount === entry.maxCount) {
-      const plan = entry.plans.get(entry.minCount);
+    const allowed = [...entry.plans.keys()].toSorted((left, right) => left - right);
+    if (commitKind(entry) === 'apply') {
+      const portion = allowed[0];
+      if (portion === undefined) return this.snap;
+      const plan = entry.plans.get(portion);
       if (plan === undefined) return this.snap;
       this.snap = {
         phase: { kind: 'idle' },
         highlights: emptyHighlights(),
-        pending: planMoves(from, plan, entry.minCount),
+        pending: planMoves(from, plan, portion),
       };
       this.reach = new Map();
       return this.snap;
@@ -138,14 +149,15 @@ abstract class BaseMode implements InputMode {
         min: entry.minCount,
         max: entry.maxCount,
         steps: entry.distance,
-        allowed: [...entry.plans.keys()].toSorted((l, r) => l - r),
+        allowed,
       },
       highlights: {
         selected: from,
         targets: new Set(this.reach.keys()),
         preview: exit,
         reach: this.reach,
-        path: pathFor(this.reach, exit, entry.minCount),
+        // Slider defaults to the largest allowed portion; paint that path from frame 0.
+        path: pathFor(this.reach, exit, allowed[allowed.length - 1] ?? entry.minCount),
       },
     };
     return this.snap;
@@ -216,7 +228,7 @@ abstract class BaseMode implements InputMode {
   abstract onArrowClick(arrow: ArrowId, state: GameState, rules: RulesPort): InputSnapshot;
 }
 
-/** Source → destination → portion (SPEC §5 Galcon-like). */
+/** Source → destination → portion (SPEC §4 Galcon-like). */
 export class GalconInput extends BaseMode {
   readonly id = 'galcon';
   readonly label = 'Galcon';

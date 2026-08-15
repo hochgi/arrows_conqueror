@@ -59,6 +59,7 @@ scheduled early in the first place.
 | P28 | Refuse self-convert | rules + adapter | §6.3, §4 | P04, P05, P07, P11, P22 | **[packet](./packets/P28-refuse-self-convert.md).** Self-convert steps illegal; opponent-caused convert unchanged; refused-target tooltip |
 | P29 | Win board celebration | adapter | §9 (read) | P09, P11, P08 | **[packet](./packets/P29-win-board-celebration.md).** Dim the rest, shine winner shares, pulse winner stacks, name how in the banner. No splash |
 | P30 | Local AI move playback | adapter | — | P11, P15 | **[packet](./packets/P30-ai-move-playback.md).** Plan once, play back with 400ms between local heuristic/BYOK moves. Online burst stays one put |
+| P31 | Quieter selection chrome | adapter | §4 (read) | P11 | **[packet](./packets/P31-selection-chrome.md).** Quiet reach wash; min-count on hover/tap; path-only during send dialog; confirm when unique portion > 1; selected halo |
 | P20+ | Deferred follow-ons | — | — | — | **[packet](./packets/P20-deferred-online-followons.md).** Viewers, fork, arena, replay button, Elo, online BYOK, under-18 GIS, admin panel |
 
 ## Dependency graph
@@ -97,6 +98,7 @@ flowchart TD
   P11 --> P29["P29 win board celebration"]
   P11 --> P30["P30 AI move playback"]
   P15["P15 BYOK"] --> P30
+  P11 --> P31["P31 selection chrome"]
 ```
 
 ## Build order and why

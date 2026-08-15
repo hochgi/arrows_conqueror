@@ -181,4 +181,4 @@ export const pathForDestination = (
  * pale arrow is a arrow you can only take by committing most of the stack.
  */
 export const reachOpacity = (distance: number): number =>
-  Math.max(0.16, 0.62 - (distance - 1) * 0.11);
+  Math.max(0.08, 0.22 - (distance - 1) * 0.03);
