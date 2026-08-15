@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { styleFor } from './colors';
 import { controlsLocked, type VictoryFx } from './fx/victory';
 import type { InputPhase } from './input/modes';
+import { PORTION_PHASE_HINT, SOURCE_PHASE_HINT } from './selectionChrome';
 
 export interface HudProps {
   readonly state: GameState;
@@ -39,11 +40,11 @@ const phaseHint = (
         ? 'Your turn — gold-outlined stacks can still move'
         : 'Gold-outlined stacks can still move';
     case 'source':
-      return 'Hover blue to pulse the path · click to send · fainter = further';
+      return SOURCE_PHASE_HINT;
     case 'blocked':
       return 'This stack has nowhere to go. Another gold stack is auto-selected when one finishes';
     case 'portion':
-      return 'Pulsing path = the route for this portion · change the slider or cancel and re-click';
+      return PORTION_PHASE_HINT;
   }
 };
 
@@ -107,13 +108,14 @@ export const Hud = ({
 
       <p className="help">
         Drag to pan · pinch or wheel to zoom · gold outline = movable this turn
-        (auto-selects and pans to the next after you finish or skip one) · selected
-        stack pulses · blue = reachable · fade with distance · refused
-        (not-allowed) grain = would convert with no trail home · hover a reach tile
-        to pulse the path · bold tile edge = occupied · trail chords stay visible
-        under enemy stacks (overlap is legal until a cut) · solid fill = territory,
-        thin fill = open trail · turn passes when nothing can step · pan stays
-        live while an LLM seat thinks
+        (auto-selects and pans to the next after you finish or skip one) · cream
+        halo = selected · quiet cyan = reachable · hover or tap a dest for the
+        cost · path-only while sending · refused (not-allowed) grain = would
+        convert with no trail home · hover a reach tile to pulse the path · bold
+        tile edge = occupied · trail chords stay visible under enemy stacks
+        (overlap is legal until a cut) · solid fill = territory, thin fill = open
+        trail · turn passes when nothing can step · pan stays live while an LLM
+        seat thinks
       </p>
       <p className="help">
         Ringed dots are spawners — three arcs with a dark rim, one per bordering arrow.

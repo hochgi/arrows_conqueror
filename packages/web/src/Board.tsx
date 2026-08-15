@@ -23,7 +23,13 @@ import {
   styleFor,
 } from './colors';
 import type { InputHighlights } from './input/modes';
-import { reachOpacity } from './reach';
+import { reachOpacity, type ReachEntry } from './reach';
+import {
+  SELECTED_HALO_STROKE,
+  SELECTED_STROKE_WIDTH,
+  SELECTED_WASH,
+  type SelectionPaint,
+} from './selectionChrome';
 import { spawnerInfoAt, spawnerProminence, yieldSoonByArrow } from './spawnerInfo';
 import type { YieldSoon } from './spawnerInfo';
 import type { Viewport } from './viewport';
@@ -45,6 +51,8 @@ export interface BoardProps {
   readonly arrows: readonly ArrowId[];
   readonly vertices: ReadonlySet<VertexId>;
   readonly highlights: InputHighlights;
+  /** Quiet reach / path / selected halo — computed by `selectionPaint` in App. */
+  readonly chrome: SelectionPaint;
   /** Stacks of the active player that still have a legal step. */
   readonly movable: ReadonlySet<ArrowId>;
   /** The spawner under the cursor, if any — ringed here, detailed in `SpawnerTip`. */
@@ -81,6 +89,111 @@ const fillFor = (arrow: ArrowId, state: GameState): { fill: string; stroke: stri
     }
   }
   return { fill: EMPTY_FILL, stroke: EMPTY_STROKE };
+};
+
+interface PlayFlags {
+  readonly isSelected: boolean;
+  readonly selectedEmphasis: boolean;
+  readonly onReachWash: boolean;
+  readonly onPath: boolean;
+  readonly showMinCount: boolean;
+  readonly isPreview: boolean;
+  readonly isMovable: boolean;
+  readonly refused: boolean;
+  readonly entry: ReachEntry | undefined;
+}
+
+const idleFlags: PlayFlags = {
+  isSelected: false,
+  selectedEmphasis: false,
+  onReachWash: false,
+  onPath: false,
+  showMinCount: false,
+  isPreview: false,
+  isMovable: false,
+  refused: false,
+  entry: undefined,
+};
+
+const playFlags = (args: {
+  readonly play: boolean;
+  readonly arrow: ArrowId;
+  readonly chrome: SelectionPaint;
+  readonly highlights: InputHighlights;
+  readonly movable: ReadonlySet<ArrowId>;
+}): PlayFlags => {
+  if (!args.play) return idleFlags;
+  const { arrow, chrome, highlights, movable } = args;
+  const isSelected = chrome.selected === arrow;
+  return {
+    isSelected,
+    selectedEmphasis: chrome.selectedEmphasis && isSelected,
+    onReachWash: chrome.reachWash.has(arrow),
+    onPath: chrome.path.has(arrow),
+    showMinCount: chrome.minCountArrows.has(arrow),
+    isPreview: highlights.preview === arrow,
+    isMovable: movable.has(arrow) && !isSelected,
+    refused: highlights.refused?.has(arrow) === true,
+    entry: highlights.reach?.get(arrow),
+  };
+};
+
+const tileStrokeWidth = (flags: PlayFlags, occupied: boolean): number => {
+  if (flags.isSelected) return 2.55;
+  if (flags.isPreview || flags.onPath) return 2.6;
+  if (flags.isMovable) return 3.1;
+  if (occupied) return 2.55;
+  if (flags.onReachWash) return 1.5;
+  return 0.7;
+};
+
+const tileStrokeColor = (
+  flags: PlayFlags,
+  occupied: boolean,
+  ownerStroke: string,
+  baseStroke: string,
+): string => {
+  if (flags.isSelected) return ownerStroke;
+  if (flags.onPath) return PATH_STROKE;
+  if (flags.isPreview) return PREVIEW_STROKE;
+  if (flags.onReachWash) return REACH_FILL;
+  if (flags.isMovable) return MOVABLE_STROKE;
+  if (occupied) return ownerStroke;
+  return baseStroke;
+};
+
+const SelectedWash = ({ points }: { readonly points: string }): ReactElement => (
+  <polygon points={points} fill={SELECTED_WASH} stroke="none" style={{ pointerEvents: 'none' }} />
+);
+
+const ReachOrPathWash = ({
+  points,
+  flags,
+}: {
+  readonly points: string;
+  readonly flags: PlayFlags;
+}): ReactElement | null => {
+  if (flags.isSelected) return null;
+  if (flags.onPath) {
+    return (
+      <polygon
+        points={points}
+        fill={PATH_WASH}
+        className="path-pulse"
+        style={{ pointerEvents: 'none' }}
+      />
+    );
+  }
+  if (!flags.onReachWash) return null;
+  const distance = flags.entry?.distance ?? 1;
+  return (
+    <polygon
+      points={points}
+      fill={REACH_FILL}
+      fillOpacity={reachOpacity(distance)}
+      style={{ pointerEvents: 'none' }}
+    />
+  );
 };
 
 const centroidScreen = (viewport: Viewport, poly: readonly Point2[]): { x: number; y: number } => {
@@ -257,6 +370,7 @@ export const Board = ({
   arrows,
   vertices,
   highlights,
+  chrome,
   movable,
   hoveredSpawner,
   evaporation,
@@ -270,7 +384,6 @@ export const Board = ({
   const yieldSoon = yieldSoonAllowed(fx)
     ? yieldSoonByArrow(geometry, state)
     : new Map<ArrowId, YieldSoon>();
-  const path = highlights.path;
   const play = playHighlightsAllowed(fx);
   const winnerFill = fx.kind === 'over' ? styleFor(fx.winner).fill : undefined;
 
@@ -308,42 +421,18 @@ export const Board = ({
         const poly = layout.polygon(arrow);
         const points = polyPoints(viewport, poly);
         const base = fillFor(arrow, state);
-        const isSelected = play && highlights.selected === arrow;
-        const isPreview = play && highlights.preview === arrow;
-        const onPath = play && path?.has(arrow) === true;
-        const entry = play ? highlights.reach?.get(arrow) : undefined;
-        const refused = play && highlights.refused?.has(arrow) === true;
-        const isMovable = play && movable.has(arrow) && !isSelected;
-        const pulse = fx.kind === 'over' ? fx.pulseArrows.has(arrow) : isSelected;
+        const flags = playFlags({ play, arrow, chrome, highlights, movable });
+        const pulse = fx.kind === 'over' ? fx.pulseArrows.has(arrow) : flags.isSelected;
         const dimmed = isMatchOverDimmed(fx, arrow, state);
         const soon = yieldSoon.get(arrow);
         const victoryShine = fx.kind === 'over' && fx.shineArrows.has(arrow);
         const shineSoon: YieldSoon | undefined = victoryShine ? 1 : soon;
         const c = centroidScreen(viewport, poly);
         const group = state.groups.get(arrow);
+        const occupied = group !== undefined;
         const ownerStroke = group !== undefined ? styleFor(group.owner).stroke : base.stroke;
-        let strokeWidth = 0.7;
-        if (isSelected || isPreview || onPath) strokeWidth = isSelected ? 3.4 : 2.6;
-        else if (isMovable) strokeWidth = 3.1;
-        else if (group !== undefined) strokeWidth = 2.55;
-        else if (entry !== undefined) strokeWidth = 1.8;
-        const reachFill = REACH_FILL;
-        const pathStroke = PATH_STROKE;
-        const previewStroke = PREVIEW_STROKE;
-        const pathWash = PATH_WASH;
-        const strokeColor = isSelected
-          ? HIGHLIGHT_STROKE
-          : isPreview || onPath
-            ? onPath
-              ? pathStroke
-              : previewStroke
-            : entry !== undefined
-              ? reachFill
-              : isMovable
-                ? MOVABLE_STROKE
-                : group !== undefined
-                  ? ownerStroke
-                  : base.stroke;
+        const strokeWidth = tileStrokeWidth(flags, occupied);
+        const strokeColor = tileStrokeColor(flags, occupied, ownerStroke, base.stroke);
         const tipWorld = layout.pointPosition(geometry.target(arrow));
         const tip = toScreen(viewport, tipWorld.x, tipWorld.y);
         // Bias the count toward the arrowhead — the chevron is widest there.
@@ -365,6 +454,7 @@ export const Board = ({
           maxX = Math.max(maxX, s.x);
           maxY = Math.max(maxY, s.y);
         }
+        const minCount = flags.entry?.minCount;
         return (
           <g key={String(arrow)} className={dimmed ? 'match-over-dim' : undefined}>
             <polygon
@@ -373,8 +463,9 @@ export const Board = ({
               stroke={strokeColor}
               strokeWidth={strokeWidth}
               data-arrow={String(arrow)}
-              style={refused ? { cursor: 'not-allowed' } : undefined}
+              style={flags.refused ? { cursor: 'not-allowed' } : undefined}
             />
+            {flags.selectedEmphasis ? <SelectedWash points={points} /> : null}
             {pulse ? (
               <polygon
                 points={points}
@@ -403,27 +494,21 @@ export const Board = ({
                 />
               );
             })}
-            {entry !== undefined && !isSelected ? (
-              <polygon
-                points={points}
-                fill={onPath ? pathWash : reachFill}
-                fillOpacity={onPath ? undefined : isPreview ? 0.7 : reachOpacity(entry.distance)}
-                className={onPath ? 'path-pulse' : undefined}
-                style={{ pointerEvents: 'none' }}
-              />
-            ) : onPath ? (
-              <polygon
-                points={points}
-                fill={PATH_WASH}
-                className="path-pulse"
-                style={{ pointerEvents: 'none' }}
-              />
-            ) : null}
-            {refused && !isSelected ? (
+            <ReachOrPathWash points={points} flags={flags} />
+            {flags.refused && !flags.isSelected ? (
               <polygon
                 points={points}
                 fill={TOLL_REACH_FILL}
                 fillOpacity={0.32}
+                style={{ pointerEvents: 'none' }}
+              />
+            ) : null}
+            {flags.selectedEmphasis ? (
+              <polygon
+                points={points}
+                fill="none"
+                stroke={SELECTED_HALO_STROKE}
+                strokeWidth={SELECTED_STROKE_WIDTH}
                 style={{ pointerEvents: 'none' }}
               />
             ) : null}
@@ -453,7 +538,7 @@ export const Board = ({
               >
                 {group.heads}
               </text>
-            ) : entry !== undefined && entry.minCount > 1 ? (
+            ) : flags.showMinCount && minCount !== undefined && minCount > 1 ? (
               <text
                 x={countX}
                 y={countY}
@@ -465,7 +550,7 @@ export const Board = ({
                 fill={REACH_INK}
                 style={{ pointerEvents: 'none', userSelect: 'none' }}
               >
-                {entry.minCount}
+                {minCount}
               </text>
             ) : null}
           </g>

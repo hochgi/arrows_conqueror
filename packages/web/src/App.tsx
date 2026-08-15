@@ -69,6 +69,7 @@ import { ConvertTip } from './ConvertTip';
 import { PortionSlider } from './PortionSlider';
 import { pathForDestination } from './reach';
 import { convertTooltip, refusedConvertExits } from './refusedConvert';
+import { selectionPaint, type PointerKind } from './selectionChrome';
 import { spawnerInfoAt } from './spawnerInfo';
 import { SpawnerTip } from './SpawnerTip';
 import type { Viewport } from './viewport';
@@ -77,6 +78,9 @@ import { ZOOM, centerOn, createViewport, panBy, resize, zoomAt } from './viewpor
 const geometry = makeTiling();
 const layout = makeLayout();
 const rules = makeRules(geometry);
+
+const pointerKindOf = (pointerType: string): PointerKind =>
+  pointerType === 'touch' || pointerType === 'pen' ? 'coarse' : 'fine';
 
 /** Layout-space centroid of an arrow tile — same space as `viewport.cx/cy`. */
 const arrowCentroid = (arrow: ArrowId): { x: number; y: number } => {
@@ -211,6 +215,8 @@ export const App = (): ReactElement => {
   const [hoverArrow, setHoverArrow] = useState<
     { readonly arrow: ArrowId; readonly x: number; readonly y: number } | undefined
   >(undefined);
+  /** Last board pointer: touch/pen is coarse, otherwise fine (P31). */
+  const [pointerKind, setPointerKind] = useState<PointerKind>('fine');
   /** Reach destination under the cursor — drives the pulsed path preview. */
   const [hoverPath, setHoverPath] = useState<ReadonlySet<ArrowId> | undefined>(undefined);
   const [botBusy, setBotBusy] = useState(false);
@@ -540,6 +546,18 @@ export const App = (): ReactElement => {
     return refused.size === 0 ? withPath : { ...withPath, refused };
   }, [snap, hoverPath, state]);
 
+  const chrome = useMemo(() => {
+    const hover = hoverArrow?.arrow;
+    return hover === undefined
+      ? selectionPaint({ phase: snap.phase, highlights: boardHighlights, pointer: pointerKind })
+      : selectionPaint({
+          phase: snap.phase,
+          highlights: boardHighlights,
+          pointer: pointerKind,
+          hoverArrow: hover,
+        });
+  }, [snap.phase, boardHighlights, pointerKind, hoverArrow?.arrow]);
+
   const victory = useMemo(
     () => (state === undefined ? ({ kind: 'playing' } as const) : victoryFx(state, geometry)),
     [state],
@@ -769,7 +787,13 @@ export const App = (): ReactElement => {
 
   const inputLocked = botBusy || activeIsAi || state.winner !== undefined;
 
+  const notePointer = (pointerType: string): void => {
+    const next = pointerKindOf(pointerType);
+    setPointerKind((prev) => (prev === next ? prev : next));
+  };
+
   const onPointerDown = (e: PointerEvent<SVGSVGElement>): void => {
+    notePointer(e.pointerType);
     if (snap.phase.kind === 'portion') return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -797,6 +821,7 @@ export const App = (): ReactElement => {
   };
 
   const onPointerMove = (e: PointerEvent<SVGSVGElement>): void => {
+    notePointer(e.pointerType);
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -866,6 +891,7 @@ export const App = (): ReactElement => {
   };
 
   const onPointerUp = (e: PointerEvent<SVGSVGElement>): void => {
+    notePointer(e.pointerType);
     pointers.current.delete(e.pointerId);
     const pinched = pinch.current?.moved === true;
     if (pointers.current.size < 2) pinch.current = null;
@@ -956,6 +982,7 @@ export const App = (): ReactElement => {
           arrows={arrows}
           vertices={vertices}
           highlights={boardHighlights}
+          chrome={chrome}
           movable={movable}
           evaporation={evaporation}
           victory={victory}

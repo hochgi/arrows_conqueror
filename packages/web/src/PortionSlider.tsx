@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, ReactElement } from 'react';
+import { portionDialogKind } from './selectionChrome';
 
 export interface PortionSliderProps {
   /** Portions that actually arrive, ascending. The slider offers only these. */
@@ -52,6 +53,7 @@ export const PortionSlider = ({
   const value = options[Math.min(index, options.length - 1)] ?? 1;
   const min = options[0] ?? 1;
   const max = options[options.length - 1] ?? 1;
+  const confirmOnly = portionDialogKind(allowed) === 'confirm';
 
   useEffect(() => {
     onPreview?.(value);
@@ -114,22 +116,26 @@ export const PortionSlider = ({
         ) : (
           <p className="portion-note">any portion reaches</p>
         )}
-        <input
-          className="portion-range"
-          type="range"
-          min={0}
-          max={options.length - 1}
-          step={1}
-          value={Math.min(index, options.length - 1)}
-          aria-label="Heads to send"
-          onChange={(e) => {
-            setIndex(Number(e.target.value));
-          }}
-        />
-        <div className="portion-scale">
-          <span>{min}</span>
-          <span>{max}</span>
-        </div>
+        {confirmOnly ? null : (
+          <>
+            <input
+              className="portion-range"
+              type="range"
+              min={0}
+              max={options.length - 1}
+              step={1}
+              value={Math.min(index, options.length - 1)}
+              aria-label="Heads to send"
+              onChange={(e) => {
+                setIndex(Number(e.target.value));
+              }}
+            />
+            <div className="portion-scale">
+              <span>{min}</span>
+              <span>{max}</span>
+            </div>
+          </>
+        )}
         <div className="portion-actions">
           <button type="button" className="secondary" onClick={onCancel}>
             Cancel

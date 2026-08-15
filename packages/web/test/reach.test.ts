@@ -4,6 +4,7 @@ import type { ArrowId, GameState, PlayerId } from '@conquarrow/contracts';
 import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
 import { makeRules } from '@conquarrow/rules-core';
 import { planMoves, reachFrom, reachOpacity } from '../src/reach';
+import { REACH_WASH_FLOOR, REACH_WASH_PEAK } from '../src/selectionChrome';
 
 const geometry = makeTiling();
 const rules = makeRules(geometry);
@@ -129,11 +130,12 @@ describe('reach', () => {
     // past four steps a portion costs 16+ heads and the arrow is nearly unreachable, but
     // it must still be *visible* — invisible reads as "not a legal target", which is a
     // different and wrong message.
+    expect(reachOpacity(1)).toBe(REACH_WASH_PEAK);
     let previous = Number.POSITIVE_INFINITY;
     for (let d = 1; d <= 8; d += 1) {
       const o = reachOpacity(d);
       expect(o).toBeLessThanOrEqual(previous);
-      expect(o).toBeGreaterThan(0.1);
+      expect(o).toBeGreaterThanOrEqual(REACH_WASH_FLOOR);
       previous = o;
     }
     // Strictly decreasing over the distances a real stack can pay for.
