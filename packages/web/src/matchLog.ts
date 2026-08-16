@@ -5,7 +5,7 @@
  * `makeMatch(config)` rebuilds the opening, `replay` folds the moves.
  */
 
-import type { MatchConfig, Move, PlayerId } from '@conquarrow/contracts';
+import type { GameState, MatchConfig, Move, PlayerId } from '@conquarrow/contracts';
 import type { SeatDriverSummary, SeatKind } from './seatPlan';
 
 export const MATCH_LOG_VERSION = 1 as const;
@@ -30,6 +30,133 @@ export interface SeatDriverLog {
   readonly model?: string;
 }
 
+/**
+ * Lightweight playtest counters. Folded on each logged apply; never rules-core.
+ * Close = some player's territory count grew. Cut = some player's trail shrank
+ * and that same player did not gain territory in the batch.
+ */
+export interface MatchSummary {
+  readonly steps: number;
+  readonly endTurns: number;
+  readonly skips: number;
+  readonly closes: number;
+  readonly cuts: number;
+  /** Index into `moves` when territory first grew for anyone; undefined if never. */
+  readonly firstCloseAt: number | undefined;
+}
+
+export const emptyMatchSummary = (): MatchSummary => ({
+  steps: 0,
+  endTurns: 0,
+  skips: 0,
+  closes: 0,
+  cuts: 0,
+  firstCloseAt: undefined,
+});
+
+/** One scan of a territory map → count of arrows per owner. */
+const territoryCounts = (state: GameState): Map<PlayerId, number> => {
+  const counts = new Map<PlayerId, number>();
+  for (const owner of state.territory.values()) {
+    counts.set(owner, (counts.get(owner) ?? 0) + 1);
+  }
+  return counts;
+};
+
+/** Players in before ∪ after whose territory count increased. */
+const territoryGainers = (before: GameState, after: GameState): ReadonlySet<PlayerId> => {
+  const beforeCounts = territoryCounts(before);
+  const afterCounts = territoryCounts(after);
+  const gainers = new Set<PlayerId>();
+  const players = new Set<PlayerId>(before.players);
+  for (const player of after.players) players.add(player);
+  for (const player of players) {
+    if ((afterCounts.get(player) ?? 0) > (beforeCounts.get(player) ?? 0)) {
+      gainers.add(player);
+    }
+  }
+  return gainers;
+};
+
+const trailSize = (state: GameState, player: PlayerId): number =>
+  state.trails.get(player)?.size ?? 0;
+
+/** Trail shrank for someone who did not also gain territory. */
+const hasCutVictim = (
+  before: GameState,
+  after: GameState,
+  gainers: ReadonlySet<PlayerId>,
+): boolean => {
+  const players = new Set<PlayerId>(before.trails.keys());
+  for (const player of after.trails.keys()) players.add(player);
+  for (const player of players) {
+    if (trailSize(after, player) < trailSize(before, player) && !gainers.has(player)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+/** Pure fold of one applied batch into running counters. */
+export const foldMatchSummary = (
+  summary: MatchSummary,
+  moves: readonly Move[],
+  before: GameState,
+  after: GameState,
+  movesLoggedBefore: number,
+): MatchSummary => {
+  if (moves.length === 0) return summary;
+  let steps = summary.steps;
+  let endTurns = summary.endTurns;
+  let skips = summary.skips;
+  for (const m of moves) {
+    switch (m.kind) {
+      case 'step':
+        steps += 1;
+        break;
+      case 'endTurn':
+        endTurns += 1;
+        break;
+      case 'skip':
+        skips += 1;
+        break;
+    }
+  }
+  const gainers = territoryGainers(before, after);
+  const closed = gainers.size > 0;
+  const cut = hasCutVictim(before, after, gainers);
+  const closes = summary.closes + (closed ? 1 : 0);
+  const cuts = summary.cuts + (cut ? 1 : 0);
+  let firstCloseAt = summary.firstCloseAt;
+  if (closed && firstCloseAt === undefined) {
+    // Index of the first move in this batch within the full log.
+    firstCloseAt = movesLoggedBefore;
+  }
+  return { steps, endTurns, skips, closes, cuts, firstCloseAt };
+};
+
+/** One-line HUD / review string. */
+export const formatMatchSummary = (summary: MatchSummary): string => {
+  const parts = [
+    `${String(summary.steps)} steps`,
+    `${String(summary.endTurns)} end-turns`,
+    `${String(summary.closes)} closes`,
+    `${String(summary.cuts)} cuts`,
+  ];
+  if (summary.skips > 0) parts.splice(2, 0, `${String(summary.skips)} skips`);
+  if (summary.firstCloseAt !== undefined) {
+    parts.push(`first close @ move ${String(summary.firstCloseAt)}`);
+  }
+  return parts.join(' · ');
+};
+
+/** HUD line when the match is over; unset while play continues. */
+export const matchSummaryLine = (
+  over: boolean,
+  summary: MatchSummary | undefined,
+): string | undefined =>
+  over && summary !== undefined ? formatMatchSummary(summary) : undefined;
+
 export interface MatchLog {
   readonly version: typeof MATCH_LOG_VERSION;
   readonly config: MatchConfig;
@@ -47,6 +174,8 @@ export interface MatchLog {
   readonly botSeat: PlayerId | undefined;
   readonly moves: readonly Move[];
   readonly winner: PlayerId | undefined;
+  /** Playtest counters; always present on new logs. */
+  readonly summary: MatchSummary;
 }
 
 export const createMatchLog = (args: {
@@ -72,12 +201,31 @@ export const createMatchLog = (args: {
     botSeat: args.botSeat,
     moves: [],
     winner: undefined,
+    summary: emptyMatchSummary(),
   };
 };
 
 export const appendMoves = (log: MatchLog, moves: readonly Move[]): MatchLog => {
   if (moves.length === 0) return log;
   return { ...log, moves: [...log.moves, ...moves] };
+};
+
+/** Append moves and fold summary from before→after. */
+export const appendMovesWithSummary = (
+  log: MatchLog,
+  moves: readonly Move[],
+  before: GameState,
+  after: GameState,
+): MatchLog => {
+  if (moves.length === 0) return log;
+  const summary = foldMatchSummary(
+    log.summary,
+    moves,
+    before,
+    after,
+    log.moves.length,
+  );
+  return { ...log, moves: [...log.moves, ...moves], summary };
 };
 
 export const withByokStats = (
@@ -128,7 +276,13 @@ export const loadLastMatchLog = (): MatchLog | undefined => {
   const raw = localStorage.getItem(LAST_MATCH_STORAGE_KEY);
   if (raw === null || raw.length === 0) return undefined;
   try {
-    return JSON.parse(raw) as MatchLog;
+    const parsed = JSON.parse(raw) as Omit<MatchLog, 'summary'> & {
+      readonly summary?: MatchSummary;
+    };
+    if (parsed.summary === undefined) {
+      return { ...parsed, summary: emptyMatchSummary() };
+    }
+    return { ...parsed, summary: parsed.summary };
   } catch {
     return undefined;
   }
@@ -142,7 +296,7 @@ export const downloadMatchLog = (log: MatchLog, filename?: string): void => {
   a.href = url;
   a.download =
     filename ??
-    `arrows-match-${log.startedAt.replaceAll(':', '').replaceAll('.', '-')}.json`;
+    `conquarrow-match-${log.startedAt.replaceAll(':', '').replaceAll('.', '-')}.json`;
   a.click();
   URL.revokeObjectURL(url);
 };

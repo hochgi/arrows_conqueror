@@ -27,9 +27,10 @@ import { usePagesHost } from './online-runtime';
 import { displaySeatKind, kindsForHost, logFromOnlineBoard } from './online-shell-ui';
 import type { ByokRunStats, MatchLog, SeatDriverLog } from './matchLog';
 import {
-  appendMoves,
+  appendMovesWithSummary,
   createMatchLog,
   downloadMatchLog,
+  matchSummaryLine,
   saveMatchLog,
   withByokStats,
   withWinner,
@@ -311,13 +312,18 @@ export const App = (): ReactElement => {
     (
       moves: readonly Move[],
       nextState: GameState,
+      beforeState?: GameState,
       byokDelta?: ByokRunStats,
       byokSeat?: PlayerId,
     ): void => {
       if (moves.length === 0) return;
       setLog((prev) => {
         if (prev === undefined) return prev;
-        let updated = withWinner(appendMoves(prev, moves), nextState.winner);
+        const base =
+          beforeState !== undefined
+            ? appendMovesWithSummary(prev, moves, beforeState, nextState)
+            : { ...prev, moves: [...prev.moves, ...moves] };
+        let updated = withWinner(base, nextState.winner);
         if (byokDelta !== undefined) updated = withByokStats(updated, byokDelta, byokSeat);
         saveMatchLog(updated);
         return updated;
@@ -342,7 +348,7 @@ export const App = (): ReactElement => {
         }
       }
       stateRef.current = next;
-      record(moves, next, byokDelta, byokSeat);
+      record(moves, next, before, byokDelta, byokSeat);
       setState(next);
       setSnap(mode.reset());
     },
@@ -591,7 +597,7 @@ export const App = (): ReactElement => {
             }
           }
           stateRef.current = game;
-          if (applied.length > 0) record(applied, game);
+          if (applied.length > 0) record(applied, game, before);
           setState(game);
           setSnap(mode.reset());
           refresh();
@@ -959,6 +965,7 @@ export const App = (): ReactElement => {
         botBusy={botBusy}
         seatSummary={log.seats.map((s) => `${String(s.player)}=${displaySeatKind(s.kind)}`).join(' · ')}
         moveCount={log.moves.length}
+        matchSummary={matchSummaryLine(victory.kind === 'over', log.summary)}
         onEndTurn={() => {
           if (inputLocked) return;
           commitSnap(mode.requestEndTurn());
