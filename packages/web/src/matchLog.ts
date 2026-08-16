@@ -110,9 +110,17 @@ export const foldMatchSummary = (
   let endTurns = summary.endTurns;
   let skips = summary.skips;
   for (const m of moves) {
-    if (m.kind === 'step') steps += 1;
-    else if (m.kind === 'endTurn') endTurns += 1;
-    else if (m.kind === 'skip') skips += 1;
+    switch (m.kind) {
+      case 'step':
+        steps += 1;
+        break;
+      case 'endTurn':
+        endTurns += 1;
+        break;
+      case 'skip':
+        skips += 1;
+        break;
+    }
   }
   const gainers = territoryGainers(before, after);
   const closed = gainers.size > 0;
