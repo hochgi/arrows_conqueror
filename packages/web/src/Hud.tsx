@@ -16,6 +16,8 @@ export interface HudProps {
   readonly botBusy: boolean;
   readonly seatSummary: string;
   readonly moveCount: number;
+  /** One-line playtest summary when the match is over. */
+  readonly matchSummary: string | undefined;
   readonly onEndTurn: () => void;
   readonly onSkip: () => void;
   readonly onDownloadLog: () => void;
@@ -59,6 +61,7 @@ export const Hud = ({
   botBusy,
   seatSummary,
   moveCount,
+  matchSummary,
   onEndTurn,
   onSkip,
   onDownloadLog,
@@ -90,6 +93,9 @@ export const Hud = ({
       {illegal !== undefined ? <p className="hint lobby-byok-warn">{illegal}</p> : null}
       <p className="meta">Seats: {seatSummary}</p>
       <p className="meta">Moves logged: {moveCount}</p>
+      {matchSummary !== undefined ? (
+        <p className="meta match-summary">Summary: {matchSummary}</p>
+      ) : null}
 
       <div className="actions">
         <button type="button" onClick={onSkip} disabled={locked || phase.kind === 'idle' || botBusy}>
