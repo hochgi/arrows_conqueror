@@ -32,7 +32,8 @@ export interface SeatDriverLog {
 
 /**
  * Lightweight playtest counters. Folded on each logged apply; never rules-core.
- * Closes = any player's territory grew. Cuts = any player's trail shrank.
+ * Close = some player's territory count grew. Cut = some player's trail shrank
+ * and that same player did not gain territory in the batch.
  */
 export interface MatchSummary {
   readonly steps: number;
@@ -53,27 +54,45 @@ export const emptyMatchSummary = (): MatchSummary => ({
   firstCloseAt: undefined,
 });
 
-const territoryOf = (state: GameState, player: PlayerId): number => {
-  let n = 0;
-  for (const owner of state.territory.values()) if (owner === player) n += 1;
-  return n;
+/** One scan of a territory map → count of arrows per owner. */
+const territoryCounts = (state: GameState): Map<PlayerId, number> => {
+  const counts = new Map<PlayerId, number>();
+  for (const owner of state.territory.values()) {
+    counts.set(owner, (counts.get(owner) ?? 0) + 1);
+  }
+  return counts;
 };
 
-const anyTerritoryGrew = (before: GameState, after: GameState): boolean => {
-  for (const player of before.players) {
-    if (territoryOf(after, player) > territoryOf(before, player)) return true;
+/** Players in before ∪ after whose territory count increased. */
+const territoryGainers = (before: GameState, after: GameState): ReadonlySet<PlayerId> => {
+  const beforeCounts = territoryCounts(before);
+  const afterCounts = territoryCounts(after);
+  const gainers = new Set<PlayerId>();
+  const players = new Set<PlayerId>(before.players);
+  for (const player of after.players) players.add(player);
+  for (const player of players) {
+    if ((afterCounts.get(player) ?? 0) > (beforeCounts.get(player) ?? 0)) {
+      gainers.add(player);
+    }
   }
-  // New players only present after? Unlikely mid-match; still scan after.players.
-  for (const player of after.players) {
-    if (territoryOf(after, player) > territoryOf(before, player)) return true;
-  }
-  return false;
+  return gainers;
 };
 
-const anyTrailShrunk = (before: GameState, after: GameState): boolean => {
-  for (const [player, set] of before.trails) {
-    const next = after.trails.get(player)?.size ?? 0;
-    if (next < set.size) return true;
+const trailSize = (state: GameState, player: PlayerId): number =>
+  state.trails.get(player)?.size ?? 0;
+
+/** Trail shrank for someone who did not also gain territory. */
+const hasCutVictim = (
+  before: GameState,
+  after: GameState,
+  gainers: ReadonlySet<PlayerId>,
+): boolean => {
+  const players = new Set<PlayerId>(before.trails.keys());
+  for (const player of after.trails.keys()) players.add(player);
+  for (const player of players) {
+    if (trailSize(after, player) < trailSize(before, player) && !gainers.has(player)) {
+      return true;
+    }
   }
   return false;
 };
@@ -93,10 +112,11 @@ export const foldMatchSummary = (
   for (const m of moves) {
     if (m.kind === 'step') steps += 1;
     else if (m.kind === 'endTurn') endTurns += 1;
-    else if (m.kind === 'skip') skips += 1;
+    else skips += 1;
   }
-  const closed = anyTerritoryGrew(before, after);
-  const cut = anyTrailShrunk(before, after);
+  const gainers = territoryGainers(before, after);
+  const closed = gainers.size > 0;
+  const cut = hasCutVictim(before, after, gainers);
   const closes = summary.closes + (closed ? 1 : 0);
   const cuts = summary.cuts + (cut ? 1 : 0);
   let firstCloseAt = summary.firstCloseAt;
@@ -121,6 +141,13 @@ export const formatMatchSummary = (summary: MatchSummary): string => {
   }
   return parts.join(' · ');
 };
+
+/** HUD line when the match is over; unset while play continues. */
+export const matchSummaryLine = (
+  over: boolean,
+  summary: MatchSummary | undefined,
+): string | undefined =>
+  over && summary !== undefined ? formatMatchSummary(summary) : undefined;
 
 export interface MatchLog {
   readonly version: typeof MATCH_LOG_VERSION;
@@ -184,7 +211,7 @@ export const appendMovesWithSummary = (
 ): MatchLog => {
   if (moves.length === 0) return log;
   const summary = foldMatchSummary(
-    log.summary ?? emptyMatchSummary(),
+    log.summary,
     moves,
     before,
     after,
@@ -241,11 +268,13 @@ export const loadLastMatchLog = (): MatchLog | undefined => {
   const raw = localStorage.getItem(LAST_MATCH_STORAGE_KEY);
   if (raw === null || raw.length === 0) return undefined;
   try {
-    const parsed = JSON.parse(raw) as MatchLog;
+    const parsed = JSON.parse(raw) as Omit<MatchLog, 'summary'> & {
+      readonly summary?: MatchSummary;
+    };
     if (parsed.summary === undefined) {
       return { ...parsed, summary: emptyMatchSummary() };
     }
-    return parsed;
+    return { ...parsed, summary: parsed.summary };
   } catch {
     return undefined;
   }

@@ -107,7 +107,7 @@ describe('matchLog', () => {
     const log = createMatchLog({
       config: DEFAULT_MATCH_CONFIG,
       vsBot: false,
-      botMode: 'none',
+      botMode: 'human-hotseat',
       seats: [
         { player: A, kind: 'human' },
         { player: B, kind: 'human' },
@@ -116,9 +116,10 @@ describe('matchLog', () => {
       botSeat: undefined,
     });
     const a0 = mintArrowId('t0');
+    const a1 = mintArrowId('t1');
     const before = bare({});
     const after = bare({ territory: new Map([[a0, A]]) });
-    const next = appendMovesWithSummary(log, [step(a0, a0, 1), endTurn()], before, after);
+    const next = appendMovesWithSummary(log, [step(a0, a1, 1), endTurn()], before, after);
     expect(next.moves).toHaveLength(2);
     expect(next.summary.steps).toBe(1);
     expect(next.summary.endTurns).toBe(1);
