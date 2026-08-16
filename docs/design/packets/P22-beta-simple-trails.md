@@ -21,12 +21,12 @@ is free and cut tails persist as marks?
 | # | Decision |
 |---|---|
 | D1 | **No branch toll.** Joins, splits, and crossovers are free and unlimited. A lone head may branch. |
-| D2 | **Dormant / headless trail is legal.** Persists until friendly re-attach or enemy cut+evaporate. No decay in v1. |
+| D2 | **Dormant / headless trail is legal.** Persists until friendly re-attach, enemy cut+evaporate, or a convert wipe that reaches it (P33). No decay in v1. |
 | D3 | **No size-1 stack-grade freeze.** A sole tip may vacate its arrow (leaving dormant marks if none remain). |
 | D4 | **Paint trigger unchanged.** Head lands on own territory with trail behind → claim. Closed shape → fill; open → land-bridge paint of the claim walk. |
 | D5 | **Firebreak-capped paint (unanchored reconnect only).** If the landing component was **not** territory-rooted before landing, claim only the walk **up to the last firebreak**; distal trail beyond remains marked. Territory-rooted landings still claim the full upstream walk (and fill if enclosed). |
 | D6 | **Conversion unchanged predicate.** Resist only with continuous own-trail path to own territory (territory grade). Stack-grade and dormant do not protect. Tip stacks on unanchored fragments convert. |
-| D7 | **Convert still strips trail from converted arrows**; orphan dormant remnant **stays** (no scrub). |
+| D7 | ~~Convert strips trail from converted arrows; orphan dormant stays~~ — **superseded by P33:** convert wipes from converted arrows (halt-at-first). Cut-created dormant still stands. |
 | D8 | Cut / halt-at-first / wipe evaporation / territory-root feeder cut **unchanged** (P13 D1, D5–D6, D8). |
 
 ## In scope

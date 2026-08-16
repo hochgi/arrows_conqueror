@@ -61,6 +61,7 @@ scheduled early in the first place.
 | P30 | Local AI move playback | adapter | — | P11, P15 | **[packet](./packets/P30-ai-move-playback.md).** Plan once, play back with 400ms between local heuristic/BYOK moves. Online burst stays one put |
 | P31 | Quieter selection chrome | adapter | §4 (read) | P11 | **[packet](./packets/P31-selection-chrome.md).** Quiet reach wash; min-count on hover/tap; path-only during send dialog; confirm when unique portion > 1; selected halo |
 | P32 | Match summary telemetry | adapter | — | P11, P29 | **[packet](./packets/P32-match-summary-telemetry.md).** Playtest counters on the match log (steps / end-turns / skips / closes / cuts / firstCloseAt); HUD line only when over. Adapter proxies, not §7/§6 events |
+| P33 | Encircled path on convert | rules | §6.3, §6.1 | P07, P13, P22 | **[packet](./packets/P33-encircled-path.md).** Playtest: leftover enemy trail chord after a winning enclosure. Convert wipes from converted arrows (halt-at-first); both fork arms evaporate; cut-created dormant stays |
 | P20+ | Deferred follow-ons | — | — | — | **[packet](./packets/P20-deferred-online-followons.md).** Viewers, fork, arena, replay button, Elo, online BYOK, under-18 GIS, admin panel |
 
 ## Dependency graph
@@ -102,6 +103,9 @@ flowchart TD
   P11 --> P31["P31 selection chrome"]
   P11 --> P32["P32 match summary"]
   P29 --> P32
+  P07 --> P33["P33 encircled path"]
+  P13["P13 trail fire"] --> P33
+  P22 --> P33
 ```
 
 ## Build order and why

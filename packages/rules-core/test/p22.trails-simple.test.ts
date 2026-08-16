@@ -1,7 +1,7 @@
 /**
  * docs/spec/trails-simple — one component test per Gherkin scenario (core + edge).
  *
- * P22 beta: free branching, legal dormant, no size-1 freeze, convert without scrub,
+ * P22 beta: free branching, legal dormant, no size-1 freeze, convert wipe (P33),
  * firebreak-capped paint on unanchored reconnect.
  *
  * @see docs/spec/trails-simple/trails-simple.md
@@ -16,8 +16,10 @@ import {
   A,
   B,
   MINIMAL_DIAMETER,
+  SPACIOUS,
   aRingWithAnInside,
   aRunFromHome,
+  allArrows,
   anExitFrom,
   anInterleaving,
   arrowAt,
@@ -33,6 +35,7 @@ import {
   territoryOf,
   trailOf,
 } from './support';
+import type { ArrowId } from './support';
 
 // ── Core: Branching costs nothing ────────────────────────────────────────────
 
@@ -222,15 +225,16 @@ describe('P22 edge — no size-1 freeze', () => {
   });
 });
 
-// ── Edge: Convert strips arrow trail but does not scrub orphans ──────────────
+// ── Edge: Convert wipe evaporates connected empty trail (P33) ────────────────
 
-describe('P22 edge — convert strips without scrubbing orphans', () => {
-  it('strips trail on the converted arrow and leaves distal dormant marks', () => {
-    // trails-simple.edge: "Converted stack loses trail on its arrow; distal dormant remains"
-    const table = onBoard();
+describe('P33 edge — convert wipe evaporates connected empty trail', () => {
+  it('evaporates connected empty trail and leaves a disconnected cut tail', () => {
+    // trails-simple.edge: "Converted stack's connected empty trail evaporates; a disconnected cut tail stands"
+    const table = onBoard(SPACIOUS);
     const tip = anArrowOn(table);
     const distal = anExitFrom(table.geometry, tip);
     const mover = anExitFrom(table.geometry, distal);
+    const tail = aPointDisjointArrow(table, [tip, distal, mover]);
     const before = stateOf(
       [
         { arrow: tip, owner: B, heads: 2 },
@@ -238,7 +242,7 @@ describe('P22 edge — convert strips without scrubbing orphans', () => {
       ],
       A,
       {
-        trail: { B: [tip, distal] },
+        trail: { B: [tip, distal, tail] },
         territory: [
           { arrow: tip, owner: A },
           { arrow: distal, owner: A },
@@ -254,8 +258,9 @@ describe('P22 edge — convert strips without scrubbing orphans', () => {
     expect(ownerOfHeads(after, tip)).toBe(A);
     expect(headsOn(after, tip)).toBe(2);
     expect(isTrail(after, B, tip)).toBe(false);
-    expect(isTrail(after, B, distal)).toBe(true);
-    expect(table.rules.anchorGrade(after, distal, B)).toBe('dormant');
+    expect(isTrail(after, B, distal)).toBe(false);
+    expect(isTrail(after, B, tail)).toBe(true);
+    expect(table.rules.anchorGrade(after, tail, B)).toBe('dormant');
   });
 });
 
@@ -467,4 +472,23 @@ const anArrowAwayFrom = (
     if (!blocked.has(String(a))) return a;
   }
   throw new Error('setup: no arrow away from the avoid set');
+};
+
+const aPointDisjointArrow = (
+  table: ReturnType<typeof onBoard>,
+  reserved: readonly ArrowId[],
+): ArrowId => {
+  const points = new Set(
+    reserved.flatMap((a) => [String(table.geometry.origin(a)), String(table.geometry.target(a))]),
+  );
+  for (const a of allArrows(table.geometry, 2)) {
+    if (reserved.includes(a)) continue;
+    if (
+      !points.has(String(table.geometry.origin(a))) &&
+      !points.has(String(table.geometry.target(a)))
+    ) {
+      return a;
+    }
+  }
+  throw new Error('setup: no point-disjoint cut tail');
 };

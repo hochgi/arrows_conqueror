@@ -3,7 +3,7 @@
 
 Feature: Simple trails — edge cases (P22 beta)
   As a rules author
-  I want boundaries for dormant, convert scrub, and firebreak-capped paint
+  I want boundaries for dormant, convert wipe, and firebreak-capped paint
   So that the beta does not invent silent defaults
 
   Background:
@@ -17,15 +17,17 @@ Feature: Simple trails — edge cases (P22 beta)
       When A lists legal moves from that stack
       Then at least one grain step that vacates the arrow is legal
 
-  Rule: Convert strips arrow trail but does not scrub orphans
+  Rule: Convert wipe is P33; cut tails still persist
 
-    Scenario: Converted stack loses trail on its arrow; distal dormant remains
+    Scenario: Converted stack's connected empty trail evaporates; a disconnected cut tail stands
       Given player B has heads inside A's territory with only stack-grade trail
       And that trail continues onto empty trail arrows beyond the converted stack
       When conversion resolves
       Then the converted stack becomes A's at the same head count
       And B's trail is absent from the converted arrow
-      And B's trail may remain on the distal empty arrows (dormant)
+      And B's trail is absent from the empty arrows the convert wipe entered
+      # Disconnected dormant from a cut, with no convert wipe reaching it, still stands
+      # (core Rule "Dormant marks persist"; P33).
 
   Rule: Firebreak-capped paint on unanchored reconnect
 

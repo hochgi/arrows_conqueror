@@ -2,7 +2,7 @@
 
 **Packet:** [P22 — Beta: simple trails](../../design/packets/P22-beta-simple-trails.md)
 **SPEC:** §5 (branching free), §6.1 / §6.1a (dormant legal, no freeze), §6.3
-(convert strip, no scrub), §7 (claim walk + firebreak cap), §11 items 8, 23, 27,
+(convert wipe is P33), §7 (claim walk + firebreak cap), §11 items 8, 23, 27,
 35, 40, 42
 **Features:** [core](./trails-simple.core.feature) · [edge cases](./trails-simple.edge-cases.feature)
 **Beta:** throwaway branch `feat/beta-simple-trails` — may revert after playtest
@@ -15,9 +15,9 @@ unanchored fragment paints only up to the last firebreak.
 
 ## Scope
 
-In: branch legality (none), dormant persistence, size-1 tip mobility, convert
-without scrub, firebreak-capped claim on unanchored reconnect, full claim when
-territory-rooted.
+In: branch legality (none), dormant persistence (cut tails), size-1 tip mobility,
+firebreak-capped claim on unanchored reconnect, full claim when territory-rooted.
+Convert-time trail wipe is [encircled-path](../encircled-path/encircled-path.md).
 
 Out: combat math, spawners, GeometryPort, trail decay, merging to `main`.
 
@@ -47,9 +47,8 @@ flowchart TD
 ## Invariants
 
 - WHEN a move creates or vacates a join or split, the system SHALL NOT refuse the move for unpaid branch toll.
-- WHILE a trail component is dormant, the system SHALL leave its marks standing until cut evaporation or friendly re-attach.
+- WHILE a trail component is dormant, the system SHALL leave its marks standing until cut evaporation, a convert wipe that reaches them (P33), or friendly re-attach.
 - WHEN a size-1 stack is the sole stack on a stack-grade component, the system SHALL still permit a legal grain step that vacates its arrow.
-- WHEN conversion strips trail from converted arrows, the system SHALL NOT evaporate remaining dormant orphan marks solely because they are dormant.
 - WHEN a landing claims from a component that was territory-grade before the step, the system SHALL claim the full upstream walk (and fill enclosed pockets).
 - WHEN a landing claims from a component that was not territory-grade before the step, the system SHALL claim only arrows on the against-grain walk until it would enter a firebreak, and SHALL leave the firebreak and distal trail marked.
 - WHILE a head has a continuous own-trail path to own territory, the system SHALL NOT convert that head by encirclement alone.

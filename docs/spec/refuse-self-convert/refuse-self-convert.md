@@ -136,4 +136,4 @@ player-facing string.
 
 - A second trail fill for territory-grade vs stack-grade.
 - Territory combat modifiers — §11 item 39.
-- Changing conversion *effects* (intact stacks, `spent` reset, strip-without-scrub).
+- Changing conversion *effects* (intact stacks, `spent` reset, convert wipe — P33).

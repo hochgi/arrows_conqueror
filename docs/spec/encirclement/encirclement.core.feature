@@ -68,4 +68,4 @@ Feature: Encirclement — convert heads inside enemy territory
       When the step resolves
       Then combat or cut effects apply first
       And then the group converts to A
-      # P13: conversion strips trail from converted arrows (§11 item 40 re-resolved).
+      # P33: conversion then wipes victim trail from converted arrows (item 40).

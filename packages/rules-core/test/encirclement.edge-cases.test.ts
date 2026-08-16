@@ -9,18 +9,24 @@ import { skip, step } from '@conquarrow/contracts';
 import {
   A,
   B,
+  SPACIOUS,
+  SPACIOUS_DIAMETER,
   aRunFromHome,
+  allArrows,
   anExitFrom,
   anArrow,
   arrowAt,
   headsOn,
+  isTrail,
   onBoard,
   onTiling,
   owned,
   ownerOf,
+  pathFrom,
   snapshot,
   stateOf,
 } from './support';
+import type { ArrowId } from './support';
 
 const totalHeads = (state: ReturnType<typeof stateOf>): number =>
   [...state.groups.values()].reduce((sum, g) => sum + g.heads, 0);
@@ -78,14 +84,17 @@ describe('neutral stranded is not capture', () => {
   });
 });
 
-// ── Rule: conversion strips trail (P12) ──────────────────────────────────────
+// ── Rule: conversion wipes the connected trail (P33) ─────────────────────────
 
-describe('conversion strips trail', () => {
-  it('removes victim trail from converted arrows', () => {
-    const table = onBoard();
+describe('conversion wipes the connected trail', () => {
+  it('leaves victim trail on a different component after convert wipe', () => {
+    // encirclement.edge: "Victim trail on a different component survives convert wipe"
+    const table = onBoard(SPACIOUS);
     const tip = anArrow(table.geometry);
     const stem = anExitFrom(table.geometry, tip);
     const mover = anExitFrom(table.geometry, stem);
+    const reserved = [tip, stem, mover];
+    const other = aPointDisjointPath(table, reserved, 2);
     const before = stateOf(
       [
         { arrow: tip, owner: B, heads: 1 },
@@ -93,7 +102,7 @@ describe('conversion strips trail', () => {
       ],
       A,
       {
-        trail: { B: [tip, stem] },
+        trail: { B: [tip, stem, ...other] },
         territory: [
           { arrow: tip, owner: A },
           { arrow: mover, owner: A },
@@ -105,7 +114,9 @@ describe('conversion strips trail', () => {
     const after = table.rules.apply(before, step(mover, exit, 1));
 
     expect(ownerOf(after, tip)).toBe(A);
-    expect(after.trails.get(B)?.has(tip) ?? false).toBe(false);
+    expect(isTrail(after, B, tip)).toBe(false);
+    expect(isTrail(after, B, stem)).toBe(false);
+    for (const arrow of other) expect(isTrail(after, B, arrow)).toBe(true);
   });
 });
 
@@ -225,3 +236,26 @@ describe('order and seams', () => {
     expect(ownerOf(after, tip)).toBe(B);
   });
 });
+
+const aPointDisjointPath = (
+  table: ReturnType<typeof onBoard>,
+  reserved: readonly ArrowId[],
+  length: number,
+): readonly ArrowId[] => {
+  const points = new Set(
+    reserved.flatMap((a) => [String(table.geometry.origin(a)), String(table.geometry.target(a))]),
+  );
+  const sharesPoint = (a: ArrowId): boolean =>
+    points.has(String(table.geometry.origin(a))) || points.has(String(table.geometry.target(a)));
+  for (const start of allArrows(table.geometry, SPACIOUS_DIAMETER)) {
+    if (sharesPoint(start)) continue;
+    try {
+      const path = pathFrom(table.geometry, start, length, reserved);
+      if (path.some(sharesPoint)) continue;
+      return path;
+    } catch {
+      continue;
+    }
+  }
+  throw new Error('setup: no point-disjoint trail component');
+};
