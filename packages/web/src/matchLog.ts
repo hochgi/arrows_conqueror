@@ -5,7 +5,7 @@
  * `makeMatch(config)` rebuilds the opening, `replay` folds the moves.
  */
 
-import type { MatchConfig, Move, PlayerId } from '@conquarrow/contracts';
+import type { GameState, MatchConfig, Move, PlayerId } from '@conquarrow/contracts';
 import type { SeatDriverSummary, SeatKind } from './seatPlan';
 
 export const MATCH_LOG_VERSION = 1 as const;
@@ -30,6 +30,98 @@ export interface SeatDriverLog {
   readonly model?: string;
 }
 
+/**
+ * Lightweight playtest counters. Folded on each logged apply; never rules-core.
+ * Closes = any player's territory grew. Cuts = any player's trail shrank.
+ */
+export interface MatchSummary {
+  readonly steps: number;
+  readonly endTurns: number;
+  readonly skips: number;
+  readonly closes: number;
+  readonly cuts: number;
+  /** Index into `moves` when territory first grew for anyone; undefined if never. */
+  readonly firstCloseAt: number | undefined;
+}
+
+export const emptyMatchSummary = (): MatchSummary => ({
+  steps: 0,
+  endTurns: 0,
+  skips: 0,
+  closes: 0,
+  cuts: 0,
+  firstCloseAt: undefined,
+});
+
+const territoryOf = (state: GameState, player: PlayerId): number => {
+  let n = 0;
+  for (const owner of state.territory.values()) if (owner === player) n += 1;
+  return n;
+};
+
+const anyTerritoryGrew = (before: GameState, after: GameState): boolean => {
+  for (const player of before.players) {
+    if (territoryOf(after, player) > territoryOf(before, player)) return true;
+  }
+  // New players only present after? Unlikely mid-match; still scan after.players.
+  for (const player of after.players) {
+    if (territoryOf(after, player) > territoryOf(before, player)) return true;
+  }
+  return false;
+};
+
+const anyTrailShrunk = (before: GameState, after: GameState): boolean => {
+  for (const [player, set] of before.trails) {
+    const next = after.trails.get(player)?.size ?? 0;
+    if (next < set.size) return true;
+  }
+  return false;
+};
+
+/** Pure fold of one applied batch into running counters. */
+export const foldMatchSummary = (
+  summary: MatchSummary,
+  moves: readonly Move[],
+  before: GameState,
+  after: GameState,
+  movesLoggedBefore: number,
+): MatchSummary => {
+  if (moves.length === 0) return summary;
+  let steps = summary.steps;
+  let endTurns = summary.endTurns;
+  let skips = summary.skips;
+  for (const m of moves) {
+    if (m.kind === 'step') steps += 1;
+    else if (m.kind === 'endTurn') endTurns += 1;
+    else if (m.kind === 'skip') skips += 1;
+  }
+  const closed = anyTerritoryGrew(before, after);
+  const cut = anyTrailShrunk(before, after);
+  const closes = summary.closes + (closed ? 1 : 0);
+  const cuts = summary.cuts + (cut ? 1 : 0);
+  let firstCloseAt = summary.firstCloseAt;
+  if (closed && firstCloseAt === undefined) {
+    // Index of the first move in this batch within the full log.
+    firstCloseAt = movesLoggedBefore;
+  }
+  return { steps, endTurns, skips, closes, cuts, firstCloseAt };
+};
+
+/** One-line HUD / review string. */
+export const formatMatchSummary = (summary: MatchSummary): string => {
+  const parts = [
+    `${String(summary.steps)} steps`,
+    `${String(summary.endTurns)} end-turns`,
+    `${String(summary.closes)} closes`,
+    `${String(summary.cuts)} cuts`,
+  ];
+  if (summary.skips > 0) parts.splice(2, 0, `${String(summary.skips)} skips`);
+  if (summary.firstCloseAt !== undefined) {
+    parts.push(`first close @ move ${String(summary.firstCloseAt)}`);
+  }
+  return parts.join(' · ');
+};
+
 export interface MatchLog {
   readonly version: typeof MATCH_LOG_VERSION;
   readonly config: MatchConfig;
@@ -47,6 +139,8 @@ export interface MatchLog {
   readonly botSeat: PlayerId | undefined;
   readonly moves: readonly Move[];
   readonly winner: PlayerId | undefined;
+  /** Playtest counters; always present on new logs. */
+  readonly summary: MatchSummary;
 }
 
 export const createMatchLog = (args: {
@@ -72,12 +166,31 @@ export const createMatchLog = (args: {
     botSeat: args.botSeat,
     moves: [],
     winner: undefined,
+    summary: emptyMatchSummary(),
   };
 };
 
 export const appendMoves = (log: MatchLog, moves: readonly Move[]): MatchLog => {
   if (moves.length === 0) return log;
   return { ...log, moves: [...log.moves, ...moves] };
+};
+
+/** Append moves and fold summary from before→after. */
+export const appendMovesWithSummary = (
+  log: MatchLog,
+  moves: readonly Move[],
+  before: GameState,
+  after: GameState,
+): MatchLog => {
+  if (moves.length === 0) return log;
+  const summary = foldMatchSummary(
+    log.summary ?? emptyMatchSummary(),
+    moves,
+    before,
+    after,
+    log.moves.length,
+  );
+  return { ...log, moves: [...log.moves, ...moves], summary };
 };
 
 export const withByokStats = (
@@ -128,7 +241,11 @@ export const loadLastMatchLog = (): MatchLog | undefined => {
   const raw = localStorage.getItem(LAST_MATCH_STORAGE_KEY);
   if (raw === null || raw.length === 0) return undefined;
   try {
-    return JSON.parse(raw) as MatchLog;
+    const parsed = JSON.parse(raw) as MatchLog;
+    if (parsed.summary === undefined) {
+      return { ...parsed, summary: emptyMatchSummary() };
+    }
+    return parsed;
   } catch {
     return undefined;
   }
@@ -142,7 +259,7 @@ export const downloadMatchLog = (log: MatchLog, filename?: string): void => {
   a.href = url;
   a.download =
     filename ??
-    `arrows-match-${log.startedAt.replaceAll(':', '').replaceAll('.', '-')}.json`;
+    `conquarrow-match-${log.startedAt.replaceAll(':', '').replaceAll('.', '-')}.json`;
   a.click();
   URL.revokeObjectURL(url);
 };
