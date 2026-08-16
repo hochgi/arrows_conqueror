@@ -5,6 +5,7 @@ import {
   mintArrowId,
   mintPlayerId,
   step,
+  type ArrowId,
   type GameState,
   type PlayerId,
 } from '@conquarrow/contracts';
@@ -26,8 +27,8 @@ const C = mintPlayerId('C');
 
 const bare = (args: {
   players?: PlayerId[];
-  territory?: Map<PlayerId extends never ? never : import('@conquarrow/contracts').ArrowId, PlayerId>;
-  trails?: Map<PlayerId, Set<import('@conquarrow/contracts').ArrowId>>;
+  territory?: Map<ArrowId, PlayerId>;
+  trails?: Map<PlayerId, Set<ArrowId>>;
 }): GameState =>
   ({
     players: args.players ?? [A, B],
