@@ -259,8 +259,12 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     }
 
     const afterClosure = closure.commit(afterCut, move, movers.owner);
-    // P22: dormant marks stay — convert strips converted arrows only; no scrub.
-    const afterConvert = convertEncircled(afterClosure, trails.anchorGrade);
+    // P33: flip, then wipe victim trail from converted arrows (halt-at-first).
+    const afterConvert = convertEncircled(
+      afterClosure,
+      trails.anchorGrade,
+      cuts.evaporateFromArrow,
+    );
     return applyElimination(afterConvert);
   };
 

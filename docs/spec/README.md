@@ -35,13 +35,14 @@ behaviour is not here, it will not be built.**
 | [ai-move-playback](./ai-move-playback/ai-move-playback.md) | P30 | — (web) | 16 | — | 11 |
 | [selection-chrome](./selection-chrome/selection-chrome.md) | P31 | §4 (read) | 24 | — | 12 |
 | [match-summary-telemetry](./match-summary-telemetry/match-summary-telemetry.md) | P32 | — (web) | 26 | — | 11 |
+| [encircled-path](./encircled-path/encircled-path.md) | P33 | §6.3, §6.1, item 40 | 11 | — | 9 |
 
-475 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
+486 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
 **58 belong to P03**, **18 to P02**, **30 to P04**, **58 to P05**, **49 to P05b**,
 **32 to P06**, **16 to P07**, **10 to P08**, **25 to P28**, **19 to P29**,
-**16 to P30**, **24 to P31**, and **26 to P32**.
-481 concrete cases once `Examples` rows are expanded (combat Examples add more),
-249 invariants.
+**16 to P30**, **24 to P31**, **26 to P32**, and **11 to P33**.
+492 concrete cases once `Examples` rows are expanded (combat Examples add more),
+258 invariants.
 
 A `@deferred-<packet>` tag means the behaviour is decided and specified here, but
 its seam falls in another packet — an accumulator that knows its owner is not a

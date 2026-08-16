@@ -48,7 +48,7 @@ around a garrison; cut that demotes a raider already inside).
 
 - A second trail fill for territory-grade vs stack-grade.
 - Changing conversion of already-encircled groups, intact stacks, `spent`
-  reset, trail strip-without-scrub (P22 / item 40).
+  reset, convert wipe of the encircled path (P33 / item 40).
 - Skip / `endTurn` starting to convert.
 - Territory combat modifiers (§11 item 39).
 - Multi-hop refused-reach, a reasons enum.

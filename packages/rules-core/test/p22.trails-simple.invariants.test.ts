@@ -127,13 +127,29 @@ describe('P22 — no size-1 stack-grade freeze', () => {
   );
 });
 
-describe('P22 — convert does not scrub orphan dormant', () => {
-  it('leaves distal empty trail after converting a stack-grade tip', () => {
-    // WHEN conversion strips trail from converted arrows, SHALL NOT evaporate remaining dormant orphans solely because dormant.
-    const table = onBoard();
+describe('P33 — convert wipe evaporates connected empty trail', () => {
+  it('clears distal empty trail after converting a stack-grade tip', () => {
+    // WHEN conversion wipes from converted arrows, SHALL evaporate connected empty trail (P33).
+    // A point-disjoint cut tail that no wipe reached still stands (P22).
+    const table = onBoard(SPACIOUS);
     const tip = anArrow(table.geometry);
     const distal = anExitFrom(table.geometry, tip);
     const mover = anExitFrom(table.geometry, distal);
+    const points = new Set(
+      [tip, distal, mover].flatMap((a) => [
+        String(table.geometry.origin(a)),
+        String(table.geometry.target(a)),
+      ]),
+    );
+    const tail = allArrows(table.geometry, SPACIOUS_DIAMETER).find(
+      (a) =>
+        a !== tip &&
+        a !== distal &&
+        a !== mover &&
+        !points.has(String(table.geometry.origin(a))) &&
+        !points.has(String(table.geometry.target(a))),
+    );
+    if (tail === undefined) throw new Error('setup: no point-disjoint cut tail');
     const before = stateOf(
       [
         { arrow: tip, owner: B, heads: 1 },
@@ -141,7 +157,7 @@ describe('P22 — convert does not scrub orphan dormant', () => {
       ],
       A,
       {
-        trail: { B: [tip, distal] },
+        trail: { B: [tip, distal, tail] },
         territory: [
           { arrow: tip, owner: A },
           { arrow: distal, owner: A },
@@ -153,7 +169,8 @@ describe('P22 — convert does not scrub orphan dormant', () => {
     const after = table.rules.apply(before, step(mover, anExitFrom(table.geometry, mover), 1));
 
     expect(isTrail(after, B, tip)).toBe(false);
-    expect(isTrail(after, B, distal)).toBe(true);
+    expect(isTrail(after, B, distal)).toBe(false);
+    expect(isTrail(after, B, tail)).toBe(true);
   });
 });
 

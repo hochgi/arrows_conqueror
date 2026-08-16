@@ -363,13 +363,13 @@ So **any garrison is a firebreak.** Sentry *size* matters for contact combat, no
 - **A front halts per arrow, not per point.** It stops when it would enter an arrow that holds the victim's heads. A head does *not* shield the point ahead of it against evaporation — that range belongs to combat (§6.2), and the two jobs sit on different axes.
 - **Territory is a wall.** Backward evaporation reaching your own closed ground stops there and costs nothing. There is nothing to destroy and nothing to charge (§5).
 - **A stack is an anchor.** Trail beyond a halting stack is anchored *on that stack* — live. It can be extended, defended, and driven home.
-- **Unanchored (dormant) trail is legal (P22 beta).** A trail component that reaches neither a territory root nor any of the owner's stacks **stands as marked trail** until a friendly head re-attaches or an enemy cut evaporates it. No decay. Headless territory-anchored stretch remains ordinary wall.
+- **Unanchored (dormant) trail is legal (P22 beta).** A trail component that reaches neither a territory root nor any of the owner's stacks **stands as marked trail** until a friendly head re-attaches, an enemy cut evaporates it, or a **convert wipe** reaches it (§6.3). No decay. Headless territory-anchored stretch remains ordinary wall.
 - ~~**Stack-grade size-1 freeze**~~ — **withdrawn by P22 beta.** A sole tip may vacate its arrow; if nothing remains on the component, the marks stay dormant.
 - A stranded stack **fights its way home** when it can still step. Because the graph is strongly connected (§2), it does this by looping forward around the grain rather than reversing, laying fresh cuttable trail the entire way.
 
 **Territory-root cut.** A trail that first leaves point `P0` (an out-arrow of `P0` in the owner's trail) is territory-anchored while at least one **in-arrow of `P0` that is the owner's territory** is **not** present in any enemy trail. When an enemy step marks the **last** such feeder, that step **is a cut** of the owner's trail at `P0` — evaporation runs from `P0` under the halt rule above.
 
-**Wipe starts evaporation.** When combat reduces a stack on an arrow to **0** heads (attacker and/or defender), that owner's trail evaporates from that arrow in both directions (one direction at a tip) under the same halt rule.
+**Wipe starts evaporation.** When combat reduces a stack on an arrow to **0** heads (attacker and/or defender), that owner's trail evaporates from that arrow in both directions (one direction at a tip) under the same halt rule. **Convert reuses that wipe** (§6.3 / P33): after ownership flips, evaporate from each converted arrow; converted stacks are no longer the victim's, so they are not firebreaks.
 
 **Two grades of anchor, and the difference is load-bearing.** A trail anchored to your **territory** is fully live: it can close and claim everything it encloses (§7), and heads on it are not encircled (§6.3). A trail anchored only on a **stack** is live but lesser — it can be extended and driven home for a *land bridge*, but it encloses nothing, and it does not save a head from conversion inside enemy territory. Without that distinction a parked stack would be a founding site, which §7 forbids outright.
 
@@ -416,7 +416,7 @@ Three answers were on the table and only this one asserts nothing. *Canonical pa
 
 ~~Branching is priced~~ — **P22 beta: branching is free.** Joins, splits, and crossovers cost no head (§5, §11 item 35).
 
-**Unanchored trail is legal (P22 beta; was illegal under P12).** A trail component may reach a territory root, carry an owner's stack, or reach **neither**. Headless territory-anchored stretch is ordinary wall. **Dormant** headless stretch (reaches neither) **stands** until re-attach or cut+evaporate — convert strips trail from converted arrows but does **not** scrub orphan marks (§11 item 40).
+**Unanchored trail is legal (P22 beta; was illegal under P12).** A trail component may reach a territory root, carry an owner's stack, or reach **neither**. Headless territory-anchored stretch is ordinary wall. **Dormant** headless stretch (reaches neither) **stands** until re-attach or cut+evaporate. **Convert wipe** evaporates from converted arrows under the same halt-at-first rule (§6.3 / item 40) — a cut tail that no convert wipe reached still stands.
 
 ~~**A size-1 stack-grade tip can be frozen.**~~ — **withdrawn by P22.** A sole tip may leave; dormant marks may remain.
 
@@ -480,7 +480,7 @@ A player may not step onto another player's territory unless that step would lea
 
 A group that still has a territory-grade trail (a path of its trail reaching its own territory) is **not** encircled. You cannot capture a trail-connected raider by claim alone: a cut must first evaporate up to their anchor and drop the grade (§6.1).
 
-On convert, the stack flips owner at the same head count, with **`spent` reset to 0 and any merge override dropped**, and **the victim's trail is stripped from the converted arrow(s)** — orphan dormant remnant **remains marked** (P22; item 40 re-resolved — no scrub). Converted groups sit on the claimer's territory — co-location with a pre-existing friendly group on the same arrow does not arise from claim encirclement (contact combat already forbids shared occupancy with enemies).
+On convert, the stack flips owner at the same head count, with **`spent` reset to 0 and any merge override dropped**, and **the victim's trail evaporates from each converted arrow** under the halt-at-first rule already used for combat wipe (§6.1). Converted stacks are no longer the victim's, so they are not firebreaks: the path that connected them — including **both arms of a fork** — is gone. A remaining victim stack that did not convert (stack-grade on **neutral** ground) still halts the front. Cut-created dormant that no convert wipe reached still stands (P22). Converted groups sit on the claimer's territory — co-location with a pre-existing friendly group on the same arrow does not arise from claim encirclement (contact combat already forbids shared occupancy with enemies).
 
 Two consequences that are easy to miss:
 
@@ -836,7 +836,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > **Item 38 was opened by P06's review and closed by the human:** stay-behind on attack (lone head cannot attack); fight to wipe in one `apply` (no interrupt); mark destination only if the attacker lands; bounce leaves the stay-behind as tip. → §6.2, → P06.
 >
-> **Item 40 was opened and closed by P07:** on convert, reset `spent` and drop merge override; trail cleanup is not conversion's job (a territory-grade trail must already have been cut); same-arrow merge with a friendly group is unreachable under claim encirclement. → §6.3, → P07.
+> **Item 40 was opened and closed by P07, then moved twice.** P07: reset `spent` and drop merge override; trail cleanup is not conversion's job. P22: strip converted arrows, leave orphan dormant. **P33 (playtest):** orphan paint on the claimer's land *is* the encircled path — convert wipes from converted arrows under halt-at-first. Same-arrow merge with a friendly group remains unreachable under claim encirclement. → §6.3, → P07, → P22, → P33.
 >
 > **Item 41 was opened and closed by P08:** accrual ticks once per **full round** (not every `endTurn`); friendly occupation accrues and merges with **no** §3 merge override (birth is not a spent move); enemy occupation still halts. → §7, → P08.
 >
@@ -862,7 +862,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 **Tuning — none of these block a paper playtest**
 6. ~~Crossing target~~ — ~~re-resolved as contested-point 1:1~~ — **re-resolved again: contact combat.** The two-step gate-and-charge is gone, and so is the intervening *stacks pointing into the same point fight 1:1* reading. An attack is an ordinary step onto an enemy-occupied arrow; losses follow the threat-weighted floor rule in §6.2; equals favour the attacker; merely sharing a point ahead is not a fight. Evaporation still halts per arrow (item 27) and is a separate axis. See §6.2, §11 item 37. *(Original: deterministic attrition, defender wins ties. Then: contested-point 1:1. Now: contact.)*
 7. ~~Merging cost~~ — **resolved.** Free and automatic on contact. See §3.
-8. ~~Fork branch whose head dies / dormant trail~~ — ~~re-resolved by P12: unanchored illegal~~ — **re-resolved by P22 beta: dormant trail is legal.** Headless marks persist until re-attach or cut+evaporate. Size-1 freeze withdrawn. See §6.1, §6.1a, packet P22.
+8. ~~Fork branch whose head dies / dormant trail~~ — ~~re-resolved by P12: unanchored illegal~~ — **re-resolved by P22 beta: dormant trail is legal.** Headless marks persist until re-attach, cut+evaporate, or a convert wipe that reaches them (P33). Size-1 freeze withdrawn. See §6.1, §6.1a, §6.3, packet P22, packet P33.
 9. ~~Converted stack size~~ — **resolved.** Stacks convert intact. See §6.3.
 10. ~~Multi-prong bonus~~ — **re-resolved: there is no bonus, and none is needed.** Under contact combat (§6.2 / item 37), coordinating two stacks means two separate contact steps over time (or against different arrows) — each resolves on its own *A*∶*D*. Pooling-and-tie-flip was the price of instantaneous attrition; there is still no special-case bonus constant. See §6.2.
 11. ~~Board size~~ — ~~resolved as configurable: the lattice mod `(n, m)`~~ — **re-resolved: there is no board size.** The board is unbounded (item 4), so the knob is no longer how big the world is but **how big the part worth having is**: the spawner cutoff radius *R*, plus the band radii inside it (§7, *the radial gradient*). One number where there were two, and it has a direct meaning — *R* is the distance past which the map stops paying.
@@ -1025,10 +1025,10 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 40. ~~What happens to `spent` / trail / co-location on convert?~~ — **resolved.** Three precision calls, one item:
 
     1. **Reset.** Converted stacks keep head count, set `spent` to 0, and drop any merge override.
-    2. **Trail.** Conversion strips the victim's trail from converted arrows. ~~then evaporates orphan~~ — **P22: orphan dormant remnant stays marked** (no scrub). Territory-grade trail still prevents conversion until a cut demotes it (§6.1).
+    2. **Trail.** ~~Conversion does not strip trail~~ (P07) → ~~strip converted arrows, leave orphan dormant~~ (P22) → **P33: evaporate from each converted arrow** under halt-at-first (combat wipe). Converted stacks are not victim firebreaks, so the encircled path — both arms of a fork included — clears. A remaining victim stack on **neutral** still halts. Cut-created dormant that no convert wipe reached still stands. Territory-grade trail still prevents conversion until a cut demotes it (§6.1).
     3. **Co-location.** Claim encirclement puts converted units on the claimer's territory; sharing an arrow with a pre-existing friendly group does not arise (and contact forbids enemy co-occupancy beforehand). Out of scope.
 
-    → **§6.3**, → **P07**, → **P22**.
+    → **§6.3**, → **P07**, → **P22**, → **P33**.
 
 **P22 beta — firebreak-capped paint**
 

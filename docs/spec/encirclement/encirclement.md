@@ -3,7 +3,8 @@
 **Packet:** [P07 — Territory & encirclement](../../design/packets/P07-territory-encirclement.md)
 **SPEC:** §6.3, §6.1 (anchor grades), §7 (closure seam), §11 items 9, 28, **40**
 **Features:** [core](./encirclement.core.feature) · [edge cases](./encirclement.edge-cases.feature)
-**Upstream:** [closure](../closure/closure.md) claims tiles; [cuts](../cuts/cuts.md) demote grade
+**Upstream:** [closure](../closure/closure.md) claims tiles; [cuts](../cuts/cuts.md) demote grade;
+[encircled-path](../encircled-path/encircled-path.md) wipes victim trail on convert (P33)
 
 ## Purpose
 
@@ -19,8 +20,9 @@ In: the state predicate, intact stack conversion, reset of `spent` / override,
 order after combat → cut → closure, head conservation, grade shields, neutral
 vs enemy stranded.
 
-Out: accumulators (P08), victory (P09), trail stripping (cuts own that), combat
-modifiers (item 39 parked).
+Out: accumulators (P08), victory (P09), combat modifiers (item 39 parked).
+Convert-time trail **wipe** is [encircled-path](../encircled-path/encircled-path.md)
+(P33). Cut-created dormant remains [trails-simple](../trails-simple/trails-simple.md).
 
 Tests that need a fresh enclosure run on the **tiling**. Local grade cases may
 use fixtures when territory is authored.
@@ -46,6 +48,9 @@ flowchart TD
   G -- yes --> Next
   G -- no --> Flip["flip owner to territory owner<br/>heads intact #59; spent 0 #59; no override"]
   Flip --> Next
+  Next --> More{"more groups?"}
+  More -- yes --> Scan
+  More -- no --> Wipe["then evaporate victim trail from each<br/>converted arrow halt-at-first — P33"]
 ```
 
 ## Invariants
@@ -60,7 +65,8 @@ flowchart TD
 - When conversion runs, the system shall conserve total heads on the board for
   that pass.
 - The system shall run conversion after combat, cut, and closure within one `apply`.
-- The system shall not strip the victim's trail as part of conversion.
+- When a group converts, the system shall evaporate the victim's trail from each
+  converted arrow under halt-at-first (P33 / item 40).
 - The system shall not mutate the input state, and shall return equal outputs for
   equal inputs.
 - The system shall enumerate no vertex.
@@ -73,3 +79,4 @@ flowchart TD
 - **Self-walk-in onto foreign territory** — P28 / §11 item 43 makes that step
   **illegal** rather than converting. The predicate here still runs on groups
   that become encircled on *another* player's apply.
+- **Convert wipe of the encircled path** — P33.

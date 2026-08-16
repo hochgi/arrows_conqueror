@@ -25,14 +25,14 @@ Feature: Encirclement — boundaries, conservation, and purity
       When an apply resolves
       Then the group remains owned by B
 
-  Rule: Conversion strips trail (P13)
+  Rule: Conversion wipes the connected trail (P33)
 
-    Scenario: Victim trail arrows outside the converted stack are untouched by conversion alone
+    Scenario: Victim trail on a different component survives convert wipe
       Given conversion flips a stack on arrow e1
-      And player B still holds other trail arrows that the cut did not destroy
+      And player B still holds trail arrows on a separate component the wipe does not reach
       When conversion resolves
       Then those other trail arrows remain in B's trail
-      # Cuts own evaporation; conversion does not (§11 item 40).
+      # Convert wipe reuses halt-at-first; it does not delete unrelated marks.
 
   Rule: Head conservation and purity
 
