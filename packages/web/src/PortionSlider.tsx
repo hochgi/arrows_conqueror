@@ -7,6 +7,8 @@ export interface PortionSliderProps {
   readonly allowed: readonly number[];
   /** How many steps the trip takes — why the floor is not 1. */
   readonly steps: number;
+  /** Heads on the source arrow, so the dialog can name what stays behind. */
+  readonly heads: number;
   readonly onConfirm: (count: number) => void;
   readonly onCancel: () => void;
   /** Live path preview as the slider moves. */
@@ -28,6 +30,7 @@ export interface PortionSliderProps {
 export const PortionSlider = ({
   allowed,
   steps,
+  heads,
   onConfirm,
   onCancel,
   onPreview,
@@ -109,6 +112,19 @@ export const PortionSlider = ({
           Send heads · {steps} {steps === 1 ? 'step' : 'steps'}
         </p>
         <p className="portion-value">{value}</p>
+        {/* Event 10: a player should know the *shape* of the outcome before
+            committing, not just the number sent. A split leaves a sentry behind
+            and that is a decision, so the dialog says so in the same breath. */}
+        <p className="portion-split">
+          {heads - value > 0 ? (
+            <>
+              <strong>{value}</strong> go · <strong>{heads - value}</strong>{' '}
+              {heads - value === 1 ? 'stays' : 'stay'} behind
+            </>
+          ) : (
+            <>the whole stack goes · nothing stays behind</>
+          )}
+        </p>
         {min > 1 ? (
           <p className="portion-note">
             {min} needed to travel {steps} steps

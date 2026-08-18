@@ -121,3 +121,84 @@ describe('Galcon input', () => {
     expect(movable.highlights.targets.size).toBeGreaterThan(0);
   });
 });
+
+/**
+ * Event 11: a click that cannot do anything says so, at the tile it happened on.
+ *
+ * These used to be silent — `onArrowClick` returned the unchanged snapshot and the
+ * player was left to infer the constraint. The reason rides on the snapshot the
+ * refused click produced, and only that one, so a later no-op cannot re-fire it.
+ */
+describe('Galcon input — refusals', () => {
+  const setup = () => {
+    const geometry = makeTiling();
+    const rules = makeRules(geometry);
+    const state = makeMatch();
+    return { geometry, rules, state, mode: new GalconInput(geometry) };
+  };
+
+  it('names an unowned tile clicked with nothing selected', () => {
+    const { geometry, rules, state, mode } = setup();
+    const mine = activeGroup(state);
+    expect(mine).toBeDefined();
+    if (mine === undefined) return;
+    // Any arrow that is not one of ours, taken from the board rather than invented.
+    const other = geometry.outArrows(geometry.target(mine)).find((a) => !state.groups.has(a));
+    expect(other).toBeDefined();
+    if (other === undefined) return;
+
+    const snap = mode.onArrowClick(other, state, rules);
+    expect(snap.refusal?.arrow).toBe(other);
+    expect(snap.refusal?.reason).toBe('not-yours');
+    // A refusal changes nothing: no phase change, and nothing to apply.
+    expect(snap.phase.kind).toBe('idle');
+    expect(snap.pending).toBeUndefined();
+  });
+
+  it('names an out-of-reach tile clicked while a stack is selected', () => {
+    const { geometry, rules, state, mode } = setup();
+    const from = activeGroup(state);
+    expect(from).toBeDefined();
+    if (from === undefined) return;
+    const selected = mode.onArrowClick(from, state, rules);
+    expect(selected.refusal).toBeUndefined();
+
+    // Walk the grain until we are past everything this stack can reach this turn.
+    let far = from;
+    for (let i = 0; i < 12; i += 1) {
+      const next = geometry.outArrows(geometry.target(far))[0];
+      if (next === undefined) break;
+      far = next;
+    }
+    expect(selected.highlights.targets.has(far)).toBe(false);
+
+    const snap = mode.onArrowClick(far, state, rules);
+    expect(snap.refusal?.arrow).toBe(far);
+    expect(snap.refusal?.reason).toBe('out-of-reach');
+    // Still selected — a refused destination must not drop the selection.
+    expect(snap.phase.kind).toBe('source');
+  });
+
+  it('does not carry a refusal into the next snapshot', () => {
+    const { geometry, rules, state, mode } = setup();
+    const mine = activeGroup(state);
+    expect(mine).toBeDefined();
+    if (mine === undefined) return;
+    const other = geometry.outArrows(geometry.target(mine)).find((a) => !state.groups.has(a));
+    expect(other).toBeDefined();
+    if (other === undefined) return;
+
+    expect(mode.onArrowClick(other, state, rules).refusal).toBeDefined();
+    // The very next thing that *works* comes back clean.
+    expect(mode.onArrowClick(mine, state, rules).refusal).toBeUndefined();
+    expect(mode.reset().refusal).toBeUndefined();
+  });
+
+  it('names a skip that is not on offer', () => {
+    const { rules, state, mode } = setup();
+    // Nothing selected: there is no group to skip, so the request cannot apply.
+    const snap = mode.requestSkip(state, rules);
+    expect(snap.pending).toBeUndefined();
+    expect(snap.refusal).toBeUndefined();
+  });
+});

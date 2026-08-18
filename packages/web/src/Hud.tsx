@@ -18,6 +18,14 @@ export interface HudProps {
   readonly moveCount: number;
   /** One-line playtest summary when the match is over. */
   readonly matchSummary: string | undefined;
+  /** Heads in hand for the player to move — bumps when it changes. */
+  readonly heads: number;
+  /** Arrows of territory held by the player to move — bumps when it changes. */
+  readonly land: number;
+  /** Why the last click did nothing, if it did nothing (Event 11). */
+  readonly refusalNote: string | undefined;
+  readonly soundOn: boolean;
+  readonly onToggleSound: () => void;
   readonly onEndTurn: () => void;
   readonly onSkip: () => void;
   readonly onDownloadLog: () => void;
@@ -62,6 +70,11 @@ export const Hud = ({
   seatSummary,
   moveCount,
   matchSummary,
+  heads,
+  land,
+  refusalNote,
+  soundOn,
+  onToggleSound,
   onEndTurn,
   onSkip,
   onDownloadLog,
@@ -89,8 +102,22 @@ export const Hud = ({
           ? victory.hint
           : phaseHint(phase, movableCount, botBusy, vsBot, byokActive)}
       </p>
+      {refusalNote !== undefined ? <p className="hint byok-status">{refusalNote}</p> : null}
       {byokStatus !== undefined ? <p className="hint byok-status">{byokStatus}</p> : null}
       {illegal !== undefined ? <p className="hint lobby-byok-warn">{illegal}</p> : null}
+      {/* Keyed on the value: React remounts the span, so the bump animation
+          replays on every change without a single timer. The delay in CSS lands
+          the emphasis with the capture fill, not before it. */}
+      <p className="meta">
+        Heads:{' '}
+        <span key={`heads-${String(heads)}`} className="hud-bump">
+          {heads}
+        </span>
+        {' · '}Land:{' '}
+        <span key={`land-${String(land)}`} className="hud-bump">
+          {land}
+        </span>
+      </p>
       <p className="meta">Seats: {seatSummary}</p>
       <p className="meta">Moves logged: {moveCount}</p>
       {matchSummary !== undefined ? (
@@ -110,6 +137,17 @@ export const Hud = ({
         <button type="button" onClick={onNewMatch}>
           Lobby
         </button>
+        {/* Sound reinforces the five events that decide matches; it never carries
+            information the board does not already show, which is why off is a fine
+            default and why it is a toggle rather than a settings screen. */}
+        <button
+          type="button"
+          onClick={onToggleSound}
+          aria-pressed={soundOn}
+          title="Audio cues for closures, captures, cuts, combat and production"
+        >
+          Sound: {soundOn ? 'on' : 'off'}
+        </button>
       </div>
 
       <p className="help">
@@ -122,6 +160,15 @@ export const Hud = ({
         (overlap is legal until a cut) · solid fill = territory, thin fill = open
         trail · turn passes when nothing can step · pan stays live while an LLM
         seat thinks
+      </p>
+      <p className="fx-legend">
+        <b>What the board is telling you.</b> A pulse round a loop = you closed it ·
+        a fill spreading out from the closure = that ground is now yours · a dashed
+        rim = ground you <em>just</em> took · colour retracting = ground someone
+        lost · a line snapping apart = a trail was cut · one local clash with −
+        numbers = combat · a run out plus a rim that stays = a split · a run in = a
+        merge · a ring rising with + = heads produced · dashed chords = open trail,
+        which can be cut; solid fill = territory, which cannot.
       </p>
       <p className="help">
         Ringed dots are spawners — three arcs with a dark rim, one per bordering arrow.

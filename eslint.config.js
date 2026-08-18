@@ -43,6 +43,8 @@ export default tseslint.config(
       'reports/**',
       'coverage/**',
       '.stryker-tmp/**',
+      // Throwaway visual validation (gitignored) — never part of the build.
+      '**/.scratch/**',
     ],
   },
   js.configs.recommended,

@@ -560,14 +560,6 @@ body,
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .lobby-hourglass,
-  .yield-shine-band,
-  .selected-pulse {
-    animation: none;
-  }
-}
-
 #conquarrow-gis-chooser {
   min-height: 2.5rem;
 }
@@ -628,6 +620,19 @@ body,
     /* Keep the board the primary surface on a phone. */
     min-height: 55dvh;
   }
+}
+
+/* What the board will look like afterwards, before committing (Event 10). */
+.portion-split {
+  margin: -0.35rem 0 0;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.portion-split strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Why the portion floor is not 1: the trip costs heads (§3). */
@@ -747,13 +752,235 @@ body,
   color: var(--muted);
 }
 
-/* ── trail evaporation (cut FX) ───────────────────────────────────────────────
-   Lost trail cells burn from the cut locus outward. Presentation only. */
+/* ═══ the gameplay effect layer ═══════════════════════════════════════════════
+   Ten metaphors, reused everywhere. A player who sees a spatial fill twice has
+   learned what capture looks like; that only works if nothing else fills.
 
-@keyframes trail-evaporate-burn {
+     completion    pulse travelling the loop           .fx-loop-*
+     spatial fill  outward from the closure            .fx-capture-*
+     retraction    inward, old owner's colour          .fx-loss-retract
+     severing      halves recoil from a new gap        .fx-cut-*
+     impact        one local clash                     .fx-combat-*
+     divergence    a run out, a rim that stays         .fx-diverge-*
+     convergence   a run in, a rim that settles        .fx-converge-*
+     emergence     rises out of the ground             .fx-emerge-*
+     transfer      one owner's ink wipes to another    .fx-convert-*
+     motion        a directional streak                .fx-advance
+
+   Every rule uses `animation-fill-mode: both` and a *visible* base state. During
+   an effect's causal delay the `from` frame holds, so nothing flashes early; and
+   under `prefers-reduced-motion` the animation is switched off and the base state
+   is what shows — a static emphasis for the effect's lifetime rather than nothing
+   at all. That is why none of these start life at `opacity: 0`.
+
+   Transforms need an explicit box on SVG shapes, hence the shared block below. */
+
+.fx-capture-fill,
+.fx-loss-retract,
+.fx-combat-ring,
+.fx-combat-tick,
+.fx-emerge-ring,
+.fx-convert-in,
+.fx-sentry-set,
+.fx-converge-settle,
+.fx-diverge-hold,
+.fx-cut-gap,
+.fx-refusal {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.board-fx * {
+  pointer-events: none;
+}
+
+/* ── spatial fill: this ground became mine because that loop closed ────────── */
+
+@keyframes fx-capture-fill {
   0% {
-    fill-opacity: 0.72;
+    fill-opacity: 0;
+    stroke-opacity: 0;
+    transform: scale(0.45);
+  }
+  45% {
+    fill-opacity: 0.9;
+    stroke-opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    fill-opacity: 0;
+    stroke-opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.fx-capture-fill {
+  fill-opacity: 0.5;
+  stroke-opacity: 0.6;
+  animation-name: fx-capture-fill;
+  animation-timing-function: cubic-bezier(0.16, 0.84, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+/* The temporary "just gained" state. A dashed rim, not a brighter fill, so the
+   distinction survives colour-blindness — and it expires by itself, because
+   territory must keep exactly one permanent appearance. */
+@keyframes fx-capture-fresh {
+  0% {
+    stroke-opacity: 0;
+    stroke-dashoffset: 0;
+  }
+  18% {
     stroke-opacity: 0.95;
+  }
+  75% {
+    stroke-opacity: 0.75;
+  }
+  100% {
+    stroke-opacity: 0;
+    stroke-dashoffset: -28px;
+  }
+}
+
+.fx-capture-fresh {
+  stroke-opacity: 0.8;
+  animation-name: fx-capture-fresh;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+/* ── retraction: and this ground stopped being someone else's ──────────────── */
+
+@keyframes fx-loss-retract {
+  0% {
+    fill-opacity: 0.7;
+    stroke-opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    fill-opacity: 0;
+    stroke-opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+.fx-loss-retract {
+  fill-opacity: 0.45;
+  stroke-opacity: 0.6;
+  animation-name: fx-loss-retract;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.7, 0.3);
+  animation-fill-mode: both;
+}
+
+/* ── completion: the loop is closed, and this is which loop ────────────────── */
+
+@keyframes fx-loop-pulse {
+  0% {
+    stroke-opacity: 0;
+  }
+  30% {
+    stroke-opacity: 1;
+  }
+  100% {
+    stroke-opacity: 0;
+  }
+}
+
+.fx-loop-pulse {
+  stroke-opacity: 0.85;
+  animation-name: fx-loop-pulse;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+/* The arrow that actually landed reads a beat stronger than the rest of the loop. */
+.fx-loop-closing {
+  animation-name: fx-loop-closing;
+}
+
+@keyframes fx-loop-closing {
+  0% {
+    stroke-opacity: 0;
+  }
+  20% {
+    stroke-opacity: 1;
+  }
+  55% {
+    stroke-opacity: 0.65;
+  }
+  75% {
+    stroke-opacity: 1;
+  }
+  100% {
+    stroke-opacity: 0;
+  }
+}
+
+@keyframes fx-trail-laid {
+  0% {
+    stroke-opacity: 0;
+  }
+  35% {
+    stroke-opacity: 0.85;
+  }
+  100% {
+    stroke-opacity: 0;
+  }
+}
+
+.fx-trail-laid {
+  stroke-opacity: 0.5;
+  animation-name: fx-trail-laid;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+/* ── severing: a path was cut, which is not the same as damage ─────────────── */
+
+@keyframes fx-cut-half {
+  0% {
+    stroke-opacity: 1;
+    transform: translate(0, 0);
+  }
+  100% {
+    stroke-opacity: 0;
+    transform: translate(var(--fx-dx, 0), var(--fx-dy, 0));
+  }
+}
+
+.fx-cut-half {
+  stroke-opacity: 0.85;
+  animation-name: fx-cut-half;
+  animation-timing-function: cubic-bezier(0.1, 0.9, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+@keyframes fx-cut-gap {
+  0% {
+    stroke-opacity: 0;
+    transform: scale(0.2);
+  }
+  22% {
+    stroke-opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    stroke-opacity: 0;
+    transform: scale(1.25);
+  }
+}
+
+.fx-cut-gap {
+  stroke-opacity: 0.9;
+  animation-name: fx-cut-gap;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+@keyframes fx-evaporate-fill {
+  0% {
+    fill-opacity: 0.7;
+    stroke-opacity: 0.9;
   }
   35% {
     fill-opacity: 0.55;
@@ -765,10 +992,17 @@ body,
   }
 }
 
-@keyframes trail-evaporate-line {
+.fx-evaporate-fill {
+  fill-opacity: 0.4;
+  stroke-opacity: 0.6;
+  animation-name: fx-evaporate-fill;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+@keyframes fx-evaporate-chord {
   0% {
     stroke-opacity: 0.95;
-    stroke-width: 1;
   }
   40% {
     stroke-opacity: 1;
@@ -778,39 +1012,462 @@ body,
   }
 }
 
-@keyframes cut-spark {
+.fx-evaporate-chord {
+  stroke-opacity: 0.6;
+  animation-name: fx-evaporate-chord;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+/* ── impact: heads fought here, and it cost this much ──────────────────────── */
+
+@keyframes fx-combat-ring {
+  0% {
+    stroke-opacity: 0;
+    transform: scale(0.35);
+  }
+  30% {
+    stroke-opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    stroke-opacity: 0;
+    transform: scale(1.3);
+  }
+}
+
+.fx-combat-ring {
+  stroke-opacity: 0.8;
+  animation-name: fx-combat-ring;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+@keyframes fx-combat-tick {
+  0% {
+    stroke-opacity: 0;
+    transform: scale(0.5);
+  }
+  25% {
+    stroke-opacity: 1;
+    transform: scale(1.05);
+  }
+  100% {
+    stroke-opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+.fx-combat-tick {
+  stroke-opacity: 0.85;
+  animation-name: fx-combat-tick;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+/* ── divergence and convergence: one stack became two, or two became one ───── */
+
+@keyframes fx-run-out {
+  0% {
+    stroke-opacity: 0;
+    stroke-dashoffset: 400;
+  }
+  30% {
+    stroke-opacity: 0.95;
+  }
+  100% {
+    stroke-opacity: 0;
+    stroke-dashoffset: 0;
+  }
+}
+
+.fx-diverge-run,
+.fx-advance {
+  stroke-dasharray: 400;
+  stroke-opacity: 0.6;
+  animation-name: fx-run-out;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+.fx-advance {
+  stroke-opacity: 0.4;
+}
+
+/* The half that stayed: a rim that contracts onto the arrow it holds. */
+@keyframes fx-diverge-hold {
+  0% {
+    stroke-opacity: 0;
+    transform: scale(1.3);
+  }
+  40% {
+    stroke-opacity: 0.9;
+    transform: scale(1.02);
+  }
+  100% {
+    stroke-opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.fx-diverge-hold {
+  stroke-opacity: 0.5;
+  animation-name: fx-diverge-hold;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+/* Merge runs the other way: the stroke slides *into* the destination. */
+@keyframes fx-run-in {
+  0% {
+    stroke-opacity: 0;
+    stroke-dashoffset: 0;
+  }
+  30% {
+    stroke-opacity: 0.95;
+  }
+  100% {
+    stroke-opacity: 0;
+    stroke-dashoffset: -400;
+  }
+}
+
+.fx-converge-run {
+  stroke-dasharray: 400;
+  stroke-opacity: 0.6;
+  animation-name: fx-run-in;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.4, 1);
+  animation-fill-mode: both;
+}
+
+@keyframes fx-converge-settle {
   0% {
     fill-opacity: 0;
     stroke-opacity: 0;
-    transform: scale(0.55);
+    transform: scale(1.22);
   }
-  18% {
-    fill-opacity: 0.85;
+  45% {
+    fill-opacity: 0.32;
+    stroke-opacity: 0.95;
+    transform: scale(1);
+  }
+  100% {
+    fill-opacity: 0;
+    stroke-opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.fx-converge-settle {
+  fill-opacity: 0.18;
+  stroke-opacity: 0.5;
+  animation-name: fx-converge-settle;
+  animation-timing-function: cubic-bezier(0.16, 0.84, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+/* Sentries: a dashed rim that plants itself. Same dashed language as "not solid". */
+@keyframes fx-sentry-set {
+  0% {
+    stroke-opacity: 0;
+    transform: scale(1.5);
+  }
+  45% {
+    stroke-opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    stroke-opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.fx-sentry-set {
+  stroke-opacity: 0.5;
+  animation-name: fx-sentry-set;
+  animation-timing-function: cubic-bezier(0.16, 0.84, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+/* ── emergence: heads came out of the ground that paid for them ────────────── */
+
+@keyframes fx-emerge-ring {
+  0% {
+    fill-opacity: 0;
+    stroke-opacity: 0;
+    transform: scale(0.25);
+  }
+  40% {
+    fill-opacity: 0.34;
     stroke-opacity: 1;
     transform: scale(1.08);
   }
   100% {
     fill-opacity: 0;
     stroke-opacity: 0;
-    transform: scale(1.35);
+    transform: scale(1);
   }
 }
 
-.trail-evaporate-fill {
-  animation: trail-evaporate-burn 0.56s ease-out forwards;
-  pointer-events: none;
-  transform-box: fill-box;
-  transform-origin: center;
+.fx-emerge-ring {
+  fill-opacity: 0.2;
+  stroke-opacity: 0.6;
+  animation-name: fx-emerge-ring;
+  animation-timing-function: cubic-bezier(0.16, 0.9, 0.3, 1);
+  animation-fill-mode: both;
 }
 
-.trail-evaporate-line {
-  animation: trail-evaporate-line 0.56s ease-out forwards;
-  pointer-events: none;
+/* ── transfer: these heads are someone else's now, and they never moved ────── */
+
+@keyframes fx-convert-out {
+  0% {
+    fill-opacity: 0.55;
+  }
+  100% {
+    fill-opacity: 0;
+  }
 }
 
-.cut-spark {
-  animation: cut-spark 0.48s ease-out forwards;
-  pointer-events: none;
+.fx-convert-out {
+  fill-opacity: 0.3;
+  animation-name: fx-convert-out;
+  animation-timing-function: ease-in;
+  animation-fill-mode: both;
+}
+
+@keyframes fx-convert-in {
+  0% {
+    stroke-opacity: 0;
+    transform: scale(1.35);
+  }
+  50% {
+    stroke-opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    stroke-opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.fx-convert-in {
+  stroke-opacity: 0.6;
+  animation-name: fx-convert-in;
+  animation-timing-function: cubic-bezier(0.16, 0.84, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+/* ── the transient numerals: what a change cost, or paid ───────────────────── */
+
+@keyframes fx-float {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--fx-dx, 0), var(--fx-dy, 0));
+  }
+}
+
+.fx-float-loss,
+.fx-float-gain,
+.fx-float-move,
+.fx-float-stay {
   transform-box: fill-box;
-  transform-origin: center;
+  opacity: 0.9;
+  animation-name: fx-float;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+/* The count that stayed settles into place and holds, where the one that left
+   keeps going — same vocabulary, opposite gesture (Event 9). */
+@keyframes fx-float-stay {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  35% {
+    opacity: 1;
+    transform: translate(var(--fx-dx, 0), var(--fx-dy, 0));
+  }
+  70% {
+    opacity: 1;
+    transform: translate(var(--fx-dx, 0), var(--fx-dy, 0));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--fx-dx, 0), var(--fx-dy, 0));
+  }
+}
+
+.fx-float-stay {
+  animation-name: fx-float-stay;
+  animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+/* ── a refused click, answered where it was made ───────────────────────────── */
+
+@keyframes fx-refusal {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(-2.5px);
+  }
+  35% {
+    transform: translateX(2.5px);
+  }
+  55% {
+    opacity: 1;
+    transform: translateX(-1.2px);
+  }
+  80% {
+    opacity: 0.6;
+    transform: translateX(0);
+  }
+}
+
+.fx-refusal {
+  opacity: 0.9;
+  animation-name: fx-refusal;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+/* ── standing state, not an event: the open trail is exposed ───────────────────
+   Territory is a solid fill; an open trail is a dashed chord. That is a *shape*
+   difference, so "this part of my expansion can be cut" survives a screenshot and
+   colour-blindness both. Only the player to move gets the drift, because that is
+   the trail they are actively extending. */
+
+.trail-chord {
+  stroke-linecap: round;
+}
+
+.trail-chord-open {
+  stroke-dasharray: 5 3.5;
+}
+
+@keyframes trail-live-drift {
+  to {
+    stroke-dashoffset: -17px;
+  }
+}
+
+.trail-chord-live {
+  animation: trail-live-drift 1.6s linear infinite;
+}
+
+/* ── whose turn it is, without a modal ─────────────────────────────────────────
+   A thin ring inset on the board edge, tinted by the player to move. Persistent,
+   so it answers "whose turn" at a glance; it sweeps once on handover, so a change
+   of hands is noticed without a banner. A second, softer ring breathes while the
+   board is still resolving — a seat thinking, or a major effect playing. */
+
+.turn-ring {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  border: 2px solid var(--turn-tint, var(--line));
+  border-radius: 2px;
+  opacity: 0.5;
+}
+
+.turn-ring.resolving {
+  opacity: 0.85;
+  animation: turn-ring-resolving 1.1s ease-in-out infinite;
+}
+
+@keyframes turn-ring-resolving {
+  0%,
+  100% {
+    opacity: 0.32;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.turn-ring.handover {
+  animation: turn-ring-handover 260ms ease-out;
+}
+
+@keyframes turn-ring-handover {
+  0% {
+    opacity: 0.15;
+    box-shadow: inset 0 0 0 0 var(--turn-tint, transparent);
+  }
+  40% {
+    opacity: 1;
+    box-shadow: inset 0 0 18px 0 var(--turn-tint, transparent);
+  }
+  100% {
+    opacity: 0.5;
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+}
+
+/* ── a HUD number that just changed ───────────────────────────────────────────
+   Event 1F: the production read-out updates *after* the capture, and says so. */
+
+@keyframes hud-bump {
+  0% {
+    color: var(--accent);
+    transform: translateY(2px);
+  }
+  35% {
+    color: var(--accent);
+    transform: translateY(0);
+  }
+  100% {
+    color: inherit;
+    transform: translateY(0);
+  }
+}
+
+.hud-bump {
+  display: inline-block;
+  animation: hud-bump 520ms ease-out;
+}
+
+.fx-legend {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  opacity: 0.72;
+}
+
+.fx-legend b {
+  font-weight: 600;
+  opacity: 0.95;
+}
+
+/* ── reduced motion ───────────────────────────────────────────────────────────
+   Every effect above keeps a visible base state, so switching the animation off
+   leaves a static emphasis that the queue removes on schedule. Nothing silently
+   becomes invisible, and nothing keeps moving. */
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby-hourglass,
+  .yield-shine-band,
+  .selected-pulse,
+  .path-pulse,
+  .trail-chord-live,
+  .turn-ring.resolving,
+  .turn-ring.handover,
+  .hud-bump,
+  .board-fx *,
+  [class^='fx-'],
+  [class*=' fx-'] {
+    animation: none !important;
+  }
 }

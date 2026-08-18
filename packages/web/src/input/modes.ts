@@ -9,6 +9,7 @@
 
 import { endTurn, skip } from '@conquarrow/contracts';
 import type { ArrowId, GameState, GeometryPort, Move, RulesPort } from '@conquarrow/contracts';
+import type { RefusalReason } from '../fx/present';
 import { pathForDestination, planMoves, reachFrom } from '../reach';
 import type { Reach, ReachEntry } from '../reach';
 import { commitKind } from '../selectionChrome';
@@ -53,6 +54,15 @@ export interface InputSnapshot {
   readonly highlights: InputHighlights;
   /** Moves waiting for the host to apply, in order. A trip may be several steps. */
   readonly pending?: readonly Move[];
+  /**
+   * A click that could not do anything, and where (Event 11).
+   *
+   * One-shot: it rides on the snapshot the refused click produced and is never
+   * carried into the next one, so the same refusal cannot re-fire on a later
+   * no-op. Silence used to be the whole answer here — a player learned the
+   * constraint by guessing.
+   */
+  readonly refusal?: { readonly arrow: ArrowId; readonly reason: RefusalReason };
 }
 
 export interface InputMode {
@@ -115,13 +125,14 @@ abstract class BaseMode implements InputMode {
     // deselects — and selected chrome is the halo, not a reach wash.
     this.reach = withoutSource(from, reachFrom(this.geometry, rules, state, from));
     const targets = new Set(this.reach.keys());
-    this.snap =
-      targets.size === 0
-        ? { phase: { kind: 'blocked', from }, highlights: { selected: from, targets } }
-        : {
-            phase: { kind: 'source', from },
-            highlights: { selected: from, targets, reach: this.reach },
-          };
+    if (targets.size === 0) {
+      this.snap = { phase: { kind: 'blocked', from }, highlights: { selected: from, targets } };
+      return { ...this.snap, refusal: { arrow: from, reason: 'no-exit' } };
+    }
+    this.snap = {
+      phase: { kind: 'source', from },
+      highlights: { selected: from, targets, reach: this.reach },
+    };
     return this.snap;
   }
 
@@ -197,7 +208,7 @@ abstract class BaseMode implements InputMode {
     if (phase.kind === 'idle') return this.snap;
     const { from } = phase;
     if (!rules.legalMoves(state).some((m) => m.kind === 'skip' && m.from === from)) {
-      return this.snap;
+      return { ...this.snap, refusal: { arrow: from, reason: 'cannot-skip' } };
     }
     this.snap = { phase: { kind: 'idle' }, highlights: emptyHighlights(), pending: [skip(from)] };
     this.reach = new Map();
@@ -225,6 +236,11 @@ abstract class BaseMode implements InputMode {
     return undefined;
   }
 
+  /** The snapshot to return for a click that did nothing, plus why. */
+  protected refuse(arrow: ArrowId, reason: RefusalReason): InputSnapshot {
+    return { ...this.snap, refusal: { arrow, reason } };
+  }
+
   abstract onArrowClick(arrow: ArrowId, state: GameState, rules: RulesPort): InputSnapshot;
 }
 
@@ -242,7 +258,12 @@ export class GalconInput extends BaseMode {
       }
     }
     const from = phase.kind === 'idle' ? undefined : phase.from;
-    return this.common(arrow, state, rules, from) ?? this.snap;
+    const handled = this.common(arrow, state, rules, from);
+    if (handled !== undefined) return handled;
+    // Nothing happened, so say what stopped it *at the tile that was clicked*.
+    // A stack is selected and this is not somewhere it can get to; or nothing is
+    // selected and this is not a stack of yours to pick up.
+    return this.refuse(arrow, from === undefined ? 'not-yours' : 'out-of-reach');
   }
 }
 

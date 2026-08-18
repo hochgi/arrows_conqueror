@@ -1,5 +1,5 @@
 import type { ArrowId, GameState, GeometryPort, PlayerId, VertexId } from '@conquarrow/contracts';
-import type { Point2, TilingLayout } from '@conquarrow/geometry-tiling';
+import type { TilingLayout } from '@conquarrow/geometry-tiling';
 import type { PointerEvent, ReactElement, WheelEvent } from 'react';
 import {
   BOARD_BG,
@@ -34,7 +34,9 @@ import { spawnerInfoAt, spawnerProminence, yieldSoonByArrow } from './spawnerInf
 import type { YieldSoon } from './spawnerInfo';
 import type { Viewport } from './viewport';
 import { toScreen } from './viewport';
-import type { EvaporationBurst } from './fx/evaporation';
+import { boxOf, centroidScreen, polyPoints } from './boardGeom';
+import { BoardFx } from './fx/BoardFx';
+import type { FxItem } from './fx/queue';
 import {
   isMatchOverDimmed,
   playHighlightsAllowed,
@@ -57,8 +59,13 @@ export interface BoardProps {
   readonly movable: ReadonlySet<ArrowId>;
   /** The spawner under the cursor, if any — ringed here, detailed in `SpawnerTip`. */
   readonly hoveredSpawner?: VertexId;
-  /** Active trail-evaporation bursts (cut FX). */
-  readonly evaporation?: readonly EvaporationBurst[];
+  /**
+   * Live gameplay effects, resolved from state transitions (see `fx/events.ts`).
+   *
+   * Additive: the board below already renders the authoritative state, so an
+   * empty queue is a correct board, never a stale one.
+   */
+  readonly effects?: readonly FxItem[];
   /** Match-over celebration — computed once in App, shared with Hud. */
   readonly victory: VictoryFx;
   readonly onPointerDown: (e: PointerEvent<SVGSVGElement>) => void;
@@ -67,14 +74,6 @@ export interface BoardProps {
   readonly onPointerLeave: (e: PointerEvent<SVGSVGElement>) => void;
   readonly onWheel: (e: WheelEvent<SVGSVGElement>) => void;
 }
-
-const polyPoints = (viewport: Viewport, poly: readonly Point2[]): string =>
-  poly
-    .map((p) => {
-      const s = toScreen(viewport, p.x, p.y);
-      return `${String(s.x)},${String(s.y)}`;
-    })
-    .join(' ');
 
 const fillFor = (arrow: ArrowId, state: GameState): { fill: string; stroke: string } => {
   const territoryOwner = state.territory.get(arrow);
@@ -194,17 +193,6 @@ const ReachOrPathWash = ({
       style={{ pointerEvents: 'none' }}
     />
   );
-};
-
-const centroidScreen = (viewport: Viewport, poly: readonly Point2[]): { x: number; y: number } => {
-  let sx = 0;
-  let sy = 0;
-  for (const p of poly) {
-    sx += p.x;
-    sy += p.y;
-  }
-  const n = poly.length || 1;
-  return toScreen(viewport, sx / n, sy / n);
 };
 
 /** Majority of three bordering territory shares; otherwise neutral. */
@@ -373,7 +361,7 @@ export const Board = ({
   chrome,
   movable,
   hoveredSpawner,
-  evaporation,
+  effects,
   victory: fx,
   onPointerDown,
   onPointerMove,
@@ -443,17 +431,7 @@ export const Board = ({
         for (const [player, trail] of state.trails) {
           if (trail.has(arrow)) trailMarks.push(player);
         }
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-        for (const p of poly) {
-          const s = toScreen(viewport, p.x, p.y);
-          minX = Math.min(minX, s.x);
-          minY = Math.min(minY, s.y);
-          maxX = Math.max(maxX, s.x);
-          maxY = Math.max(maxY, s.y);
-        }
+        const bounds = boxOf(viewport, poly);
         const minCount = flags.entry?.minCount;
         return (
           <g key={String(arrow)} className={dimmed ? 'match-over-dim' : undefined}>
@@ -479,16 +457,25 @@ export const Board = ({
               const originWorld = layout.pointPosition(geometry.origin(arrow));
               const origin = toScreen(viewport, originWorld.x, originWorld.y);
               const ink = styleFor(player).stroke;
+              // Dashed = open trail, cuttable. Territory next door is a solid
+              // fill, so "exposed" is legible from shape alone (§5). The drift is
+              // only on the player to move: that is the trail being extended
+              // right now, and the risk they are taking on.
+              const live = play && player === state.activePlayer;
               return (
                 <line
                   key={`trail-${String(player)}`}
+                  className={
+                    live
+                      ? 'trail-chord trail-chord-open trail-chord-live'
+                      : 'trail-chord trail-chord-open'
+                  }
                   x1={origin.x}
                   y1={origin.y}
                   x2={tip.x}
                   y2={tip.y}
                   stroke={ink}
                   strokeWidth={Math.max(1.6, viewport.scale * 0.055)}
-                  strokeLinecap="round"
                   strokeOpacity={0.92}
                   style={{ pointerEvents: 'none' }}
                 />
@@ -518,7 +505,7 @@ export const Board = ({
                 points={points}
                 soon={shineSoon}
                 gradId={victoryShine ? 'victoryShineGrad' : 'yieldShineGrad'}
-                bounds={{ x: minX, y: minY, w: maxX - minX, h: maxY - minY }}
+                bounds={bounds}
               />
             ) : null}
             {group !== undefined ? (
@@ -574,61 +561,12 @@ export const Board = ({
           />
         );
       })}
-      {(evaporation ?? []).map((burst) => (
-        <g key={burst.id} className="evaporation-burst" style={{ pointerEvents: 'none' }}>
-          {burst.arrows.map((cell) => {
-            const poly = layout.polygon(cell.arrow);
-            if (poly.length === 0) return null;
-            const points = polyPoints(viewport, poly);
-            const s = styleFor(cell.player);
-            const originWorld = layout.pointPosition(geometry.origin(cell.arrow));
-            const tipWorld = layout.pointPosition(geometry.target(cell.arrow));
-            const origin = toScreen(viewport, originWorld.x, originWorld.y);
-            const tip = toScreen(viewport, tipWorld.x, tipWorld.y);
-            const delay = `${String(cell.delayMs)}ms`;
-            return (
-              <g key={`evap-${burst.id}-${String(cell.arrow)}-${String(cell.player)}`}>
-                <polygon
-                  points={points}
-                  fill={s.fill}
-                  stroke={s.stroke}
-                  strokeWidth={1.4}
-                  className="trail-evaporate-fill"
-                  style={{ animationDelay: delay }}
-                />
-                <line
-                  x1={origin.x}
-                  y1={origin.y}
-                  x2={tip.x}
-                  y2={tip.y}
-                  stroke={s.stroke}
-                  strokeWidth={Math.max(2, viewport.scale * 0.07)}
-                  strokeLinecap="round"
-                  className="trail-evaporate-line"
-                  style={{ animationDelay: delay }}
-                />
-              </g>
-            );
-          })}
-          {burst.cutArrow !== undefined
-            ? (() => {
-                const poly = layout.polygon(burst.cutArrow);
-                if (poly.length === 0) return null;
-                const points = polyPoints(viewport, poly);
-                return (
-                  <polygon
-                    key={`spark-${burst.id}`}
-                    points={points}
-                    fill="#f4efe4"
-                    stroke="#f0c96a"
-                    strokeWidth={2.2}
-                    className="cut-spark"
-                  />
-                );
-              })()
-            : null}
-        </g>
-      ))}
+      <BoardFx
+        geometry={geometry}
+        layout={layout}
+        viewport={viewport}
+        items={effects ?? []}
+      />
     </svg>
   );
 };

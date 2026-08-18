@@ -18,8 +18,24 @@ export interface PlayerStyle {
   /** Open trail: same hue, thinned — cuttable, and visibly so (§5). */
   readonly trailFill: string;
   readonly stroke: string;
-  /** Numerals drawn over `fill`, chosen so the count always reads. */
+  /**
+   * Numerals drawn over `fill`, chosen so the count always reads.
+   *
+   * **Not a line colour.** For a light player it is near-black by design, which is
+   * correct on top of gold and invisible on the board's near-black ground. Effects
+   * that draw *on the board* want {@link PlayerStyle.accent}.
+   */
   readonly ink: string;
+  /**
+   * The player's hue lifted toward white — "this player, loudly", on the dark
+   * ground rather than on their own tile.
+   *
+   * The effect layer needs a per-player colour that reads against `BOARD_BG` at
+   * stroke weights of a pixel or two. `fill` is too close to the tile it sits on
+   * and `ink` inverts for light players, so neither works; one consistent lift
+   * keeps all eight seats legible without hand-picking sixteen line colours.
+   */
+  readonly accent: string;
   readonly label: string;
 }
 
@@ -33,11 +49,15 @@ const rgba = (r: number, g: number, b: number, a: number): string =>
 const luminance = (r: number, g: number, b: number): number =>
   (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 
+/** Lift a channel 38% of the way to white — enough to clear the board ground. */
+const lift = (c: number): number => Math.round(c + (255 - c) * 0.38);
+
 const entry = (label: string, r: number, g: number, b: number): PlayerStyle => ({
   fill: `rgb(${String(r)}, ${String(g)}, ${String(b)})`,
   trailFill: rgba(r, g, b, 0.32),
   stroke: rgba(Math.round(r * 0.45 + 30), Math.round(g * 0.45 + 30), Math.round(b * 0.45 + 30), 0.95),
   ink: luminance(r, g, b) > 0.58 ? '#141a21' : '#f4efe4',
+  accent: `rgb(${String(lift(r))}, ${String(lift(g))}, ${String(lift(b))})`,
   label,
 });
 
@@ -95,3 +115,16 @@ export const SPAWNER_RIM = '#0b1016';
 export const SPAWNER_CURSOR = '#f0c96a';
 /** Soft halo behind stack numerals — thin, not opaque. */
 export const COUNT_HALO = 'rgba(8, 12, 18, 0.45)';
+
+/**
+ * "This is happening, right now" — player-independent, and the brightest thing the
+ * effect layer draws.
+ *
+ * Used for the moment-of-change marks: the rim on newly captured ground, the gap a
+ * cut opens, the ring where a fight resolved. Deliberately not tinted by player:
+ * the fill underneath already says whose it is, and one colour for *recency* is
+ * what lets a player learn "cream means just now" instead of learning it per seat.
+ */
+export const FX_NOW = '#f4efe4';
+/** The halo that keeps a transient numeral readable over any fill. */
+export const FX_COUNT_HALO = 'rgba(8, 12, 18, 0.65)';

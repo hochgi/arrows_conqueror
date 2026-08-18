@@ -12,6 +12,7 @@ import {
 } from '@conquarrow/contracts';
 import { makeLayout, makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
 import { makeRules } from '@conquarrow/rules-core';
+import { styleFor } from './colors';
 import { hasLegalStep, onlinePassMove, passIfExhausted } from './autoEndTurn';
 import { Board } from './Board';
 import { cullArrows, cullVertices } from './cull';
@@ -59,12 +60,17 @@ import {
   localAiChairKey,
 } from './botPlayback';
 import { playBotTurn } from './opponent';
+import { presentRefusal, presentSteps, REFUSAL_TEXT, type FxOverlay } from './fx/present';
 import {
-  burstLifetimeMs,
-  createEvaporationBurst,
-  pruneBursts,
-  type EvaporationBurst,
-} from './fx/evaporation';
+  emptyQueue,
+  enqueue,
+  isResolving,
+  pruneQueue,
+  queueSettleMs,
+  type FxItem,
+} from './fx/queue';
+import { loadSoundEnabled, playOverlayCues, saveSoundEnabled } from './fx/sound';
+import { replaySteps } from './fx/steps';
 import { victoryFx } from './fx/victory';
 import { ConvertTip } from './ConvertTip';
 import { PortionSlider } from './PortionSlider';
@@ -74,7 +80,7 @@ import { selectionPaint, type PointerKind } from './selectionChrome';
 import { spawnerInfoAt } from './spawnerInfo';
 import { SpawnerTip } from './SpawnerTip';
 import type { Viewport } from './viewport';
-import { ZOOM, centerOn, createViewport, panBy, resize, zoomAt } from './viewport';
+import { ZOOM, centerOn, createViewport, panBy, resize, toScreen, zoomAt } from './viewport';
 
 const geometry = makeTiling();
 const layout = makeLayout();
@@ -222,7 +228,15 @@ export const App = (): ReactElement => {
   const [hoverPath, setHoverPath] = useState<ReadonlySet<ArrowId> | undefined>(undefined);
   const [botBusy, setBotBusy] = useState(false);
   const [byokStatus, setByokStatus] = useState<string | undefined>(undefined);
-  const [evaporation, setEvaporation] = useState<readonly EvaporationBurst[]>([]);
+  /** Live gameplay effects. Additive over `state`, so losing one cannot mislead. */
+  const [fx, setFx] = useState<readonly FxItem[]>(emptyQueue);
+  /** Monotonic id source for overlays — a counter, never a clock. */
+  const fxSeq = useRef(0);
+  const [soundOn, setSoundOn] = useState<boolean>(() => loadSoundEnabled());
+  const soundRef = useRef(soundOn);
+  soundRef.current = soundOn;
+  /** One short line naming why the last click did nothing. */
+  const [refusalNote, setRefusalNote] = useState<string | undefined>(undefined);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   /** Active pointers for pinch-zoom (phone has no wheel). */
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -332,6 +346,34 @@ export const App = (): ReactElement => {
     [],
   );
 
+  /**
+   * Resolve what a committed batch changed, and queue the effects for it.
+   *
+   * The state transition has already happened by the time this runs — every
+   * overlay decorates a board that is already correct — so this is allowed to
+   * fail, be capped, or be interrupted without affecting play.
+   */
+  const pushFx = useCallback(
+    (before: GameState | undefined, moves: readonly Move[], next: GameState): void => {
+      if (before === undefined || moves.length === 0) return;
+      const steps = replaySteps(rules, before, moves, next);
+      const overlays = presentSteps(steps, { geometry, seq: fxSeq.current });
+      if (overlays.length === 0) return;
+      fxSeq.current += overlays.length + 1;
+      const now = Date.now();
+      setFx((prev) => enqueue(prev, overlays, now));
+      if (soundRef.current) playOverlayCues(overlays);
+    },
+    [],
+  );
+
+  /** Localized feedback for a click that could not do anything (Event 11). */
+  const pushRefusal = useCallback((overlay: FxOverlay, note: string): void => {
+    fxSeq.current += 1;
+    setFx((prev) => enqueue(prev, [overlay], Date.now()));
+    setRefusalNote(note);
+  }, []);
+
   /** Apply + log outside React updater functions (Strict Mode double-invokes those). */
   const commitApplied = useCallback(
     (
@@ -341,33 +383,29 @@ export const App = (): ReactElement => {
       byokSeat?: PlayerId,
     ): void => {
       const before = stateRef.current;
-      if (before !== undefined) {
-        const burst = createEvaporationBurst(before, next, moves, Date.now(), geometry);
-        if (burst !== undefined) {
-          setEvaporation((prev) => pruneBursts([...prev, burst]));
-        }
-      }
+      pushFx(before, moves, next);
       stateRef.current = next;
       record(moves, next, before, byokDelta, byokSeat);
       setState(next);
       setSnap(mode.reset());
+      setRefusalNote(undefined);
     },
-    [geometry, mode, record],
+    [mode, record, pushFx],
   );
 
-  // Drop finished evaporation bursts so the overlay list stays short.
+  // Retire finished effects. One timer for the whole queue, armed for the longest
+  // remaining lifetime — the board is already correct, so a late prune is only a
+  // few extra shapes, never a wrong position.
   useEffect(() => {
-    if (evaporation.length === 0) return;
-    const latest = evaporation[evaporation.length - 1];
-    if (latest === undefined) return;
-    const wait = burstLifetimeMs(latest) + 30;
+    if (fx.length === 0) return;
+    const wait = queueSettleMs(fx, Date.now()) + 40;
     const handle = window.setTimeout(() => {
-      setEvaporation((prev) => pruneBursts(prev));
+      setFx((prev) => pruneQueue(prev, Date.now()));
     }, wait);
     return () => {
       window.clearTimeout(handle);
     };
-  }, [evaporation]);
+  }, [fx]);
 
   const softLockKey = useRef<string | null>(null);
   useEffect(() => {
@@ -569,9 +607,45 @@ export const App = (): ReactElement => {
     [state],
   );
 
+  /**
+   * The read-out that makes capture → production legible (Event 1F).
+   *
+   * Heads in hand and land held, for the player to move. The HUD emphasises each
+   * value when it changes, on a delay tuned to land with the capture fill — so the
+   * number visibly moves *because* ground changed hands, rather than at some
+   * unrelated moment.
+   */
+  const activeTotals = useMemo(() => {
+    if (state === undefined) return { heads: 0, land: 0 };
+    let heads = 0;
+    for (const group of state.groups.values()) {
+      if (group.owner === state.activePlayer) heads += group.heads;
+    }
+    let land = 0;
+    for (const owner of state.territory.values()) {
+      if (owner === state.activePlayer) land += 1;
+    }
+    return { heads, land };
+  }, [state]);
+
   const commitSnap = useCallback(
     (next: InputSnapshot) => {
       setSnap(next);
+      if (next.refusal !== undefined) {
+        const { arrow, reason } = next.refusal;
+        // P28 already knows a grain-out that would flip your own heads; naming
+        // *that* beats the generic "too far" the reach test would give.
+        const wouldConvert = boardHighlights.refused?.has(arrow) === true;
+        const finalReason = wouldConvert ? 'would-convert' : reason;
+        pushRefusal(
+          presentRefusal(arrow, finalReason, fxSeq.current),
+          REFUSAL_TEXT[finalReason],
+        );
+      } else {
+        // Any action that *did* something answers the last refusal — leaving the
+        // note up would have it explain a click two clicks ago.
+        setRefusalNote(undefined);
+      }
       if (next.pending === undefined) return;
       if (onlinePlayRef.current) {
         const pending = next.pending;
@@ -590,12 +664,7 @@ export const App = (): ReactElement => {
             refresh();
             return;
           }
-          if (before !== undefined && applied.length > 0) {
-            const burst = createEvaporationBurst(before, game, applied, Date.now(), geometry);
-            if (burst !== undefined) {
-              setEvaporation((prev) => pruneBursts([...prev, burst]));
-            }
-          }
+          pushFx(before, applied, game);
           stateRef.current = game;
           if (applied.length > 0) record(applied, game, before);
           setState(game);
@@ -633,11 +702,23 @@ export const App = (): ReactElement => {
         froms.find((arrow) => arrow !== lastFrom) ?? froms[0];
       if (pick === undefined) return;
       setSnap(mode.onArrowClick(pick, applied, rules));
-      // Skip / exhaust already picked the next stack — don't make the player hunt it.
+      // Skip / exhaust already picked the next stack — don't make the player hunt
+      // it. But only pan when it is actually off screen: a camera that jumps after
+      // every trip destroys the spatial orientation the capture effect depends on,
+      // and the effect is playing at exactly that moment.
       const focus = arrowCentroid(pick);
-      setViewport((v) => centerOn(v, focus.x, focus.y));
+      setViewport((v) => {
+        const at = toScreen(v, focus.x, focus.y);
+        const margin = Math.min(v.width, v.height) * 0.16;
+        const visible =
+          at.x > margin &&
+          at.x < v.width - margin &&
+          at.y > margin &&
+          at.y < v.height - margin;
+        return visible ? v : centerOn(v, focus.x, focus.y);
+      });
     },
-    [commitApplied, mode, record, refresh],
+    [commitApplied, mode, record, refresh, pushFx, pushRefusal, boardHighlights.refused],
   );
 
   const previewPortion = useCallback(
@@ -659,7 +740,8 @@ export const App = (): ReactElement => {
     seatConfigsRef.current = new Map();
     setBotBusy(false);
     setByokStatus(undefined);
-    setEvaporation([]);
+    setFx(emptyQueue());
+    setRefusalNote(undefined);
     clearTargetLocks();
     setSnap(mode.reset());
     softLockKey.current = null;
@@ -792,6 +874,8 @@ export const App = (): ReactElement => {
   const byokActive = activeSeat?.kind === 'byok' && isByokReady(byokConfigForSeat(activeSeat));
 
   const inputLocked = botBusy || activeIsAi || state.winner !== undefined;
+  /** The board is mid-resolution: a seat is thinking, or a major effect is playing. */
+  const resolving = botBusy || activeIsAi || isResolving(fx, Date.now());
 
   const notePointer = (pointerType: string): void => {
     const next = pointerKindOf(pointerType);
@@ -966,6 +1050,15 @@ export const App = (): ReactElement => {
         seatSummary={log.seats.map((s) => `${String(s.player)}=${displaySeatKind(s.kind)}`).join(' · ')}
         moveCount={log.moves.length}
         matchSummary={matchSummaryLine(victory.kind === 'over', log.summary)}
+        heads={activeTotals.heads}
+        land={activeTotals.land}
+        refusalNote={refusalNote}
+        soundOn={soundOn}
+        onToggleSound={() => {
+          const next = !soundOn;
+          setSoundOn(next);
+          saveSoundEnabled(next);
+        }}
         onEndTurn={() => {
           if (inputLocked) return;
           commitSnap(mode.requestEndTurn());
@@ -981,6 +1074,27 @@ export const App = (): ReactElement => {
         illegal={host?.illegal()}
       />
       <div className="stage" ref={shellRef}>
+        {/* Whose turn it is, and whether the board is still resolving — an edge
+            ring rather than a modal.
+
+            Two nodes, because they are two facts with two animations. The outer
+            ring is keyed on the active seat, so its handover sweep plays exactly
+            once per change of hands; the inner one only exists while the board is
+            resolving. One node carrying both classes would restart the handover
+            sweep every time an effect finished. */}
+        <div
+          key={`turn-${String(state.activePlayer)}`}
+          className="turn-ring handover"
+          style={{ ['--turn-tint' as string]: styleFor(state.activePlayer).fill }}
+          aria-hidden
+        />
+        {resolving ? (
+          <div
+            className="turn-ring resolving"
+            style={{ ['--turn-tint' as string]: styleFor(state.activePlayer).fill }}
+            aria-hidden
+          />
+        ) : null}
         <Board
           geometry={geometry}
           layout={layout}
@@ -991,7 +1105,7 @@ export const App = (): ReactElement => {
           highlights={boardHighlights}
           chrome={chrome}
           movable={movable}
-          evaporation={evaporation}
+          effects={fx}
           victory={victory}
           {...(hover === undefined ? {} : { hoveredSpawner: hover.vertex })}
           onPointerDown={onPointerDown}
@@ -1015,6 +1129,7 @@ export const App = (): ReactElement => {
           <PortionSlider
             allowed={snap.phase.allowed}
             steps={snap.phase.steps}
+            heads={state.groups.get(snap.phase.from)?.heads ?? snap.phase.max}
             onConfirm={(n) => {
               commitSnap(mode.choosePortion(n));
             }}
