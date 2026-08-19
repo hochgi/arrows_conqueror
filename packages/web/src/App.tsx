@@ -415,19 +415,6 @@ export const App = (): ReactElement => {
     };
   }, [fx]);
 
-  // Escape discards an open draft. Nothing was applied, so there is nothing to
-  // undo — which is the whole reason in-turn undo is out of P34's scope.
-  useEffect(() => {
-    if (snap.phase.kind !== 'route') return;
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setSnap(mode.cancel());
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [snap.phase.kind, mode]);
-
   const softLockKey = useRef<string | null>(null);
   useEffect(() => {
     if (state === undefined) return;
@@ -749,6 +736,23 @@ export const App = (): ReactElement => {
     },
     [mode],
   );
+
+  // Escape discards an open draft. Nothing was applied, so there is nothing to
+  // undo — which is the whole reason in-turn undo is out of P34's scope. It goes
+  // through `commitSnap` so it is the *same* cancel as the button and the
+  // background click: a cancel answers the last refusal and clears its note,
+  // which a bare `setSnap` would leave on screen explaining an older click.
+  // Declared after `commitSnap` because the dependency array reads it at render.
+  useEffect(() => {
+    if (snap.phase.kind !== 'route') return;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') commitSnap(mode.cancel());
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [snap.phase.kind, mode, commitSnap]);
 
   const returnToLobby = (): void => {
     onlinePlayRef.current = false;

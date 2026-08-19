@@ -212,7 +212,9 @@ stateDiagram-v2
   [*] --> idle
   idle --> route: click own stack (something clickable)
   idle --> blocked: click own stack (nothing clickable)
-  blocked --> idle: any click
+  blocked --> idle: click the blocked stack again
+  blocked --> route: click another own stack
+  blocked --> blocked: click anything else (refuses, keeps the mark)
   route --> route: click a clickable arrow (extend)
   route --> route: click a drafted arrow (pop)
   route --> route: change carry at the tip
@@ -221,6 +223,11 @@ stateDiagram-v2
   route --> idle: Send (emits pending)
 ```
 
+- **`blocked` is P11's, unchanged.** A stack with nothing clickable keeps its mark
+  until it is clicked again or another own stack is picked up; any other click
+  refuses `out-of-reach` and leaves the mark standing, so the player is not
+  silently un-told which stack is stuck. This packet only changes *what makes* a
+  stack blocked — an empty clickable set rather than an empty reach.
 - Selecting an own stack enters `route` with an empty draft, `tip = from`,
   `carry = ` every head on `from`, `tipHeads = ` the same.
 - **Extend**: clicking a clickable arrow appends that option's `steps` to the
