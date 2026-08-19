@@ -44,7 +44,13 @@ export type RefusalReason =
   | 'out-of-reach'
   | 'no-exit'
   | 'would-convert'
-  | 'cannot-skip';
+  | 'cannot-skip'
+  /**
+   * An adjacent enemy arrow the carry cannot attack because the whole carry
+   * leaving would empty the tip (§6.2 / §11 item 38). Lowering the carry arms it,
+   * so the refusal names the fix rather than reading as "too far" (P34).
+   */
+  | 'needs-stay-behind';
 
 export const REFUSAL_TEXT: Readonly<Record<RefusalReason, string>> = {
   'not-yours': 'Not your stack',
@@ -52,6 +58,7 @@ export const REFUSAL_TEXT: Readonly<Record<RefusalReason, string>> = {
   'no-exit': 'Nowhere to go from here',
   'would-convert': 'No trail home — those heads would flip',
   'cannot-skip': 'Nothing to skip',
+  'needs-stay-behind': 'An attack must leave a head behind',
 };
 
 /** One arrow inside an overlay, with its own delay from the overlay's origin. */

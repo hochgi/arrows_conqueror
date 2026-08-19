@@ -73,9 +73,9 @@ import { loadSoundEnabled, playOverlayCues, saveSoundEnabled } from './fx/sound'
 import { replaySteps } from './fx/steps';
 import { victoryFx } from './fx/victory';
 import { ConvertTip } from './ConvertTip';
-import { PortionSlider } from './PortionSlider';
-import { pathForDestination } from './reach';
+import { RouteTip } from './RouteTip';
 import { convertTooltip, refusedConvertExits } from './refusedConvert';
+import { routePaint } from './route';
 import { selectionPaint, type PointerKind } from './selectionChrome';
 import { spawnerInfoAt } from './spawnerInfo';
 import { SpawnerTip } from './SpawnerTip';
@@ -100,6 +100,15 @@ const arrowCentroid = (arrow: ArrowId): { x: number; y: number } => {
   }
   const n = poly.length === 0 ? 1 : poly.length;
   return { x: sx / n, y: sy / n };
+};
+
+/** Where to anchor the tip control: the tip arrow's centroid, in stage pixels. */
+const tipScreen = (
+  viewport: Viewport,
+  arrow: ArrowId,
+): { readonly x: number; readonly y: number } => {
+  const at = arrowCentroid(arrow);
+  return toScreen(viewport, at.x, at.y);
 };
 
 /**
@@ -225,7 +234,6 @@ export const App = (): ReactElement => {
   /** Last board pointer: touch/pen is coarse, otherwise fine (P31). */
   const [pointerKind, setPointerKind] = useState<PointerKind>('fine');
   /** Reach destination under the cursor — drives the pulsed path preview. */
-  const [hoverPath, setHoverPath] = useState<ReadonlySet<ArrowId> | undefined>(undefined);
   const [botBusy, setBotBusy] = useState(false);
   const [byokStatus, setByokStatus] = useState<string | undefined>(undefined);
   /** Live gameplay effects. Additive over `state`, so losing one cannot mislead. */
@@ -407,6 +415,19 @@ export const App = (): ReactElement => {
     };
   }, [fx]);
 
+  // Escape discards an open draft. Nothing was applied, so there is nothing to
+  // undo — which is the whole reason in-turn undo is out of P34's scope.
+  useEffect(() => {
+    if (snap.phase.kind !== 'route') return;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setSnap(mode.cancel());
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [snap.phase.kind, mode]);
+
   const softLockKey = useRef<string | null>(null);
   useEffect(() => {
     if (state === undefined) return;
@@ -415,7 +436,6 @@ export const App = (): ReactElement => {
       softLockKey.current = null;
       return;
     }
-    if (snap.phase.kind === 'portion') return;
     if (aiSeatsRef.current.has(String(state.activePlayer))) {
       // AI owns exhaustion via playBotTurn / chooseMove — avoid racing auto-pass.
       return;
@@ -571,24 +591,13 @@ export const App = (): ReactElement => {
   }, [state]);
 
   const boardHighlights = useMemo(() => {
-    // Portion / confirm owns the path via the slider. Otherwise hover a blue tile
-    // to pulse the route that would be walked.
-    let withPath = snap.highlights;
-    if (snap.phase.kind === 'portion' && snap.highlights.path !== undefined) {
-      withPath = snap.highlights;
-    } else if (hoverPath !== undefined && hoverPath.size > 0) {
-      withPath = { ...snap.highlights, path: hoverPath };
-    }
-    const from =
-      snap.phase.kind === 'source' ||
-      snap.phase.kind === 'blocked' ||
-      snap.phase.kind === 'portion'
-        ? snap.phase.from
-        : undefined;
-    if (from === undefined || state === undefined) return withPath;
+    const from = snap.phase.kind === 'idle' ? undefined : snap.phase.from;
+    if (from === undefined || state === undefined) return snap.highlights;
+    // P28's refused wash still names the source's own grain outs, in the route
+    // phase exactly as before: they are not reach and not a click target.
     const refused = refusedConvertExits(state, geometry, rules, from);
-    return refused.size === 0 ? withPath : { ...withPath, refused };
-  }, [snap, hoverPath, state]);
+    return refused.size === 0 ? snap.highlights : { ...snap.highlights, refused };
+  }, [snap, state]);
 
   const chrome = useMemo(() => {
     const hover = hoverArrow?.arrow;
@@ -601,6 +610,19 @@ export const App = (): ReactElement => {
           hoverArrow: hover,
         });
   }, [snap.phase, boardHighlights, pointerKind, hoverArrow?.arrow]);
+
+  /**
+   * The three route tiers plus the tip (P34).
+   *
+   * A pure lookup into the offer the phase already carries, so hovering costs no
+   * `rules.apply` call — the offer was built once, when the draft last changed.
+   */
+  const route = useMemo(() => {
+    const hover = hoverArrow?.arrow;
+    return hover === undefined
+      ? routePaint({ phase: snap.phase, pointer: pointerKind })
+      : routePaint({ phase: snap.phase, pointer: pointerKind, hoverArrow: hover });
+  }, [snap.phase, pointerKind, hoverArrow?.arrow]);
 
   const victory = useMemo(
     () => (state === undefined ? ({ kind: 'playing' } as const) : victoryFx(state, geometry)),
@@ -721,9 +743,9 @@ export const App = (): ReactElement => {
     [commitApplied, mode, record, refresh, pushFx, pushRefusal, boardHighlights.refused],
   );
 
-  const previewPortion = useCallback(
+  const setCarry = useCallback(
     (n: number) => {
-      setSnap(mode.previewPortion(n));
+      setSnap(mode.setCarry(n));
     },
     [mode],
   );
@@ -884,7 +906,6 @@ export const App = (): ReactElement => {
 
   const onPointerDown = (e: PointerEvent<SVGSVGElement>): void => {
     notePointer(e.pointerType);
-    if (snap.phase.kind === 'portion') return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -934,7 +955,6 @@ export const App = (): ReactElement => {
           pinch.current = { dist, midX, midY, moved: true };
           setHover(undefined);
           setHoverArrow(undefined);
-          setHoverPath(undefined);
           setViewport((v) => {
             const zoomed = zoomAt(v, prev.midX, prev.midY, factor);
             return panBy(zoomed, midX - prev.midX, midY - prev.midY);
@@ -950,28 +970,13 @@ export const App = (): ReactElement => {
       const vertex = hitSpawnerVertex(layout, viewport, x, y, spawnerVertices, 16);
       setHover(vertex === undefined ? undefined : { vertex, x, y });
       const over = hitArrow(layout, viewport, x, y, arrows);
+      // Hover is a *lookup*: `routePaint` reads the preview out of the offer the
+      // phase already carries, so a fine-pointer sweep costs no measurement (P34).
       setHoverArrow(over === undefined ? undefined : { arrow: over, x, y });
-
-      const reach = snap.highlights.reach;
-      if (
-        reach !== undefined &&
-        snap.phase.kind !== 'portion' &&
-        snap.phase.kind !== 'idle' &&
-        snap.phase.kind !== 'blocked'
-      ) {
-        if (over !== undefined && reach.has(over) && over !== snap.highlights.selected) {
-          setHoverPath(pathForDestination(reach, over));
-        } else {
-          setHoverPath(undefined);
-        }
-      } else if (hoverPath !== undefined) {
-        setHoverPath(undefined);
-      }
       return;
     }
     setHover(undefined);
     setHoverArrow(undefined);
-    setHoverPath(undefined);
     const dx = e.clientX - drag.current.x;
     const dy = e.clientY - drag.current.y;
     if (Math.hypot(dx, dy) > 3) drag.current.moved = true;
@@ -990,18 +995,16 @@ export const App = (): ReactElement => {
     const hadPointer = drag.current !== null;
     drag.current = null;
     if (pinched || !hadPointer || wasDrag || inputLocked) return;
-    if (snap.phase.kind === 'portion') return;
     const rect = e.currentTarget.getBoundingClientRect();
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
     const arrow = hitArrow(layout, viewport, sx, sy, arrows);
     if (arrow === undefined) {
-      setHoverPath(undefined);
       commitSnap(mode.onBackgroundClick());
       return;
     }
-    // Drop capture so the portion dialog owns the next events (and the ghost
-    // tap from this finger-up cannot bounce back into the board).
+    // Drop capture so the tip control owns the next events (and the ghost tap from
+    // this finger-up cannot bounce back into the board).
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
@@ -1015,7 +1018,6 @@ export const App = (): ReactElement => {
     pinch.current = null;
     setHover(undefined);
     setHoverArrow(undefined);
-    setHoverPath(undefined);
   };
 
   const onWheel = (e: WheelEvent<SVGSVGElement>): void => {
@@ -1025,12 +1027,7 @@ export const App = (): ReactElement => {
     setViewport((v) => zoomAt(v, e.clientX - rect.left, e.clientY - rect.top, factor));
   };
 
-  const selectedFrom =
-    snap.phase.kind === 'source' ||
-    snap.phase.kind === 'blocked' ||
-    snap.phase.kind === 'portion'
-      ? snap.phase.from
-      : undefined;
+  const selectedFrom = snap.phase.kind === 'idle' ? undefined : snap.phase.from;
   const convertCopy =
     hoverArrow === undefined
       ? undefined
@@ -1104,6 +1101,7 @@ export const App = (): ReactElement => {
           vertices={vertices}
           highlights={boardHighlights}
           chrome={chrome}
+          route={route}
           movable={movable}
           effects={fx}
           victory={victory}
@@ -1122,21 +1120,23 @@ export const App = (): ReactElement => {
             stageWidth={viewport.width}
             stageHeight={viewport.height}
           />
-        ) : hover !== undefined && snap.phase.kind !== 'portion' ? (
+        ) : hover !== undefined ? (
           <SpawnerTipFor state={state} hover={hover} viewport={viewport} />
         ) : null}
-        {snap.phase.kind === 'portion' && !inputLocked ? (
-          <PortionSlider
-            allowed={snap.phase.allowed}
-            steps={snap.phase.steps}
-            heads={state.groups.get(snap.phase.from)?.heads ?? snap.phase.max}
-            onConfirm={(n) => {
-              commitSnap(mode.choosePortion(n));
+        {snap.phase.kind === 'route' && !inputLocked ? (
+          <RouteTip
+            {...tipScreen(viewport, snap.phase.tip)}
+            carry={snap.phase.carry}
+            tipHeads={snap.phase.tipHeads}
+            carries={snap.phase.offer.carries}
+            draftLength={snap.phase.draft.length}
+            onCarry={setCarry}
+            onSend={() => {
+              commitSnap(mode.send());
             }}
             onCancel={() => {
-              commitSnap(mode.reset());
+              commitSnap(mode.cancel());
             }}
-            onPreview={previewPortion}
           />
         ) : null}
       </div>

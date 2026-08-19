@@ -153,26 +153,14 @@ export const planMoves = (
   return moves;
 };
 
-/**
- * Arrows the trip will actually walk — the path the engine will apply for this
- * portion. Shown so the player can see which of several equal-length routes was
- * chosen and click an intermediate if they want another.
+/*
+ * `planArrowSet` and `pathForDestination` lived here until P34 and are **deleted**,
+ * not deprecated. They answered "which of several equal-length routes did the
+ * adapter pick for this destination?" — the question P34 removes rather than
+ * answers, by making the player name every run. `plans` is still read, but only to
+ * ask *whether* a carry arrives (`route.ts`'s faintest tier); nothing chooses a
+ * route from it any more, and nothing should.
  */
-export const planArrowSet = (plan: readonly ArrowId[]): ReadonlySet<ArrowId> =>
-  new Set(plan);
-
-/** Route for a reach destination at `count` (defaults to the cheapest trip). */
-export const pathForDestination = (
-  reach: Reach,
-  exit: ArrowId,
-  count?: number,
-): ReadonlySet<ArrowId> => {
-  const entry = reach.get(exit);
-  if (entry === undefined) return new Set();
-  const portion = count ?? entry.minCount;
-  const plan = entry.plans.get(portion) ?? entry.plans.get(entry.minCount);
-  return plan === undefined ? new Set() : planArrowSet(plan);
-};
 
 /**
  * How solid a reach arrow should look: nearest full, further fainter.

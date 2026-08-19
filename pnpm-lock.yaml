@@ -118,6 +118,9 @@ importers:
         specifier: ^19.1.0
         version: 19.2.8(react@19.2.8)
     devDependencies:
+      '@conquarrow/geometry-fixtures':
+        specifier: workspace:*
+        version: link:../geometry-fixtures
       '@types/react':
         specifier: ^19.1.2
         version: 19.2.18

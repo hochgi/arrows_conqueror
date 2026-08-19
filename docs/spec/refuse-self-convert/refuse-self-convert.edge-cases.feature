@@ -101,10 +101,16 @@ Feature: Refuse self-convert — combat, portions, opponent convert, adapter
 
   Rule: Adapter clicks and hover seams
 
-    Scenario: Clicking a refused target does not open the portion picker and does not apply
+    Scenario: Clicking a refused target drafts nothing and does not apply
       Given a refused convert exit while the unprotected stack is selected
       When the player clicks that exit
-      Then no portion picker opens
+      # Was "no portion picker opens" until P34 retired the picker outright, which
+      # made the step vacuous. What is still worth asserting is that the click does
+      # nothing and costs nothing: the refused exit is not in the route phase's
+      # clickable set (P34's edge cases assert that membership directly), so the
+      # click refuses and the open draft survives it.
+      Then the route phase survives the click with the same source
+      And the draft is unchanged
       And apply is not called
 
     Scenario: Unclaimed grain out from the same fragment is ordinary reach

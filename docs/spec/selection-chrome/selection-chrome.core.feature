@@ -13,6 +13,7 @@ Feature: Quieter selection chrome — reach, cost, path, selected halo
 
   Rule: Reach marks are quiet and cost is hidden at rest
 
+    @superseded-P34
     Scenario: Source phase paints quiet reach and no min-count numerals
       Given the active player selects stack S1 that can reach dests d1 and d2
       And neither dest is hovered
@@ -20,6 +21,7 @@ Feature: Quieter selection chrome — reach, cost, path, selected halo
       And selectionPaint.reachWash includes d1 and d2
       And selectionPaint.minCountArrows is empty
 
+    @superseded-P34
     Scenario: Fine hover on a priced dest shows that dest's min-count
       Given source phase with reach dest d2 whose minCount is 2
       And the pointer is fine
@@ -27,6 +29,7 @@ Feature: Quieter selection chrome — reach, cost, path, selected halo
       Then minCountArrows is { d2 }
       And other reach dests are not in minCountArrows
 
+    @superseded-P34
     Scenario: Fine hover on a one-head dest shows no numeral
       Given source phase with reach dest d1 whose minCount is 1
       And the pointer is fine
@@ -35,6 +38,7 @@ Feature: Quieter selection chrome — reach, cost, path, selected halo
 
   Rule: Unique cheap trips apply; unique priced trips confirm
 
+    @superseded-P34
     Scenario: Unique one-head trip auto-applies
       Given a stack of 1 head on S1
       And dest d1 is reachable with allowed portions [1]
@@ -43,6 +47,7 @@ Feature: Quieter selection chrome — reach, cost, path, selected halo
       And pending is the trip to d1
       And no commit dialog is open
 
+    @superseded-P34
     Scenario: Unique priced trip opens confirm not slider
       Given a stack of 2 heads on S1
       And dest d2 is two steps away so allowed portions are [2]
@@ -52,12 +57,14 @@ Feature: Quieter selection chrome — reach, cost, path, selected halo
       And pending is unset
       And highlights.path is the route to d2
 
+    @superseded-P34
     Scenario: Confirm Send applies the unique portion
       Given a confirm dialog for dest d2 with allowed [2]
       When the player Sends 2
       Then phase is idle
       And pending is the two-step trip to d2
 
+    @superseded-P34
     Scenario: Multi-portion dest opens slider
       Given a stack of 4 heads on S1
       And dest d1 is one step away so allowed portions include 1 and 4
@@ -69,6 +76,7 @@ Feature: Quieter selection chrome — reach, cost, path, selected halo
 
   Rule: A send dialog lights only the path; the selected stack is obvious
 
+    @superseded-P34
     Scenario: Commit dialog open washes only the path
       Given portion phase for dest d2 with path P
       And other reach dest d3 is not on P
@@ -81,6 +89,7 @@ Feature: Quieter selection chrome — reach, cost, path, selected halo
       Then selectionPaint.selected is S1
       And selectedEmphasis is true
 
+    @superseded-P34
     Scenario: Cancel confirm applies nothing
       Given a confirm dialog for dest d2
       When the player cancels
