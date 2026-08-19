@@ -12,7 +12,6 @@ import {
   PATH_WASH,
   PREVIEW_STROKE,
   REACH_FILL,
-  REACH_INK,
   TOLL_REACH_FILL,
   SPAWNER_CURSOR,
   SPAWNER_HUB_IDLE,
@@ -23,8 +22,9 @@ import {
   styleFor,
 } from './colors';
 import type { InputHighlights } from './input/modes';
-import { reachOpacity, type ReachEntry } from './reach';
+import type { RoutePaint } from './route';
 import {
+  REACH_WASH_FLOOR,
   SELECTED_HALO_STROKE,
   SELECTED_STROKE_WIDTH,
   SELECTED_WASH,
@@ -53,8 +53,13 @@ export interface BoardProps {
   readonly arrows: readonly ArrowId[];
   readonly vertices: ReadonlySet<VertexId>;
   readonly highlights: InputHighlights;
-  /** Quiet reach / path / selected halo — computed by `selectionPaint` in App. */
+  /** The selected halo — computed by `selectionPaint` in App. */
   readonly chrome: SelectionPaint;
+  /**
+   * The route being drafted (P34), quietest tier first: full reach, the three
+   * rays, their turn arrows, then the draft itself. Computed by `routePaint`.
+   */
+  readonly route: RoutePaint;
   /** Stacks of the active player that still have a legal step. */
   readonly movable: ReadonlySet<ArrowId>;
   /** The spawner under the cursor, if any — ringed here, detailed in `SpawnerTip`. */
@@ -93,56 +98,69 @@ const fillFor = (arrow: ArrowId, state: GameState): { fill: string; stroke: stri
 interface PlayFlags {
   readonly isSelected: boolean;
   readonly selectedEmphasis: boolean;
+  /** Faintest tier: reachable this turn, but not on offer as a run (P34). */
   readonly onReachWash: boolean;
-  readonly onPath: boolean;
-  readonly showMinCount: boolean;
-  readonly isPreview: boolean;
+  /** Primary tier: a lit spine along one out-slot. */
+  readonly onRay: boolean;
+  /** Subordinate to its ray: the one free turn at the end of a run. */
+  readonly onTurn: boolean;
+  /** Strongest tier: the route drafted so far, reading as the trail it becomes. */
+  readonly onDraft: boolean;
+  readonly isTip: boolean;
+  /** Would be clickable from the hovered arrow (fine pointer only). */
+  readonly onPreview: boolean;
   readonly isMovable: boolean;
   readonly refused: boolean;
-  readonly entry: ReachEntry | undefined;
 }
 
 const idleFlags: PlayFlags = {
   isSelected: false,
   selectedEmphasis: false,
   onReachWash: false,
-  onPath: false,
-  showMinCount: false,
-  isPreview: false,
+  onRay: false,
+  onTurn: false,
+  onDraft: false,
+  isTip: false,
+  onPreview: false,
   isMovable: false,
   refused: false,
-  entry: undefined,
 };
 
 const playFlags = (args: {
   readonly play: boolean;
   readonly arrow: ArrowId;
   readonly chrome: SelectionPaint;
+  readonly route: RoutePaint;
+  readonly draft: ReadonlySet<ArrowId>;
   readonly highlights: InputHighlights;
   readonly movable: ReadonlySet<ArrowId>;
 }): PlayFlags => {
   if (!args.play) return idleFlags;
-  const { arrow, chrome, highlights, movable } = args;
+  const { arrow, chrome, route, draft, highlights, movable } = args;
   const isSelected = chrome.selected === arrow;
   return {
     isSelected,
     selectedEmphasis: chrome.selectedEmphasis && isSelected,
-    onReachWash: chrome.reachWash.has(arrow),
-    onPath: chrome.path.has(arrow),
-    showMinCount: chrome.minCountArrows.has(arrow),
-    isPreview: highlights.preview === arrow,
+    onReachWash: route.reachWash.has(arrow),
+    onRay: route.rayArrows.has(arrow),
+    onTurn: route.turnArrows.has(arrow),
+    onDraft: draft.has(arrow),
+    isTip: route.tip === arrow,
+    onPreview: route.hoverPreview.has(arrow),
     isMovable: movable.has(arrow) && !isSelected,
     refused: highlights.refused?.has(arrow) === true,
-    entry: highlights.reach?.get(arrow),
   };
 };
 
+/** Loudest mark wins: draft, then tip, then ray, then turn, then wash. */
 const tileStrokeWidth = (flags: PlayFlags, occupied: boolean): number => {
+  if (flags.onDraft || flags.isTip) return 3.0;
+  if (flags.onRay) return 2.6;
   if (flags.isSelected) return 2.55;
-  if (flags.isPreview || flags.onPath) return 2.6;
+  if (flags.onTurn) return 1.9;
   if (flags.isMovable) return 3.1;
   if (occupied) return 2.55;
-  if (flags.onReachWash) return 1.5;
+  if (flags.onReachWash || flags.onPreview) return 1.5;
   return 0.7;
 };
 
@@ -152,12 +170,14 @@ const tileStrokeColor = (
   ownerStroke: string,
   baseStroke: string,
 ): string => {
+  if (flags.onDraft) return PATH_STROKE;
+  if (flags.isTip) return HIGHLIGHT_STROKE;
+  if (flags.onRay) return PREVIEW_STROKE;
   if (flags.isSelected) return ownerStroke;
-  if (flags.onPath) return PATH_STROKE;
-  if (flags.isPreview) return PREVIEW_STROKE;
-  if (flags.onReachWash) return REACH_FILL;
+  if (flags.onTurn || flags.onPreview) return REACH_FILL;
   if (flags.isMovable) return MOVABLE_STROKE;
   if (occupied) return ownerStroke;
+  if (flags.onReachWash) return REACH_FILL;
   return baseStroke;
 };
 
@@ -165,15 +185,22 @@ const SelectedWash = ({ points }: { readonly points: string }): ReactElement => 
   <polygon points={points} fill={SELECTED_WASH} stroke="none" style={{ pointerEvents: 'none' }} />
 );
 
-const ReachOrPathWash = ({
+/**
+ * The route wash, one tier at a time (P34).
+ *
+ * Three weights and a floor, because the point is a *reading*: the draft is the
+ * trail it will become, the rays are the offer, the turn arrows are subordinate to
+ * their ray, and the full reach stays at P31's quiet floor so a shrunken clickable
+ * set never reads as a shrunken reach.
+ */
+const RouteWash = ({
   points,
   flags,
 }: {
   readonly points: string;
   readonly flags: PlayFlags;
 }): ReactElement | null => {
-  if (flags.isSelected) return null;
-  if (flags.onPath) {
+  if (flags.onDraft) {
     return (
       <polygon
         points={points}
@@ -183,13 +210,14 @@ const ReachOrPathWash = ({
       />
     );
   }
-  if (!flags.onReachWash) return null;
-  const distance = flags.entry?.distance ?? 1;
+  if (flags.isSelected) return null;
+  const opacity = flags.onRay ? 0.3 : flags.onTurn ? 0.15 : REACH_WASH_FLOOR;
+  if (!flags.onRay && !flags.onTurn && !flags.onReachWash) return null;
   return (
     <polygon
       points={points}
       fill={REACH_FILL}
-      fillOpacity={reachOpacity(distance)}
+      fillOpacity={opacity}
       style={{ pointerEvents: 'none' }}
     />
   );
@@ -359,6 +387,7 @@ export const Board = ({
   vertices,
   highlights,
   chrome,
+  route,
   movable,
   hoveredSpawner,
   effects,
@@ -373,6 +402,7 @@ export const Board = ({
     ? yieldSoonByArrow(geometry, state)
     : new Map<ArrowId, YieldSoon>();
   const play = playHighlightsAllowed(fx);
+  const draftArrows = new Set<ArrowId>(route.draftArrows);
   const winnerFill = fx.kind === 'over' ? styleFor(fx.winner).fill : undefined;
 
   return (
@@ -409,7 +439,15 @@ export const Board = ({
         const poly = layout.polygon(arrow);
         const points = polyPoints(viewport, poly);
         const base = fillFor(arrow, state);
-        const flags = playFlags({ play, arrow, chrome, highlights, movable });
+        const flags = playFlags({
+          play,
+          arrow,
+          chrome,
+          route,
+          draft: draftArrows,
+          highlights,
+          movable,
+        });
         const pulse = fx.kind === 'over' ? fx.pulseArrows.has(arrow) : flags.isSelected;
         const dimmed = isMatchOverDimmed(fx, arrow, state);
         const soon = yieldSoon.get(arrow);
@@ -432,7 +470,6 @@ export const Board = ({
           if (trail.has(arrow)) trailMarks.push(player);
         }
         const bounds = boxOf(viewport, poly);
-        const minCount = flags.entry?.minCount;
         return (
           <g key={String(arrow)} className={dimmed ? 'match-over-dim' : undefined}>
             <polygon
@@ -481,7 +518,17 @@ export const Board = ({
                 />
               );
             })}
-            <ReachOrPathWash points={points} flags={flags} />
+            <RouteWash points={points} flags={flags} />
+            {flags.onPreview && !flags.onRay && !flags.onTurn ? (
+              <polygon
+                points={points}
+                fill="none"
+                stroke={REACH_FILL}
+                strokeWidth={1.4}
+                strokeDasharray="3 3"
+                style={{ pointerEvents: 'none' }}
+              />
+            ) : null}
             {flags.refused && !flags.isSelected ? (
               <polygon
                 points={points}
@@ -524,20 +571,6 @@ export const Board = ({
                 style={{ pointerEvents: 'none', userSelect: 'none' }}
               >
                 {group.heads}
-              </text>
-            ) : flags.showMinCount && minCount !== undefined && minCount > 1 ? (
-              <text
-                x={countX}
-                y={countY}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={glyph * 0.92}
-                fontFamily="IBM Plex Sans, Segoe UI, sans-serif"
-                fontWeight={600}
-                fill={REACH_INK}
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
-              >
-                {minCount}
               </text>
             ) : null}
           </g>

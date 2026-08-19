@@ -1,4 +1,18 @@
+/**
+ * `GalconInput` against the **real opening match** — the seam P34's Gherkin suite
+ * does not cover, because that suite draws its own boards (open field, fixture
+ * boards with a short cycle) to keep failures readable.
+ *
+ * Rewritten for the `route` phase (P34). The source → destination → portion
+ * ladder this file used to walk no longer exists: a click drafts a run and Send
+ * commits, so `choosePortion` / `previewPortion` and the `path` highlight went
+ * with the phase. What stayed is everything below — the P22 branching guard, the
+ * Event 11 refusal family, and one end-to-end trip on the board the game
+ * actually starts from.
+ */
+
 import { describe, expect, it } from 'vitest';
+import type { ArrowId } from '@conquarrow/contracts';
 import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
 import { makeRules } from '@conquarrow/rules-core';
 import { GalconInput } from '../src/input/modes';
@@ -6,79 +20,60 @@ import { GalconInput } from '../src/input/modes';
 const activeGroup = (state: ReturnType<typeof makeMatch>) =>
   [...state.groups.entries()].find(([, g]) => g.owner === state.activePlayer)?.[0];
 
-describe('Galcon input', () => {
-  it('selects a source, then asks for a portion on a legal exit', () => {
-    const geometry = makeTiling();
-    const rules = makeRules(geometry);
-    const state = makeMatch();
-    const mode = new GalconInput(geometry);
+const setup = () => {
+  const geometry = makeTiling();
+  const rules = makeRules(geometry);
+  const state = makeMatch();
+  return { geometry, rules, state, mode: new GalconInput(geometry) };
+};
+
+describe('Galcon input — drafting on the opening board', () => {
+  it('selects a source, drafts a run onto it, and sends the run it drew', () => {
+    const { rules, state, mode } = setup();
     const from = activeGroup(state);
     expect(from).toBeDefined();
     if (from === undefined) return;
 
-    const afterSource = mode.onArrowClick(from, state, rules);
-    expect(afterSource.phase.kind).toBe('source');
-    expect(afterSource.highlights.targets.size).toBeGreaterThan(0);
+    const selected = mode.onArrowClick(from, state, rules);
+    expect(selected.phase.kind).toBe('route');
+    if (selected.phase.kind !== 'route') return;
+    expect(selected.phase.draft).toHaveLength(0);
+    expect(selected.highlights.targets.size).toBeGreaterThan(0);
 
-    const exit = [...afterSource.highlights.targets][0];
-    expect(exit).toBeDefined();
-    if (exit === undefined) return;
+    const target = [...selected.highlights.targets][0];
+    expect(target).toBeDefined();
+    if (target === undefined) return;
+    const option = selected.phase.offer.clickable.get(target);
+    expect(option).toBeDefined();
 
-    const afterDest = mode.onArrowClick(exit, state, rules);
-    expect(afterDest.phase.kind).toBe('portion');
-    if (afterDest.phase.kind !== 'portion') return;
-    expect(afterDest.highlights.path?.size).toBe(afterDest.phase.steps);
+    // Nothing is applied by a click: the draft grows and the board is untouched.
+    const drafted = mode.onArrowClick(target, state, rules);
+    expect(drafted.pending).toBeUndefined();
+    expect(drafted.phase.kind).toBe('route');
+    if (drafted.phase.kind !== 'route') return;
+    expect(drafted.phase.tip).toBe(target);
+    expect(drafted.phase.draft).toHaveLength(option?.steps.length ?? 0);
 
-    // A trip is a *list* of steps now — one step per arrow crossed (reach.ts) — so the
-    // last move must land on the exit and the first must leave the source.
-    const committed = mode.choosePortion(afterDest.phase.max);
-    const plan = committed.pending ?? [];
-    expect(plan.length).toBeGreaterThan(0);
+    // A trip is a *list* of steps — one per arrow crossed — so the first must
+    // leave the source and the last must land on the arrow that was clicked.
+    const sent = mode.send();
+    const plan = sent.pending ?? [];
+    expect(sent.phase.kind).toBe('idle');
+    expect(plan).toHaveLength(drafted.phase.draft.length);
     const first = plan[0];
     const last = plan[plan.length - 1];
     expect(first?.kind).toBe('step');
     expect(last?.kind).toBe('step');
     if (first?.kind !== 'step' || last?.kind !== 'step') return;
     expect(first.from).toBe(from);
-    expect(last.exit).toBe(exit);
-    expect(plan.length).toBe(afterDest.phase.steps);
-
-    // Slider preview keeps the path in sync with the portion.
-    mode.onArrowClick(from, state, rules);
-    const again = mode.onArrowClick(exit, state, rules);
-    if (again.phase.kind !== 'portion') return;
-    const previewed = mode.previewPortion(again.phase.min);
-    expect(previewed.highlights.path?.size).toBe(again.phase.steps);
+    expect(last.exit).toBe(target);
+    let applied = state;
+    for (const move of plan) applied = rules.apply(applied, move);
+    expect(applied.groups.has(target)).toBe(true);
   });
 
-  it('skips the slider when only one portion can arrive', () => {
-    const geometry = makeTiling();
-    const rules = makeRules(geometry);
-    const opening = makeMatch();
-    const A = opening.players[0];
-    expect(A).toBeDefined();
-    if (A === undefined) return;
-    const from = [...opening.groups.entries()].find(([, g]) => g.owner === A)?.[0];
-    expect(from).toBeDefined();
-    if (from === undefined) return;
-    // A lone head has max=min=1 on every reachable exit.
-    const state = {
-      ...opening,
-      groups: new Map([[from, { owner: A, heads: 1, spent: 0 }]]),
-    };
-    const mode = new GalconInput(geometry);
-    const selected = mode.onArrowClick(from, state, rules);
-    expect(selected.phase.kind).toBe('source');
-    const dest = [...selected.highlights.targets][0];
-    expect(dest).toBeDefined();
-    if (dest === undefined) return;
-    const committed = mode.onArrowClick(dest, state, rules);
-    expect(committed.phase.kind).toBe('idle');
-    expect(committed.pending).toHaveLength(1);
-  });
-
-  it('offers destinations from a join that formerly paid a branch toll (P22)', () => {
-    // P22: branching is free — a lone head on a join is selectable with reach, not blocked.
+  it('opens the route phase from a join that formerly paid a branch toll (P22)', () => {
+    // P22: branching is free — a lone head on a join drafts, it is not blocked.
     const geometry = makeTiling();
     const rules = makeRules(geometry);
     const opening = makeMatch();
@@ -87,7 +82,7 @@ describe('Galcon input', () => {
     expect(A).toBeDefined();
     expect(B).toBeDefined();
     if (A === undefined || B === undefined) return;
-    const arrow = (s: string) => s as import('@conquarrow/contracts').ArrowId;
+    const arrow = (s: string): ArrowId => s as ArrowId;
     const trailA = new Set(
       [
         'tiling:a:4,2,0',
@@ -113,11 +108,11 @@ describe('Galcon input', () => {
     };
     const mode = new GalconInput(geometry);
     const atJoin = mode.onArrowClick(arrow('tiling:a:5,1,0'), state, rules);
-    expect(atJoin.phase.kind).toBe('source');
+    expect(atJoin.phase.kind).toBe('route');
     expect(atJoin.highlights.targets.size).toBeGreaterThan(0);
 
     const movable = mode.onArrowClick(arrow('tiling:a:5,1,2'), state, rules);
-    expect(movable.phase.kind).toBe('source');
+    expect(movable.phase.kind).toBe('route');
     expect(movable.highlights.targets.size).toBeGreaterThan(0);
   });
 });
@@ -130,13 +125,6 @@ describe('Galcon input', () => {
  * refused click produced, and only that one, so a later no-op cannot re-fire it.
  */
 describe('Galcon input — refusals', () => {
-  const setup = () => {
-    const geometry = makeTiling();
-    const rules = makeRules(geometry);
-    const state = makeMatch();
-    return { geometry, rules, state, mode: new GalconInput(geometry) };
-  };
-
   it('names an unowned tile clicked with nothing selected', () => {
     const { geometry, rules, state, mode } = setup();
     const mine = activeGroup(state);
@@ -155,7 +143,7 @@ describe('Galcon input — refusals', () => {
     expect(snap.pending).toBeUndefined();
   });
 
-  it('names an out-of-reach tile clicked while a stack is selected', () => {
+  it('names an out-of-reach tile clicked while a route is open, and keeps the draft', () => {
     const { geometry, rules, state, mode } = setup();
     const from = activeGroup(state);
     expect(from).toBeDefined();
@@ -163,7 +151,7 @@ describe('Galcon input — refusals', () => {
     const selected = mode.onArrowClick(from, state, rules);
     expect(selected.refusal).toBeUndefined();
 
-    // Walk the grain until we are past everything this stack can reach this turn.
+    // Walk one slot until we are past everything this stack can draft this turn.
     let far = from;
     for (let i = 0; i < 12; i += 1) {
       const next = geometry.outArrows(geometry.target(far))[0];
@@ -175,8 +163,9 @@ describe('Galcon input — refusals', () => {
     const snap = mode.onArrowClick(far, state, rules);
     expect(snap.refusal?.arrow).toBe(far);
     expect(snap.refusal?.reason).toBe('out-of-reach');
-    // Still selected — a refused destination must not drop the selection.
-    expect(snap.phase.kind).toBe('source');
+    // Still drafting — a refused click must not drop the selection or the draft.
+    expect(snap.phase.kind).toBe('route');
+    expect(snap.pending).toBeUndefined();
   });
 
   it('does not carry a refusal into the next snapshot', () => {
@@ -194,9 +183,10 @@ describe('Galcon input — refusals', () => {
     expect(mode.reset().refusal).toBeUndefined();
   });
 
-  it('names a skip that is not on offer', () => {
+  it('says nothing about a skip requested with nothing selected', () => {
     const { rules, state, mode } = setup();
-    // Nothing selected: there is no group to skip, so the request cannot apply.
+    // Nothing selected: there is no group to skip, so the request cannot apply —
+    // and there is no tile the refusal could be pinned to either.
     const snap = mode.requestSkip(state, rules);
     expect(snap.pending).toBeUndefined();
     expect(snap.refusal).toBeUndefined();

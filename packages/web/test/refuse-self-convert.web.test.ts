@@ -124,16 +124,26 @@ describe('the board teaches the refused grain exit', () => {
 });
 
 describe('adapter clicks and hover seams', () => {
-  it('does not open the portion picker or apply when the refused target is clicked', () => {
-    // edge: "Clicking a refused target does not open the portion picker and does not apply"
+  it('drafts nothing and applies nothing when the refused target is clicked', () => {
+    // edge: "Clicking a refused target drafts nothing and does not apply"
+    // P34 retired the portion picker outright and renamed the selected phase to
+    // `route`, so "no picker opens" now holds by construction; what this scenario
+    // still guards is that the click applies nothing, drafts nothing, and does not
+    // drop the selection — the refused exit is not in the clickable set.
     const { from, enemyExit, state } = stackGradeAgainstEnemy(16);
     const mode = new GalconInput(geometry);
     const selected = mode.onArrowClick(from, state, rules);
-    expect(selected.phase.kind).toBe('source');
+    expect(selected.phase.kind).toBe('route');
+    if (selected.phase.kind === 'route') {
+      expect(selected.phase.offer.clickable.has(enemyExit)).toBe(false);
+    }
 
     const afterClick = mode.onArrowClick(enemyExit, state, rules);
-    expect(afterClick.phase.kind).toBe('source');
-    if (afterClick.phase.kind === 'source') expect(afterClick.phase.from).toBe(from);
+    expect(afterClick.phase.kind).toBe('route');
+    if (afterClick.phase.kind === 'route') {
+      expect(afterClick.phase.from).toBe(from);
+      expect(afterClick.phase.draft).toHaveLength(0);
+    }
     expect(afterClick.pending).toBeUndefined();
   });
 

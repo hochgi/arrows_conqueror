@@ -6,6 +6,27 @@
 **Features:** [core](./selection-chrome.core.feature) ·
 [edge cases](./selection-chrome.edge-cases.feature)
 
+> **Mostly superseded by [P34 — ray-run route input](../ray-run-input/ray-run-input.md).**
+> P31's ladder was source → destination → portion, and P34 retired that whole
+> flow: there is no destination to hover a price for, no `portion` phase, and no
+> dialog to wash a path under. Twenty-two of the twenty-four scenarios below are
+> therefore tagged `@superseded-P34` and have no test, by design — the behaviour
+> they describe is gone, and the record of what it was is worth keeping.
+>
+> **What survives, and where it is tested now:**
+>
+> - the **selected halo** and the **quiet wash peak / floor** —
+>   `packages/web/test/selectionChrome.test.ts` (and `reach.test.ts` for
+>   `reachOpacity`'s monotonicity). These are the two untagged scenarios.
+> - the **refused self-convert wash** and the **match-over drop** — carried
+>   forward for the `route` phase by P34's edge cases, which assert the same two
+>   facts about the phase that replaced `source`.
+> - `commitKind`, `portionDialogKind`, `minCountArrows`, `path` and the
+>   `PortionSlider` are **deleted**, not skinned.
+>
+> Read the rest as history: the *reason* the reach wash is quiet (P31) still
+> holds and is why P34's faintest tier sits at that floor.
+
 ## Purpose
 
 Playtest: after selecting a stack, every reachable destination is a bright

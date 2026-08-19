@@ -62,6 +62,7 @@ scheduled early in the first place.
 | P31 | Quieter selection chrome | adapter | §4 (read) | P11 | **[packet](./packets/P31-selection-chrome.md).** Quiet reach wash; min-count on hover/tap; path-only during send dialog; confirm when unique portion > 1; selected halo |
 | P32 | Match summary telemetry | adapter | — | P11, P29 | **[packet](./packets/P32-match-summary-telemetry.md).** Playtest counters on the match log (steps / end-turns / skips / closes / cuts / firstCloseAt); HUD line only when over. Adapter proxies, not §7/§6 events |
 | P33 | Encircled path on convert | rules | §6.3, §6.1 | P07, P13, P22 | **[packet](./packets/P33-encircled-path.md).** Playtest: leftover enemy trail chord after a winning enclosure. Convert wipes from converted arrows (halt-at-first); both fork arms evaporate; cut-created dormant stays |
+| P34 | Ray-run route input | adapter | §4, §5 (prose) | P11, P31 | **[packet](./packets/P34-ray-run-input.md).** Playtest: equal-length routes to one arrow, adapter picked one. Draft a route by clicking straight **runs**; clickable set = unique-route arrows (straight, then optionally one turn); carry at the tip; Send commits. Retires the portion modal. Edits SPEC §5's interaction line |
 | P20+ | Deferred follow-ons | — | — | — | **[packet](./packets/P20-deferred-online-followons.md).** Viewers, fork, arena, replay button, Elo, online BYOK, under-18 GIS, admin panel |
 
 ## Dependency graph

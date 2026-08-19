@@ -33,21 +33,37 @@ behaviour is not here, it will not be built.**
 | [refuse-self-convert](./refuse-self-convert/refuse-self-convert.md) | P28 | §6.3, §4, §11 item 43 | 25 | — | 12 |
 | [win-board-celebration](./win-board-celebration/win-board-celebration.md) | P29 | §9 (read), §7 | 19 | — | 12 |
 | [ai-move-playback](./ai-move-playback/ai-move-playback.md) | P30 | — (web) | 16 | — | 11 |
-| [selection-chrome](./selection-chrome/selection-chrome.md) | P31 | §4 (read) | 24 | — | 12 |
+| [selection-chrome](./selection-chrome/selection-chrome.md) | P31 | §4 (read) | 24 (2 live, 22 `@superseded-P34`) | — | 12 |
 | [match-summary-telemetry](./match-summary-telemetry/match-summary-telemetry.md) | P32 | — (web) | 26 | — | 11 |
 | [encircled-path](./encircled-path/encircled-path.md) | P33 | §6.3, §6.1, item 40 | 11 | — | 9 |
+| [ray-run-input](./ray-run-input/ray-run-input.md) | P34 | §5 (one prose edit), §3/§4 (read) | 86 | — | 21 |
 
-486 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
+572 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
 **58 belong to P03**, **18 to P02**, **30 to P04**, **58 to P05**, **49 to P05b**,
 **32 to P06**, **16 to P07**, **10 to P08**, **25 to P28**, **19 to P29**,
-**16 to P30**, **24 to P31**, **26 to P32**, and **11 to P33**.
-492 concrete cases once `Examples` rows are expanded (combat Examples add more),
-258 invariants.
+**16 to P30**, **24 to P31** (22 of them now `@superseded-P34`), **26 to P32**,
+**11 to P33**, and **86 to P34**.
+582 concrete cases once `Examples` rows are expanded (combat Examples add more),
+279 invariants.
+
+**This index is not complete.** The online packets (`online-*`), the planner
+directories (`findings-planner`, `intercept-findings`) and `trails-simple` have
+never had rows, and the event-legibility work shipped its tests
+(`packages/web/test/event-legibility.*`) with no `docs/spec` directory at all —
+so the rule below cannot be checked against it. Both gaps predate P34 and are
+recorded here rather than papered over.
 
 A `@deferred-<packet>` tag means the behaviour is decided and specified here, but
 its seam falls in another packet — an accumulator that knows its owner is not a
-`Rational`. It is not a `@wip`. **A scenario with neither a test nor this tag is a
-defect**, and eleven of them once were.
+`Rational`. It is not a `@wip`. **A scenario with neither a test, this tag, nor a
+`@superseded-<packet>` tag is a defect**, and eleven of them once were.
+
+A `@superseded-<packet>` tag means the behaviour was built, shipped, and then
+**removed** by the named packet, which now owns that surface. It is deliberately
+testless, and permanently so: the scenario stays as the record of a decision that
+moved, and the naming packet's overview says where any surviving half went. Do
+not write a test for one — the app no longer does what it describes, so a passing
+test would be asserting the wrong game.
 
 > **These counts moved when SPEC §11 item 4 made the board unbounded.**
 > `geometry-port` grew (windows need their own contract), `tiling` grew despite

@@ -340,7 +340,13 @@ Each arrow shows the count of heads standing on it, in its owner's colour. Close
 
 That distinction is not decoration. "Is this stretch cuttable?" is the question a player asks most often (§6.1), and under the safety rule it is the *only* thing separating a head that cannot be touched from one that can. It has to be answerable at a glance rather than by tracing a path back to its anchor.
 
-The interaction model is Galcon-like: pick a source arrow, pick a destination, send a portion.
+~~The interaction model is Galcon-like: pick a source arrow, pick a destination, send a portion.~~ — **superseded by P34.** The interaction model is **route drafting**: pick a source arrow, then click along one of the three straight **rays** to add a **run** to a drafted route, repeating from each new tip until the route is the trail you want, and send it.
+
+**A move is still one portion, one step, one arrow** — §4 is untouched. Drafting is an adapter affordance that composes a turn's worth of single steps; the rules engine never sees a route.
+
+Naming a *destination* was the wrong question, and this is why: three out-arrows 120° apart summing to zero make a route a word over three letters, and a destination arrow fixes only that word's last letter, leaving its prefix orderable. So a destination underdetermines the trail — `C(n−1, a)` routes reach it, first ambiguous at distance 3 — and the trail is what §5–§7 compute closure, cuttability and crossings from. An adapter picking one of those routes is picking the *move* by iteration order. Drafting names the word instead, one run at a time, and a run is the run-length encoding of the word: straight is one click, a dogleg is two.
+
+Only unambiguous arrows are ever clickable, and that set has an exact shape — **straight along one grain, then optionally one turn at the end**. Everything within two steps qualifies, which is why the last hop never needs constraining.
 
 ---
 

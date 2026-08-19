@@ -13,6 +13,7 @@
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "test/**/*.ts", "vite.config.ts", "vite.byok-proxy.ts"],
   "references": [
     { "path": "../contracts" },
+    { "path": "../geometry-fixtures" },
     { "path": "../geometry-tiling" },
     { "path": "../rules-core" }
   ]
