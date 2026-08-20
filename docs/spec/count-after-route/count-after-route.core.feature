@@ -89,9 +89,9 @@ Feature: Name the route, then say how many heads walk it
       And the last run's move carries a count of 4
 
     Scenario: Rewriting re-emits exactly the last run
-      Given the active player has drafted a run of two steps carrying 8
-      And has drafted a second run of two steps carrying 8
-      When the count of the last run is set to 4
+      Given a stack of 16 heads has drafted a run of two steps carrying 16
+      And has drafted a second run of two steps at the largest count that walks it
+      When the count of the last run is set to its floor
       Then the draft still holds four step moves
       And exactly the trailing two were re-emitted
 

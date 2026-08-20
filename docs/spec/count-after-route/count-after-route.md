@@ -78,13 +78,24 @@ common case and arms an attack in the one case that needs it. **The count
 control is therefore also how an attack's sentry is chosen** — the ceiling on
 an attack run is `heads − 1`, and every count from 1 up to it is offered.
 
-**This does not cost a walk per count.** The offer needs only *whether* some
-count reaches an arrow, so walk each step at the tip's full head count and,
-where a step is refused, retry that one step at one head fewer; if that is
-also refused the ray stops. Two attempts per step, worst case — not `tipHeads`
-of them. Retrying at `heads − 1` rather than scanning downward is deliberate:
-it does not encode *why* the smaller count was accepted, so it stays correct if
-the engine ever grows another count-sensitive refusal.
+**This does not cost a walk per count.** Walk the **whole run** at the tip's
+head count, and walk it again at one head fewer; the union of what the two
+reach is the offer, and the higher of the two counts that reached an arrow is
+the count its run drafts at. Two whole-run walks — not `tipHeads` of them.
+
+**Two walks of the whole run, never a per-step retry.** Retrying a single
+refused *step* at a lower count would mix counts inside one run, and that
+quietly re-permits a mid-route attack: with an enemy two steps out, step 1 is
+accepted at `heads` and step 2 retried at `heads − 1` is accepted too, because
+the movers still number `heads`. The arrow would become clickable even though
+**no single count walks that run** — contradicting the clickable-iff rule above
+and P34's standing rule that a ray ends *before* an enemy-held arrow at
+distance ≥ 2. A count must hold for every step of its run.
+
+Two counts suffice because the stay-behind is the only count-sensitive refusal
+and, past the first hop, the movers *are* the count — so a run whose later step
+attacks is unwalkable at every count, and the largest walkable count is always
+`heads` or `heads − 1`.
 
 The ascending list of every legal count is built **once, for the one drafted
 run**, when the control is drawn. That is where a 1..ceiling scan is affordable.
