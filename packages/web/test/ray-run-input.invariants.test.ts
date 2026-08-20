@@ -503,7 +503,9 @@ describe('P34 invariants', () => {
       [arrowAlong(geometry, from, 0, 2), arrowAlong(geometry, arrowAlong(geometry, from, 0, 2), 1, 2)],
     ];
     for (const clicks of routes) {
-      const selected = selectRoute(board, openField(from, 8), from);
+      // Twelve, not eight: four steps off `2^(k-1)` heads auto-applies under P35
+      // and there would be no draft to send. `speed(12) = 4` walks the same four.
+      const selected = selectRoute(board, openField(from, 12), from);
       let snap = selected.snap;
       for (const arrow of clicks) snap = clickArrow(selected, arrow);
       const draft = [...draftOf(snap)];
@@ -515,12 +517,14 @@ describe('P34 invariants', () => {
 
   it('When a drafted arrow is clicked, the system shall discard every move after it and no move before it.', () => {
     const target = arrowAlong(geometry, from, 0, 4);
-    const reference = selectRoute(board, openField(from, 8), from);
+    // Twelve, not eight: see the note above — four steps off eight heads applies
+    // on the click, leaving nothing to pop back through.
+    const reference = selectRoute(board, openField(from, 12), from);
     const full = [...draftOf(clickArrow(reference, target))];
     expect(full).toHaveLength(4);
     const exits = exitsOf(full);
     for (const [index, arrow] of exits.entries()) {
-      const selected = selectRoute(board, openField(from, 8), from);
+      const selected = selectRoute(board, openField(from, 12), from);
       clickArrow(selected, target);
       const popped = clickArrow(selected, arrow);
       expect(draftOf(popped), `pop to ${String(index)}`).toEqual(full.slice(0, index + 1));

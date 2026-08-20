@@ -66,6 +66,15 @@ export interface RouteOption {
   readonly slot: RaySlot;
   /** Exits to walk from the tip, in order. The last one is `arrow`. */
   readonly steps: readonly ArrowId[];
+  /**
+   * The count the run drafts at: the **largest** that walks it end to end (P35).
+   *
+   * `tipHeads` everywhere except a final attack step, where §6.2's stay-behind
+   * takes it to `tipHeads - 1`. Carried on the option rather than re-derived by
+   * the caller, because it is the count this run *was measured at* — deriving it
+   * again is how the two copies come to disagree.
+   */
+  readonly count: number;
 }
 
 /** Ray arrows and turn arrows, keyed by arrow. Provably the unique-route set. */
@@ -137,10 +146,20 @@ export interface RouteOffer {
    * Legal counts for the **last run**, ascending — empty with an empty draft.
    *
    * P35 redefines this: it used to be the carries that could make one hop from
-   * the tip ({@link offerableCarries}), forward of the click; it is now
-   * {@link runCarries}, the counts that walk the run the click just named.
+   * the tip, forward of the click; it is now {@link runCarries}, the counts that
+   * walk the whole run the click just named, behind it.
    */
   readonly carries: readonly number[];
+  /**
+   * Heads standing where the **last run** began — the ceiling on its count, and
+   * the base the sentry (§5) is the difference from. Zero with an empty draft.
+   *
+   * Carried on the offer because the docked control is drawn from the phase
+   * alone, and no board state reaches it: the heads at the run's *start* are not
+   * `tipHeads` (a merge raises that number, combat lowers it) and are not
+   * `max(carries)` either (an attack's ceiling is one below them).
+   */
+  readonly ceiling: number;
   /** The faint tier: reachable with this carry, minus every louder tier. */
   readonly reachWash: ReadonlySet<ArrowId>;
   /**
@@ -206,12 +225,12 @@ export const walkedArrows = (inputs: RouteInputs): ReadonlySet<ArrowId> =>
   new Set<ArrowId>([inputs.from, ...draftExits(inputs.draft)]);
 
 /** `MAX_DEPTH` less the draft length. A bound on the search, never an authority. */
-export const searchBound = (inputs: RouteInputs): number => {
-  if (inputs.carry < 1 || !Number.isInteger(inputs.carry)) return 0;
-  // `speed(carry)` can only ever *narrow* the window: a run carries the whole
-  // carry, so no group on it is bigger than that. The engine still refuses every
+export const searchBound = (inputs: RouteInputs, count: number): number => {
+  if (count < 1 || !Number.isInteger(count)) return 0;
+  // `speed(count)` can only ever *narrow* the window: a run carries the whole
+  // count, so no group on it is bigger than that. The engine still refuses every
   // hop past the allowance actually left.
-  return Math.max(0, Math.min(MAX_DEPTH - inputs.draft.length, speed(inputs.carry)));
+  return Math.max(0, Math.min(MAX_DEPTH - inputs.draft.length, speed(count)));
 };
 
 const headsOn = (state: GameState, arrow: ArrowId): number =>
@@ -282,11 +301,27 @@ interface RayHop {
   readonly steps: readonly ArrowId[];
   readonly state: GameState;
   readonly terminal: boolean;
+  /** The count this whole run was walked at — what a click on it drafts. */
+  readonly count: number;
 }
 
-const rayHops = (inputs: RouteInputs, slot: RaySlot): readonly RayHop[] => {
-  if (inputs.terminal === true) return [];
-  const bound = searchBound(inputs);
+/** One whole-run walk of a ray at one count, and why it stopped. */
+interface RayWalk {
+  readonly hops: readonly RayHop[];
+  /**
+   * Did the **engine** end the walk, as opposed to the bound, the geometry or a
+   * revisit?
+   *
+   * Only an engine refusal is worth a second walk: everything else says the same
+   * thing at every count, and re-walking on a revisit or a spent allowance is how
+   * the offer would come to cost a walk per count.
+   */
+  readonly refused: boolean;
+}
+
+/** Walk one ray from the tip at a single count, stopping where anything stops it. */
+const walkRay = (inputs: RouteInputs, slot: RaySlot, count: number): RayWalk => {
+  const bound = searchBound(inputs, count);
   const blocked = new Set<ArrowId>(walkedArrows(inputs));
   const hops: RayHop[] = [];
   let at = inputs.tip;
@@ -295,19 +330,50 @@ const rayHops = (inputs: RouteInputs, slot: RaySlot): readonly RayHop[] => {
   for (let m = 0; m < bound; m += 1) {
     const exit = exitAt(inputs.geometry, at, slot);
     if (exit === undefined || blocked.has(exit)) break;
-    const move = hopMove(at, exit, inputs.carry);
+    const move = hopMove(at, exit, count);
     if (move === undefined) break;
     const next = tryHop(inputs, state, move);
-    if (next === undefined) break;
+    if (next === undefined) return { hops, refused: true };
     steps = [...steps, exit];
     const terminal = isTerminalStep(state, next, move);
-    hops.push({ arrow: exit, steps, state: next, terminal });
+    hops.push({ arrow: exit, steps, state: next, terminal, count });
     if (terminal) break;
     blocked.add(exit);
     at = exit;
     state = next;
   }
-  return hops;
+  return { hops, refused: false };
+};
+
+/**
+ * One ray, offered at the largest count that walks each of its runs (P35).
+ *
+ * **Two whole-run walks, never a per-step retry.** The ray is walked at the
+ * carry; if the engine refused a step, it is walked *again from the tip* at one
+ * count fewer, and the arrows the second walk reaches beyond the first join the
+ * offer at that lower count. The union keeps the higher count wherever both
+ * reached, so a run never mixes counts inside itself.
+ *
+ * Retrying the one refused *step* at a lower count would mix them, and that
+ * quietly re-permits a mid-route attack: with an enemy two steps out, step 1 is
+ * accepted at `heads` and step 2 retried at `heads - 1` is accepted too, because
+ * the movers still number `heads` — an arrow no *single* count can reach would
+ * become clickable. A count must hold for every step of its run.
+ *
+ * Two counts suffice because §6.2's stay-behind is the only count-sensitive
+ * refusal and, past the first hop, the movers **are** the count — so a run whose
+ * later step attacks is unwalkable at every count.
+ *
+ * That same argument says the second walk can only ever add to the *first* step,
+ * so `slice` covers the general union without a length test: where the armed walk
+ * reached no further, the tail it contributes is empty.
+ */
+const rayHops = (inputs: RouteInputs, slot: RaySlot): readonly RayHop[] => {
+  if (inputs.terminal === true) return [];
+  const full = walkRay(inputs, slot, inputs.carry);
+  if (!full.refused) return full.hops;
+  const armed = walkRay(inputs, slot, inputs.carry - 1);
+  return [...full.hops, ...armed.hops.slice(full.hops.length)];
 };
 
 /**
@@ -334,6 +400,10 @@ const rayHops = (inputs: RouteInputs, slot: RaySlot): readonly RayHop[] => {
 export const rayArrows = (inputs: RouteInputs, slot: RaySlot): readonly ArrowId[] =>
   rayHops(inputs, slot).map((hop) => hop.arrow);
 
+/** The three rays, walked once. */
+const raysOf = (inputs: RouteInputs): readonly (readonly RayHop[])[] =>
+  RAY_SLOTS.map((slot) => rayHops(inputs, slot));
+
 /** A clickable arrow, plus the scratch state a click on it would leave behind. */
 interface WalkedOption {
   readonly option: RouteOption;
@@ -352,12 +422,15 @@ const turnOptions = (
     if (turnSlot === slot) continue;
     const exit = exitAt(inputs.geometry, hop.arrow, turnSlot);
     if (exit === undefined || blocked.has(exit) || hop.steps.includes(exit)) continue;
-    const move = hopMove(hop.arrow, exit, inputs.carry);
+    // The turn is one more step of the *same* run, so it takes the ray's count.
+    // It is never a run's first step, and past the first hop the movers are the
+    // count — so no lower count could take a turn this one refuses.
+    const move = hopMove(hop.arrow, exit, hop.count);
     if (move === undefined) continue;
     const next = tryHop(inputs, hop.state, move);
     if (next === undefined) continue;
     out.push({
-      option: { arrow: exit, kind: 'turn', slot, steps: [...hop.steps, exit] },
+      option: { arrow: exit, kind: 'turn', slot, steps: [...hop.steps, exit], count: hop.count },
       state: next,
       terminal: isTerminalStep(hop.state, next, move),
     });
@@ -372,14 +445,16 @@ const turnOptions = (
  * the same distance — which an abstract fixture board allows and the tiling's
  * linear lattice does not — the ray keeps the entry.
  */
-const routeOptions = (inputs: RouteInputs): readonly WalkedOption[] => {
-  const rays = RAY_SLOTS.map((slot) => rayHops(inputs, slot));
+const routeOptions = (
+  inputs: RouteInputs,
+  rays: readonly (readonly RayHop[])[],
+): readonly WalkedOption[] => {
   const blocked = walkedArrows(inputs);
   const out: WalkedOption[] = [];
   for (const slot of RAY_SLOTS) {
     for (const hop of rays[slot] ?? []) {
       out.push({
-        option: { arrow: hop.arrow, kind: 'ray', slot, steps: hop.steps },
+        option: { arrow: hop.arrow, kind: 'ray', slot, steps: hop.steps, count: hop.count },
         state: hop.state,
         terminal: hop.terminal,
       });
@@ -423,32 +498,32 @@ const optionsOf = (best: ReadonlyMap<ArrowId, WalkedOption>): ClickableSet => {
  * resolving combat offers Send or a pop and nothing else.
  */
 export const clickableSet = (inputs: RouteInputs): ClickableSet =>
-  inputs.terminal === true ? new Map() : optionsOf(keepShortest(routeOptions(inputs)));
+  inputs.terminal === true
+    ? new Map()
+    : optionsOf(keepShortest(routeOptions(inputs, raysOf(inputs))));
+
+/** Does `count` walk every step of the run, measured hop by hop on the engine? */
+const walksRun = (inputs: RouteInputs, run: LastRun, count: number): boolean => {
+  let state = run.state;
+  let at = run.start;
+  for (const exit of run.steps) {
+    const move = hopMove(at, exit, count);
+    if (move === undefined) return false;
+    const next = tryHop(inputs, state, move);
+    if (next === undefined) return false;
+    state = next;
+    at = exit;
+  }
+  return true;
+};
 
 /**
- * Carries that **arrive** — measured by simulation, as `reach.ts` measures
- * `minCount` / `maxCount`. Offering a carry that cannot move is the fastest way
- * to make a correct rule look broken.
+ * Heads standing where the last run began — the ceiling on its count (P35).
  *
- * The carry is also how an attack is armed: §6.2's stay-behind means an adjacent
- * enemy arrow joins the clickable set only while `carry <= tipHeads - 1`.
- *
- * **P35 replaces this with {@link runCarries}**: one hop from the tip is the
- * wrong measurement once the count is asked *after* the click, because the count
- * has to pay for the whole run the click named.
+ * Zero with an empty draft, which is what makes {@link runCarries} empty there.
  */
-export const offerableCarries = (inputs: RouteInputs): readonly number[] => {
-  if (inputs.terminal === true) return [];
-  const exits = inputs.geometry.outArrows(inputs.geometry.target(inputs.tip));
-  const out: number[] = [];
-  for (let carry = 1; carry <= inputs.tipHeads; carry += 1) {
-    const moves = exits
-      .map((exit) => hopMove(inputs.tip, exit, carry))
-      .filter((move): move is StepMove => move !== undefined);
-    if (moves.some((move) => tryHop(inputs, inputs.state, move) !== undefined)) out.push(carry);
-  }
-  return out;
-};
+export const runCeiling = (inputs: RouteInputs): number =>
+  inputs.lastRun === undefined ? 0 : headsOn(inputs.lastRun.state, inputs.lastRun.start);
 
 /**
  * The counts that walk the **whole last run**, ascending (P35).
@@ -471,8 +546,17 @@ export const offerableCarries = (inputs: RouteInputs): readonly number[] => {
  * **Empty with an empty draft** — there is no last run, so there is nothing to
  * count and no control to draw.
  */
-export const runCarries = (_inputs: RouteInputs): readonly number[] => {
-  throw new Error('P35: runCarries is not implemented');
+export const runCarries = (inputs: RouteInputs): readonly number[] => {
+  const run = inputs.lastRun;
+  if (run === undefined || run.steps.length === 0) return [];
+  const out: number[] = [];
+  // The one 1..ceiling scan this feature affords, and it is affordable because it
+  // is built once for the single drafted run — never per clickable arrow, never
+  // per hover. Ascending because the control steps through it in that order.
+  for (let count = 1; count <= runCeiling(inputs); count += 1) {
+    if (walksRun(inputs, run, count)) out.push(count);
+  }
+  return out;
 };
 
 /**
@@ -507,7 +591,7 @@ const nextInputs = (inputs: RouteInputs, item: WalkedOption): RouteInputs => {
     state: item.state,
     from: inputs.from,
     tip: item.option.arrow,
-    draft: [...inputs.draft, ...runMoves(inputs.tip, item.option.steps, inputs.carry)],
+    draft: [...inputs.draft, ...runMoves(inputs.tip, item.option.steps, item.option.count)],
     // The preview's carry is what stands on the new tip. On any hop the draft can
     // continue from, that *is* the carry — the whole carry arrives. Where the two
     // differ the hop was terminal, and then the offer is empty either way, so this
@@ -520,17 +604,22 @@ const nextInputs = (inputs: RouteInputs, item: WalkedOption): RouteInputs => {
 
 /** Build the whole offer once. Hover is then a lookup into `previews`. */
 export const buildRouteOffer = (inputs: RouteInputs): RouteOffer => {
+  // One set of ray walks feeds both the painted rays and the clickable set: the
+  // rays *are* the measurement, so measuring them twice is only a way for the two
+  // readings to drift apart.
+  const rays = raysOf(inputs);
   const best: ReadonlyMap<ArrowId, WalkedOption> =
-    inputs.terminal === true ? new Map() : keepShortest(routeOptions(inputs));
+    inputs.terminal === true ? new Map() : keepShortest(routeOptions(inputs, rays));
   const clickable = optionsOf(best);
   const previews = new Map<ArrowId, ClickableSet>();
   for (const [arrow, item] of best) previews.set(arrow, clickableSet(nextInputs(inputs, item)));
   return {
     tip: inputs.tip,
     carry: inputs.carry,
-    rays: RAY_SLOTS.map((slot) => rayArrows(inputs, slot)),
+    rays: rays.map((hops) => hops.map((hop) => hop.arrow)),
     clickable,
-    carries: offerableCarries(inputs),
+    carries: runCarries(inputs),
+    ceiling: runCeiling(inputs),
     reachWash: reachWashOf(inputs, clickable),
     previews,
   };
@@ -569,12 +658,24 @@ export interface CountControl {
  * `undefined` with an empty draft (there is no run to count), while the match is
  * over, and while input is locked.
  */
-export const countControl = (_opts: {
+export const countControl = (opts: {
   readonly phase: InputPhase;
   readonly inputLocked: boolean;
   readonly matchOver: boolean;
 }): CountControl | undefined => {
-  throw new Error('P35: countControl is not implemented');
+  const { phase } = opts;
+  if (opts.inputLocked || opts.matchOver) return undefined;
+  if (phase.kind !== 'route') return undefined;
+  // No run, no question. The empty draft is a *selected* stack, not a route: the
+  // count is only meaningful once a click has said what it has to pay for, which
+  // is the whole inversion this feature makes (invariant 1).
+  if (phase.draft.length === 0) return undefined;
+  return {
+    count: phase.carry,
+    ceiling: phase.offer.ceiling,
+    counts: phase.offer.carries,
+    draftLength: phase.draft.length,
+  };
 };
 
 /** The three facts the auto-apply test reads off the state a click would produce. */
@@ -607,9 +708,10 @@ export interface AutoApplyTest {
  * moved. No reachable state satisfies 1 and 2 and fails 3, so no test asserts
  * one.
  */
-export const autoApplies = (_test: AutoApplyTest): boolean => {
-  throw new Error('P35: autoApplies is not implemented');
-};
+export const autoApplies = (test: AutoApplyTest): boolean =>
+  test.lastRunLength === test.draftLength &&
+  test.counts.length === 1 &&
+  test.clickable === 0;
 
 /** The locked HUD line for a route phase: empty draft or drafted. */
 export const routeHint = (phase: InputPhase): string | undefined => {

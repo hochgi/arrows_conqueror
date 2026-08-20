@@ -466,8 +466,16 @@ describe('P34 edge — the clickable set is exactly the unique-route set', () =>
 });
 
 describe('P34 edge — popping and extending compose without leaking state', () => {
+  /**
+   * **Revised by P35.** Four steps off *eight* heads is a forced count and a spent
+   * allowance, so the click applies instead of drafting (*Auto-apply — the exact
+   * test*). Twelve walks the same four arrows with a count still to choose, which
+   * is what these pop scenarios are about.
+   */
+  const POPS_FROM_FOUR = 12;
+
   const draftFourThenPop = () => {
-    const selected = selectOpenField(8);
+    const selected = selectOpenField(POPS_FROM_FOUR);
     const full = clickArrow(selected, fourth);
     const original = [...draftOf(full)];
     const popped = clickArrow(selected, second);
@@ -489,8 +497,8 @@ describe('P34 edge — popping and extending compose without leaking state', () 
   });
 
   it('Popping then cancelling applies nothing', () => {
-    const state = openField(from, 8);
-    const before = openField(from, 8);
+    const state = openField(from, POPS_FROM_FOUR);
+    const before = openField(from, POPS_FROM_FOUR);
     const selected = selectRoute(board, state, from);
     clickArrow(selected, fourth);
     clickArrow(selected, second);
@@ -556,9 +564,12 @@ describe('P34 edge — the carry rewrites the last run and nothing earlier', () 
   });
 
   it('Lowering the carry mid-route shortens only what is still offered', () => {
-    // Twelve heads so the tip still has a step left after the rewrite: the point
-    // is that the offer *shrinks*, which an empty offer could not show.
-    const selected = selectRoute(board, openField(from, 12), from);
+    // Sixteen heads, lowered to eight: the tip still has a step left after the
+    // rewrite — the point is that the offer *shrinks*, which an empty offer could
+    // not show — and the two counts have to straddle an allowance boundary for
+    // there to be any shrinking at all, which 12 and 8 do not (`speed` is 4 for
+    // both). `speed(16) = 5`, `speed(8) = 4`.
+    const selected = selectRoute(board, openField(from, 16), from);
     clickArrow(selected, second);
     const full = clickableOf(clickArrow(selected, third)).size;
     const lowered = selected.mode.setCarry(8);

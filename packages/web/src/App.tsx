@@ -73,9 +73,9 @@ import { loadSoundEnabled, playOverlayCues, saveSoundEnabled } from './fx/sound'
 import { replaySteps } from './fx/steps';
 import { victoryFx } from './fx/victory';
 import { ConvertTip } from './ConvertTip';
-import { RouteTip } from './RouteTip';
+import { RouteDock } from './RouteDock';
 import { convertTooltip, refusedConvertExits } from './refusedConvert';
-import { routePaint } from './route';
+import { countControl, routePaint } from './route';
 import { selectionPaint, type PointerKind } from './selectionChrome';
 import { spawnerInfoAt } from './spawnerInfo';
 import { SpawnerTip } from './SpawnerTip';
@@ -100,15 +100,6 @@ const arrowCentroid = (arrow: ArrowId): { x: number; y: number } => {
   }
   const n = poly.length === 0 ? 1 : poly.length;
   return { x: sx / n, y: sy / n };
-};
-
-/** Where to anchor the tip control: the tip arrow's centroid, in stage pixels. */
-const tipScreen = (
-  viewport: Viewport,
-  arrow: ArrowId,
-): { readonly x: number; readonly y: number } => {
-  const at = arrowCentroid(arrow);
-  return toScreen(viewport, at.x, at.y);
 };
 
 /**
@@ -900,6 +891,18 @@ export const App = (): ReactElement => {
   const byokActive = activeSeat?.kind === 'byok' && isByokReady(byokConfigForSeat(activeSeat));
 
   const inputLocked = botBusy || activeIsAi || state.winner !== undefined;
+  /**
+   * The docked count control's model, or `undefined` when there is nothing to ask.
+   *
+   * Absent with an empty draft (no run has been named yet), while a seat is
+   * thinking and once the match is over — the three cases the spec names. It
+   * carries no coordinate, so it cannot be positioned from the tip.
+   */
+  const dock = countControl({
+    phase: snap.phase,
+    inputLocked,
+    matchOver: state.winner !== undefined,
+  });
   /** The board is mid-resolution: a seat is thinking, or a major effect is playing. */
   const resolving = botBusy || activeIsAi || isResolving(fx, Date.now());
 
@@ -1127,23 +1130,26 @@ export const App = (): ReactElement => {
         ) : hover !== undefined ? (
           <SpawnerTipFor state={state} hover={hover} viewport={viewport} />
         ) : null}
-        {snap.phase.kind === 'route' && !inputLocked ? (
-          <RouteTip
-            {...tipScreen(viewport, snap.phase.tip)}
-            carry={snap.phase.carry}
-            tipHeads={snap.phase.tipHeads}
-            carries={snap.phase.offer.carries}
-            draftLength={snap.phase.draft.length}
-            onCarry={setCarry}
-            onSend={() => {
-              commitSnap(mode.send());
-            }}
-            onCancel={() => {
-              commitSnap(mode.cancel());
-            }}
-          />
-        ) : null}
       </div>
+      {/* The count control for the drafted run, **outside** the board — see
+          `RouteDock`. Rendered here, as a sibling of the board's container, so no
+          stage pixel can reach it and nothing it draws can cover the offer it is
+          asking about. */}
+      {dock === undefined ? null : (
+        <RouteDock
+          count={dock.count}
+          ceiling={dock.ceiling}
+          counts={dock.counts}
+          draftLength={dock.draftLength}
+          onCount={setCarry}
+          onSend={() => {
+            commitSnap(mode.send());
+          }}
+          onCancel={() => {
+            commitSnap(mode.cancel());
+          }}
+        />
+      )}
     </div>
   );
 };

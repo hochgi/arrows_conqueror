@@ -62,6 +62,18 @@ const SLOTS = [0, 1, 2] as const;
 /** Eight heads walk four steps. */
 const HEADS = 8;
 
+/**
+ * Twelve heads walk four steps **with a count still to choose**.
+ *
+ * **Revised by P35.** A four step click off eight heads is now
+ * `2^(k-1)` walking `k`: one legal count, a spent allowance, and therefore an
+ * *auto-apply* (`count-after-route.md`, *Auto-apply — the exact test*). The four
+ * step scenarios below are about drafting and popping, not about that rule, so
+ * they take a stack whose count is not forced. Twelve keeps `speed(12) = 4`, so
+ * the route is the same four arrows.
+ */
+const DRAFTS_FOUR = 12;
+
 const offerAt = (state: GameState, carry: number) =>
   buildRouteOffer(inputsAt(board, state, from, carry));
 
@@ -252,7 +264,7 @@ describe('P34 core — a click appends a run to the draft', () => {
   });
 
   it('A straight route of any length is one click', () => {
-    const selected = selectOpenField(HEADS);
+    const selected = selectOpenField(DRAFTS_FOUR);
     const snap = clickArrow(selected, arrowAlong(geometry, from, 0, 4));
     expect(draftOf(snap)).toHaveLength(4);
   });
@@ -308,8 +320,8 @@ describe('P34 core — nothing is applied until Send', () => {
   });
 
   it('The game state is untouched while drafting', () => {
-    const state = openField(from, HEADS);
-    const before = openField(from, HEADS);
+    const state = openField(from, DRAFTS_FOUR);
+    const before = openField(from, DRAFTS_FOUR);
     const selected = selectRoute(board, state, from);
     const snap = clickArrow(selected, arrowAlong(geometry, from, 0, 4));
     expect(draftOf(snap)).toHaveLength(4);
@@ -319,7 +331,7 @@ describe('P34 core — nothing is applied until Send', () => {
 
 describe('P34 core — clicking a walked arrow pops the draft back to it', () => {
   const draftFour = () => {
-    const selected = selectOpenField(HEADS);
+    const selected = selectOpenField(DRAFTS_FOUR);
     const snap = clickArrow(selected, arrowAlong(geometry, from, 0, 4));
     return { selected, snap, second: arrowAlong(geometry, from, 0, 2) };
   };
@@ -342,7 +354,7 @@ describe('P34 core — clicking a walked arrow pops the draft back to it', () =>
     const { selected, second } = draftFour();
     const popped = clickArrow(selected, second);
     const expected = buildRouteOffer(
-      inputsAfter(board, selected.state, from, raySlotWalk(geometry, from, 0, 2), HEADS),
+      inputsAfter(board, selected.state, from, raySlotWalk(geometry, from, 0, 2), DRAFTS_FOUR),
     );
     expect(sortedIds(clickableOf(popped).keys())).toEqual(sortedIds(expected.clickable.keys()));
     for (const slot of SLOTS) {

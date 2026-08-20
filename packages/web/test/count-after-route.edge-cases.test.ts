@@ -74,8 +74,16 @@ const second = arrowAlong(geometry, from, 0, 2);
 const third = arrowAlong(geometry, from, 0, 3);
 
 describe('P35 edge — the floor tracks the distance the run actually covers', () => {
+  // Twenty-four heads, not sixteen: five steps out of *sixteen* is the allowance
+  // exactly, so the floor would *be* the ceiling and the click would auto-apply
+  // (invariant 11's `2^(k-1)` walking `k`) — leaving no draft whose floor to read.
+  // `speed(24) = 5` walks the same five arrows with a count still to choose, so
+  // every row of this table stays a drafted run and the claim is read the same way
+  // at all five lengths. Auto-apply has its own scenarios.
+  const FLOORS = 24;
+
   it.each([1, 2, 3, 4, 5])('The floor at run length %i', (steps) => {
-    const state = openField(from, 16);
+    const state = openField(from, FLOORS);
     const selected = selectRoute(board, state, from);
     const run = raySlotWalk(geometry, from, 0, steps);
     const snap = clickArrow(selected, arrowAlong(geometry, from, 0, steps));
