@@ -12,6 +12,11 @@
  * literal appears it is a *checked* literal: the oracle is asserted alongside it,
  * so a rule change moves the test rather than silently disagreeing with it.
  *
+ * *Full strength* is the **largest count that walks the run**, not every head:
+ * §6.2's stay-behind refuses `count = heads` for an attack, so an adjacent enemy
+ * arrow drafts at `heads - 1`. Everywhere else the two readings coincide, which
+ * is why most scenarios below still say 8 out of 8.
+ *
  * Two numbers worth stating once, because several scenarios lean on them
  * (measured, not assumed — see the assertions):
  *
@@ -28,6 +33,8 @@ import { routePaint, runMoves } from '../src/route';
 import { selectionPaint } from '../src/selectionChrome';
 import { createViewport, toScreen } from '../src/viewport';
 import {
+  A,
+  B,
   acceptedRunLength,
   arrowAlong,
   carriesOf,
@@ -42,6 +49,7 @@ import {
   earlierMovesOf,
   exitsOf,
   geometry,
+  largestCountThatWalks,
   lastRunLengthOf,
   lastRunMovesOf,
   leastCountThatWalks,
@@ -51,13 +59,17 @@ import {
   rayOf,
   raySlotWalk,
   readSource,
+  reachedBySomeCount,
   refusingRules,
   routePhaseOf,
   rules,
   runInputs,
+  runLengthsOf,
   selectOpenField,
   selectRoute,
+  sortedIds,
   sourceArrow,
+  stateWith,
 } from './count-after-route.support';
 
 const board = { geometry, rules };
@@ -85,8 +97,9 @@ describe('P35 core — nothing is asked before a route exists', () => {
     expect(carriesOf(selected.snap)).toEqual([]);
   });
 
-  it('The last run length is zero with an empty draft', () => {
+  it('The run boundaries are empty with an empty draft', () => {
     const selected = selectOpenField(8);
+    expect(runLengthsOf(selected.snap)).toEqual([]);
     expect(lastRunLengthOf(selected.snap)).toBe(0);
   });
 
@@ -99,14 +112,43 @@ describe('P35 core — nothing is asked before a route exists', () => {
       expect(rayOf(selected.snap, slot), `slot ${String(slot)}`).toHaveLength(full);
     }
   });
+
+  it('An arrow is clickable when some count reaches it', () => {
+    const state = openField(from, 8);
+    const selected = selectRoute(board, state, from);
+    // The oracle is geometric words plus `rules.apply`, not a second ray walk:
+    // every `s^m` and `s^m·e` out of a0, kept when *some* count of 8 or fewer
+    // walks the whole word.
+    const reached = reachedBySomeCount(board, state, from, 5);
+    expect(reached.size).toBe(30);
+    expect(sortedIds(clickableOf(selected.snap).keys())).toEqual(sortedIds(reached));
+  });
+
+  it('An adjacent enemy arrow is clickable, armed by the count below full', () => {
+    const state = stateWith([
+      [from, { owner: A, heads: 8 }],
+      [first, { owner: B, heads: 2 }],
+    ]);
+    const selected = selectRoute(board, state, from);
+    // Full strength cannot take it — the stay-behind refuses an emptying attack —
+    // and seven can, so the offer arms it.
+    expect(countsThatWalk(rules, state, from, [first])).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(clickableOf(selected.snap).has(first)).toBe(true);
+    const snap = clickArrow(selected, first);
+    expect(countsOf(draftOf(snap))).toEqual([7]);
+    expect(routePhaseOf(snap).carry).toBe(7);
+  });
 });
 
-describe('P35 core — a click drafts the run at full strength', () => {
-  it('A run carries every head standing on the tip', () => {
+describe('P35 core — a click drafts the run at the largest count that walks it', () => {
+  it('A run carries every head when nothing refuses that count', () => {
     const selected = selectOpenField(8);
+    const state = openField(from, 8);
     const snap = clickArrow(selected, second);
+    expect(largestCountThatWalks(rules, state, from, raySlotWalk(geometry, from, 0, 2))).toBe(8);
     expect(countsOf(draftOf(snap))).toEqual([8, 8]);
     expect(lastRunLengthOf(snap)).toBe(2);
+    expect(runLengthsOf(snap)).toEqual([2]);
   });
 
   it('A second run carries every head that arrived', () => {
@@ -114,7 +156,7 @@ describe('P35 core — a click drafts the run at full strength', () => {
     const snap = clickRuns(selected, [{ arrow: first, count: 8 }, { arrow: second }]);
     expect(countsOf(draftOf(snap))).toEqual([8, 8]);
     expect(routePhaseOf(snap).carry).toBe(8);
-    expect(lastRunLengthOf(snap)).toBe(1);
+    expect(runLengthsOf(snap)).toEqual([1, 1]);
   });
 
   it('The drafted run is the run that was painted', () => {
@@ -227,6 +269,18 @@ describe('P35 core — the count control edits the run just drafted', () => {
 });
 
 describe('P35 core — a click with nothing left to decide applies the move', () => {
+  it('A two head stack walking two steps applies at once', () => {
+    // `2^k` heads walking `k+1` steps: the count is forced, so there is nothing
+    // to ask. Two heads walking two steps is the smallest such case, and the
+    // reason the old *two legal counts* scenario had to move to three heads.
+    const state = openField(from, 2);
+    const selected = selectRoute(board, state, from);
+    expect(countsThatWalk(rules, state, from, raySlotWalk(geometry, from, 0, 2))).toEqual([2]);
+    const snap = clickArrow(selected, second);
+    expect(countsOf(pendingOf(snap))).toEqual([2, 2]);
+    expect(controlShown(snap)).toBe(false);
+  });
+
   it('A single head walks one step with no control at all', () => {
     const selected = selectRoute(board, openField(from, 1), from);
     const snap = clickArrow(selected, first);
@@ -284,7 +338,7 @@ describe('P35 core — a click with nothing left to decide applies the move', ()
     const snap = clickRuns(selected, [{ arrow: first }, { arrow: fourth }]);
     const phase = routePhaseOf(snap);
     expect(phase.draft).toHaveLength(4);
-    expect(phase.lastRunLength).toBe(3);
+    expect(phase.runLengths).toEqual([1, 3]);
     expect(phase.offer.carries).toHaveLength(1);
     expect(phase.offer.clickable.size).toBe(0);
     expect(controlShown(snap)).toBe(true);
@@ -316,12 +370,11 @@ describe('P35 core — the control lives below the board, never on it', () => {
     'The strip overlaps no clickable arrow (%i px)',
     (width) => {
       // A clickable arrow's stage position depends on the viewport…
-      expect(toScreen(createViewport(width, 800), 1, 1).x).toBe(
-        (1 - 0) * 48 + width / 2,
-      );
-      // …and the control's model depends on none of it: it carries no coordinates
-      // at all, so there is no rectangle over the board for a clickable arrow to
-      // intersect. The rendered rectangle needs a DOM; see the invariants suite.
+      expect(toScreen(createViewport(width, 800), 1, 1).x).toBe(1 * 48 + width / 2);
+      // …and the control's model depends on none of it: no coordinate, and the
+      // same model at 375, 768 and 1280, so there is no rectangle over the board
+      // for a clickable arrow to intersect. The *rendered* rectangle needs a real
+      // renderer and is checked in the browser (spec: *Not a unit invariant*).
       const selected = selectOpenField(8);
       const snap = clickArrow(selected, first);
       const control = controlOf(snap);
@@ -332,6 +385,8 @@ describe('P35 core — the control lives below the board, never on it', () => {
         'counts',
         'draftLength',
       ]);
+      const atDefault = controlOf(clickArrow(selectOpenField(8), first));
+      expect(control).toEqual(atDefault);
     },
   );
 
@@ -399,6 +454,8 @@ describe('P35 core — send, cancel and pop are unchanged', () => {
     if (secondExit === undefined) return;
     const popped = clickArrow(selected, secondExit);
     expect(draftOf(popped)).toHaveLength(2);
+    // The second move ends the first run, so the first run is the editable one.
+    expect(runLengthsOf(popped)).toEqual([2]);
     expect(lastRunLengthOf(popped)).toBe(2);
     expect(clickableOf(popped).size).toBeGreaterThan(0);
   });

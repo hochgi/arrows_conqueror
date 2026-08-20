@@ -18,9 +18,9 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { InputSnapshot, RoutePhase } from '../src/input/modes';
-import { countControl } from '../src/route';
+import { countControl, lastRunLength } from '../src/route';
 import type { CountControl, LastRun, RouteInputs } from '../src/route';
-import { headsOn, routePhaseOf } from './ray-run-input.support';
+import { exitOf, headsOn, routePhaseOf } from './ray-run-input.support';
 import type { Board, Selected } from './ray-run-input.support';
 
 export * from './ray-run-input.support';
@@ -84,6 +84,87 @@ export const leastCountThatWalks = (
     );
   }
   return least;
+};
+
+/** The ceiling the offer drafts a run at: the largest count that walks it. */
+export const largestCountThatWalks = (
+  rules: RulesPort,
+  state: GameState,
+  start: ArrowId,
+  steps: readonly ArrowId[],
+): number => {
+  const counts = countsThatWalk(rules, state, start, steps);
+  const largest = counts[counts.length - 1];
+  if (largest === undefined) {
+    throw new Error(
+      `setup: no count walks ${String(steps.length)} steps from ${String(start)} — the run is unwalkable`,
+    );
+  }
+  return largest;
+};
+
+// ---------------------------------------------------------------------------
+// The clickable-set oracle: unique-route words, then "does any count walk it?"
+// ---------------------------------------------------------------------------
+
+/** One candidate route word: `s^m` or `s^m·e` (P34's unique-route set). */
+export interface Word {
+  readonly steps: readonly ArrowId[];
+  readonly arrow: ArrowId;
+}
+
+/**
+ * Every `s^m` and `s^m·e` word out of `from`, up to `depth` steps, geometrically.
+ *
+ * Geometry only — no legality is asked here, which is what makes this an oracle
+ * for *"an arrow is clickable iff some count walks the run that reaches it"*
+ * rather than a second copy of `route.ts`'s ray construction.
+ */
+export const routeWords = (
+  board: Board,
+  from: ArrowId,
+  depth: number,
+): readonly Word[] => {
+  const words: Word[] = [];
+  for (const slot of [0, 1, 2]) {
+    let at = from;
+    const straight: ArrowId[] = [];
+    for (let m = 1; m <= depth; m += 1) {
+      at = exitOf(board.geometry, at, slot);
+      straight.push(at);
+      words.push({ steps: [...straight], arrow: at });
+      for (const turn of [0, 1, 2]) {
+        if (turn === slot) continue;
+        const exit = exitOf(board.geometry, at, turn);
+        words.push({ steps: [...straight, exit], arrow: exit });
+      }
+    }
+  }
+  return words;
+};
+
+/**
+ * The arrows some count `<= heads` reaches by one of those words — invariant 4.
+ *
+ * Shorter words win where two land on the same arrow, as P34's ray-before-turn
+ * keying does, and the source is never a destination.
+ */
+export const reachedBySomeCount = (
+  board: Board,
+  state: GameState,
+  from: ArrowId,
+  depth: number,
+): ReadonlySet<ArrowId> => {
+  const best = new Map<ArrowId, number>();
+  for (const word of routeWords(board, from, depth)) {
+    if (word.arrow === from) continue;
+    if (word.steps.slice(0, -1).includes(word.arrow)) continue;
+    if (countsThatWalk(board.rules, state, from, word.steps).length === 0) continue;
+    const seen = best.get(word.arrow);
+    if (seen !== undefined && seen <= word.steps.length) continue;
+    best.set(word.arrow, word.steps.length);
+  }
+  return new Set(best.keys());
 };
 
 // ---------------------------------------------------------------------------
@@ -174,7 +255,7 @@ export const inputsFromPhase = (
   state: GameState,
   phase: RoutePhase,
 ): RouteInputs => {
-  const boundary = phase.draft.length - phase.lastRunLength;
+  const boundary = phase.draft.length - lastRunLength(phase.runLengths);
   let scratch = state;
   let at = phase.from;
   for (const move of phase.draft.slice(0, boundary)) {
@@ -229,8 +310,12 @@ export const clickRuns = (selected: Selected, clicks: readonly Click[]): InputSn
 // Reading the phase
 // ---------------------------------------------------------------------------
 
+export const runLengthsOf = (snap: InputSnapshot): readonly number[] =>
+  routePhaseOf(snap).runLengths;
+
+/** The editable run's length — derived from the boundaries, never stored. */
 export const lastRunLengthOf = (snap: InputSnapshot): number =>
-  routePhaseOf(snap).lastRunLength;
+  lastRunLength(routePhaseOf(snap).runLengths);
 
 /** The counts the phase offers for its last run. */
 export const carriesOf = (snap: InputSnapshot): readonly number[] =>
@@ -243,13 +328,13 @@ export const countsOf = (draft: readonly Move[]): readonly number[] =>
 /** The trailing `lastRunLength` moves — the run the control edits. */
 export const lastRunMovesOf = (snap: InputSnapshot): readonly Move[] => {
   const phase = routePhaseOf(snap);
-  return phase.draft.slice(phase.draft.length - phase.lastRunLength);
+  return phase.draft.slice(phase.draft.length - lastRunLength(phase.runLengths));
 };
 
 /** Every move before the last run — the ones a rewrite must leave byte-identical. */
 export const earlierMovesOf = (snap: InputSnapshot): readonly Move[] => {
   const phase = routePhaseOf(snap);
-  return phase.draft.slice(0, phase.draft.length - phase.lastRunLength);
+  return phase.draft.slice(0, phase.draft.length - lastRunLength(phase.runLengths));
 };
 
 /** Where the phase's last run began: the arrow, and the heads standing there. */
@@ -258,7 +343,7 @@ export const runStartOf = (
   state: GameState,
   phase: RoutePhase,
 ): { readonly start: ArrowId; readonly heads: number; readonly state: GameState } => {
-  const prefix = phase.draft.slice(0, phase.draft.length - phase.lastRunLength);
+  const prefix = phase.draft.slice(0, phase.draft.length - lastRunLength(phase.runLengths));
   let scratch = state;
   let at = phase.from;
   for (const move of prefix) {

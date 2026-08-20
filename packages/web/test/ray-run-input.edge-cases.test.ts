@@ -105,26 +105,41 @@ describe('P34 edge — a ray stops where the engine stops, and is never painted 
     expect(option?.steps).toHaveLength(1);
   });
 
-  it('An enemy-held arrow one step out is withdrawn when the carry empties the tip', () => {
+  /**
+   * **Revised by P35.** P34 withdrew an adjacent enemy arrow while the carry
+   * equalled the heads at the tip, because the carry was chosen *before* the
+   * click. P35 removes that gesture, so the offer arms the attack instead: the
+   * arrow is clickable because *some* count reaches it, and the run drafts at
+   * `heads - 1`. The withdrawal it used to assert would now make attacking
+   * unreachable altogether.
+   */
+  it('An enemy-held arrow one step out is offered at full strength, armed at one head fewer', () => {
     const state = stateWith([
       [from, { owner: A, heads: 8 }],
       [first, { owner: B, heads: 2 }],
     ]);
     const offer = buildRouteOffer(inputsAt(board, state, from, 8));
-    expect(offer.clickable.has(first)).toBe(false);
-    expect((offer.rays[0] ?? []).map(String)).toEqual([]);
-    // Only that ray is withdrawn — the other two still run.
+    expect(offer.clickable.has(first)).toBe(true);
+    expect((offer.rays[0] ?? []).map(String)).toEqual([String(first)]);
+    // A terminal step, so the ray stops on it and the other two still run.
     expect((offer.rays[1] ?? []).length).toBeGreaterThan(0);
     expect((offer.rays[2] ?? []).length).toBeGreaterThan(0);
+    const selected = selectRoute(board, state, from);
+    const snap = clickArrow(selected, first);
+    const drafted = draftOf(snap)[0];
+    expect(drafted?.kind).toBe('step');
+    if (drafted?.kind !== 'step') return;
+    expect(drafted.count).toBe(7);
   });
 
   /**
-   * P35 note: under P35 there is no carry to lower before the click, so
-   * `needs-stay-behind` becomes the *only* answer an adjacent enemy arrow can
-   * give — which is either right (attacks are drafted some other way) or a lost
-   * capability. Phase 1 owes the ruling; this test is left as P34 wrote it.
+   * **Revised by P35.** P34 refused this click and named the stay-behind, because
+   * the carry had to be lowered before clicking. P35 arms the attack from the
+   * count *after* the click, so the click drafts a run at `heads - 1` and there
+   * is nothing to refuse. `needs-stay-behind` is left unreachable by this change
+   * — retiring the reason and its copy is a phase-3/4 question, not a rule.
    */
-  it('The refusal names the stay-behind when that is the only obstacle', () => {
+  it('An adjacent enemy click drafts the attack instead of refusing it', () => {
     const state = stateWith([
       [from, { owner: A, heads: 8 }],
       [first, { owner: B, heads: 2 }],
@@ -132,9 +147,13 @@ describe('P34 edge — a ray stops where the engine stops, and is never painted 
     const selected = selectRoute(board, state, from);
     expect(selected.phase.carry).toBe(8);
     const snap = clickArrow(selected, first);
-    expect(snap.refusal?.arrow).toBe(first);
-    expect(snap.refusal?.reason).toBe('needs-stay-behind');
-    expect(draftOf(snap)).toHaveLength(0);
+    expect(snap.refusal).toBeUndefined();
+    expect(draftOf(snap)).toHaveLength(1);
+    const drafted = draftOf(snap)[0];
+    expect(drafted?.kind).toBe('step');
+    if (drafted?.kind !== 'step') return;
+    expect(drafted.count).toBe(7);
+    // Still nothing applied — a drafted attack is a draft.
     expect(pendingOf(snap)).toHaveLength(0);
   });
 
@@ -506,7 +525,8 @@ describe('P34 edge — popping and extending compose without leaking state', () 
     clickArrow(selected, fourth);
     const popped = clickArrow(selected, second);
     expect(routePhaseOf(popped).carry).toBe(12);
-    expect(routePhaseOf(popped).lastRunLength).toBe(2);
+    // The one run it was drafted as, truncated by the pop (P35 `runLengths`).
+    expect(routePhaseOf(popped).runLengths).toEqual([2]);
   });
 });
 
@@ -596,10 +616,8 @@ describe('P34 edge — the carry rewrites the last run and nothing earlier', () 
   });
 
   /**
-   * P35 note: the gesture here — lower the carry, then click the enemy — is the
-   * one P35 removes. The *claims* still stand (the tip's head count comes from
-   * the state after the draft, and a combat hop ends the draft), but which count
-   * an attack run is drafted at is a phase-1 gap. Kicked back, not decided here.
+   * **Revised by P35.** The `setCarry(7)` this used to need is gone: the click
+   * itself drafts the attack at `heads - 1`, which is the same 7.
    */
   it('Combat on the first hop reduces the tip head count and ends the draft', () => {
     const state = stateWith([
@@ -607,7 +625,6 @@ describe('P34 edge — the carry rewrites the last run and nothing earlier', () 
       [first, { owner: B, heads: 6 }],
     ]);
     const selected = selectRoute(board, state, from);
-    selected.mode.setCarry(7);
     const snap = clickArrow(selected, first);
     const phase = routePhaseOf(snap);
     // The surviving count of the attackers that landed, measured by the engine.

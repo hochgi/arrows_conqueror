@@ -50,15 +50,20 @@ export interface RoutePhase {
   readonly tipHeads: number;
   readonly draft: readonly Move[];
   /**
-   * How many of `draft`'s trailing moves the last click appended — `0` when the
-   * draft is empty (P35).
+   * One entry per run, in order, summing to `draft.length` (P35).
    *
    * This is what lets the count control rewrite exactly one run: drop the
-   * trailing `lastRunLength` moves, re-emit them at the new count, rebuild. A run
-   * is defined by the click that made it, and a flat `Move[]` does not record
+   * trailing `runLengths[last]` moves, re-emit them at the new count, rebuild. A
+   * run is defined by the click that made it, and a flat `Move[]` does not record
    * where a click ended.
+   *
+   * A single trailing length would not do: popping back to a boundary *before*
+   * the last run has to restore the earlier run as the editable one, and a scalar
+   * does not record that history. `lastRunLength` is therefore derived from this
+   * list, never stored. A pop into the middle of a run truncates that run — the
+   * surviving part becomes the last entry.
    */
-  readonly lastRunLength: number;
+  readonly runLengths: readonly number[];
   /** Built once per selection, extend, pop and carry change — never per hover. */
   readonly offer: RouteOffer;
 }
@@ -213,9 +218,9 @@ abstract class BaseMode implements InputMode {
       terminal: walked.terminal,
     });
     this.snap = {
-      // P35 skeleton: the run boundary is not tracked yet, so `lastRunLength` is
+      // P35 skeleton: run boundaries are not tracked yet, so `runLengths` holds
       // the empty-draft value until the count control is implemented.
-      phase: { kind: 'route', from, tip, carry: offer.carry, tipHeads, draft, lastRunLength: 0, offer },
+      phase: { kind: 'route', from, tip, carry: offer.carry, tipHeads, draft, runLengths: [], offer },
       highlights: { selected: from, targets: new Set(offer.clickable.keys()) },
     };
     return this.snap;

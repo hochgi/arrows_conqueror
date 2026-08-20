@@ -113,8 +113,9 @@ export interface RouteInputs {
  * The last run of a draft: where it began, and the exits it walks (P35).
  *
  * A run is defined by the click that made it, and nothing in a flat `Move[]`
- * records where a click ended — so the boundary is carried rather than
- * re-derived. `steps.length` is `RoutePhase.lastRunLength`.
+ * records where a click ended — so the boundaries are carried rather than
+ * re-derived. `steps.length` is the final entry of `RoutePhase.runLengths`,
+ * which {@link lastRunLength} reads.
  */
 export interface LastRun {
   /** The scratch state as it stood **before** the run was walked. */
@@ -318,10 +319,17 @@ const rayHops = (inputs: RouteInputs, slot: RaySlot): readonly RayHop[] => {
  * first hop it **accepts terminally**, see {@link isTerminalStep}.
  *
  * §6.2's stay-behind (`count <= heads - 1`, §11 item 38) is why an enemy-held
- * arrow is never reached mid-run: a run moves the whole carry, so after the first
- * hop `count = heads` at the tip and the attack is refused. A ray therefore ends
- * *before* an enemy-held arrow at distance >= 2, and an adjacent one is offered
- * only while `carry <= tipHeads - 1`.
+ * arrow is never reached mid-run: a run carries one count throughout, so after
+ * the first hop `count = heads` at the tip and the attack is refused. A ray
+ * therefore ends *before* an enemy-held arrow at distance >= 2.
+ *
+ * **P35**: an *adjacent* one is offered all the same. An arrow is clickable iff
+ * **some** count `<= tipHeads` walks the whole run to it, and the run drafts at
+ * the largest such count — which is `tipHeads` everywhere except a final attack
+ * step, where it is `tipHeads - 1`. Nothing else in the engine reads the count
+ * and `speed` is monotone, so walking the run at `tipHeads` and at
+ * `tipHeads - 1` decides it: two walks, not one per count. The 1..ceiling scan
+ * happens once, in {@link runCarries}, for the single drafted run.
  */
 export const rayArrows = (inputs: RouteInputs, slot: RaySlot): readonly ArrowId[] =>
   rayHops(inputs, slot).map((hop) => hop.arrow);
@@ -452,7 +460,13 @@ export const offerableCarries = (inputs: RouteInputs): readonly number[] => {
  * engine is the one that decides.
  *
  * The ceiling falls out of the same measurement: no count above the heads
- * standing where the run began can step at all.
+ * standing where the run began can step at all — and where the run's final step
+ * attacks, §6.2's stay-behind takes the ceiling down to `heads - 1`.
+ *
+ * Measuring is what makes it right about **spent allowance**: `spent` travels
+ * with the movers, so a second run of `k` steps off a tip that has already spent
+ * `j` needs the heads for `j + k`, not for `k`. A formula would have to know
+ * that; a walk on the scratch state already does.
  *
  * **Empty with an empty draft** — there is no last run, so there is nothing to
  * count and no control to draw.
@@ -523,6 +537,15 @@ export const buildRouteOffer = (inputs: RouteInputs): RouteOffer => {
 };
 
 /**
+ * The run the count control edits: the final entry of `runLengths`, or `0`.
+ *
+ * Derived, never stored (P35 *Phase state*). The list is what survives a pop to
+ * an earlier boundary; a stored scalar would not.
+ */
+export const lastRunLength = (runLengths: readonly number[]): number =>
+  runLengths[runLengths.length - 1] ?? 0;
+
+/**
  * The docked count control's model, or `undefined` when none is drawn (P35).
  *
  * The control asks the one question a named run has left — how many heads walk
@@ -576,6 +599,13 @@ export interface AutoApplyTest {
  *    choice to offer;
  * 3. the new tip offers **nothing** clickable — with a ray left the route may
  *    continue, and applying would cut it short.
+ *
+ * Condition 3 is **implied** by 1 and 2 — one legal count for a `k` step run
+ * means the ceiling is exactly `2^(k-1)`, so the allowance is exactly spent and
+ * nothing can be clickable — and is kept anyway, because it makes the rule
+ * readable without that argument and would still hold if the allowance formula
+ * moved. No reachable state satisfies 1 and 2 and fails 3, so no test asserts
+ * one.
  */
 export const autoApplies = (_test: AutoApplyTest): boolean => {
   throw new Error('P35: autoApplies is not implemented');

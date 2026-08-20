@@ -1,40 +1,36 @@
 /**
  * P35 edge cases — `docs/spec/count-after-route/count-after-route.edge-cases.feature`.
  *
- * One test per scenario, in feature order, with two exceptions recorded as
- * `it.todo` and reported back to phase 1 rather than guessed at:
+ * One test per scenario, in feature order.
  *
- * - *An attack run offers only counts that leave a head behind* and *Combat
- *   lowers the ceiling on the next run* both require **clicking an adjacent
- *   enemy-held arrow while every head stands on the tip**. Invariant 4 says the
- *   rays are measured at the tip's *full* head count, and §6.2's stay-behind
- *   refuses a step that empties the tip — so at full strength that arrow is not
- *   on any ray and cannot be clicked. P34 armed the attack by lowering the carry
- *   *before* the click, which is exactly the gesture this feature removes. Which
- *   count an attack run is offered at is a rule the spec does not state.
+ * The attack scenarios are the ones phase 1 corrected after this suite kicked
+ * them back: *full strength* is the **largest count that walks the run**, not
+ * every head, so an adjacent enemy arrow is clickable and its run drafts at
+ * `heads - 1` (§6.2's stay-behind). The count control is therefore what arms an
+ * attack, now that lowering the carry before the click is gone.
  *
- * Two scenarios are encoded with different *numbers* than the feature gives,
- * because the feature's numbers are refused by the engine. Both are called out at
- * the test, and both keep the assertion the scenario is about:
+ * Multi-run fixtures carry 16 heads and take their counts from the oracle rather
+ * than from a literal, because `spent` travels with the movers: a second run of
+ * two steps off a tip that has spent two needs 8, not 2.
  *
- * - *Two legal counts defeat auto-apply even with a finished tip* uses **3** heads,
- *   not 2. Two heads walking two steps have exactly one legal count (`speed(1) = 1`
- *   cannot walk the second step), which makes it the packet's own `2^k` walking
- *   `k+1` steps case — an auto-apply, not a defeat of one.
- * - the popping scenarios use **16** heads, because `spent` travels with the
- *   movers: a second run of two steps off a tip that has spent two needs 8, so a
- *   "second run of two steps carrying 4" is not a run the engine accepts.
+ * No test here asserts a one-run draft with a forced count and a *live* tip.
+ * That state is unreachable — one legal count for a `k` step run means the
+ * ceiling is `2^(k-1)`, so the allowance is exactly spent — and the spec says in
+ * so many words not to assert it. *An unreachable auto-apply state is not
+ * asserted* pins the implication instead.
  */
 
 import { describe, expect, it } from 'vitest';
 import { endTurn, skip } from '@conquarrow/contracts';
 import type { GameState } from '@conquarrow/contracts';
 import { refusedConvertExits } from '../src/refusedConvert';
-import { autoApplies, buildRouteOffer, routePaint } from '../src/route';
+import { autoApplies, buildRouteOffer, clickableSet, routePaint } from '../src/route';
 import {
   A,
   B,
+  acceptedRunLength,
   alongSlots,
+  applyOnce,
   arrowAlong,
   carriesOf,
   clickArrow,
@@ -49,6 +45,7 @@ import {
   exitsOf,
   geometry,
   headsOn,
+  inputsAt,
   lastRunLengthOf,
   leastCountThatWalks,
   makeMode,
@@ -61,11 +58,13 @@ import {
   routePhaseOf,
   rules,
   runInputs,
+  runLengthsOf,
   selectOpenField,
   selectRoute,
   sortedIds,
   sourceArrow,
   stateWith,
+  walkSteps,
 } from './count-after-route.support';
 
 const board = { geometry, rules };
@@ -164,14 +163,20 @@ describe('P35 edge — a terminal run still gets its count, and nothing more', (
     expect(carriesOf(snap).length).toBeGreaterThan(0);
   });
 
-  /**
-   * BLOCKED — phase 1 gap. Clicking an adjacent enemy arrow needs a count the
-   * engine accepts, and every count at full strength is refused by the
-   * stay-behind. The spec does not say what count an attack run is drafted at,
-   * nor how such an arrow enters the clickable set once the carry can no longer
-   * be lowered before the click.
-   */
-  it.todo('An attack run offers only counts that leave a head behind');
+  it('An attack run offers only counts that leave a head behind', () => {
+    const state = stateWith([
+      [from, { owner: A, heads: 8 }],
+      [first, { owner: B, heads: 2 }],
+    ]);
+    const selected = selectRoute(board, state, from);
+    const snap = clickArrow(selected, first);
+    // §6.2's stay-behind is the ceiling here, not the heads on the run's start.
+    expect(carriesOf(snap)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(carriesOf(snap)).toEqual(countsThatWalk(rules, state, from, [first]));
+    expect(carriesOf(snap).filter((count) => count > 7)).toEqual([]);
+    expect(carriesOf(snap)[0]).toBe(1);
+    expect(controlShown(snap)).toBe(true);
+  });
 
   it('A lone head is never offered an attack', () => {
     const state = stateWith([
@@ -274,14 +279,20 @@ describe('P35 edge — rewriting the last run re-measures everything downstream 
     expect(carriesOf(snap)).toEqual(countsThatWalk(rules, state, from, [first]));
   });
 
-  /**
-   * BLOCKED — the same phase 1 gap as *An attack run offers only counts that
-   * leave a head behind*: the scenario's Given is "has clicked an adjacent arrow
-   * holding an enemy stack **with a count of 7**", which asserts that an attack
-   * run drafts at the largest offerable count rather than at the tip's full head
-   * count (invariant 3). One of the two has to move.
-   */
-  it.todo('Combat lowers the ceiling on the next run');
+  it('Combat lowers the ceiling on the next run', () => {
+    // Eight heads attack six: the run drafts at seven (the largest count the
+    // stay-behind allows) and five of the seven survive to stand on the tip.
+    const state = stateWith([
+      [from, { owner: A, heads: 8 }],
+      [first, { owner: B, heads: 6 }],
+    ]);
+    const selected = selectRoute(board, state, from);
+    const snap = clickArrow(selected, first);
+    expect(countsOf(draftOf(snap))).toEqual([7]);
+    const survivors = headsOn(applyOnce(board, state, from, first, 7), first);
+    expect(survivors).toBeLessThan(7);
+    expect(routePhaseOf(snap).tipHeads).toBe(survivors);
+  });
 });
 
 describe('P35 edge — popping composes with the count without leaking state', () => {
@@ -300,7 +311,7 @@ describe('P35 edge — popping composes with the count without leaking state', (
     const { state, selected, snap } = twoRuns();
     const popped = clickArrow(selected, second);
     expect(draftOf(snap)).toHaveLength(4);
-    expect(lastRunLengthOf(popped)).toBe(2);
+    expect(runLengthsOf(popped)).toEqual([2]);
     expect(carriesOf(popped)).toEqual(
       countsThatWalk(rules, state, from, raySlotWalk(geometry, from, 0, 2)),
     );
@@ -328,7 +339,7 @@ describe('P35 edge — popping composes with the count without leaking state', (
     clickArrow(selected, second);
     const snap = clickArrow(selected, from);
     expect(draftOf(snap)).toHaveLength(0);
-    expect(lastRunLengthOf(snap)).toBe(0);
+    expect(runLengthsOf(snap)).toEqual([]);
   });
 
   it('Extending after a pop starts the new run at full strength', () => {
@@ -337,15 +348,16 @@ describe('P35 edge — popping composes with the count without leaking state', (
     expect(routePhaseOf(popped).tipHeads).toBe(16);
     const onward = arrowAlong(geometry, second, 1, 1);
     const snap = clickArrow(selected, onward);
-    expect(lastRunLengthOf(snap)).toBe(1);
+    expect(runLengthsOf(snap)).toEqual([2, 1]);
     expect(countsOf(draftOf(snap))).toEqual([16, 16, 16]);
   });
 });
 
 describe('P35 edge — the auto-apply test is exact at its boundaries', () => {
   it('Two legal counts defeat auto-apply even with a finished tip', () => {
-    // Three heads, not the feature's two: two heads walking two steps have one
-    // legal count, which is an auto-apply rather than a defeat of one.
+    // Three heads: `speed(2) = speed(3) = 2`, so both counts walk two steps while
+    // the allowance is spent either way. Two heads would be *one* legal count and
+    // would auto-apply — which is the core suite's two-heads scenario.
     const state = openField(from, 3);
     const untouched = openField(from, 3);
     const selected = selectRoute(board, state, from);
@@ -357,19 +369,36 @@ describe('P35 edge — the auto-apply test is exact at its boundaries', () => {
     expect(state).toEqual(untouched);
   });
 
-  it('A forced count with a live tip defeats auto-apply', () => {
-    // The feature's example (4 heads, 2 steps) is not in fact forced — three
-    // counts walk it — but the tip *is* live, and either fact alone is enough to
-    // render the control. Both are asserted so the reason is visible.
+  it('A count that is not forced defeats auto-apply', () => {
     const state = openField(from, 4);
     const selected = selectRoute(board, state, from);
     const snap = clickArrow(selected, second);
-    expect(clickableOf(snap).size).toBeGreaterThan(0);
+    expect(carriesOf(snap).length).toBeGreaterThan(1);
     expect(carriesOf(snap)).toEqual(
       countsThatWalk(rules, state, from, raySlotWalk(geometry, from, 0, 2)),
     );
     expect(controlShown(snap)).toBe(true);
     expect(pendingOf(snap)).toHaveLength(0);
+  });
+
+  it('An unreachable auto-apply state is not asserted', () => {
+    // The implication the spec argues: for a one run draft, one legal count means
+    // the ceiling is `2^(k-1)`, the allowance is exactly spent, and nothing can be
+    // clickable. Measured over every `k` the board can walk, so no scenario has to
+    // claim a forced count beside a live tip — there is no such state to claim.
+    for (const k of [1, 2, 3, 4]) {
+      const heads = 2 ** (k - 1);
+      const state = openField(from, heads);
+      const run = raySlotWalk(geometry, from, 0, k);
+      expect(countsThatWalk(rules, state, from, run), `k=${String(k)}`).toEqual([heads]);
+      const after = walkSteps(board, state, from, run, heads);
+      for (const slot of [0, 1, 2]) {
+        expect(
+          acceptedRunLength(board, after.state, run[k - 1] ?? from, slot, heads),
+          `k=${String(k)} slot ${String(slot)}`,
+        ).toBe(0);
+      }
+    }
   });
 
   it('A forced count on a second run defeats auto-apply', () => {
@@ -386,7 +415,7 @@ describe('P35 edge — the auto-apply test is exact at its boundaries', () => {
     expect(
       autoApplies({
         draftLength: phase.draft.length,
-        lastRunLength: phase.lastRunLength,
+        lastRunLength: lastRunLengthOf(snap),
         counts: phase.offer.carries,
         clickable: phase.offer.clickable.size,
       }),
@@ -505,21 +534,57 @@ describe('P35 edge — purity, determinism and cost', () => {
     }
   });
 
-  it('The last run length never exceeds the draft', () => {
+  it('The run boundaries always account for every drafted move', () => {
     const selected = selectRoute(board, openField(from, 16), from);
     const clicks = [second, third, first, from, second];
     let snap = selected.snap;
+    let drafted = 0;
     for (const arrow of clicks) {
       snap = clickArrow(selected, arrow);
       if (snap.phase.kind !== 'route') continue;
       const phase = routePhaseOf(snap);
-      expect(phase.lastRunLength, String(arrow)).toBeLessThanOrEqual(phase.draft.length);
-      expect(phase.lastRunLength === 0, String(arrow)).toBe(phase.draft.length === 0);
+      const sum = phase.runLengths.reduce((total, run) => total + run, 0);
+      expect(sum, String(arrow)).toBe(phase.draft.length);
+      expect(phase.runLengths.length === 0, String(arrow)).toBe(phase.draft.length === 0);
+      if (phase.draft.length > 0) drafted += 1;
       const lowest = phase.offer.carries[0];
       if (lowest === undefined) continue;
-      const counted = selected.mode.setCarry(lowest);
-      const after = routePhaseOf(counted);
-      expect(after.lastRunLength).toBeLessThanOrEqual(after.draft.length);
+      const counted = routePhaseOf(selected.mode.setCarry(lowest));
+      expect(
+        counted.runLengths.reduce((total, run) => total + run, 0),
+        `${String(arrow)} counted`,
+      ).toBe(counted.draft.length);
     }
+    expect(drafted).toBeGreaterThan(2);
+  });
+
+  it('Popping into the middle of a run truncates that run', () => {
+    const state = openField(from, 8);
+    const selected = selectRoute(board, state, from);
+    clickArrow(selected, third);
+    const popped = clickArrow(selected, first);
+    expect(draftOf(popped)).toHaveLength(1);
+    expect(runLengthsOf(popped)).toEqual([1]);
+    expect(carriesOf(popped)).toEqual(countsThatWalk(rules, state, from, [first]));
+  });
+
+  it('The offer costs two walks per step, not one per count', () => {
+    // The spec's cost note, asserted as a shape. `speed(8) = speed(15) = 4`, so
+    // the two boards have identical rays and identical refusals: an offer decided
+    // by walking at the tip's heads (and, where a step is refused, once more at
+    // one fewer) costs the *same* either way, while one that scanned 1..tipHeads
+    // would cost about twice as much at 15 heads as at 8.
+    //
+    // Measured on `clickableSet` rather than on the whole offer: `runCarries`
+    // *is* allowed its one 1..ceiling scan, and `reach.ts`'s wash has always
+    // enumerated counts (P34), so neither belongs in this budget.
+    const walks = (heads: number): number => {
+      const counting = countingRules(rules);
+      const instrumented = { geometry, rules: counting.rules };
+      clickableSet(inputsAt(instrumented, openField(from, heads), from, heads));
+      return counting.calls;
+    };
+    expect(walks(8)).toBeGreaterThan(0);
+    expect(walks(15)).toBe(walks(8));
   });
 });

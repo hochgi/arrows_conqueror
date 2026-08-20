@@ -1,13 +1,13 @@
 /**
- * P35 invariants — the twenty-one EARS statements in
+ * P35 invariants — the twenty-three EARS statements in
  * `docs/spec/count-after-route/count-after-route.md`, one property test each.
  *
  * Properties run over a bank of boards and drafts rather than one example: the
- * generated tiling at three stack sizes, a truncated ray, a merge, and **both**
- * fixture boards, each driven through one- and two-run drafts. A case's clicks are
- * read off the offer itself (`ray N of slot S`) rather than hard-coded, so the
- * same plan is meaningful on an abstract fixture board where a slot carries no
- * geometry.
+ * generated tiling at three stack sizes, a truncated ray, a merge, an adjacent
+ * enemy, and **both** fixture boards, each driven through one- and two-run
+ * drafts. A case's clicks are read off the offer itself (`ray N of slot S`)
+ * rather than hard-coded, so the same plan is meaningful on an abstract fixture
+ * board where a slot carries no geometry.
  *
  * Every count claim is checked against {@link countsThatWalk}, which walks
  * `rules.apply` at 1, 2, 3 … heads and consults `speed()` nowhere. That is the
@@ -19,18 +19,18 @@
  * one that matters most here — *the control is absent* — is satisfied by a
  * control that is never drawn at all.
  *
- * Invariant 14 (the docked strip intersects no clickable arrow at 375, 768 and
- * 1280 px) is the one statement that cannot be settled without a DOM renderer.
- * What is checked purely is the stronger half of the design: the control carries
- * **no coordinates at all**, so there is no rectangle over the board to intersect.
- * The rendered geometry is left explicitly untested and reported.
+ * Invariant 15 is the one the spec explicitly narrows: the overlap of the docked
+ * strip with the clickable set needs a real renderer and is a browser check
+ * before the PR. What is asserted here is the part that makes it true by
+ * construction — the control's model carries no viewport, stage or tip
+ * coordinate, and is identical at every width.
  */
 
 import { describe, expect, it } from 'vitest';
 import type { ArrowId, GameState, Move } from '@conquarrow/contracts';
 import { MINIMAL, SPACIOUS, fixtureArrow } from '@conquarrow/geometry-fixtures';
 import type { InputSnapshot, RoutePhase } from '../src/input/modes';
-import { autoApplies, routePaint, runCarries, runMoves } from '../src/route';
+import { autoApplies, lastRunLength, routePaint, runCarries, runMoves } from '../src/route';
 import type { AutoApplyTest } from '../src/route';
 import {
   A,
@@ -51,7 +51,7 @@ import {
   geometry,
   headsOn,
   inputsFromPhase,
-  lastRunLengthOf,
+  largestCountThatWalks,
   lastRunMovesOf,
   openField,
   optionFor,
@@ -59,8 +59,10 @@ import {
   rayOf,
   raySlotWalk,
   readSource,
+  reachedBySomeCount,
   routePhaseOf,
   rules,
+  runLengthsOf,
   runStartOf,
   selectRoute,
   sortedIds,
@@ -133,6 +135,17 @@ const CASES: readonly Case[] = [
     plan: [{ slot: 0, index: 1 }],
   },
   {
+    // The attack path: full strength is refused, `heads - 1` is not.
+    label: 'tiling, 8 heads, a run onto an adjacent enemy',
+    board,
+    state: stateWith([
+      [from, { owner: A, heads: 8 }],
+      [arrowAlong(geometry, from, 0, 1), { owner: B, heads: 2 }],
+    ]),
+    from,
+    plan: [{ slot: 0, index: 0 }],
+  },
+  {
     label: 'spacious fixture, 16 heads, two runs',
     board: spacious,
     state: soloOn(spaciousFrom, 16),
@@ -178,6 +191,9 @@ const walkPlan = (item: Case, plan: readonly Leg[] = item.plan): Walked => {
   return { selected, snap, phase: routePhaseOf(snap), runs };
 };
 
+/** The editable run's length, derived from the boundaries as the spec says. */
+const runLength = (phase: RoutePhase): number => lastRunLength(phase.runLengths);
+
 /** The cases whose whole plan lands in the route phase — most properties want these. */
 const drafted = (): readonly (Walked & { readonly label: string })[] =>
   CASES.map((item) => ({ ...walkPlan(item), label: item.label })).filter(
@@ -190,70 +206,101 @@ describe('P35 invariants', () => {
     for (const item of CASES) {
       const selected = selectRoute(item.board, item.state, item.from);
       expect(controlShown(selected.snap), `${item.label}: fresh`).toBe(false);
-      // …and again after a pop back to the source, which is also an empty draft.
       const walked = walkPlan(item);
       if (walked.runs > 0) {
+        // …and again after a pop back to the source, which is also an empty draft.
         const popped = clickArrow(walked.selected, item.from);
         expect(draftOf(popped), `${item.label}: popped`).toHaveLength(0);
         expect(controlShown(popped), `${item.label}: popped`).toBe(false);
+        // Non-vacuity: with a run drafted the control *is* drawn.
+        expect(controlShown(walked.snap), item.label).toBe(true);
       }
-      // Non-vacuity: with a run drafted the control *is* drawn.
-      if (walked.runs > 0) expect(controlShown(walked.snap), item.label).toBe(true);
       checked += 1;
     }
     expect(checked).toBe(CASES.length);
   });
 
-  it('2. While the draft is empty, `offer.carries` shall be empty.', () => {
+  it('2. While the draft is empty, `offer.carries` shall be empty and `runLengths` shall be empty.', () => {
     for (const item of CASES) {
       const selected = selectRoute(item.board, item.state, item.from);
       expect(carriesOf(selected.snap), item.label).toEqual([]);
+      expect(runLengthsOf(selected.snap), item.label).toEqual([]);
       const walked = walkPlan(item);
       if (walked.runs === 0) continue;
       expect(carriesOf(walked.snap).length, `${item.label}: drafted`).toBeGreaterThan(0);
+      expect(runLengthsOf(walked.snap).length, `${item.label}: drafted`).toBeGreaterThan(0);
     }
   });
 
-  it("3. When a run is appended, the adapter shall set that run's count to the heads standing on the tip the run started from.", () => {
+  it('3. When a run is appended, the adapter shall set that run’s count to the largest count that walks the whole run, never exceeding the heads standing on the tip the run started from.', () => {
     let runs = 0;
     for (const item of CASES) {
       const walked = walkPlan(item);
       if (walked.runs === 0) continue;
       const start = runStartOf(item.board, item.state, walked.phase);
+      const steps = exitsOf(lastRunMovesOf(walked.snap));
       const counts = countsOf(lastRunMovesOf(walked.snap));
       // Non-vacuity: a run with no moves in it satisfies any claim about them.
-      expect(walked.phase.lastRunLength, `${item.label}: no run recorded`).toBeGreaterThan(0);
-      expect(counts.length, item.label).toBe(walked.phase.lastRunLength);
-      for (const count of counts) {
-        expect(count, `${item.label}: run count`).toBe(start.heads);
-      }
+      expect(runLength(walked.phase), `${item.label}: no run recorded`).toBeGreaterThan(0);
+      expect(counts.length, item.label).toBe(runLength(walked.phase));
+      const largest = largestCountThatWalks(item.board.rules, start.state, start.start, steps);
+      expect(largest, `${item.label}: over the tip's heads`).toBeLessThanOrEqual(start.heads);
+      for (const count of counts) expect(count, `${item.label}: run count`).toBe(largest);
       runs += 1;
     }
-    expect(runs).toBeGreaterThan(5);
+    expect(runs).toBeGreaterThan(6);
+    // And where the run attacks, the largest is one short of every head.
+    const attack = stateWith([
+      [from, { owner: A, heads: 8 }],
+      [arrowAlong(geometry, from, 0, 1), { owner: B, heads: 2 }],
+    ]);
+    const enemy = arrowAlong(geometry, from, 0, 1);
+    const selected = selectRoute(board, attack, from);
+    expect(countsOf(draftOf(clickArrow(selected, enemy)))).toEqual([7]);
   });
 
-  it("4. The rays offered from a tip shall be measured at that tip's full head count.", () => {
-    let measured = 0;
-    for (const item of CASES) {
-      const walked = walkPlan(item);
-      if (walked.runs === 0) continue;
-      const after = inputsFromPhase(item.board, item.state, walked.phase);
+  it('4. An arrow shall be in the clickable set if and only if some count not exceeding the tip’s heads walks the run that reaches it.', () => {
+    // On the open field nothing else truncates, so the geometric words plus
+    // `rules.apply` are an independent oracle for the whole set.
+    for (const heads of [2, 4, 8, 16]) {
+      const state = openField(from, heads);
+      const selected = selectRoute(board, state, from);
+      const reached = reachedBySomeCount(board, state, from, 6);
+      expect(reached.size, `${String(heads)} heads`).toBeGreaterThan(0);
+      expect(sortedIds(selected.phase.offer.clickable.keys()), `${String(heads)} heads`).toEqual(
+        sortedIds(reached),
+      );
+      // The rays are the same measurement, read per slot.
       for (const slot of SLOTS) {
-        // A terminal tip offers nothing at all (P34) — that is not a shorter ray.
-        if (walked.phase.offer.clickable.size === 0) continue;
-        expect(rayOf(walked.snap, slot).length, `${item.label} slot ${String(slot)}`).toBe(
-          acceptedRunLength(
-            item.board,
-            after.state,
-            walked.phase.tip,
-            slot,
-            walked.phase.tipHeads,
-          ),
+        expect(rayOf(selected.snap, slot).length, `${String(heads)} heads slot ${String(slot)}`).toBe(
+          acceptedRunLength(board, state, from, slot, heads),
         );
-        measured += 1;
       }
     }
-    expect(measured).toBeGreaterThan(6);
+    // The two directions that matter, on a board where a count decides:
+    const enemy = arrowAlong(geometry, from, 0, 1);
+    const far = arrowAlong(geometry, from, 0, 2);
+    const adjacent = stateWith([
+      [from, { owner: A, heads: 8 }],
+      [enemy, { owner: B, heads: 2 }],
+    ]);
+    // some count reaches it (7) -> clickable
+    expect(countsThatWalk(rules, adjacent, from, [enemy]).length).toBeGreaterThan(0);
+    expect(selectRoute(board, adjacent, from).phase.offer.clickable.has(enemy)).toBe(true);
+    // no count reaches it (a mid-run attack empties whatever carried it) -> not
+    const beyond = stateWith([
+      [from, { owner: A, heads: 8 }],
+      [far, { owner: B, heads: 2 }],
+    ]);
+    expect(countsThatWalk(rules, beyond, from, [enemy, far])).toEqual([]);
+    expect(selectRoute(board, beyond, from).phase.offer.clickable.has(far)).toBe(false);
+    // and a lone head cannot attack at any count.
+    const lone = stateWith([
+      [from, { owner: A, heads: 1 }],
+      [enemy, { owner: B, heads: 2 }],
+    ]);
+    expect(countsThatWalk(rules, lone, from, [enemy])).toEqual([]);
+    expect(selectRoute(board, lone, from).phase.offer.clickable.has(enemy)).toBe(false);
   });
 
   it('5. `offer.carries` shall list exactly the counts for which every step of the last run is accepted by `rules.apply`, ascending.', () => {
@@ -276,7 +323,7 @@ describe('P35 invariants', () => {
       ).toEqual(oracle);
       compared += 1;
     }
-    expect(compared).toBeGreaterThan(5);
+    expect(compared).toBeGreaterThan(6);
   });
 
   it('6. `offer.carries` shall never contain a count exceeding the heads standing on the arrow the last run started from.', () => {
@@ -295,7 +342,35 @@ describe('P35 invariants', () => {
     }
   });
 
-  it("7. When the count of the last run is changed, the adapter shall leave every earlier run's moves byte-identical.", () => {
+  it('7. Where the last run’s final step attacks an enemy-held arrow, `offer.carries` shall not contain the heads standing on the run’s start.', () => {
+    let attacks = 0;
+    for (const heads of [2, 4, 8, 16]) {
+      for (const slot of SLOTS) {
+        const enemy = arrowAlong(geometry, from, slot, 1);
+        const state = stateWith([
+          [from, { owner: A, heads }],
+          [enemy, { owner: B, heads: 2 }],
+        ]);
+        const selected = selectRoute(board, state, from);
+        const where = `${String(heads)} heads, slot ${String(slot)}`;
+        expect(selected.phase.offer.clickable.has(enemy), where).toBe(true);
+        const snap = clickArrow(selected, enemy);
+        if (snap.phase.kind !== 'route') {
+          // A lone-count attack can auto-apply; the count it drafted still obeys.
+          expect(countsOf(pendingOf(snap)), where).toEqual([heads - 1]);
+          attacks += 1;
+          continue;
+        }
+        expect(carriesOf(snap), where).not.toContain(heads);
+        expect(carriesOf(snap)[carriesOf(snap).length - 1], where).toBe(heads - 1);
+        expect(carriesOf(snap)[0], where).toBe(1);
+        attacks += 1;
+      }
+    }
+    expect(attacks).toBe(12);
+  });
+
+  it('8. When the count of the last run is changed, the adapter shall leave every earlier run’s moves byte-identical.', () => {
     let changed = 0;
     for (const item of CASES) {
       const walked = walkPlan(item);
@@ -303,7 +378,7 @@ describe('P35 invariants', () => {
       const earlier: readonly Move[] = [...earlierMovesOf(walked.snap)];
       // Non-vacuity: with no run boundary recorded, "earlier" would be the whole
       // draft and the claim would be P34's repealed one.
-      expect(walked.phase.lastRunLength, `${item.label}: no run recorded`).toBeGreaterThan(0);
+      expect(runLength(walked.phase), `${item.label}: no run recorded`).toBeGreaterThan(0);
       for (const count of carriesOf(walked.snap)) {
         const snap = walked.selected.mode.setCarry(count);
         expect(earlierMovesOf(snap), `${item.label} at ${String(count)}`).toEqual(earlier);
@@ -313,21 +388,22 @@ describe('P35 invariants', () => {
     expect(changed).toBeGreaterThan(20);
   });
 
-  it('8. When the count of the last run is changed, the adapter shall re-emit exactly `lastRunLength` moves.', () => {
+  it('9. When the count of the last run is changed, the adapter shall re-emit exactly the moves of that run and no others.', () => {
     let changed = 0;
     for (const item of CASES) {
       const walked = walkPlan(item);
       if (walked.runs === 0) continue;
       const length = walked.phase.draft.length;
-      const runLength = walked.phase.lastRunLength;
-      expect(runLength, item.label).toBeGreaterThan(0);
+      const boundaries = [...walked.phase.runLengths];
+      const runLengthNow = runLength(walked.phase);
+      expect(runLengthNow, item.label).toBeGreaterThan(0);
       for (const count of carriesOf(walked.snap)) {
         const snap = walked.selected.mode.setCarry(count);
         const phase = routePhaseOf(snap);
         expect(phase.draft, `${item.label} at ${String(count)}`).toHaveLength(length);
-        expect(phase.lastRunLength, `${item.label} at ${String(count)}`).toBe(runLength);
+        expect(phase.runLengths, `${item.label} at ${String(count)}`).toEqual(boundaries);
         expect(countsOf(lastRunMovesOf(snap)), `${item.label} at ${String(count)}`).toEqual(
-          Array.from({ length: runLength }, () => count),
+          Array.from({ length: runLengthNow }, () => count),
         );
         changed += 1;
       }
@@ -335,7 +411,7 @@ describe('P35 invariants', () => {
     expect(changed).toBeGreaterThan(20);
   });
 
-  it('9. Where a count is not in `offer.carries`, the adapter shall ignore the request to set it.', () => {
+  it('10. Where a count is not in `offer.carries`, the adapter shall ignore the request to set it.', () => {
     let refused = 0;
     let belowFloor = 0;
     for (const item of CASES) {
@@ -364,7 +440,7 @@ describe('P35 invariants', () => {
     expect(belowFloor).toBeGreaterThan(0);
   });
 
-  it('10. When a click yields a one-run draft with one legal count and an empty clickable set, the adapter shall apply the draft without rendering a control.', () => {
+  it('11. When a click yields a one-run draft with one legal count and an empty clickable set, the adapter shall apply the draft without rendering a control.', () => {
     // `2^(k-1)` heads walking exactly `k` steps: the count is forced and the
     // allowance is spent, for k = 1, 2, 3, 4.
     for (const k of [1, 2, 3, 4]) {
@@ -384,10 +460,10 @@ describe('P35 invariants', () => {
     }
   });
 
-  it('11. When a click yields a draft failing any of those three conditions, the adapter shall render the control and apply nothing.', () => {
+  it('12. When a click yields a draft failing any of those three conditions, the adapter shall render the control and apply nothing.', () => {
     const failing: readonly { readonly label: string; readonly heads: number; readonly plan: readonly Leg[] }[] = [
       { label: 'several legal counts', heads: 8, plan: [{ slot: 0, index: 0 }] },
-      { label: 'a live tip', heads: 4, plan: [{ slot: 0, index: 1 }] },
+      { label: 'a count that is not forced', heads: 4, plan: [{ slot: 0, index: 1 }] },
       { label: 'two runs', heads: 8, plan: [{ slot: 0, index: 0 }, { slot: 0, index: 2 }] },
     ];
     for (const item of failing) {
@@ -402,7 +478,9 @@ describe('P35 invariants', () => {
       expect(pendingOf(walked.snap), item.label).toHaveLength(0);
       expect(state, item.label).toEqual(untouched);
     }
-    // And the predicate itself: true only when all three hold.
+    // And the predicate itself: true only when all three hold. No case here
+    // satisfies 1 and 2 while failing 3 — that state is unreachable (spec), so
+    // the row for it asserts the predicate, not a board.
     const verdicts: readonly (readonly [AutoApplyTest, boolean])[] = [
       [{ draftLength: 1, lastRunLength: 1, counts: [1], clickable: 0 }, true],
       [{ draftLength: 2, lastRunLength: 1, counts: [1], clickable: 0 }, false],
@@ -415,7 +493,7 @@ describe('P35 invariants', () => {
     }
   });
 
-  it('12. An auto-applied click shall place in `pending` exactly the moves a click followed by Send would have placed.', () => {
+  it('13. An auto-applied click shall place in `pending` exactly the moves a click followed by Send would have placed.', () => {
     for (const k of [1, 2, 3, 4]) {
       const heads = 2 ** (k - 1);
       const state = openField(from, heads);
@@ -428,7 +506,7 @@ describe('P35 invariants', () => {
     }
   });
 
-  it('13. While the match is over or input is locked, the adapter shall render no count control.', () => {
+  it('14. While the match is over or input is locked, the adapter shall render no count control.', () => {
     let checked = 0;
     for (const item of CASES) {
       const walked = walkPlan(item);
@@ -441,11 +519,7 @@ describe('P35 invariants', () => {
     expect(checked).toBeGreaterThan(5);
   });
 
-  it('14. The docked strip shall not intersect any arrow in the clickable set at viewport widths 375, 768 and 1280.', () => {
-    // Not assertable as geometry without a DOM renderer, and a test that
-    // *pretended* to would prove nothing. What is asserted is the design that
-    // makes the claim true by construction: the control carries no coordinates,
-    // and neither the model nor the component knows anything about the stage.
+  it('15. The count control’s model shall carry no viewport, stage or tip coordinate, and shall be identical at every viewport width.', () => {
     const walked = walkPlan({
       label: 'one run of two',
       board,
@@ -461,6 +535,16 @@ describe('P35 invariants', () => {
       'counts',
       'draftLength',
     ]);
+    // `countControl` takes no viewport, so "identical at every width" is a
+    // property of its signature; asserted here as the same model twice over.
+    const again = controlOf(walkPlan({
+      label: 'one run of two',
+      board,
+      state: openField(from, 8),
+      from,
+      plan: [{ slot: 0, index: 1 }],
+    }).snap);
+    expect(control).toEqual(again);
     const dock = readSource('RouteDock.tsx');
     for (const positional of ['x:', 'y:', 'left', 'top', 'toScreen', 'viewport', 'stage']) {
       expect(dock, positional).not.toContain(positional);
@@ -471,7 +555,7 @@ describe('P35 invariants', () => {
     }
   });
 
-  it('15. Send shall emit the draft in order regardless of how many runs it holds.', () => {
+  it('16. Send shall emit the draft in order regardless of how many runs it holds.', () => {
     let sent = 0;
     for (const item of CASES) {
       const walked = walkPlan(item);
@@ -482,10 +566,10 @@ describe('P35 invariants', () => {
       expect(after.phase.kind, item.label).toBe('idle');
       sent += 1;
     }
-    expect(sent).toBeGreaterThan(5);
+    expect(sent).toBeGreaterThan(6);
   });
 
-  it('16. Cancel and a background click shall leave the game state unchanged.', () => {
+  it('17. Cancel and a background click shall leave the game state unchanged.', () => {
     for (const item of CASES) {
       const before = structuredClone(item.state);
       const walked = walkPlan(item);
@@ -500,23 +584,7 @@ describe('P35 invariants', () => {
     }
   });
 
-  it('17. `lastRunLength` shall equal `0` if and only if the draft is empty.', () => {
-    let checked = 0;
-    for (const item of CASES) {
-      const selected = selectRoute(item.board, item.state, item.from);
-      expect(lastRunLengthOf(selected.snap), `${item.label}: fresh`).toBe(0);
-      const walked = walkPlan(item);
-      if (walked.runs === 0) continue;
-      expect(walked.phase.lastRunLength, item.label).toBeGreaterThan(0);
-      const popped = clickArrow(walked.selected, item.from);
-      expect(draftOf(popped), item.label).toHaveLength(0);
-      expect(lastRunLengthOf(popped), item.label).toBe(0);
-      checked += 1;
-    }
-    expect(checked).toBeGreaterThan(5);
-  });
-
-  it('18. `lastRunLength` shall never exceed `draft.length`.', () => {
+  it('18. The entries of `runLengths` shall sum to `draft.length`.', () => {
     let checked = 0;
     let positive = 0;
     for (const item of CASES) {
@@ -533,44 +601,92 @@ describe('P35 invariants', () => {
       for (const snap of seen) {
         if (snap.phase.kind !== 'route') continue;
         const phase = routePhaseOf(snap);
-        expect(phase.lastRunLength, item.label).toBeLessThanOrEqual(phase.draft.length);
-        if (phase.lastRunLength > 0) positive += 1;
+        const sum = phase.runLengths.reduce((total, run) => total + run, 0);
+        expect(sum, item.label).toBe(phase.draft.length);
+        for (const run of phase.runLengths) expect(run, item.label).toBeGreaterThan(0);
+        if (phase.runLengths.length > 0) positive += 1;
         checked += 1;
       }
     }
     expect(checked).toBeGreaterThan(15);
-    // Non-vacuity: a length that is always zero never exceeds anything.
+    // Non-vacuity: an always-empty list sums to zero and never disagrees.
     expect(positive).toBeGreaterThan(10);
   });
 
-  it('19. After a pop to a walked arrow, `lastRunLength` shall describe the run that ends at that arrow.', () => {
+  it('19. `runLengths` shall be empty if and only if the draft is empty.', () => {
+    let checked = 0;
+    for (const item of CASES) {
+      const selected = selectRoute(item.board, item.state, item.from);
+      expect(runLengthsOf(selected.snap), `${item.label}: fresh`).toEqual([]);
+      const walked = walkPlan(item);
+      if (walked.runs === 0) continue;
+      expect(walked.phase.runLengths.length, item.label).toBeGreaterThan(0);
+      const popped = clickArrow(walked.selected, item.from);
+      expect(draftOf(popped), item.label).toHaveLength(0);
+      expect(runLengthsOf(popped), item.label).toEqual([]);
+      checked += 1;
+    }
+    expect(checked).toBeGreaterThan(5);
+  });
+
+  it('20. After a pop to a walked arrow, the last entry of `runLengths` shall describe the run ending at that arrow, truncated where the arrow falls inside a run.', () => {
     let popped = 0;
     for (const item of CASES) {
       if (item.plan.length < 2) continue;
       const firstLeg = walkPlan(item, item.plan.slice(0, 1));
       if (firstLeg.runs === 0) continue;
       const boundary = firstLeg.phase.tip;
-      const firstRunLength = firstLeg.phase.lastRunLength;
+      const firstRunLength = runLength(firstLeg.phase);
       expect(firstRunLength, `${item.label}: no run recorded`).toBeGreaterThan(0);
       const both = walkPlan(item);
       if (both.runs < 2) continue;
       const back = clickArrow(both.selected, boundary);
       expect(routePhaseOf(back).tip, item.label).toBe(boundary);
-      expect(lastRunLengthOf(back), item.label).toBe(firstRunLength);
+      expect(runLengthsOf(back), item.label).toEqual([firstRunLength]);
       // …and the counts on offer are the first run's again.
       expect(carriesOf(back), item.label).toEqual(carriesOf(firstLeg.snap));
       popped += 1;
     }
     expect(popped).toBeGreaterThan(1);
+    // A pop *inside* a run truncates it: three steps, back to the first.
+    const state = openField(from, 8);
+    const selected = selectRoute(board, state, from);
+    clickArrow(selected, arrowAlong(geometry, from, 0, 3));
+    const inside = clickArrow(selected, arrowAlong(geometry, from, 0, 1));
+    expect(runLengthsOf(inside)).toEqual([1]);
+    expect(carriesOf(inside)).toEqual(
+      countsThatWalk(rules, state, from, [arrowAlong(geometry, from, 0, 1)]),
+    );
   });
 
-  it('20. Equal inputs shall produce an equal offer, an equal paint and an equal auto-apply verdict.', () => {
+  it('21. `runCarries` shall account for the allowance already spent by the movers, by measuring on the scratch state rather than from a formula.', () => {
+    // Two steps, then two more. A formula on the count alone would floor the
+    // second run at 2 (`speed(2) = 2`); the engine floors it at 8, because the
+    // movers arrive having already spent two.
+    const state = openField(from, 16);
+    const selected = selectRoute(board, state, from);
+    const second = arrowAlong(geometry, from, 0, 2);
+    const onward = raySlotWalk(geometry, second, 1, 2);
+    const target = onward[1];
+    expect(target).toBeDefined();
+    if (target === undefined) return;
+    clickArrow(selected, second);
+    const snap = clickArrow(selected, target);
+    const start = runStartOf(board, state, routePhaseOf(snap));
+    expect(start.heads).toBe(16);
+    expect(carriesOf(snap)).toEqual(countsThatWalk(rules, start.state, start.start, onward));
+    expect(carriesOf(snap)[0]).toBe(8);
+    // The same two steps from an unspent tip floor at 2, which is the difference.
+    expect(countsThatWalk(rules, state, from, raySlotWalk(geometry, from, 0, 2))[0]).toBe(2);
+  });
+
+  it('22. Equal inputs shall produce an equal offer, an equal paint and an equal auto-apply verdict.', () => {
     for (const item of CASES) {
       const left = walkPlan(item);
       const right = walkPlan(item);
       if (left.runs === 0) continue;
       expect(left.phase.draft, item.label).toEqual(right.phase.draft);
-      expect(left.phase.lastRunLength, item.label).toBe(right.phase.lastRunLength);
+      expect(left.phase.runLengths, item.label).toEqual(right.phase.runLengths);
       expect(carriesOf(left.snap), item.label).toEqual(carriesOf(right.snap));
       expect(controlOf(left.snap), item.label).toEqual(controlOf(right.snap));
       expect(sortedIds(left.phase.offer.clickable.keys()), item.label).toEqual(
@@ -586,7 +702,7 @@ describe('P35 invariants', () => {
       const verdict = (phase: RoutePhase): boolean =>
         autoApplies({
           draftLength: phase.draft.length,
-          lastRunLength: phase.lastRunLength,
+          lastRunLength: runLength(phase),
           counts: phase.offer.carries,
           clickable: phase.offer.clickable.size,
         });
@@ -594,7 +710,7 @@ describe('P35 invariants', () => {
     }
   });
 
-  it('21. `route.ts` shall reference neither a clock nor a random source.', () => {
+  it('23. `route.ts` shall reference neither a clock nor a random source.', () => {
     const source = readSource('route.ts');
     expect(source.length).toBeGreaterThan(200);
     for (const banned of [
@@ -628,14 +744,13 @@ describe('P35 invariants — the case bank is non-vacuous', () => {
       const sent = pendingOf(walked.selected.mode.send());
       let applied = item.state;
       for (const move of sent) applied = item.board.rules.apply(applied, move);
-      const before = [...item.state.groups.values()]
-        .filter((group) => group.owner === A)
-        .reduce((sum, group) => sum + group.heads, 0);
-      const after = [...applied.groups.values()]
-        .filter((group) => group.owner === A)
-        .reduce((sum, group) => sum + group.heads, 0);
-      // No combat in the bank, so every head that set out is still standing.
-      expect(after, item.label).toBe(before);
+      const mine = (state: GameState): number =>
+        [...state.groups.values()]
+          .filter((group) => group.owner === A)
+          .reduce((sum, group) => sum + group.heads, 0);
+      // The bank's only fight is 7 against 2, which the attacker wins intact
+      // (§6.2's threat weighting), so every head that set out is still standing.
+      expect(mine(applied), item.label).toBe(mine(item.state));
       expect(headsOn(applied, walked.phase.tip), item.label).toBeGreaterThan(0);
     }
   });
