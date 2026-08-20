@@ -98,8 +98,10 @@ copies come to disagree.
 
 - A 1-head stack: click stack, click adjacent arrow, move applies, no chrome.
 - A 2-head stack one step out: two offerable carries, so the control shows.
-- A 2^k stack walking exactly k+1 steps: one offerable carry, but the tip may
-  still be extendable — control shows.
+- A `2^k` stack walking exactly `k+1` steps: `speed(2^k) = k+1`, so the
+  allowance is exactly spent, the count is forced and nothing is clickable —
+  **auto-applies**. (An earlier draft of this line said the control shows; the
+  spec's *Auto-apply — the exact test* is the contract and the tests follow it.)
 - Rays at full reach do not shorten as the carry is lowered *after* drafting;
   only the floor moves.
 - The floor equals the least count `rules.apply` accepts for the drafted

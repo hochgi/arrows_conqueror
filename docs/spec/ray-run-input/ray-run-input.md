@@ -332,9 +332,9 @@ decision.
 - The system shall offer a hop only after `rules.apply` accepted it on a scratch state.
 - The system shall paint no ray arrow beyond the first hop the engine refuses or the first terminal step.
 - The system shall end a ray before an arrow holding enemy heads at a distance of two or more from the tip.
-- While the carry equals the head count at the tip, the system shall not offer an arrow holding enemy heads.
+- ~~While the carry equals the head count at the tip, the system shall not offer an arrow holding enemy heads.~~ — **superseded by P35.** There is no carry before a click any more, and the offer walks the run at `heads` *and* at `heads − 1`, so an adjacent enemy arrow is offered and the count control is what chooses the sentry. See `docs/spec/count-after-route/count-after-route.md`, *Full strength is not every head*.
 - When a hop merges, closes, or resolves combat, the system shall offer nothing further from that tip.
-- If an adjacent enemy-held arrow is unofferable only because an attack would empty the tip, then the system shall refuse it with `needs-stay-behind`.
+- If an adjacent enemy-held arrow is unofferable only because an attack would empty the tip, then the system shall refuse it with `needs-stay-behind`. — **narrowed by P35.** The ordinary case is now armed by the offer rather than refused, so this reaches only the corners where the second walk cannot help: a draft at `MAX_DEPTH`, and a terminal tip that could still attack.
 - While in the route phase, the system shall apply nothing to the game state until Send.
 - The system shall include an arrow in the clickable set if and only if exactly one shortest route reaches it from the tip.
 - The system shall present exactly nine clickable arrows at each distance of two or more, when no ray is truncated.
@@ -342,7 +342,7 @@ decision.
 - The system shall end a run at an arrow already walked by the ray or by the draft.
 - When the draft is sent, the system shall emit its moves in draft order and no others.
 - When a drafted arrow is clicked, the system shall discard every move after it and no move before it.
-- When the carry changes, the system shall leave every already-drafted move unchanged.
+- ~~When the carry changes, the system shall leave every already-drafted move unchanged.~~ — **superseded by P35:** the count now rewrites the **last run** and leaves every *earlier* run unchanged. See `count-after-route.md` invariants 8–9.
 - While the draft is non-empty, the system shall refuse a skip of the source.
 - If a click names an arrow that is reachable but not clickable, then the system shall refuse it with `out-of-reach` and apply nothing.
 - The system shall derive the tip's head count from the state after the draft, not from the carry.

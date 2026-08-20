@@ -29,16 +29,20 @@ Feature: Route drafting at the boundaries
       When the clickable set is built
       Then that enemy arrow is in the clickable set
 
-    Scenario: An enemy-held arrow one step out is withdrawn when the carry empties the tip
+    # Superseded by P35: there is no carry before a click, and the offer walks the
+    # run at `heads` and at `heads - 1`, so this arrow is offered rather than
+    # withdrawn. See docs/spec/count-after-route/count-after-route.md.
+    Scenario: An enemy-held arrow one step out is offered, armed one head short
       Given the first arrow along slot 0 holds an enemy stack
       And S1 holds 8 heads
-      And the carry is set to 8
       When the clickable set is built
-      Then that enemy arrow is not in the clickable set
+      Then that enemy arrow is in the clickable set
+      And clicking it drafts a run carrying 7
 
-    Scenario: The refusal names the stay-behind when that is the only obstacle
-      Given the first arrow along slot 0 holds an enemy stack
-      And the carry equals the head count at the tip
+    # Narrowed by P35: the ordinary case is armed by the offer, so this refusal
+    # survives only where the second walk cannot help.
+    Scenario: The stay-behind refusal survives only where the offer cannot arm it
+      Given an adjacent enemy-held arrow that no count can attack from this tip
       When the active player clicks that enemy arrow
       Then the click is refused with reason needs-stay-behind
       And the draft is unchanged
