@@ -23,7 +23,8 @@ route is ever chosen by the engine and the ambiguity has nowhere to live.
 ## Scope
 
 In: a pure helper `packages/web/src/route.ts`; a `route` input phase replacing
-`portion` in `input/modes.ts`; an inline carry control at the tip; Board paint of
+`portion` in `input/modes.ts`; a carry control at the tip (**docked below the
+board by P35**); Board paint of
 the three tiers; Hud hint copy; the SPEC §5 interaction-line edit. Tests against
 the helper + the input mode, against both `GeometryPort` implementations (same
 posture as `selectionChrome` / `input.test.ts`). No RTL.
@@ -155,15 +156,23 @@ there. Therefore:
 - **A ray stops *before* an arrow holding enemy heads at distance ≥ 2.** A
   mid-route attack is not a rule this feature may work around; it is refused, and
   the ray ends at the last arrow before it.
-- **An enemy-held arrow one step from the tip is offered only when
+- ~~**An enemy-held arrow one step from the tip is offered only when
   `carry ≤ tipHeads − 1`** — that is, only when the player has left a sentry
-  behind. Raising the carry to every head at the tip withdraws the offer.
+  behind. Raising the carry to every head at the tip withdraws the offer.~~ —
+  **superseded by P35.** The offer itself walks the run at `heads` *and* at
+  `heads − 1`, so the arrow is always offered and the count control chooses the
+  sentry rather than unlocking the attack.
 
-This is not a limitation to route around, it is the rule surfacing where the
+~~This is not a limitation to route around, it is the rule surfacing where the
 player can act on it: **the carry control is also how an attack is armed.** When
 an adjacent enemy arrow is unofferable *only* because of the stay-behind, the
 refusal says so — new `RefusalReason` `needs-stay-behind`, text
-`An attack must leave a head behind`.
+`An attack must leave a head behind`.~~ — **superseded by P35.** The *offer*
+arms the attack; the control only sizes the sentry. `needs-stay-behind` is
+**retired**: with the attack armed before the click, its only remaining triggers
+were a terminal tip and a draft at `MAX_DEPTH`, where no count would make the
+arrow clickable and the message would have been a lie. Those fall through to
+`out-of-reach`.
 
 ### Terminal steps end the draft, not just the run
 
@@ -202,7 +211,9 @@ feature's own rule and is stated here rather than inferred.
 InputPhase =
   | idle
   | blocked { from }                       # unchanged: nothing reachable
-  | route  { from, tip, carry, tipHeads, draft: readonly Move[] }
+  | route  { from, tip, carry, tipHeads, draft: readonly Move[], runLengths: readonly number[] }
+  #                                                    ^ carry = the last run's count (P35)
+  #                                                                        ^ added by P35
 ```
 
 `portion` is **removed**. There is no commit dialog.
@@ -217,7 +228,7 @@ stateDiagram-v2
   blocked --> blocked: click anything else (refuses, keeps the mark)
   route --> route: click a clickable arrow (extend)
   route --> route: click a drafted arrow (pop)
-  route --> route: change carry at the tip
+  route --> route: change the last run's count (P35 #59; was: change carry at the tip)
   route --> idle: click source with empty draft (deselect)
   route --> idle: Cancel #59; background click #59; Escape
   route --> idle: Send (emits pending)
@@ -229,9 +240,11 @@ stateDiagram-v2
   silently un-told which stack is stuck. This packet only changes *what makes* a
   stack blocked — an empty clickable set rather than an empty reach.
 - Selecting an own stack enters `route` with an empty draft, `tip = from`,
-  `carry = ` every head on `from`, `tipHeads = ` the same.
+  `carry = ` every head on `from`, `tipHeads = ` the same. **P35: no count
+  control is drawn until a run exists.**
 - **Extend**: clicking a clickable arrow appends that option's `steps` to the
-  draft as `step` moves at the current carry, moves the tip there, and sets
+  draft as `step` moves at ~~the current carry~~ **the largest count that walks
+  the run (P35)**, moves the tip there, and sets
   `tipHeads` from the scratch state after the draft (so combat losses show).
 - **Pop**: clicking an arrow the draft walks truncates the draft to the prefix
   ending at that arrow, which becomes the tip. Popping to the source leaves an
@@ -247,25 +260,39 @@ stateDiagram-v2
 - `requestSkip` and `requestEndTurn` behave as today. Skip applies to the
   **source**, and is refused while the draft is non-empty.
 
-## Carry (normative)
+## Carry (normative) — **largely superseded by P35**
 
-- `carry` defaults to **every head standing on the tip** and is chosen **at the
-  tip, forward only**.
-- Changing `carry` recomputes the clickable set, so the rays lengthen and shorten
+P35 inverted the order in which a route's two questions are asked. This section
+is kept for the reasoning it records; where a bullet is struck through, the live
+rule is in `docs/spec/count-after-route/count-after-route.md`.
+
+- ~~`carry` defaults to **every head standing on the tip** and is chosen **at the
+  tip, forward only**.~~ — **superseded.** A run is drafted at the largest count
+  that walks it, and the count is chosen *after* the click.
+- Changing the count recomputes the clickable set, so the rays lengthen and shorten
   live. That repaint is how the player learns that distance is bought with heads
-  (§3); no numeral is needed to say it.
-- Offerable carries are those that can make at least one hop from the tip,
+  (§3); no numeral is needed to say it. *(Still true.)*
+- ~~Offerable carries are those that can make at least one hop from the tip,
   measured by simulation — the same posture as `reach.ts`'s `minCount` /
-  `maxCount`. A carry that cannot move is never offerable.
-- A carry change **never** rewrites an already-drafted leg. Retroactive splitting
+  `maxCount`. A carry that cannot move is never offerable.~~ — **superseded:**
+  measured over the **whole last run**, not one hop (`runCarries`). Still by
+  simulation, never from `speed`.
+- ~~A carry change **never** rewrites an already-drafted leg. Retroactive splitting
   would silently trim a drawn tail: 8 heads that walked 2 steps and then drop to
   4 have `speed(4) = 3` with 2 spent, so 1 step left rather than 2. Forward-only
-  loses no expressiveness, because any split pattern is expressible in walk order.
-- Heads not carried stay on the tip and are the sentry (§5). There is no drop
-  action and no pickup action.
-- **The carry also arms an attack.** §6.2's stay-behind means an enemy-held arrow
+  loses no expressiveness, because any split pattern is expressible in walk order.~~
+  — **superseded:** the count rewrites the **last run** and leaves every *earlier*
+  run byte-identical. The trimmed-tail worry does not arise, because the run being
+  rewritten is the last one and has no tail. Runs before it are still immutable,
+  which is the part of this reasoning that survived.
+- Heads not carried stay behind and are the sentry (§5). There is no drop
+  action and no pickup action. *(Still true — and because each run keeps its own
+  count, a lower count on a later run leaves a sentry mid-route.)*
+- ~~**The carry also arms an attack.** §6.2's stay-behind means an enemy-held arrow
   adjacent to the tip is offerable only while `carry ≤ tipHeads − 1`. Lowering the
-  carry adds that arrow to the clickable set; raising it to every head removes it.
+  carry adds that arrow to the clickable set; raising it to every head removes it.~~
+  — **superseded:** the *offer* arms the attack by walking at `heads − 1` as well
+  as `heads`; the control sizes the sentry.
 
 ## Paint (normative)
 

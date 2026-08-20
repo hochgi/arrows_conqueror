@@ -152,7 +152,10 @@ stateDiagram-v2
   [*] --> idle
   idle --> route : click own stack #59; something clickable
   idle --> blocked : click own stack #59; nothing clickable
-  blocked --> idle : any click
+  blocked --> idle : click the same blocked stack
+  blocked --> route : click another own stack #59; something clickable
+  blocked --> blocked : click another own stack #59; nothing clickable
+  blocked --> blocked : click anything else #59; refused out-of-reach
   route --> route : click a clickable arrow #59; append a run at full strength
   route --> route : click a walked arrow #59; pop back to it
   route --> route : set count #59; rewrite the last run

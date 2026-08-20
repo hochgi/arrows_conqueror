@@ -246,6 +246,11 @@ Feature: Counting a route at the boundaries
       When the pointer hovers six different clickable arrows in turn
       Then the offer is built no more than once
 
+    Scenario: The offer's cost does not scale with the head count
+      Given two boards identical but for the heads on the source
+      And both head counts allow the same number of steps
+      Then building the clickable set calls rules.apply the same number of times
+
     Scenario: No clock and no randomness
       Then route.ts references neither a clock nor a random source
 

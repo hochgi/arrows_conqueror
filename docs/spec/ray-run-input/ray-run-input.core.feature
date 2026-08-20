@@ -104,11 +104,13 @@ Feature: Draft a route from straight runs, then send it
       Then the draft holds four step moves
       And the draft was built by exactly two clicks
 
-    Scenario: The carry travels with every move of the run
-      Given the active player has clicked a0
-      And the carry is 8
+    # P35 inverted the order: the run drafts at the largest count that walks it,
+    # and the count is chosen after the click. The invariant under test — one
+    # count for every move of a run — is unchanged.
+    Scenario: One count travels with every move of the run
+      Given the active player has clicked a0 with 8 heads
       When the active player clicks the ray arrow three steps along slot 0
-      Then every move in the draft carries a count of 8
+      Then every move in the draft carries the same count
 
   Rule: Nothing is applied until Send
 
@@ -166,37 +168,47 @@ Feature: Draft a route from straight runs, then send it
       When the active player clicks a0
       Then the phase is idle
 
-  Rule: The carry is chosen at the tip and repaints the rays
+  # Rule superseded by P35 — the count is chosen *after* the click, and edits the
+  # run just drafted. The live rules are in
+  # docs/spec/count-after-route/count-after-route.{md,core.feature}. Kept here,
+  # rewritten to the P35 gesture order, because the underlying behaviours (the
+  # offer tracks the count, only movable counts are offered, uncarried heads are
+  # a sentry) are still the contract.
+  Rule: The count is chosen after the click and repaints the rays
 
-    Scenario: Lowering the carry shortens the rays
+    Scenario: Lowering the count shortens what the tip offers
       Given the active player has clicked a0 with 8 heads
-      When the carry is set to 4
-      Then each ray holds fewer arrows than it held at a carry of 8
+      And has clicked the ray arrow one step along slot 0
+      When the count of the last run is set to 4
+      Then each ray from the tip holds fewer arrows than it held at a count of 8
 
-    Scenario: Raising the carry lengthens the rays
+    Scenario: Raising the count lengthens what the tip offers
       Given the active player has clicked a0 with 8 heads
-      And the carry is set to 4
-      When the carry is set to 8
-      Then each ray holds more arrows than it held at a carry of 4
+      And has clicked the ray arrow one step along slot 0
+      And the count of the last run is set to 4
+      When the count of the last run is set to 8
+      Then each ray from the tip holds more arrows than it held at a count of 4
 
-    Scenario: Only carries that can move are offerable
+    Scenario: Only counts that walk the run are offerable
       Given the active player has clicked a0
-      Then every offerable carry makes at least one hop from the tip
-      And no offerable carry is refused by the engine for its first hop
+      And has clicked a ray arrow
+      Then every offerable count walks every step of the last run
+      And no offerable count is refused by the engine for any step of it
 
     Scenario: Heads not carried stay behind as a sentry
       Given the active player has clicked a0 with 12 heads
-      And the carry is set to 8
       When the active player clicks the ray arrow two steps along slot 0
+      And the count of the last run is set to 8
       And sends
       Then the moves carry a count of 8
       And 4 heads remain on a0 after the host applies them
 
-    Scenario: A new tip defaults its carry to the heads standing there
+    Scenario: A new run defaults its count to the heads standing at its start
       Given the active player has clicked a0 with 12 heads
-      And the carry is set to 8
-      When the active player clicks the ray arrow one step along slot 0
-      Then the carry equals 8
+      And has clicked the ray arrow one step along slot 0
+      And the count of the last run is set to 8
+      When the active player clicks the ray arrow one step along slot 0 from the tip
+      Then the new run's count equals 8
       And the tip head count equals 8
 
   Rule: Paint reads draft loudest, rays primary, reach faintest
