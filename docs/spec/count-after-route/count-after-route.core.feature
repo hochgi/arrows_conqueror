@@ -26,20 +26,32 @@ Feature: Name the route, then say how many heads walk it
 
     Scenario: The last run length is zero with an empty draft
       When the active player clicks a0
-      Then the last run length is 0
+      Then the run boundaries are empty
 
     Scenario: The rays are measured at the tip's full head count
       Given S1 holds 8 heads
       When the active player clicks a0
       Then each ray holds the arrows a count of 8 can reach
 
-  Rule: A click drafts the run at full strength
+    Scenario: An arrow is clickable when some count reaches it
+      Given S1 holds 8 heads
+      When the active player clicks a0
+      Then the clickable set holds exactly the arrows some count of 8 or fewer reaches
 
-    Scenario: A run carries every head standing on the tip
+    Scenario: An adjacent enemy arrow is clickable, armed by the count below full
+      Given the first arrow along slot 0 holds an enemy stack
+      And S1 holds 8 heads
+      When the active player clicks a0
+      Then that enemy arrow is in the clickable set
+      And clicking it drafts a run carrying 7
+
+  Rule: A click drafts the run at the largest count that walks it
+
+    Scenario: A run carries every head when nothing refuses that count
       Given the active player has clicked a0 with 8 heads
       When the active player clicks the ray arrow two steps along slot 0
       Then every move in the draft carries a count of 8
-      And the last run length is 2
+      And the last run holds 2 moves
 
     Scenario: A second run carries every head that arrived
       Given the active player has clicked a0 with 12 heads
@@ -47,7 +59,7 @@ Feature: Name the route, then say how many heads walk it
       And the count of the last run is set to 8
       When the active player clicks the ray arrow one step along slot 1 from the tip
       Then the second run carries a count of 8
-      And the last run length is 1
+      And the last run holds 1 move
 
     Scenario: The drafted run is the run that was painted
       Given the active player has clicked a0
@@ -103,6 +115,13 @@ Feature: Name the route, then say how many heads walk it
       Then that count is not offerable
 
   Rule: A click with nothing left to decide applies the move
+
+    Scenario: A two head stack walking two steps applies at once
+      Given the active player owns a stack of 2 heads on arrow f0
+      And the active player has clicked f0
+      When the active player clicks the ray arrow two steps along slot 0
+      Then the move is applied
+      And no count control was rendered
 
     Scenario: A single head walks one step with no control at all
       Given the active player owns a stack of 1 head on arrow c0
@@ -188,4 +207,4 @@ Feature: Name the route, then say how many heads walk it
       Given the active player has drafted two runs totalling four step moves
       When the active player clicks the arrow the draft's second move walks to
       Then the draft holds two step moves
-      And the last run length describes the run ending at that arrow
+      And the last run is the one ending at that arrow

@@ -31,9 +31,9 @@ the arrows it is asking about.
 Three behaviours, one layout move.
 
 1. **A run is drafted at full strength.** `extend` no longer reuses
-   `phase.carry` for the new run's moves; it uses **every head standing on the
-   tip**. The rays were already painted at that strength, so the run the player
-   clicked is the run they saw.
+   `phase.carry` for the new run's moves; it uses the **largest count that
+   walks the run** — see *Full strength is not every head* below. The rays are
+   measured the same way, so the run the player clicked is the run they saw.
 2. **The count control edits the run just drafted.** `setCarry` stops meaning
    "the count the *next* run will use" and starts meaning "rewrite the count of
    the **last** run". Earlier runs are immutable, as in P34.
@@ -56,6 +56,39 @@ extend, and the second run's count defaults to the 8 that arrived — lower it t
 4 and 4 stay at the junction as a sentry (§5). Two sentries, one route, no
 extra gesture.
 
+### Full strength is not every head
+
+An earlier draft of this document said a run drafts at *every head standing on
+the tip*, and that is wrong in exactly one place — which happens to be the
+whole of attacking. §6.2's stay-behind refuses `count = heads`: an attack may
+not empty its source. So under "every head" an adjacent enemy arrow is on no
+ray, is never clickable, and `needs-stay-behind` becomes the only possible
+answer to an attack. **Attacking would leave the input model entirely.**
+
+P34 armed an attack by lowering the carry *before* the click. That is the one
+gesture this feature removes, so the offer has to arm it instead:
+
+> **An arrow is clickable iff some count ≤ the tip's heads walks the run to it,
+> and the run drafts at the largest such count.**
+
+Everywhere except a final attack step this is the same thing as "every head",
+because `speed(N) = 1 + floor(log₂ N)` is monotone in *N* and no other refusal
+in the engine reads the count. So the rule reduces to the simple reading in the
+common case and arms an attack in the one case that needs it. **The count
+control is therefore also how an attack's sentry is chosen** — the ceiling on
+an attack run is `heads − 1`, and every count from 1 up to it is offered.
+
+**This does not cost a walk per count.** The offer needs only *whether* some
+count reaches an arrow, so walk each step at the tip's full head count and,
+where a step is refused, retry that one step at one head fewer; if that is
+also refused the ray stops. Two attempts per step, worst case — not `tipHeads`
+of them. Retrying at `heads − 1` rather than scanning downward is deliberate:
+it does not encode *why* the smaller count was accepted, so it stays correct if
+the engine ever grows another count-sensitive refusal.
+
+The ascending list of every legal count is built **once, for the one drafted
+run**, when the control is drawn. That is where a 1..ceiling scan is affordable.
+
 ### The floor is measured, never derived
 
 The least count for a run is the least count for which **every step of that
@@ -69,6 +102,12 @@ run, so it is replaced by **`runCarries`** — the ascending counts that walk th
 last run end to end. With an empty draft there is no last run and the list is
 empty, which is exactly why no control is drawn before a destination exists.
 
+Measuring rather than deriving earns its keep immediately here: allowance is
+spent per group and `spent` travels with the movers, so a second run of *k*
+steps off a tip that has already spent *j* needs enough heads for `j + k`, not
+for *k*. A formula would have to know that; a walk on the scratch state already
+does.
+
 ## Phase state
 
 `RoutePhase` keeps `from`, `tip`, `draft`, `tipHeads` and `offer`. Two changes:
@@ -77,12 +116,20 @@ empty, which is exactly why no control is drawn before a destination exists.
   value carried forward across runs. Undefined in meaning with an empty draft;
   the invariants below pin it to the tip's head count there so nothing reads a
   stale number.
-- **`lastRunLength: number` is added** — how many of `draft`'s trailing moves
-  the last click appended, `0` for an empty draft. This is what lets the count
-  control rewrite exactly one run: drop the trailing `lastRunLength` moves,
-  re-emit them with the new count, rebuild. Storing the boundary beats
-  re-deriving it, because a run is defined by the click that made it and
-  nothing in a flat `Move[]` records where a click ended.
+- **`runLengths: readonly number[]` is added** — one entry per run, in order,
+  summing to `draft.length`. Storing the boundaries beats re-deriving them,
+  because a run is defined by the click that made it and nothing in a flat
+  `Move[]` records where a click ended.
+
+  A single trailing length is **not** enough: popping back to a boundary before
+  the last run has to restore the *earlier* run as the editable one, and a
+  scalar does not record that history. `lastRunLength` is therefore a derived
+  reading — the final entry, or `0` when the list is empty — not state.
+
+  A pop into the **middle** of a run is legal (P34's `popTo` accepts any walked
+  arrow, not only a boundary). It truncates that run: the boundary list keeps
+  the runs before the cut and the cut run is shortened to the part that
+  survives, which then becomes the editable run.
 
 `offer.carries` changes meaning with `carry`: legal counts for the **last run**,
 ascending, empty with an empty draft.
@@ -127,6 +174,16 @@ All three are load-bearing:
 - **Tip finished.** With something still clickable the route may continue, and
   applying would cut it short.
 
+**Condition 3 is implied by 1 and 2, and is kept anyway.** For a one-run draft
+the counts that walk *k* steps are `{c ≤ ceiling : c ≥ 2^(k−1)}`, so "exactly
+one legal count" means `ceiling = 2^(k−1)`, i.e. `speed(ceiling) = k` — the
+allowance is exactly spent and nothing can be clickable. No state satisfies 1
+and 2 and fails 3. It stays in the test because it makes the rule readable
+without that argument, and because it is the condition that would still be
+true if the allowance formula ever changed. A test asserting a state that
+satisfies 1 and 2 but not 3 would be asserting an unreachable state — do not
+write one.
+
 An auto-applied click leaves `pending` holding the run's moves and the phase
 `idle`, identical to a click followed by Send. There is **no** confirm step and
 no chrome frame in between.
@@ -167,39 +224,53 @@ because fewer heads arrived there.
 ## Invariants (EARS)
 
 1. While the draft is empty, the adapter shall render no count control.
-2. While the draft is empty, `offer.carries` shall be empty.
-3. When a run is appended, the adapter shall set that run's count to the heads
-   standing on the tip the run started from.
-4. The rays offered from a tip shall be measured at that tip's full head count.
+2. While the draft is empty, `offer.carries` shall be empty and `runLengths`
+   shall be empty.
+3. When a run is appended, the adapter shall set that run's count to the
+   largest count that walks the whole run, never exceeding the heads standing
+   on the tip the run started from.
+4. An arrow shall be in the clickable set if and only if some count not
+   exceeding the tip's heads walks the run that reaches it.
 5. `offer.carries` shall list exactly the counts for which every step of the
    last run is accepted by `rules.apply`, ascending.
 6. `offer.carries` shall never contain a count exceeding the heads standing on
    the arrow the last run started from.
-7. When the count of the last run is changed, the adapter shall leave every
+7. Where the last run's final step attacks an enemy-held arrow, `offer.carries`
+   shall not contain the heads standing on the run's start (§6.2 stay-behind).
+8. When the count of the last run is changed, the adapter shall leave every
    earlier run's moves byte-identical.
-8. When the count of the last run is changed, the adapter shall re-emit exactly
-   `lastRunLength` moves.
-9. Where a count is not in `offer.carries`, the adapter shall ignore the request
-   to set it.
-10. When a click yields a one-run draft with one legal count and an empty
+9. When the count of the last run is changed, the adapter shall re-emit exactly
+   the moves of that run and no others.
+10. Where a count is not in `offer.carries`, the adapter shall ignore the
+    request to set it.
+11. When a click yields a one-run draft with one legal count and an empty
     clickable set, the adapter shall apply the draft without rendering a control.
-11. When a click yields a draft failing any of those three conditions, the
+12. When a click yields a draft failing any of those three conditions, the
     adapter shall render the control and apply nothing.
-12. An auto-applied click shall place in `pending` exactly the moves a click
+13. An auto-applied click shall place in `pending` exactly the moves a click
     followed by Send would have placed.
-13. While the match is over or input is locked, the adapter shall render no
+14. While the match is over or input is locked, the adapter shall render no
     count control.
-14. The docked strip shall not intersect any arrow in the clickable set at
-    viewport widths 375, 768 and 1280.
-15. Send shall emit the draft in order regardless of how many runs it holds.
-16. Cancel and a background click shall leave the game state unchanged.
-17. `lastRunLength` shall equal `0` if and only if the draft is empty.
-18. `lastRunLength` shall never exceed `draft.length`.
-19. After a pop to a walked arrow, `lastRunLength` shall describe the run that
-    ends at that arrow.
-20. Equal inputs shall produce an equal offer, an equal paint and an equal
+15. The count control's model shall carry no viewport, stage or tip coordinate,
+    and shall be identical at every viewport width.
+16. Send shall emit the draft in order regardless of how many runs it holds.
+17. Cancel and a background click shall leave the game state unchanged.
+18. The entries of `runLengths` shall sum to `draft.length`.
+19. `runLengths` shall be empty if and only if the draft is empty.
+20. After a pop to a walked arrow, the last entry of `runLengths` shall describe
+    the run ending at that arrow, truncated where the arrow falls inside a run.
+21. `runCarries` shall account for the allowance already spent by the movers, by
+    measuring on the scratch state rather than from a formula.
+22. Equal inputs shall produce an equal offer, an equal paint and an equal
     auto-apply verdict.
-21. `route.ts` shall reference neither a clock nor a random source.
+23. `route.ts` shall reference neither a clock nor a random source.
+
+**Not a unit invariant.** *The docked strip overlaps no clickable arrow at 375 /
+768 / 1280 px* is the layout claim this feature exists for, and it needs a real
+renderer to check. Invariant 15 encodes the part that is purely testable — the
+control cannot be positioned from the tip because it is never told where the tip
+is. The overlap itself is verified in the browser at all three widths before the
+PR, and recorded there. Do not write a unit test that pretends to prove it.
 
 ## Out of scope
 

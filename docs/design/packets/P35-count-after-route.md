@@ -74,10 +74,16 @@ copies come to disagree.
   wrong, and the spec records the corrected reading.)
 - **The count edits the run behind the click, not the run ahead of it.** That
   is the whole inversion: `extend` drafts at full strength and `setCarry`
-  rewrites the last run. `RoutePhase` gains `lastRunLength` to name the
-  boundary, because a flat `Move[]` does not record where a click ended.
-- **Full reach means the largest offerable carry**, not "every head" — a
-  count the engine refuses for its first hop was never reach.
+  rewrites the last run. `RoutePhase` gains `runLengths` to name the run
+  boundaries, because a flat `Move[]` does not record where a click ended and a
+  single trailing length cannot survive a pop to an earlier boundary.
+- **Full reach means the largest count that walks the run**, not "every head".
+  §6.2's stay-behind refuses `count = heads` for an attack, so under "every
+  head" an adjacent enemy is never clickable and attacking leaves the input
+  model entirely. An arrow is clickable iff *some* count ≤ the tip's heads
+  reaches it, and the run drafts at the largest such count — which makes the
+  count control the thing that arms an attack, now that lowering the carry
+  before the click is gone.
 
 ## Out of scope
 

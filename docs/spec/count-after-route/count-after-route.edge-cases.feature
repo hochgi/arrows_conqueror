@@ -133,15 +133,15 @@ Feature: Counting a route at the boundaries
   Rule: Popping composes with the count without leaking state
 
     Scenario: Popping restores the earlier run as the last run
-      Given the active player has drafted a run of two steps carrying 8
-      And has drafted a second run of two steps carrying 4
+      Given a stack of 16 heads has drafted a run of two steps carrying 16
+      And has drafted a second run of two steps at the largest count that walks it
       When the active player pops to the second walked arrow
-      Then the last run length is 2
-      And the offerable counts are the ones for the first run
+      Then the last run is the first run
+      And the offerable counts are the ones for that run
 
     Scenario: Popping then rewriting edits the restored run
-      Given the active player has drafted a run of two steps carrying 8
-      And has drafted a second run of two steps carrying 4
+      Given a stack of 16 heads has drafted a run of two steps carrying 16
+      And has drafted a second run of two steps at the largest count that walks it
       When the active player pops to the second walked arrow
       And the count of the last run is set to 6
       Then the draft holds two step moves
@@ -159,7 +159,7 @@ Feature: Counting a route at the boundaries
       When the active player pops to the second walked arrow
       And pops to the source
       Then the draft is empty
-      And the last run length is 0
+      And the run boundaries are empty
 
     Scenario: Extending after a pop starts the new run at full strength
       Given the active player has drafted two runs totalling four step moves
@@ -170,16 +170,23 @@ Feature: Counting a route at the boundaries
   Rule: The auto-apply test is exact at its boundaries
 
     Scenario: Two legal counts defeat auto-apply even with a finished tip
-      Given the active player owns a stack of 2 heads on arrow e0
+      Given the active player owns a stack of 3 heads on arrow e0
       And the active player has clicked e0
       When the active player clicks the ray arrow two steps along slot 0
-      Then a count control is rendered
+      Then the offerable counts are 2 and 3
+      And a count control is rendered
       And nothing has been applied to the game state
 
-    Scenario: A forced count with a live tip defeats auto-apply
+    Scenario: A count that is not forced defeats auto-apply
       Given the active player has clicked a0 with 4 heads
       When the active player clicks the ray arrow two steps along slot 0
-      Then a count control is rendered
+      Then more than one count is offerable
+      And a count control is rendered
+
+    Scenario: An unreachable auto-apply state is not asserted
+      Given a one run draft whose count is forced
+      Then its clickable set is empty
+      And no scenario claims otherwise
 
     Scenario: A forced count on a second run defeats auto-apply
       Given the active player has drafted a run of one step
@@ -242,7 +249,13 @@ Feature: Counting a route at the boundaries
     Scenario: No clock and no randomness
       Then route.ts references neither a clock nor a random source
 
-    Scenario: The last run length never exceeds the draft
+    Scenario: The run boundaries always account for every drafted move
       Given any sequence of clicks, pops and count changes
-      Then the last run length is never greater than the number of drafted moves
-      And it is zero exactly when the draft is empty
+      Then the run boundaries sum to the number of drafted moves
+      And they are empty exactly when the draft is empty
+
+    Scenario: Popping into the middle of a run truncates that run
+      Given the active player has drafted a run of three steps
+      When the active player pops to the arrow its first move walks to
+      Then the last run holds 1 move
+      And the offerable counts are the ones for a one step run
