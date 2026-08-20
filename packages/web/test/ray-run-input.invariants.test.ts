@@ -504,14 +504,22 @@ describe('P34 invariants', () => {
     }
   });
 
-  it('When the carry changes, the system shall leave every already-drafted move unchanged.', () => {
+  /**
+   * **Revised by P35.** The P34 statement was *every already-drafted move*; P35
+   * narrows it to *every earlier run's moves*, because rewriting the last run is
+   * the feature. The full pair of statements — earlier runs byte-identical, and
+   * exactly `lastRunLength` moves re-emitted — is
+   * `count-after-route.invariants.test.ts` invariants 7 and 8.
+   */
+  it("When the carry changes, the system shall leave every earlier run's moves unchanged.", () => {
     const selected = selectRoute(board, openField(from, 8), from);
     const drafted = clickArrow(selected, arrowAlong(geometry, from, 0, 2));
     const original = [...draftOf(drafted)];
     expect(original).toHaveLength(2);
+    clickArrow(selected, arrowAlong(geometry, from, 0, 3));
     for (const carry of [1, 2, 3, 4, 5, 6, 7, 8]) {
       const snap = selected.mode.setCarry(carry);
-      expect(draftOf(snap), `carry ${String(carry)}`).toEqual(original);
+      expect(draftOf(snap).slice(0, 2), `carry ${String(carry)}`).toEqual(original);
     }
   });
 

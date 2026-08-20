@@ -597,6 +597,10 @@ export const terminalFixtures = (): readonly TerminalFixture[] => {
       poppedLength: 1,
     },
     {
+      // P35 note: this fixture is reached by lowering the carry *before* the
+      // click, which P35 removes. How an attack run is offered and at what count
+      // is a phase-1 gap (see `count-after-route.edge-cases.test.ts`'s two
+      // `it.todo`s). Do not invent an answer to keep this fixture reachable.
       label: 'resolves combat against an enemy stack',
       board: tiling,
       state: stateWith([

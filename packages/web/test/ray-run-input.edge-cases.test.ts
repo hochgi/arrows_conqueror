@@ -26,6 +26,7 @@ import { playHighlightsAllowed, victoryFx } from '../src/fx/victory';
 import { refusedConvertExits } from '../src/refusedConvert';
 import { buildRouteOffer, isTerminalStep, routePaint } from '../src/route';
 import { selectionPaint } from '../src/selectionChrome';
+import { inputsFromPhase } from './count-after-route.support';
 import {
   A,
   B,
@@ -117,6 +118,12 @@ describe('P34 edge — a ray stops where the engine stops, and is never painted 
     expect((offer.rays[2] ?? []).length).toBeGreaterThan(0);
   });
 
+  /**
+   * P35 note: under P35 there is no carry to lower before the click, so
+   * `needs-stay-behind` becomes the *only* answer an adjacent enemy arrow can
+   * give — which is either right (attacks are drafted some other way) or a lost
+   * capability. Phase 1 owes the ruling; this test is left as P34 wrote it.
+   */
   it('The refusal names the stay-behind when that is the only obstacle', () => {
     const state = stateWith([
       [from, { owner: A, heads: 8 }],
@@ -488,48 +495,75 @@ describe('P34 edge — popping and extending compose without leaking state', () 
     expect(routePhaseOf(popped).tipHeads).toBe(8);
   });
 
-  it('A pop does not change the carry', () => {
+  /**
+   * **Revised by P35.** P34's carry rode across a pop because it was a
+   * forward-only choice made before the click. P35's count belongs to the run it
+   * was set on, so a pop restores the count of the run it lands in — here the
+   * truncated first run, still at the full strength it was drafted with.
+   */
+  it('A pop restores the count of the run it lands in', () => {
     const selected = selectRoute(board, openField(from, 12), from);
-    selected.mode.setCarry(8);
     clickArrow(selected, fourth);
     const popped = clickArrow(selected, second);
-    expect(routePhaseOf(popped).carry).toBe(8);
+    expect(routePhaseOf(popped).carry).toBe(12);
+    expect(routePhaseOf(popped).lastRunLength).toBe(2);
   });
 });
 
-describe('P34 edge — the carry never rewrites what is already drafted', () => {
-  it('Lowering the carry mid-route leaves earlier moves alone', () => {
+/**
+ * **Revised by P35.** P34's rule was *forward-only*: a carry change never touched
+ * a drafted move. P35 keeps exactly half of that — earlier runs stay
+ * byte-identical — and repeals the other half, because the whole feature is that
+ * the count addresses the run **behind** the click. The scenarios below are the
+ * P34 ones with that one clause moved; the full statements live in
+ * `count-after-route.invariants.test.ts` (invariants 7 and 8).
+ */
+describe('P34 edge — the carry rewrites the last run and nothing earlier', () => {
+  it('Lowering the carry mid-route leaves earlier runs alone', () => {
     const selected = selectOpenField(8);
     const drafted = clickArrow(selected, second);
     const original = [...draftOf(drafted)];
+    const extended = clickArrow(selected, third);
+    expect(draftOf(extended)).toHaveLength(3);
     const lowered = selected.mode.setCarry(4);
-    expect(draftOf(lowered)).toEqual(original);
-    for (const move of draftOf(lowered)) {
-      expect(move.kind).toBe('step');
-      if (move.kind !== 'step') continue;
-      expect(move.count).toBe(8);
-    }
+    // The first run is untouched…
+    expect(draftOf(lowered).slice(0, 2)).toEqual(original);
+    // …and the run the count was set on carries the new number.
+    const last = draftOf(lowered)[2];
+    expect(last?.kind).toBe('step');
+    if (last?.kind !== 'step') return;
+    expect(last.count).toBe(4);
   });
 
   it('Lowering the carry mid-route shortens only what is still offered', () => {
-    const selected = selectOpenField(8);
+    // Twelve heads so the tip still has a step left after the rewrite: the point
+    // is that the offer *shrinks*, which an empty offer could not show.
+    const selected = selectRoute(board, openField(from, 12), from);
     clickArrow(selected, second);
-    const lowered = selected.mode.setCarry(4);
-    const expected = buildRouteOffer(
-      inputsAfter(board, selected.state, from, raySlotWalk(geometry, from, 0, 2), 8, 4),
-    );
+    const full = clickableOf(clickArrow(selected, third)).size;
+    const lowered = selected.mode.setCarry(8);
+    const phase = routePhaseOf(lowered);
+    expect(phase.tipHeads).toBe(8);
+    // Measured against the draft as it now stands — the last run re-emitted at 8.
+    const expected = buildRouteOffer(inputsFromPhase(board, selected.state, phase));
     expect(expected.clickable.size).toBeGreaterThan(0);
+    expect(expected.clickable.size).toBeLessThan(full);
     expect(sortedIds(clickableOf(lowered).keys())).toEqual(sortedIds(expected.clickable.keys()));
   });
 
-  it('A carry larger than the heads at the tip is not offerable', () => {
+  it("A carry larger than the heads at the run's start is not offerable", () => {
     const selected = selectRoute(board, openField(from, 12), from);
-    selected.mode.setCarry(4);
     const snap = clickArrow(selected, first);
     const phase = routePhaseOf(snap);
-    expect(phase.tipHeads).toBe(4);
+    expect(phase.tipHeads).toBe(12);
     expect(phase.offer.carries.length).toBeGreaterThan(0);
-    for (const carry of phase.offer.carries) expect(carry).toBeLessThanOrEqual(4);
+    // The ceiling is the heads standing where the run began, not at its tip.
+    for (const carry of phase.offer.carries) expect(carry).toBeLessThanOrEqual(12);
+    const lowered = selected.mode.setCarry(4);
+    expect(routePhaseOf(lowered).tipHeads).toBe(4);
+    for (const carry of routePhaseOf(lowered).offer.carries) {
+      expect(carry).toBeLessThanOrEqual(12);
+    }
   });
 
   it('A carry of every head leaves no sentry', () => {
@@ -544,12 +578,14 @@ describe('P34 edge — the carry never rewrites what is already drafted', () => 
   });
 
   it('Splitting twice along one route leaves two sentries', () => {
+    // P35 order: click, then count — each run's count set after the click that
+    // named it. The emitted list is the one P34 emitted.
     const state = openField(from, 12);
     const selected = selectRoute(board, state, from);
-    selected.mode.setCarry(8);
     clickArrow(selected, first);
-    selected.mode.setCarry(4);
+    selected.mode.setCarry(8);
     clickArrow(selected, second);
+    selected.mode.setCarry(4);
     const sent = pendingOf(selected.mode.send());
     expect(sent).toHaveLength(2);
     let applied = state;
@@ -559,6 +595,12 @@ describe('P34 edge — the carry never rewrites what is already drafted', () => 
     expect(headsOn(applied, second)).toBe(4);
   });
 
+  /**
+   * P35 note: the gesture here — lower the carry, then click the enemy — is the
+   * one P35 removes. The *claims* still stand (the tip's head count comes from
+   * the state after the draft, and a combat hop ends the draft), but which count
+   * an attack run is drafted at is a phase-1 gap. Kicked back, not decided here.
+   */
   it('Combat on the first hop reduces the tip head count and ends the draft', () => {
     const state = stateWith([
       [from, { owner: A, heads: 8 }],

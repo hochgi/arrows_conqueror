@@ -100,6 +100,29 @@ export interface RouteInputs {
    * ordinary hop", which is the common case.
    */
   readonly terminal?: boolean;
+  /**
+   * The **last run** on the draft — what the count control edits (P35).
+   *
+   * Absent with an empty draft, which is why {@link runCarries} is empty there
+   * and no control is drawn before a destination exists.
+   */
+  readonly lastRun?: LastRun;
+}
+
+/**
+ * The last run of a draft: where it began, and the exits it walks (P35).
+ *
+ * A run is defined by the click that made it, and nothing in a flat `Move[]`
+ * records where a click ended — so the boundary is carried rather than
+ * re-derived. `steps.length` is `RoutePhase.lastRunLength`.
+ */
+export interface LastRun {
+  /** The scratch state as it stood **before** the run was walked. */
+  readonly state: GameState;
+  /** The arrow the run started from. Heads standing here cap its count. */
+  readonly start: ArrowId;
+  /** The exits the run walks, in order. The last one is the tip. */
+  readonly steps: readonly ArrowId[];
 }
 
 /** The whole offer from one tip, built once per selection / extend / pop / carry. */
@@ -109,7 +132,13 @@ export interface RouteOffer {
   /** Indexed by out-slot; always length 3. Truncated where the engine stops. */
   readonly rays: readonly (readonly ArrowId[])[];
   readonly clickable: ClickableSet;
-  /** Carries that can make at least one hop from the tip, ascending. */
+  /**
+   * Legal counts for the **last run**, ascending — empty with an empty draft.
+   *
+   * P35 redefines this: it used to be the carries that could make one hop from
+   * the tip ({@link offerableCarries}), forward of the click; it is now
+   * {@link runCarries}, the counts that walk the run the click just named.
+   */
   readonly carries: readonly number[];
   /** The faint tier: reachable with this carry, minus every louder tier. */
   readonly reachWash: ReadonlySet<ArrowId>;
@@ -395,6 +424,10 @@ export const clickableSet = (inputs: RouteInputs): ClickableSet =>
  *
  * The carry is also how an attack is armed: §6.2's stay-behind means an adjacent
  * enemy arrow joins the clickable set only while `carry <= tipHeads - 1`.
+ *
+ * **P35 replaces this with {@link runCarries}**: one hop from the tip is the
+ * wrong measurement once the count is asked *after* the click, because the count
+ * has to pay for the whole run the click named.
  */
 export const offerableCarries = (inputs: RouteInputs): readonly number[] => {
   if (inputs.terminal === true) return [];
@@ -407,6 +440,25 @@ export const offerableCarries = (inputs: RouteInputs): readonly number[] => {
     if (moves.some((move) => tryHop(inputs, inputs.state, move) !== undefined)) out.push(carry);
   }
   return out;
+};
+
+/**
+ * The counts that walk the **whole last run**, ascending (P35).
+ *
+ * Measured, never derived: a count is offered only when **every step** of the
+ * run is accepted by `rules.apply`, walked from `lastRun.start` on
+ * `lastRun.state`. It is *not* computed from `speed(N) = 1 + floor(log2 N)` —
+ * two derivations of one number is how the two copies come to disagree, and the
+ * engine is the one that decides.
+ *
+ * The ceiling falls out of the same measurement: no count above the heads
+ * standing where the run began can step at all.
+ *
+ * **Empty with an empty draft** — there is no last run, so there is nothing to
+ * count and no control to draw.
+ */
+export const runCarries = (_inputs: RouteInputs): readonly number[] => {
+  throw new Error('P35: runCarries is not implemented');
 };
 
 /**
@@ -468,6 +520,65 @@ export const buildRouteOffer = (inputs: RouteInputs): RouteOffer => {
     reachWash: reachWashOf(inputs, clickable),
     previews,
   };
+};
+
+/**
+ * The docked count control's model, or `undefined` when none is drawn (P35).
+ *
+ * The control asks the one question a named run has left — how many heads walk
+ * it, the rest staying at its start as a sentry (§5). It carries **no
+ * coordinates**: it is docked below the board rather than anchored on the tip,
+ * because a panel at the tip covers the arrows it is asking about.
+ */
+export interface CountControl {
+  /** The count on the last drafted run. */
+  readonly count: number;
+  /** Heads standing where the last run began — the ceiling, and the sentry base. */
+  readonly ceiling: number;
+  /** Legal counts for the last run, ascending. Never empty while a control shows. */
+  readonly counts: readonly number[];
+  readonly draftLength: number;
+}
+
+/**
+ * Whether the docked control is drawn at all, and with what.
+ *
+ * `undefined` with an empty draft (there is no run to count), while the match is
+ * over, and while input is locked.
+ */
+export const countControl = (_opts: {
+  readonly phase: InputPhase;
+  readonly inputLocked: boolean;
+  readonly matchOver: boolean;
+}): CountControl | undefined => {
+  throw new Error('P35: countControl is not implemented');
+};
+
+/** The three facts the auto-apply test reads off the state a click would produce. */
+export interface AutoApplyTest {
+  readonly draftLength: number;
+  readonly lastRunLength: number;
+  /** Legal counts for the last run. */
+  readonly counts: readonly number[];
+  /** How many arrows are clickable from the new tip. */
+  readonly clickable: number;
+}
+
+/**
+ * Does this click have nothing left to decide? (P35, *the exact test*.)
+ *
+ * All three must hold of the state the click would produce:
+ *
+ * 1. the draft is **exactly one run** — a multi-run draft is a route the player
+ *    is building, and taking Send, Cancel and pop away at the last click would
+ *    surprise them;
+ * 2. the run's count has exactly **one** legal value — with two there is a
+ *    choice to offer;
+ * 3. the new tip offers **nothing** clickable — with a ray left the route may
+ *    continue, and applying would cut it short.
+ */
+export const autoApplies = (_test: AutoApplyTest): boolean => {
+  throw new Error('P35: autoApplies is not implemented');
 };
 
 /** The locked HUD line for a route phase: empty draft or drafted. */

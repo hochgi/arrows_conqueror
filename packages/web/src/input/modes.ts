@@ -38,11 +38,27 @@ export interface RoutePhase {
   readonly from: ArrowId;
   /** Last arrow the draft walks, or `from` when the draft is empty. */
   readonly tip: ArrowId;
-  /** Heads travelling from the tip; the rest stay as a sentry (§5). */
+  /**
+   * The count on the **last drafted run** (P35).
+   *
+   * No longer a value carried forward across runs: the count is asked *after*
+   * the click, so it addresses the run behind it. With an empty draft it is the
+   * tip's head count, so nothing reads a stale number.
+   */
   readonly carry: number;
   /** Heads standing on the tip after the draft — read off the state, not the carry. */
   readonly tipHeads: number;
   readonly draft: readonly Move[];
+  /**
+   * How many of `draft`'s trailing moves the last click appended — `0` when the
+   * draft is empty (P35).
+   *
+   * This is what lets the count control rewrite exactly one run: drop the
+   * trailing `lastRunLength` moves, re-emit them at the new count, rebuild. A run
+   * is defined by the click that made it, and a flat `Move[]` does not record
+   * where a click ended.
+   */
+  readonly lastRunLength: number;
   /** Built once per selection, extend, pop and carry change — never per hover. */
   readonly offer: RouteOffer;
 }
@@ -197,7 +213,9 @@ abstract class BaseMode implements InputMode {
       terminal: walked.terminal,
     });
     this.snap = {
-      phase: { kind: 'route', from, tip, carry: offer.carry, tipHeads, draft, offer },
+      // P35 skeleton: the run boundary is not tracked yet, so `lastRunLength` is
+      // the empty-draft value until the count control is implemented.
+      phase: { kind: 'route', from, tip, carry: offer.carry, tipHeads, draft, lastRunLength: 0, offer },
       highlights: { selected: from, targets: new Set(offer.clickable.keys()) },
     };
     return this.snap;
