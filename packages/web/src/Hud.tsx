@@ -56,6 +56,25 @@ const phaseHint = (
   }
 };
 
+/**
+ * Every seat on the starvation clock, in `state.players` order (P36).
+ *
+ * The old single-holder line could only name one; destitution is per seat now,
+ * and the order is read off `players` rather than the map so the label is
+ * deterministic.
+ */
+const starvationNote = (state: GameState): string | null => {
+  const onClock = state.players.filter(
+    (player) => (state.starvationStreaks.get(player) ?? 0) > 0,
+  );
+  if (onClock.length === 0) return null;
+  const parts = onClock.map(
+    (player) =>
+      `${styleFor(player).label} ${String(state.starvationStreaks.get(player) ?? 0)}/${String(state.dominationN)}`,
+  );
+  return ` · starvation ${parts.join(', ')}`;
+};
+
 export const Hud = ({
   state,
   victory,
@@ -90,9 +109,7 @@ export const Hud = ({
         <p className="banner" style={{ borderColor: active.fill }}>
           Turn: <strong style={{ color: active.fill }}>{active.label}</strong>
           {vsBot ? (botBusy ? (byokActive ? ' · llm' : ' · ai') : ' · you') : null}
-          {state.dominationHolder !== undefined
-            ? ` · starvation ${String(state.dominationStreak)}/${String(state.dominationN)} (${styleFor(state.dominationHolder).label})`
-            : null}
+          {starvationNote(state)}
         </p>
       )}
       <p className="hint">

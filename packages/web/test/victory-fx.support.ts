@@ -6,7 +6,7 @@
 import { rational } from '@conquarrow/contracts';
 import type { ArrowId, GameState, PlayerId } from '@conquarrow/contracts';
 import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
-import type { VictoryHow, VictoryFx } from '../src/fx/victory';
+import type { VictoryFx } from '../src/fx/victory';
 
 export const geometry = makeTiling();
 
@@ -30,9 +30,6 @@ export const bannerOf = (fx: VictoryFx): string | undefined =>
 
 export const hintOf = (fx: VictoryFx): string | undefined =>
   fx.kind === 'over' ? fx.hint : undefined;
-
-export const howOf = (fx: VictoryFx): VictoryHow | undefined =>
-  fx.kind === 'over' ? fx.how : undefined;
 
 export const seatsOf = (state: GameState): { a: PlayerId; b: PlayerId } => {
   const a = state.players[0];
@@ -247,8 +244,7 @@ export const leftoverClockBoard = (): { state: GameState; a: PlayerId; b: Player
     b,
     state: {
       ...state,
-      dominationHolder: b,
-      dominationStreak: state.dominationN,
+      starvationStreaks: new Map([[b, state.dominationN]]),
     },
   };
 };
@@ -304,8 +300,7 @@ export const snapshotState = (
   groups: string[];
   trails: string[];
   spawners: string[];
-  dominationStreak: number;
-  dominationHolder: string | undefined;
+  starvationStreaks: string[];
 } => ({
   winner: state.winner === undefined ? undefined : String(state.winner),
   territory: [...state.territory]
@@ -318,7 +313,7 @@ export const snapshotState = (
     .map(([player, arrows]) => `${String(player)}:${sortedIds(arrows).join(',')}`)
     .toSorted(),
   spawners: [...state.spawners.keys()].map(String).toSorted(),
-  dominationStreak: state.dominationStreak,
-  dominationHolder:
-    state.dominationHolder === undefined ? undefined : String(state.dominationHolder),
+  starvationStreaks: [...state.starvationStreaks]
+    .map(([player, streak]) => `${String(player)}:${String(streak)}`)
+    .toSorted(),
 });

@@ -119,9 +119,12 @@ describe('enemy blockade', () => {
     const seed = anArrow(table.geometry);
     const { vertex, borders } = aSpawnerOn(table.geometry, seed);
     const feed = borders[0];
-    if (feed === undefined) throw new Error("setup: empty borders");
+    const bLand = borders[1];
+    if (feed === undefined || bLand === undefined) throw new Error("setup: empty borders");
     const before = stateOf([{ arrow: feed, owner: B, heads: 1 }], A, {
-      territory: owned([feed], A),
+      // B needs a share of their own or the boundary vanishes the blockade
+      // (P36: heads and no territory is a loss). This case is about halt, not losing.
+      territory: [...owned([feed], A), ...owned([bLand], B)],
       accumulators: [[feed, rational(1, 3)]],
       spawners: [[vertex, { force: rational(1, 3), phase: 0 }]],
     });

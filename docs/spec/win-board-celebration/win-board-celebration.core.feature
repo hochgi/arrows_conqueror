@@ -4,26 +4,28 @@
 
 Feature: Win board celebration — banner, shine, pulse, quiet board
   As a player who just won or lost
-  I want the board itself to show who won and how, without a splash
+  I want the board itself to show who won, without a splash
   So that I can still pan around the match I built
 
   Background:
     Given a GameState and a GeometryPort
     And player labels are styleFor (Player A / Player B)
 
-  Rule: The banner names the win condition
+  Rule: The banner names the winner and no mechanism
 
-    Scenario: Elimination names last head
+    # Superseded by P36: the banner names no mechanism.
+    Scenario: The banner names the winner and no mechanism
       Given A is the winner
       And only A has heads remaining
-      Then victoryFx how is elimination
-      And the banner is "Player A wins — last head"
+      Then victoryFx carries no how field
+      And the banner is "Player A wins"
 
-    Scenario: Starvation keeps the victim alive
+    # Superseded by P36: a lost seat vanishes, so no victim survives a win.
+    Scenario: The banner is the same however the match was won
       Given A is the winner
       And B still has at least one head
-      Then how is starvation
-      And the banner is "Player A wins — starvation"
+      Then victoryFx carries no how field
+      And the banner is "Player A wins"
 
     Scenario: In play the turn banner is unchanged
       Given winner is unset

@@ -251,8 +251,7 @@ export const makeMatch = (config: MatchConfig = DEFAULT_MATCH_CONFIG): GameState
     territory,
     accumulators: new Map(),
     spawners,
-    dominationStreak: 0,
-    dominationHolder: undefined,
+    starvationStreaks: new Map(),
     dominationN: config.dominationN,
     winner: undefined,
   };

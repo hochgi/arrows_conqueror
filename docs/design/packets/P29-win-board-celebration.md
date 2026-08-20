@@ -3,9 +3,15 @@
 > **Status:** shipping. **Depends on:** P09, P11, P08.
 > Playtest asked to shine the winner's land with the yield-soon clip. Celebrate
 > **on the board**: dim the rest, shine winner **shares**, pulse winner
-> **stacks**, name **how** in the existing banner. No splash. Not a game-rule
-> change — do **not** edit SPEC.md §9, `packages/rules-core/src/victory.ts`, or
-> contracts DTOs.
+> **stacks**. No splash. Not a game-rule change — do **not** edit SPEC.md §9,
+> `packages/rules-core/src/victory.ts`, or contracts DTOs.
+>
+> **P36 supersedes the banner's *how* clause.** The locked string is now
+> `{label} wins` with no mechanism; `VictoryHow` is retired. See
+> `docs/spec/losing-conditions/losing-conditions.md` and the struck-through
+> lines in `docs/spec/win-board-celebration/win-board-celebration.md`. P36 *did*
+> rewrite `packages/rules-core/src/victory.ts` — for per-seat losing, not for
+> this celebration.
 
 ## Intent
 

@@ -714,9 +714,11 @@ export type StateSnapshot = {
     readonly den: number;
     readonly phase: number;
   }[];
-  readonly dominationStreak: number;
+  readonly starvationStreaks: readonly {
+    readonly player: string;
+    readonly streak: number;
+  }[];
   readonly dominationN: number;
-  readonly dominationHolder?: string;
   readonly winner?: string;
 };
 
@@ -729,9 +731,8 @@ export const snapshotState = (state: GameState): StateSnapshot => {
     territory: StateSnapshot['territory'];
     accumulators: StateSnapshot['accumulators'];
     spawners: StateSnapshot['spawners'];
-    dominationStreak: number;
+    starvationStreaks: StateSnapshot['starvationStreaks'];
     dominationN: number;
-    dominationHolder?: string;
     winner?: string;
   } = {
     players: [...state.players].map(String),
@@ -774,12 +775,11 @@ export const snapshotState = (state: GameState): StateSnapshot => {
         phase: spawner.phase,
       }))
       .toSorted((left, right) => (left.vertex < right.vertex ? -1 : 1)),
-    dominationStreak: state.dominationStreak,
+    starvationStreaks: [...state.starvationStreaks.entries()]
+      .map(([player, streak]) => ({ player: String(player), streak }))
+      .toSorted((left, right) => (left.player < right.player ? -1 : 1)),
     dominationN: state.dominationN,
   };
-  if (state.dominationHolder !== undefined) {
-    snap.dominationHolder = String(state.dominationHolder);
-  }
   if (state.winner !== undefined) {
     snap.winner = String(state.winner);
   }
@@ -891,12 +891,20 @@ export const seedFinishedState = (
 
 /**
  * A 3-player position where Alice (seat 1) `endTurn` leaves the last seat
- * (heuristic) active, and that seat's `endTurn` wraps the round and awards
- * starvation — real `makeRules(makeTiling()).apply`, not a fake RulesPort.
+ * (heuristic) active, and that seat's `endTurn` wraps the round and ends the
+ * match — real `makeRules(makeTiling()).apply`, not a fake RulesPort.
  *
  * Seat plan: Bob at 0, Alice at 1, heuristic at 2 (`startBobAliceHeuristic`).
+ *
+ * **P36 rewrote how this position ends.** It used to set `dominationStreak: 4`
+ * on one victim and let the wrap fire the old two-player starvation shortcut,
+ * which handed the match to the first surviving seat in array order. That
+ * shortcut is gone: a boundary now removes each qualifying seat and sets
+ * `winner` only when exactly **one** seat is left not lost. So the position
+ * strips territory from *two* of the three seats — both are lost immediately by
+ * `T = 0` (§9) — and Alice, who keeps hers, is the last seat standing.
  */
-export const authorStarvationWrapState = (): {
+export const authorWinningWrapState = (): {
   readonly state: GameState;
   readonly alicePlayer: string;
   readonly heuristicPlayer: string;
@@ -910,14 +918,15 @@ export const authorStarvationWrapState = (): {
     throw new Error('setup: expected 3 players');
   }
   const territory = new Map(
-    [...opening.territory.entries()].filter(([, owner]) => owner !== victim),
+    [...opening.territory.entries()].filter(
+      ([, owner]) => owner !== victim && owner !== heuristicPlayer,
+    ),
   );
   const state: GameState = {
     ...opening,
     activePlayer: alicePlayer,
     territory,
-    dominationStreak: 4,
-    dominationHolder: victim,
+    starvationStreaks: new Map(),
     winner: undefined,
   };
   const rules = makeRules(makeTiling());
@@ -928,15 +937,14 @@ export const authorStarvationWrapState = (): {
   if (afterHuman.activePlayer !== heuristicPlayer) {
     throw new Error('setup: human endTurn did not hand the heuristic seat');
   }
-  const afterAi = rules.apply(afterHuman, endTurn());
-  if (afterAi.winner === undefined) {
-    throw new Error('setup: heuristic endTurn did not set a winner');
-  }
+  // The winner is *asserted*, not read back off the engine: reading it back
+  // would turn a missing P36 boundary into a setup error instead of a failed
+  // expectation. Alice is the only seat that still owns territory.
   return {
     state,
     alicePlayer: String(alicePlayer),
     heuristicPlayer: String(heuristicPlayer),
-    winner: String(afterAi.winner),
+    winner: String(alicePlayer),
   };
 };
 

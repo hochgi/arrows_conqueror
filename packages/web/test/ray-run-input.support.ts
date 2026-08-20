@@ -71,8 +71,7 @@ export const blankState = (): GameState => ({
   territory: new Map(),
   accumulators: new Map(),
   spawners: new Map(),
-  dominationStreak: 0,
-  dominationHolder: undefined,
+  starvationStreaks: new Map(),
   dominationN: 5,
   winner: undefined,
 });

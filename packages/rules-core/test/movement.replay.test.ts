@@ -29,7 +29,18 @@ import { endTurn, skip, speed, step } from '@conquarrow/contracts';
 import type { GameState, Move } from '@conquarrow/contracts';
 import { MINIMAL, fixtureArrow } from '@conquarrow/geometry-fixtures';
 import { replay } from '../src/replay';
-import { A, B, headsOn, onBoard, ownerOf, snapshot, spentOn, stateOf, totalHeads } from './support';
+import {
+  A,
+  B,
+  headsOn,
+  onBoard,
+  owned,
+  ownerOf,
+  snapshot,
+  spentOn,
+  stateOf,
+  totalHeads,
+} from './support';
 
 const arrow = (from: string, to: string): ReturnType<typeof fixtureArrow> =>
   fixtureArrow(MINIMAL, from, to);
@@ -40,6 +51,10 @@ const A_SCOUT = arrow('2', '3');
 const A_GARRISON = arrow('3', '4');
 const B_HEAD = arrow('4', '5');
 const B_ADVANCE = arrow('5', '6');
+// Off the recorded path — land so the round wrap does not vanish either seat
+// (P36: no territory is a loss). The record itself is still a movement record.
+const A_HOME = arrow('6', '0');
+const B_HOME = arrow('2', '6');
 
 const INITIAL = (): GameState =>
   stateOf(
@@ -49,6 +64,7 @@ const INITIAL = (): GameState =>
       { arrow: B_HEAD, owner: B, heads: 1 },
     ],
     A,
+    { territory: [...owned([A_HOME], A), ...owned([B_HOME], B)] },
   );
 
 const MOVES: readonly Move[] = [

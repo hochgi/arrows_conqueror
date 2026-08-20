@@ -55,8 +55,7 @@ export const state = (spec: StateSpec = {}): GameState => {
     territory,
     accumulators: new Map<ArrowId, Rational>(),
     spawners: new Map<VertexId, never>(),
-    dominationStreak: 0,
-    dominationHolder: undefined,
+    starvationStreaks: new Map(),
     dominationN: 5,
     winner: spec.winner,
   } satisfies GameState;

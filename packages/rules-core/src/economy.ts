@@ -41,13 +41,14 @@ export const orderedBorders = (
 ): readonly ArrowId[] => [...geometry.borderArrows(vertex)].toSorted(compareArrows);
 
 /**
- * Reset accumulators on arrows whose territory owner just changed (capture).
+ * Reset accumulators on arrows whose territory owner just changed (capture, or
+ * reversion to unowned when `nextOwner` is unset).
  */
 export const resetAccumulatorsOnCapture = (
   state: GameState,
   taken: ReadonlySet<ArrowId>,
   previous: ReadonlyMap<ArrowId, PlayerId>,
-  nextOwner: PlayerId,
+  nextOwner: PlayerId | undefined,
 ): ReadonlyMap<ArrowId, Rational> => {
   let changed = false;
   const accumulators = new Map(state.accumulators);

@@ -26,6 +26,7 @@ import {
   headsOn,
   isEmpty,
   onBoard,
+  owned,
   pathFrom,
   snapshot,
   spentOn,
@@ -446,7 +447,11 @@ describe('the turn loop', () => {
     // step (§3, SPEC §11 item 20).
     const table = onBoard();
     const from = anArrow(table.geometry);
-    const before = stateOf([{ arrow: from, owner: A, heads: 4, spent: 3 }]);
+    // A scrap of land so the round boundary does not vanish the stack (P36:
+    // no territory is a loss). This case is about spent resetting, not losing.
+    const before = stateOf([{ arrow: from, owner: A, heads: 4, spent: 3 }], A, {
+      territory: owned([from], A),
+    });
 
     const after = table.rules.apply(table.rules.apply(before, endTurn()), endTurn());
 

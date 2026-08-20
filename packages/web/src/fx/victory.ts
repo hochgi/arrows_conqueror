@@ -1,22 +1,18 @@
 /**
  * Match-over celebration — a reading of frozen GameState for Board / Hud.
  *
- * Discriminant is `state.winner` plus living-head count. Does not reimplement
- * elimination / starvation in the engine, and does not read dominationStreak
- * for the banner.
+ * Discriminant is `state.winner` alone. The banner names the winner and nothing
+ * else; it does not read `starvationStreaks`.
  */
 
 import type { ArrowId, GameState, GeometryPort, PlayerId } from '@conquarrow/contracts';
 import { styleFor } from '../colors';
-
-export type VictoryHow = 'elimination' | 'starvation';
 
 export type VictoryFx =
   | { readonly kind: 'playing' }
   | {
       readonly kind: 'over';
       readonly winner: PlayerId;
-      readonly how: VictoryHow;
       readonly banner: string;
       readonly hint: string;
       readonly shineArrows: ReadonlySet<ArrowId>;
@@ -36,17 +32,6 @@ const cmpId = (left: unknown, right: unknown): number => {
   const b = String(right);
   return a < b ? -1 : a > b ? 1 : 0;
 };
-
-const headsOf = (state: GameState, player: PlayerId): number => {
-  let n = 0;
-  for (const group of state.groups.values()) {
-    if (group.owner === player) n += group.heads;
-  }
-  return n;
-};
-
-const livingCount = (state: GameState): number =>
-  state.players.filter((player) => headsOf(state, player) > 0).length;
 
 const shineArrowsOf = (
   state: GameState,
@@ -75,13 +60,10 @@ const pulseArrowsOf = (state: GameState, winner: PlayerId): ReadonlySet<ArrowId>
 export const victoryFx = (state: GameState, geometry: GeometryPort): VictoryFx => {
   const winner = state.winner;
   if (winner === undefined) return { kind: 'playing' };
-  const how: VictoryHow = livingCount(state) === 1 ? 'elimination' : 'starvation';
-  const howLabel = how === 'elimination' ? 'last head' : 'starvation';
   return {
     kind: 'over',
     winner,
-    how,
-    banner: `${styleFor(winner).label} wins — ${howLabel}`,
+    banner: `${styleFor(winner).label} wins`,
     hint: MATCH_OVER_HINT,
     shineArrows: shineArrowsOf(state, geometry, winner),
     pulseArrows: pulseArrowsOf(state, winner),

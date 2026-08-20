@@ -90,8 +90,8 @@ export interface Ground {
   readonly accumulators?: readonly (readonly [ArrowId, Rational])[];
   /** Authored spawners (P08). */
   readonly spawners?: readonly (readonly [VertexId, Spawner])[];
-  readonly dominationStreak?: number;
-  readonly dominationHolder?: PlayerId;
+  /** Per-seat starvation streaks (P36). Absent entries are zero. */
+  readonly starvationStreaks?: readonly (readonly [PlayerId, number])[];
   readonly dominationN?: number;
   readonly winner?: PlayerId;
 }
@@ -115,8 +115,7 @@ export const stateOf = (
   territory: new Map((ground.territory ?? []).map((t) => [t.arrow, t.owner] as const)),
   accumulators: new Map(ground.accumulators ?? []),
   spawners: new Map(ground.spawners ?? []),
-  dominationStreak: ground.dominationStreak ?? 0,
-  dominationHolder: ground.dominationHolder,
+  starvationStreaks: new Map(ground.starvationStreaks ?? []),
   dominationN: ground.dominationN ?? 5,
   winner: ground.winner,
 });
@@ -200,8 +199,7 @@ export const snapshot = (
   territory: readonly { arrow: string; owner: string }[];
   accumulators: readonly { arrow: string; num: number; den: number }[];
   spawners: readonly { vertex: string; num: number; den: number; phase: number }[];
-  dominationStreak: number;
-  dominationHolder: string | undefined;
+  starvationStreaks: readonly { player: string; streak: number }[];
   dominationN: number;
   winner: string | undefined;
 } => ({
@@ -230,8 +228,9 @@ export const snapshot = (
       phase: s.phase,
     }))
     .toSorted((left, right) => (left.vertex < right.vertex ? -1 : 1)),
-  dominationStreak: state.dominationStreak,
-  dominationHolder: state.dominationHolder === undefined ? undefined : String(state.dominationHolder),
+  starvationStreaks: [...state.starvationStreaks.entries()]
+    .map(([player, streak]) => ({ player: String(player), streak }))
+    .toSorted((left, right) => (left.player < right.player ? -1 : 1)),
   dominationN: state.dominationN,
   winner: state.winner === undefined ? undefined : String(state.winner),
 });

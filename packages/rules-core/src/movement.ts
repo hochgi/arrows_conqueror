@@ -37,7 +37,7 @@ import { accrueRound } from './economy';
 import { compareArrows } from './order';
 import { isSelfConvertStep, SELF_CONVERT_MESSAGE } from './selfConvert';
 import { makeTrailRules } from './trails';
-import { applyElimination, tickDomination } from './victory';
+import { resolveLosses, tickStarvation } from './victory';
 
 /**
  * Refuse a move. An illegal move is never a plausible no-op (P04 D2, D9): a
@@ -265,7 +265,10 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
       trails.anchorGrade,
       cuts.evaporateFromArrow,
     );
-    return applyElimination(afterConvert);
+    // P36: no loss is evaluated inside a step, a skip or a convert — the round
+    // boundary owns it (§9, invariants 11-12). A turn stays atomic with respect
+    // to removals.
+    return afterConvert;
   };
 
   /**
@@ -278,8 +281,10 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     return state;
   };
 
-  /** Next seat in turn order (§4). Empty seats still receive the chair — they
-   * can only `endTurn`, and the hot-seat adapter auto-passes them. */
+  /** Next seat in turn order (§4). **Nobody is ever skipped** (§9 / P36): a lost
+   * seat, and a seat with a share but no heads, still receive the chair — they
+   * can only `endTurn`, and the hot-seat adapter auto-passes them. Skipping would
+   * move or destroy the `players[0]` boundary marker that accrual depends on. */
   const nextPlayer = (state: GameState): PlayerId => {
     const start = state.players.indexOf(state.activePlayer);
     if (start < 0) {
@@ -299,6 +304,11 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
    *
    * P08: when the next seat is `players[0]`, a full round has closed and every
    * spawner accrues one round-robin step (§7 / §11 item 41).
+   *
+   * P36: that same boundary is where losing resolves, and the order is fixed —
+   * accrue, advance the starvation clocks, resolve losses. `players[0]` is the
+   * marker whether or not that seat is still playing; there is no *first living
+   * player* reading of the boundary (§9).
    */
   const applyEndTurn = (state: GameState): GameState => {
     const next = nextPlayer(state);
@@ -311,9 +321,12 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     };
     const roundStart = handed.players[0];
     if (roundStart === undefined || next !== roundStart) return handed;
-    // Full round: accrue, then starvation streak (§9 / P08 item 41 boundary).
+    // Full round (§9 / P36): accrue, then tick starvation, then resolve losses.
+    // Tick-before-resolve is load-bearing: a seat is lost on the round its streak
+    // reaches dominationN, not the round after. Accrue-first cannot rescue a lost
+    // or destitute seat — they own no share (share theorem).
     const accrued = accrueRound(handed, geometry);
-    return applyElimination(tickDomination(accrued, geometry));
+    return resolveLosses(tickStarvation(accrued, geometry), geometry);
   };
 
   /**

@@ -16,5 +16,13 @@
  */
 
 export { makeRules } from './movement';
+export {
+  headsOf,
+  isLost,
+  resolveLosses,
+  shareCountOf,
+  territoryCountOf,
+  tickStarvation,
+} from './victory';
 export { replay, replayIsDeterministic } from './replay';
 export type { ReplayOptions } from './replay';

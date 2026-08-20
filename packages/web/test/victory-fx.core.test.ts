@@ -19,7 +19,6 @@ import {
   eliminationBoard,
   geometry,
   hintOf,
-  howOf,
   playingBoard,
   pulseOf,
   shineBoard,
@@ -29,22 +28,25 @@ import {
 } from './victory-fx.support';
 
 describe('Win board celebration — banner, shine, pulse, quiet board', () => {
-  it('Elimination names last head', () => {
-    const { state, a } = eliminationBoard();
+  // P36 repeals both mechanism-naming scenarios in this Rule. Locked banner:
+  // `{label} wins` — see docs/spec/losing-conditions/losing-conditions.md.
+  it('Elimination names the winner, not a mechanism', () => {
+    const { state } = eliminationBoard();
     const fx = victoryFx(state, geometry);
-    expect(howOf(fx)).toBe('elimination');
-    expect(bannerOf(fx)).toBe(`${styleFor(a).label} wins — last head`);
-    expect(bannerOf(fx)).toBe('Player A wins — last head');
+    expect('how' in fx).toBe(false);
+    expect(bannerOf(fx)).toBe('Player A wins');
   });
 
-  it('Starvation keeps the victim alive', () => {
-    const { state, a, b, gB } = starvationBoard();
+  it('A win with the victim still on the board names no mechanism either', () => {
+    // This board is now unreachable from the engine — P36 removes the loser's
+    // heads — but it is exactly the state the repealed `how` derivation keyed
+    // off, so it is worth pinning that the banner does not branch on it.
+    const { state, b, gB } = starvationBoard();
     expect(state.groups.get(gB)?.owner).toBe(b);
     expect(state.groups.get(gB)?.heads).toBeGreaterThan(0);
     const fx = victoryFx(state, geometry);
-    expect(howOf(fx)).toBe('starvation');
-    expect(bannerOf(fx)).toBe(`${styleFor(a).label} wins — starvation`);
-    expect(bannerOf(fx)).toBe('Player A wins — starvation');
+    expect('how' in fx).toBe(false);
+    expect(bannerOf(fx)).toBe('Player A wins');
   });
 
   it('In play the turn banner is unchanged', () => {
