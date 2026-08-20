@@ -82,7 +82,7 @@ export const RouteDock = ({
       <div className="route-dock-count">
         <button
           type="button"
-          aria-label="Carry fewer heads"
+          aria-label="Send one fewer head on this run"
           disabled={fewer === undefined}
           onClick={() => {
             if (fewer !== undefined) onCount(fewer);
@@ -96,7 +96,7 @@ export const RouteDock = ({
         </span>
         <button
           type="button"
-          aria-label="Carry more heads"
+          aria-label="Send one more head on this run"
           disabled={more === undefined}
           onClick={() => {
             if (more !== undefined) onCount(more);
