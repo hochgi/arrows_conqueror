@@ -30,7 +30,7 @@
 
 import type { ArrowId, GameState, GeometryPort, PlayerId } from '@conquarrow/contracts';
 import { resetAccumulatorsOnCapture } from './economy';
-import { compareArrows, compareVertices } from './order';
+import { compareArrows } from './order';
 
 export const headsOf = (state: GameState, player: PlayerId): number => {
   let total = 0;
@@ -49,19 +49,31 @@ export const territoryCountOf = (state: GameState, player: PlayerId): number => 
   return n;
 };
 
-/** How many spawner-border arrows this player owns as territory. */
+/**
+ * How many **distinct** spawner-border arrows this player holds as territory —
+ * the *S* reading of the decided table.
+ *
+ * Deduplicated by arrow: an arrow flanking two spawner vertices is one piece of
+ * territory and counts once. Every rule here reads only whether this is zero, but
+ * a count that could exceed the arrows it counted is a wrong answer waiting for
+ * its first reader, and this is exported.
+ *
+ * No ordering: a set's size does not depend on the order it was filled, so the
+ * spawner and border walks are taken as the port hands them over. Sorting them
+ * would only read as if the order decided something.
+ */
 export const shareCountOf = (
   state: GameState,
   player: PlayerId,
   geometry: GeometryPort,
 ): number => {
-  let n = 0;
-  for (const vertex of [...state.spawners.keys()].toSorted(compareVertices)) {
-    for (const arrow of [...geometry.borderArrows(vertex)].toSorted(compareArrows)) {
-      if (state.territory.get(arrow) === player) n += 1;
+  const owned = new Set<ArrowId>();
+  for (const vertex of state.spawners.keys()) {
+    for (const arrow of geometry.borderArrows(vertex)) {
+      if (state.territory.get(arrow) === player) owned.add(arrow);
     }
   }
-  return n;
+  return owned.size;
 };
 
 /**
