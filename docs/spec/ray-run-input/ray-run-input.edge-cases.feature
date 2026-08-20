@@ -22,25 +22,33 @@ Feature: Route drafting at the boundaries
       And that enemy arrow is not in the clickable set
       And no arrow beyond it is in the clickable set by way of slot 0
 
-    Scenario: An enemy-held arrow one step out is offered when a sentry stays behind
+    # P35: no carry is set before the click — the offer walks at 8 and at 7, so
+    # the arrow is offered and the drafted run carries 7.
+    Scenario: An enemy-held arrow one step out is offered, with a sentry left behind
       Given the first arrow along slot 0 holds an enemy stack
       And S1 holds 8 heads
-      And the carry is set to 7
       When the clickable set is built
       Then that enemy arrow is in the clickable set
+      And the run drafted to it carries 7
 
-    Scenario: An enemy-held arrow one step out is withdrawn when the carry empties the tip
+    # Superseded by P35: there is no carry before a click, and the offer walks the
+    # run at `heads` and at `heads - 1`, so this arrow is offered rather than
+    # withdrawn. See docs/spec/count-after-route/count-after-route.md.
+    Scenario: An enemy-held arrow one step out is offered, armed one head short
       Given the first arrow along slot 0 holds an enemy stack
       And S1 holds 8 heads
-      And the carry is set to 8
       When the clickable set is built
-      Then that enemy arrow is not in the clickable set
+      Then that enemy arrow is in the clickable set
+      And clicking it drafts a run carrying 7
 
-    Scenario: The refusal names the stay-behind when that is the only obstacle
-      Given the first arrow along slot 0 holds an enemy stack
-      And the carry equals the head count at the tip
+    # Retired by P35. With the attack armed before the click, the only states
+    # left for `needs-stay-behind` were a terminal tip and a draft at MAX_DEPTH —
+    # where no count makes the arrow clickable, so "an attack must leave a head
+    # behind" would have been a lie. Those now fall through to out-of-reach.
+    Scenario: An enemy-held arrow no count can attack refuses as out of reach
+      Given an adjacent enemy-held arrow that no count can attack from this tip
       When the active player clicks that enemy arrow
-      Then the click is refused with reason needs-stay-behind
+      Then the click is refused with reason out-of-reach
       And the draft is unchanged
 
     Scenario: A ray stops at a merge, and the merge arrow is clickable
@@ -209,54 +217,57 @@ Feature: Route drafting at the boundaries
       When the active player pops to the first walked arrow
       Then the tip head count is 8
 
-    Scenario: A pop does not change the carry
-      Given the active player has drafted a four step route with a carry of 8
-      When the active player pops to the second walked arrow
-      Then the carry is still 8
+    # P35: the count belongs to a run, so a pop restores the count of the run it
+    # lands in rather than carrying one value across the whole route.
+    Scenario: A pop restores the count of the run it lands in
+      Given the active player has drafted two runs at different counts
+      When the active player pops to the boundary between them
+      Then the count is the first run's count
 
-  Rule: The carry never rewrites what is already drafted
+  # P35: the count rewrites the *last run* and nothing earlier.
+  Rule: The count rewrites the last run and nothing earlier
 
-    Scenario: Lowering the carry mid-route leaves earlier moves alone
-      Given the active player has drafted a two step route with a carry of 8
-      When the carry is set to 4
-      Then the two drafted moves still carry a count of 8
+    Scenario: Lowering the count mid-route leaves earlier runs alone
+      Given the active player has drafted a run of two steps and then a further run
+      When the count of the last run is lowered
+      Then the first run's moves still carry their original count
 
-    Scenario: Lowering the carry mid-route shortens only what is still offered
-      Given the active player has drafted a two step route with a carry of 8
-      When the carry is set to 4
-      Then the clickable set is the one a carry of 4 can reach from the tip
+    Scenario: Lowering the count mid-route shortens only what is still offered
+      Given the active player has drafted a run of two steps carrying 8
+      When the count of the last run is set to 4
+      Then the clickable set is the one 4 heads can reach from the tip
 
-    Scenario: A carry larger than the heads at the tip is not offerable
-      Given the active player has drafted a route whose tip holds 4 heads
-      Then no offerable carry exceeds 4
+    Scenario: A count larger than the heads at the run's start is not offerable
+      Given the active player has drafted a run that began on an arrow holding 4 heads
+      Then no offerable count exceeds 4
 
-    Scenario: A carry of every head leaves no sentry
+    Scenario: A count of every head leaves no sentry
       Given the active player has clicked a0 with 8 heads
-      And the carry is 8
       When the active player clicks the ray arrow one step along slot 0
       And sends
       Then no heads remain on a0 after the host applies the moves
 
     Scenario: Splitting twice along one route leaves two sentries
       Given the active player has clicked a0 with 12 heads
-      When the carry is set to 8 and the ray arrow one step along slot 0 is clicked
-      And the carry is set to 4 and the ray arrow one step along slot 0 is clicked
+      When the ray arrow one step along slot 0 is clicked and the count is set to 8
+      And the ray arrow one step along slot 0 is clicked again and the count is set to 4
       And the active player sends
       Then 4 heads remain on a0
       And 4 heads remain on the first walked arrow
 
     Scenario: Combat on the first hop reduces the tip head count and ends the draft
       Given the active player has clicked a0 with 8 heads
-      And the carry is set to 7
       When the active player clicks an adjacent arrow holding an enemy stack
       Then the tip head count is the surviving count of the attackers that landed
       And the clickable set from the tip is empty
 
-    Scenario: A merge grows the tip head count above the carry
+    # P35: the ceiling is the heads where the *run began*, so a merge raises the
+    # tip's head count without raising the count offered for the run that merged.
+    Scenario: A merge grows the tip head count above the run's count
       Given the active player has clicked a0 with 8 heads
       When the active player clicks an adjacent arrow holding 3 of the player's own heads
       Then the tip head count is 11
-      And no offerable carry exceeds 11
+      And no offerable count exceeds 8
 
   Rule: Turn flow and the rest of the app are undisturbed
 

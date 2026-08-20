@@ -9,8 +9,8 @@
  * - **The stay-behind bounds where a run can attack** (§6.2 / §11 item 38). A run
  *   moves the whole carry, so after its first hop `count = heads` at the tip. A
  *   ray therefore ends *before* an enemy-held arrow at distance ≥ 2, and an
- *   adjacent one is offered only while `carry ≤ tipHeads − 1` — the carry control
- *   is how an attack is armed, and `needs-stay-behind` is the refusal that says so.
+ *   adjacent one is walkable only at `count ≤ tipHeads − 1` — which is why, since
+ *   P35, the *offer* arms the attack by walking the run at one head fewer.
  * - **Terminal steps end the draft.** A merge, a closure or resolved combat
  *   changes the board the un-applied draft is drawn against, so the clickable set
  *   from that tip is empty: Send or pop, nothing else. Detected by diffing the
@@ -26,6 +26,7 @@ import { playHighlightsAllowed, victoryFx } from '../src/fx/victory';
 import { refusedConvertExits } from '../src/refusedConvert';
 import { buildRouteOffer, isTerminalStep, routePaint } from '../src/route';
 import { selectionPaint } from '../src/selectionChrome';
+import { inputsFromPhase } from './count-after-route.support';
 import {
   A,
   B,
@@ -104,20 +105,43 @@ describe('P34 edge — a ray stops where the engine stops, and is never painted 
     expect(option?.steps).toHaveLength(1);
   });
 
-  it('An enemy-held arrow one step out is withdrawn when the carry empties the tip', () => {
+  /**
+   * **Revised by P35.** P34 withdrew an adjacent enemy arrow while the carry
+   * equalled the heads at the tip, because the carry was chosen *before* the
+   * click. P35 removes that gesture, so the offer arms the attack instead: the
+   * arrow is clickable because *some* count reaches it, and the run drafts at
+   * `heads - 1`. The withdrawal it used to assert would now make attacking
+   * unreachable altogether.
+   */
+  it('An enemy-held arrow one step out is offered at full strength, armed at one head fewer', () => {
     const state = stateWith([
       [from, { owner: A, heads: 8 }],
       [first, { owner: B, heads: 2 }],
     ]);
     const offer = buildRouteOffer(inputsAt(board, state, from, 8));
-    expect(offer.clickable.has(first)).toBe(false);
-    expect((offer.rays[0] ?? []).map(String)).toEqual([]);
-    // Only that ray is withdrawn — the other two still run.
+    expect(offer.clickable.has(first)).toBe(true);
+    expect((offer.rays[0] ?? []).map(String)).toEqual([String(first)]);
+    // A terminal step, so the ray stops on it and the other two still run.
     expect((offer.rays[1] ?? []).length).toBeGreaterThan(0);
     expect((offer.rays[2] ?? []).length).toBeGreaterThan(0);
+    const selected = selectRoute(board, state, from);
+    const snap = clickArrow(selected, first);
+    const drafted = draftOf(snap)[0];
+    expect(drafted?.kind).toBe('step');
+    if (drafted?.kind !== 'step') return;
+    expect(drafted.count).toBe(7);
   });
 
-  it('The refusal names the stay-behind when that is the only obstacle', () => {
+  /**
+   * **Revised by P35.** P34 refused this click and named the stay-behind, because
+   * the carry had to be lowered before clicking. P35 arms the attack from the
+   * count *after* the click, so the click drafts a run at `heads - 1` and there
+   * is nothing to refuse. The `needs-stay-behind` reason is retired with the
+   * gesture it described: the states it could still be reached from — a terminal
+   * tip, the depth cap — are ones where no count makes the arrow clickable, so it
+   * would have named a fix that does not exist. They answer `out-of-reach`.
+   */
+  it('An adjacent enemy click drafts the attack instead of refusing it', () => {
     const state = stateWith([
       [from, { owner: A, heads: 8 }],
       [first, { owner: B, heads: 2 }],
@@ -125,9 +149,13 @@ describe('P34 edge — a ray stops where the engine stops, and is never painted 
     const selected = selectRoute(board, state, from);
     expect(selected.phase.carry).toBe(8);
     const snap = clickArrow(selected, first);
-    expect(snap.refusal?.arrow).toBe(first);
-    expect(snap.refusal?.reason).toBe('needs-stay-behind');
-    expect(draftOf(snap)).toHaveLength(0);
+    expect(snap.refusal).toBeUndefined();
+    expect(draftOf(snap)).toHaveLength(1);
+    const drafted = draftOf(snap)[0];
+    expect(drafted?.kind).toBe('step');
+    if (drafted?.kind !== 'step') return;
+    expect(drafted.count).toBe(7);
+    // Still nothing applied — a drafted attack is a draft.
     expect(pendingOf(snap)).toHaveLength(0);
   });
 
@@ -440,8 +468,16 @@ describe('P34 edge — the clickable set is exactly the unique-route set', () =>
 });
 
 describe('P34 edge — popping and extending compose without leaking state', () => {
+  /**
+   * **Revised by P35.** Four steps off *eight* heads is a forced count and a spent
+   * allowance, so the click applies instead of drafting (*Auto-apply — the exact
+   * test*). Twelve walks the same four arrows with a count still to choose, which
+   * is what these pop scenarios are about.
+   */
+  const POPS_FROM_FOUR = 12;
+
   const draftFourThenPop = () => {
-    const selected = selectOpenField(8);
+    const selected = selectOpenField(POPS_FROM_FOUR);
     const full = clickArrow(selected, fourth);
     const original = [...draftOf(full)];
     const popped = clickArrow(selected, second);
@@ -463,8 +499,8 @@ describe('P34 edge — popping and extending compose without leaking state', () 
   });
 
   it('Popping then cancelling applies nothing', () => {
-    const state = openField(from, 8);
-    const before = openField(from, 8);
+    const state = openField(from, POPS_FROM_FOUR);
+    const before = openField(from, POPS_FROM_FOUR);
     const selected = selectRoute(board, state, from);
     clickArrow(selected, fourth);
     clickArrow(selected, second);
@@ -488,48 +524,79 @@ describe('P34 edge — popping and extending compose without leaking state', () 
     expect(routePhaseOf(popped).tipHeads).toBe(8);
   });
 
-  it('A pop does not change the carry', () => {
+  /**
+   * **Revised by P35.** P34's carry rode across a pop because it was a
+   * forward-only choice made before the click. P35's count belongs to the run it
+   * was set on, so a pop restores the count of the run it lands in — here the
+   * truncated first run, still at the full strength it was drafted with.
+   */
+  it('A pop restores the count of the run it lands in', () => {
     const selected = selectRoute(board, openField(from, 12), from);
-    selected.mode.setCarry(8);
     clickArrow(selected, fourth);
     const popped = clickArrow(selected, second);
-    expect(routePhaseOf(popped).carry).toBe(8);
+    expect(routePhaseOf(popped).carry).toBe(12);
+    // The one run it was drafted as, truncated by the pop (P35 `runLengths`).
+    expect(routePhaseOf(popped).runLengths).toEqual([2]);
   });
 });
 
-describe('P34 edge — the carry never rewrites what is already drafted', () => {
-  it('Lowering the carry mid-route leaves earlier moves alone', () => {
+/**
+ * **Revised by P35.** P34's rule was *forward-only*: a carry change never touched
+ * a drafted move. P35 keeps exactly half of that — earlier runs stay
+ * byte-identical — and repeals the other half, because the whole feature is that
+ * the count addresses the run **behind** the click. The scenarios below are the
+ * P34 ones with that one clause moved; the full statements live in
+ * `count-after-route.invariants.test.ts` (invariants 7 and 8).
+ */
+describe('P34 edge — the carry rewrites the last run and nothing earlier', () => {
+  it('Lowering the carry mid-route leaves earlier runs alone', () => {
     const selected = selectOpenField(8);
     const drafted = clickArrow(selected, second);
     const original = [...draftOf(drafted)];
+    const extended = clickArrow(selected, third);
+    expect(draftOf(extended)).toHaveLength(3);
     const lowered = selected.mode.setCarry(4);
-    expect(draftOf(lowered)).toEqual(original);
-    for (const move of draftOf(lowered)) {
-      expect(move.kind).toBe('step');
-      if (move.kind !== 'step') continue;
-      expect(move.count).toBe(8);
-    }
+    // The first run is untouched…
+    expect(draftOf(lowered).slice(0, 2)).toEqual(original);
+    // …and the run the count was set on carries the new number.
+    const last = draftOf(lowered)[2];
+    expect(last?.kind).toBe('step');
+    if (last?.kind !== 'step') return;
+    expect(last.count).toBe(4);
   });
 
   it('Lowering the carry mid-route shortens only what is still offered', () => {
-    const selected = selectOpenField(8);
+    // Sixteen heads, lowered to eight: the tip still has a step left after the
+    // rewrite — the point is that the offer *shrinks*, which an empty offer could
+    // not show — and the two counts have to straddle an allowance boundary for
+    // there to be any shrinking at all, which 12 and 8 do not (`speed` is 4 for
+    // both). `speed(16) = 5`, `speed(8) = 4`.
+    const selected = selectRoute(board, openField(from, 16), from);
     clickArrow(selected, second);
-    const lowered = selected.mode.setCarry(4);
-    const expected = buildRouteOffer(
-      inputsAfter(board, selected.state, from, raySlotWalk(geometry, from, 0, 2), 8, 4),
-    );
+    const full = clickableOf(clickArrow(selected, third)).size;
+    const lowered = selected.mode.setCarry(8);
+    const phase = routePhaseOf(lowered);
+    expect(phase.tipHeads).toBe(8);
+    // Measured against the draft as it now stands — the last run re-emitted at 8.
+    const expected = buildRouteOffer(inputsFromPhase(board, selected.state, phase));
     expect(expected.clickable.size).toBeGreaterThan(0);
+    expect(expected.clickable.size).toBeLessThan(full);
     expect(sortedIds(clickableOf(lowered).keys())).toEqual(sortedIds(expected.clickable.keys()));
   });
 
-  it('A carry larger than the heads at the tip is not offerable', () => {
+  it("A carry larger than the heads at the run's start is not offerable", () => {
     const selected = selectRoute(board, openField(from, 12), from);
-    selected.mode.setCarry(4);
     const snap = clickArrow(selected, first);
     const phase = routePhaseOf(snap);
-    expect(phase.tipHeads).toBe(4);
+    expect(phase.tipHeads).toBe(12);
     expect(phase.offer.carries.length).toBeGreaterThan(0);
-    for (const carry of phase.offer.carries) expect(carry).toBeLessThanOrEqual(4);
+    // The ceiling is the heads standing where the run began, not at its tip.
+    for (const carry of phase.offer.carries) expect(carry).toBeLessThanOrEqual(12);
+    const lowered = selected.mode.setCarry(4);
+    expect(routePhaseOf(lowered).tipHeads).toBe(4);
+    for (const carry of routePhaseOf(lowered).offer.carries) {
+      expect(carry).toBeLessThanOrEqual(12);
+    }
   });
 
   it('A carry of every head leaves no sentry', () => {
@@ -544,12 +611,14 @@ describe('P34 edge — the carry never rewrites what is already drafted', () => 
   });
 
   it('Splitting twice along one route leaves two sentries', () => {
+    // P35 order: click, then count — each run's count set after the click that
+    // named it. The emitted list is the one P34 emitted.
     const state = openField(from, 12);
     const selected = selectRoute(board, state, from);
-    selected.mode.setCarry(8);
     clickArrow(selected, first);
-    selected.mode.setCarry(4);
+    selected.mode.setCarry(8);
     clickArrow(selected, second);
+    selected.mode.setCarry(4);
     const sent = pendingOf(selected.mode.send());
     expect(sent).toHaveLength(2);
     let applied = state;
@@ -559,13 +628,16 @@ describe('P34 edge — the carry never rewrites what is already drafted', () => 
     expect(headsOn(applied, second)).toBe(4);
   });
 
+  /**
+   * **Revised by P35.** The `setCarry(7)` this used to need is gone: the click
+   * itself drafts the attack at `heads - 1`, which is the same 7.
+   */
   it('Combat on the first hop reduces the tip head count and ends the draft', () => {
     const state = stateWith([
       [from, { owner: A, heads: 8 }],
       [first, { owner: B, heads: 6 }],
     ]);
     const selected = selectRoute(board, state, from);
-    selected.mode.setCarry(7);
     const snap = clickArrow(selected, first);
     const phase = routePhaseOf(snap);
     // The surviving count of the attackers that landed, measured by the engine.

@@ -44,14 +44,22 @@ describe('P34 replay — a drafted route applies as one ordered batch', () => {
   const second = arrowAlong(geometry, from, 0, 2);
   const third = arrowAlong(geometry, from, 0, 3);
 
-  /** Twelve heads: eight walk two steps, then four walk one more. */
+  /**
+   * Twelve heads: eight walk two steps, then four walk one more.
+   *
+   * **Revised by P35**: each count is set *after* the click that named its run,
+   * not before. The emitted list is byte-identical to the one P34 asserted, which
+   * is the point — the inversion changes when the question is asked, not what a
+   * route may be. The P35 suite asserts the same golden from its own side
+   * (`count-after-route.replay.test.ts`).
+   */
   const draftTwoRunsWithASplit = () => {
     const state = openField(from, 12);
     const selected = selectRoute(board, state, from);
-    selected.mode.setCarry(8);
     clickArrow(selected, second);
-    selected.mode.setCarry(4);
+    selected.mode.setCarry(8);
     clickArrow(selected, third);
+    selected.mode.setCarry(4);
     return { state, sent: pendingOf(selected.mode.send()) };
   };
 

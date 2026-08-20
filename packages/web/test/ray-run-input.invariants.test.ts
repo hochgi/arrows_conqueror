@@ -23,9 +23,9 @@
  * rule.
  *
  * Four of the twenty came out of phase 2's kickback and need their guards most:
- * the stay-behind bound on where a run may attack, the withdrawal of an adjacent
- * enemy arrow once the carry empties the tip, the empty offer at a terminal tip,
- * and the `needs-stay-behind` refusal. A terminal tip's offer is *supposed* to be
+ * the stay-behind bound on where a run may attack, the handling of an adjacent
+ * enemy arrow the whole carry cannot take, the empty offer at a terminal tip, and
+ * the refusal a click on it earns. A terminal tip's offer is *supposed* to be
  * empty, so that property pops the draft back and insists the offer returns —
  * otherwise an unimplemented helper satisfies it by doing nothing.
  */
@@ -264,7 +264,16 @@ describe('P34 invariants', () => {
     expect(checked).toBe(18);
   });
 
-  it('While the carry equals the head count at the tip, the system shall not offer an arrow holding enemy heads.', () => {
+  /**
+   * **Revised by P35.** P34's statement was *while the carry equals the heads at
+   * the tip, no enemy arrow is offered* — true of a carry chosen before the
+   * click, and fatal after it, because there is no lower carry to choose any
+   * more. The corrected rule is by **distance**: an adjacent enemy arrow is
+   * offered (armed at `heads - 1`), and one at distance two or more is not,
+   * because no single count walks a run whose later step attacks. See
+   * `count-after-route.invariants.test.ts` invariants 4 and 7.
+   */
+  it('The system shall offer an adjacent enemy-held arrow and no more distant one.', () => {
     let checked = 0;
     for (const heads of [2, 4, 8]) {
       for (const slot of SLOTS) {
@@ -276,9 +285,9 @@ describe('P34 invariants', () => {
           ]);
           const where = `${String(heads)} heads, slot ${String(slot)}, distance ${String(distance)}`;
           const full = clickableSet(inputsAt(board, state, from, heads));
-          expect(full.has(enemy), where).toBe(false);
+          expect(full.has(enemy), where).toBe(distance === 1);
           if (distance === 1) {
-            // Non-vacuity: leaving one head behind arms exactly that attack.
+            // The same arrow, measured with a head already left behind.
             const armed = clickableSet(inputsAt(board, state, from, heads - 1));
             expect(armed.has(enemy), `${where} armed`).toBe(true);
           }
@@ -287,6 +296,14 @@ describe('P34 invariants', () => {
       }
     }
     expect(checked).toBe(18);
+    // A lone head still cannot attack at any count.
+    const lone = stateWith([
+      [from, { owner: A, heads: 1 }],
+      [arrowAlong(geometry, from, 0, 1), { owner: B, heads: 2 }],
+    ]);
+    expect(clickableSet(inputsAt(board, lone, from, 1)).has(arrowAlong(geometry, from, 0, 1))).toBe(
+      false,
+    );
   });
 
   it('When a hop merges, closes, or resolves combat, the system shall offer nothing further from that tip.', () => {
@@ -324,7 +341,15 @@ describe('P34 invariants', () => {
     ).toBe(false);
   });
 
-  it('If an adjacent enemy-held arrow is unofferable only because an attack would empty the tip, then the system shall refuse it with `needs-stay-behind`.', () => {
+  /**
+   * **Revised by P35.** The antecedent — *an adjacent enemy arrow unofferable
+   * only because an attack would empty the tip* — is now unreachable: such an
+   * arrow is offerable, and the click drafts the attack at `heads - 1`. So the
+   * P34 implication is vacuously true, and the reason it named is retired. What
+   * is asserted instead is the behaviour that replaced it, over the same bank: the
+   * click drafts, refuses nothing, and applies nothing.
+   */
+  it('An adjacent enemy-held arrow shall be drafted at one head fewer rather than refused.', () => {
     let checked = 0;
     for (const heads of [2, 4, 8]) {
       for (const slot of SLOTS) {
@@ -341,17 +366,16 @@ describe('P34 invariants', () => {
         const where = `${String(heads)} heads, slot ${String(slot)}`;
         expect(selected.phase.carry, where).toBe(heads);
         const snap = clickArrow(selected, enemy);
-        expect(snap.refusal?.arrow, where).toBe(enemy);
-        expect(snap.refusal?.reason, where).toBe('needs-stay-behind');
-        expect(draftOf(snap), where).toHaveLength(0);
-        expect(pendingOf(snap), where).toHaveLength(0);
+        expect(snap.refusal, where).toBeUndefined();
+        const drafted = (snap.pending ?? draftOf(snap))[0];
+        expect(drafted?.kind, where).toBe('step');
+        if (drafted?.kind === 'step') expect(drafted.count, where).toBe(heads - 1);
         expect(state, where).toEqual(untouched);
         checked += 1;
       }
     }
     expect(checked).toBe(9);
-    // Where the stay-behind is not the only obstacle — the arrow is not even one
-    // hop away — the reason stays `out-of-reach`.
+    // An enemy arrow no count can reach is still `out-of-reach`.
     const far = arrowAlong(geometry, from, 0, 3);
     const farState = stateWith([
       [from, { owner: A, heads: 8 }],
@@ -479,7 +503,9 @@ describe('P34 invariants', () => {
       [arrowAlong(geometry, from, 0, 2), arrowAlong(geometry, arrowAlong(geometry, from, 0, 2), 1, 2)],
     ];
     for (const clicks of routes) {
-      const selected = selectRoute(board, openField(from, 8), from);
+      // Twelve, not eight: four steps off `2^(k-1)` heads auto-applies under P35
+      // and there would be no draft to send. `speed(12) = 4` walks the same four.
+      const selected = selectRoute(board, openField(from, 12), from);
       let snap = selected.snap;
       for (const arrow of clicks) snap = clickArrow(selected, arrow);
       const draft = [...draftOf(snap)];
@@ -491,12 +517,14 @@ describe('P34 invariants', () => {
 
   it('When a drafted arrow is clicked, the system shall discard every move after it and no move before it.', () => {
     const target = arrowAlong(geometry, from, 0, 4);
-    const reference = selectRoute(board, openField(from, 8), from);
+    // Twelve, not eight: see the note above — four steps off eight heads applies
+    // on the click, leaving nothing to pop back through.
+    const reference = selectRoute(board, openField(from, 12), from);
     const full = [...draftOf(clickArrow(reference, target))];
     expect(full).toHaveLength(4);
     const exits = exitsOf(full);
     for (const [index, arrow] of exits.entries()) {
-      const selected = selectRoute(board, openField(from, 8), from);
+      const selected = selectRoute(board, openField(from, 12), from);
       clickArrow(selected, target);
       const popped = clickArrow(selected, arrow);
       expect(draftOf(popped), `pop to ${String(index)}`).toEqual(full.slice(0, index + 1));
@@ -504,14 +532,22 @@ describe('P34 invariants', () => {
     }
   });
 
-  it('When the carry changes, the system shall leave every already-drafted move unchanged.', () => {
+  /**
+   * **Revised by P35.** The P34 statement was *every already-drafted move*; P35
+   * narrows it to *every earlier run's moves*, because rewriting the last run is
+   * the feature. The full pair of statements — earlier runs byte-identical, and
+   * exactly `lastRunLength` moves re-emitted — is
+   * `count-after-route.invariants.test.ts` invariants 7 and 8.
+   */
+  it("When the carry changes, the system shall leave every earlier run's moves unchanged.", () => {
     const selected = selectRoute(board, openField(from, 8), from);
     const drafted = clickArrow(selected, arrowAlong(geometry, from, 0, 2));
     const original = [...draftOf(drafted)];
     expect(original).toHaveLength(2);
+    clickArrow(selected, arrowAlong(geometry, from, 0, 3));
     for (const carry of [1, 2, 3, 4, 5, 6, 7, 8]) {
       const snap = selected.mode.setCarry(carry);
-      expect(draftOf(snap), `carry ${String(carry)}`).toEqual(original);
+      expect(draftOf(snap).slice(0, 2), `carry ${String(carry)}`).toEqual(original);
     }
   });
 
@@ -561,13 +597,16 @@ describe('P34 invariants', () => {
     expect(mergedPhase.tipHeads).toBe(11);
     expect(mergedPhase.tipHeads).toBe(headsOn(mergedAfter.state, mergedPhase.tip));
 
+    // P35: the click drafts the attack itself, at `heads - 1` of the twelve.
     const fight = selectRoute(board, enemyState(), from);
-    fight.mode.setCarry(8);
     const fought = clickArrow(fight, arrowAlong(geometry, from, 1, 1));
     const phase = routePhaseOf(fought);
-    const after = walkSteps(board, fight.state, from, exitsOf(phase.draft), 8);
+    const fightMove = phase.draft[0];
+    expect(fightMove?.kind).toBe('step');
+    if (fightMove?.kind !== 'step') return;
+    expect(fightMove.count).toBe(11);
+    const after = walkSteps(board, fight.state, from, exitsOf(phase.draft), fightMove.count);
     expect(phase.tipHeads).toBe(headsOn(after.state, phase.tip));
-    expect(phase.tipHeads).toBe(8);
 
     // And on the plain case it is the carry only because that is what arrived.
     const plain = selectRoute(board, openField(from, 8), from);

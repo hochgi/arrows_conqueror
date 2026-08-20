@@ -597,6 +597,10 @@ export const terminalFixtures = (): readonly TerminalFixture[] => {
       poppedLength: 1,
     },
     {
+      // P35: the click alone reaches this now — an adjacent enemy arrow is
+      // clickable and its run drafts at `heads - 1`, which is the 7 named here.
+      // The `setCarry` in `draftToTerminalTip` is a no-op under P35 and is kept
+      // only so this fixture reads the same on either model.
       label: 'resolves combat against an enemy stack',
       board: tiling,
       state: stateWith([

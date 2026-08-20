@@ -62,6 +62,18 @@ const SLOTS = [0, 1, 2] as const;
 /** Eight heads walk four steps. */
 const HEADS = 8;
 
+/**
+ * Twelve heads walk four steps **with a count still to choose**.
+ *
+ * **Revised by P35.** A four step click off eight heads is now
+ * `2^(k-1)` walking `k`: one legal count, a spent allowance, and therefore an
+ * *auto-apply* (`count-after-route.md`, *Auto-apply — the exact test*). The four
+ * step scenarios below are about drafting and popping, not about that rule, so
+ * they take a stack whose count is not forced. Twelve keeps `speed(12) = 4`, so
+ * the route is the same four arrows.
+ */
+const DRAFTS_FOUR = 12;
+
 const offerAt = (state: GameState, carry: number) =>
   buildRouteOffer(inputsAt(board, state, from, carry));
 
@@ -252,7 +264,7 @@ describe('P34 core — a click appends a run to the draft', () => {
   });
 
   it('A straight route of any length is one click', () => {
-    const selected = selectOpenField(HEADS);
+    const selected = selectOpenField(DRAFTS_FOUR);
     const snap = clickArrow(selected, arrowAlong(geometry, from, 0, 4));
     expect(draftOf(snap)).toHaveLength(4);
   });
@@ -308,8 +320,8 @@ describe('P34 core — nothing is applied until Send', () => {
   });
 
   it('The game state is untouched while drafting', () => {
-    const state = openField(from, HEADS);
-    const before = openField(from, HEADS);
+    const state = openField(from, DRAFTS_FOUR);
+    const before = openField(from, DRAFTS_FOUR);
     const selected = selectRoute(board, state, from);
     const snap = clickArrow(selected, arrowAlong(geometry, from, 0, 4));
     expect(draftOf(snap)).toHaveLength(4);
@@ -319,7 +331,7 @@ describe('P34 core — nothing is applied until Send', () => {
 
 describe('P34 core — clicking a walked arrow pops the draft back to it', () => {
   const draftFour = () => {
-    const selected = selectOpenField(HEADS);
+    const selected = selectOpenField(DRAFTS_FOUR);
     const snap = clickArrow(selected, arrowAlong(geometry, from, 0, 4));
     return { selected, snap, second: arrowAlong(geometry, from, 0, 2) };
   };
@@ -342,7 +354,7 @@ describe('P34 core — clicking a walked arrow pops the draft back to it', () =>
     const { selected, second } = draftFour();
     const popped = clickArrow(selected, second);
     const expected = buildRouteOffer(
-      inputsAfter(board, selected.state, from, raySlotWalk(geometry, from, 0, 2), HEADS),
+      inputsAfter(board, selected.state, from, raySlotWalk(geometry, from, 0, 2), DRAFTS_FOUR),
     );
     expect(sortedIds(clickableOf(popped).keys())).toEqual(sortedIds(expected.clickable.keys()));
     for (const slot of SLOTS) {
@@ -367,11 +379,21 @@ describe('P34 core — clicking a walked arrow pops the draft back to it', () =>
   });
 });
 
-describe('P34 core — the carry is chosen at the tip and repaints the rays', () => {
+/**
+ * **Revised by P35.** P34 chose the carry *before* the click, so these four
+ * scenarios drove `setCarry` on an empty draft and read the rays it shortened.
+ * P35 repeals that: with an empty draft there is nothing to count
+ * (`offer.carries` is empty and the control is absent), and the count edits the
+ * run **behind** the click. The scenarios are kept, in their new order — click,
+ * then count — because what they are about is unchanged: heads buy distance, and
+ * the heads left behind are the sentry (§5).
+ */
+describe('P34 core — the carry repaints the rays (P35: chosen after the click)', () => {
   it('Lowering the carry shortens the rays', () => {
     const selected = selectOpenField(HEADS);
-    const full = SLOTS.map((slot) => rayOf(selected.snap, slot).length);
-    const lowered = selected.mode.setCarry(4);
+    const drafted = clickArrow(selected, arrowAlong(geometry, from, 0, 1));
+    const full = SLOTS.map((slot) => rayOf(drafted, slot).length);
+    const lowered = selected.mode.setCarry(2);
     for (const slot of SLOTS) {
       expect(rayOf(lowered, slot).length, `slot ${String(slot)}`).toBeLessThan(full[slot] ?? 0);
     }
@@ -379,7 +401,8 @@ describe('P34 core — the carry is chosen at the tip and repaints the rays', ()
 
   it('Raising the carry lengthens the rays', () => {
     const selected = selectOpenField(HEADS);
-    const lowered = selected.mode.setCarry(4);
+    clickArrow(selected, arrowAlong(geometry, from, 0, 1));
+    const lowered = selected.mode.setCarry(2);
     const short = SLOTS.map((slot) => rayOf(lowered, slot).length);
     const raised = selected.mode.setCarry(HEADS);
     for (const slot of SLOTS) {
@@ -389,7 +412,10 @@ describe('P34 core — the carry is chosen at the tip and repaints the rays', ()
 
   it('Only carries that can move are offerable', () => {
     const selected = selectOpenField(HEADS);
-    const { carries } = selected.phase.offer;
+    // P35: nothing is offered before a destination exists.
+    expect(selected.phase.offer.carries).toEqual([]);
+    const drafted = clickArrow(selected, arrowAlong(geometry, from, 0, 1));
+    const { carries } = routePhaseOf(drafted).offer;
     expect(carries.length).toBeGreaterThan(0);
     for (const carry of carries) {
       const hops = geometry.outArrows(geometry.target(from)).filter((exit) => {
@@ -407,8 +433,8 @@ describe('P34 core — the carry is chosen at the tip and repaints the rays', ()
   it('Heads not carried stay behind as a sentry', () => {
     const state = openField(from, 12);
     const selected = selectRoute(board, state, from);
-    selected.mode.setCarry(8);
     clickArrow(selected, arrowAlong(geometry, from, 0, 2));
+    selected.mode.setCarry(8);
     const sent = pendingOf(selected.mode.send());
     expect(sent).toHaveLength(2);
     for (const move of sent) {
@@ -424,8 +450,9 @@ describe('P34 core — the carry is chosen at the tip and repaints the rays', ()
   it('A new tip defaults its carry to the heads standing there', () => {
     const state = openField(from, 12);
     const selected = selectRoute(board, state, from);
+    clickArrow(selected, arrowAlong(geometry, from, 0, 1));
     selected.mode.setCarry(8);
-    const snap = clickArrow(selected, arrowAlong(geometry, from, 0, 1));
+    const snap = clickArrow(selected, arrowAlong(geometry, from, 0, 2));
     expect(routePhaseOf(snap).carry).toBe(8);
     expect(routePhaseOf(snap).tipHeads).toBe(8);
   });
