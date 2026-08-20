@@ -1,8 +1,8 @@
 # win-board-celebration — match-over on the board, no splash
 
 **Packet:** [P29 — Win board celebration](../../design/packets/P29-win-board-celebration.md)
-**SPEC:** §9 (read, do not change), §7 (territory is infrastructure; shine shares)
-**Layer:** `packages/web` only. Does not touch `rules-core`, contracts DTOs, ADR 0002.
+**SPEC:** §9 (P29 read-only; **P36 revised losing and the banner**), §7 (territory is infrastructure; shine shares)
+**Layer:** `packages/web` celebration helper. P36 later rewrote `rules-core` victory for per-seat losing; this file still does not reimplement the engine.
 **Features:** [core](./win-board-celebration.core.feature) ·
 [edge cases](./win-board-celebration.edge-cases.feature)
 
@@ -22,8 +22,9 @@ In: a pure helper `packages/web/src/fx/victory.ts`; Board shine / pulse / dim;
 suppress yield-soon and play highlights while over; Hud banner / hint / Skip
 disabled; CSS reuse of `yield-shine-sweep` plus `.match-over-dim { opacity: 0.4 }`.
 
-Out: new win conditions, SPEC.md §9, `packages/rules-core/src/victory.ts`,
-splash/modal, auto-pan, audio, shining all winner territory.
+Out: new win conditions, splash/modal, auto-pan, audio, shining all winner
+territory. ~~SPEC.md §9 / `packages/rules-core/src/victory.ts`~~ — **P29's
+out-of-scope.** P36 later revised both for per-seat losing, not for this FX.
 
 Tests against the **pure helper** (same posture as `fx/evaporation.ts` /
 `spawnerInfo.ts`). One Vitest per scenario. No `@vnatures/test-kit`, no React
@@ -48,15 +49,16 @@ say *splash* or *domination* in player-facing copy.
 ## Discriminant (normative)
 
 ```
-heads(p) = sum of group.heads where group.owner = p
-
 if state.winner is unset:
   playing
-else if |{ p in state.players | heads(p) > 0 }| = 1:
-  how = elimination
 else:
-  how = starvation
+  over — banner names the winner, no mechanism
 ```
+
+~~`how = elimination | starvation` from a living-head count~~ — **retired by P36.**
+A lost seat's heads are removed, so whenever `winner` is set the count is 1 and
+the old discriminant is constant. See `docs/spec/losing-conditions/losing-conditions.md`,
+*The victory banner must stop naming a mechanism*.
 
 ## Share set (normative)
 
@@ -88,7 +90,7 @@ isMatchOverDimmed(over, arrow, state):
 
 VictoryFx =
   | { kind: playing }
-  | { kind: over, winner, how, banner, hint, shineArrows, pulseArrows }
+  | { kind: over, winner, banner, hint, shineArrows, pulseArrows }
 
 victoryFx(state, geometry): VictoryFx
 isMatchOverDimmed(fx, arrow, state): boolean
@@ -139,8 +141,10 @@ flowchart TD
 - The system shall not mutate `GameState` to produce the celebration; equal
   inputs shall yield equal shine and pulse sets.
 - The system shall not cover the board with a splash, modal, or portion-backdrop.
-- The rules engine shall be unchanged: no new win condition, no new field, no
-  edit to `packages/rules-core/src/victory.ts`.
+- ~~The rules engine shall be unchanged: no new win condition, no new field, no
+  edit to `packages/rules-core/src/victory.ts`.~~ — **P29's scope.** P36 later
+  rewrote that file for per-seat losing; this celebration helper still does not
+  reimplement the engine and still does not add a win-condition field.
 
 ## What this file deliberately does not decide
 

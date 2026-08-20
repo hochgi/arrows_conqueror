@@ -149,20 +149,23 @@ Feature: A seat that can never claim again is out, and it vanishes
       Then A still has heads on the board
 
     Scenario: A convert does not evaluate loss
-      Given A owns no territory and holds heads
-      When a closure converts one of A's stacks
-      Then A's remaining heads are still on the board
+      Given a player owns no territory and holds heads
+      When a closure converts one of that player's stacks
+      Then that player's remaining heads are still on the board
 
     Scenario: A skip does not evaluate loss
       Given A owns no territory and holds heads
       When a player skips a group
       Then A still has heads on the board
 
-    Scenario: Accrual runs before the clocks and the clocks before the losses
-      Given A is destitute with a streak of one below the threshold
-      And a spawner will pay A a share-owned arrow this round
+    Scenario: Capturing a share before the boundary clears the clock
+      Given A has a starvation streak of one below the threshold
+      And A has come to own a spawner share
+      And a spawner will pay that share this round
       When the round closes
       Then A is not lost
+      And A's starvation streak is 0
+      And A is paid a head on that share
 
   Rule: The rotation is never rewritten
 

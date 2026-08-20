@@ -321,9 +321,10 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     };
     const roundStart = handed.players[0];
     if (roundStart === undefined || next !== roundStart) return handed;
-    // Full round, and the order is load-bearing (§9 / P36): accrue, then advance
-    // the starvation clocks, then resolve losses. Accruing first means a seat a
-    // spawner was about to pay is judged on the board *after* it was paid.
+    // Full round (§9 / P36): accrue, then tick starvation, then resolve losses.
+    // Tick-before-resolve is load-bearing: a seat is lost on the round its streak
+    // reaches dominationN, not the round after. Accrue-first cannot rescue a lost
+    // or destitute seat — they own no share (share theorem).
     const accrued = accrueRound(handed, geometry);
     return resolveLosses(tickStarvation(accrued, geometry), geometry);
   };

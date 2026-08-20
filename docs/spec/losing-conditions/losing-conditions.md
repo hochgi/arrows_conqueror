@@ -126,9 +126,9 @@ anywhere, so the headless-but-paid seat is paid on schedule with nothing on the
 board. **Do not add a liveness guard to accrual** — that guard is precisely what
 would make case 4 unimplementable.
 
-`firstAlive` is exported, unused, and its doc claims the boundary is the first
-*living* player while `applyEndTurn` compares against `players[0]`. Reconcile;
-do not leave two stories.
+`firstAlive` is **gone**. `applyEndTurn` compares against `players[0]` whether
+or not that seat is still playing, and `nextPlayer` never skips. There is no
+*first living player* reading of the boundary.
 
 ## The flow
 

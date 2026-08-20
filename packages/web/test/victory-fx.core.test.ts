@@ -28,31 +28,25 @@ import {
 } from './victory-fx.support';
 
 describe('Win board celebration — banner, shine, pulse, quiet board', () => {
-  // P36 repeals both mechanism-naming scenarios in this Rule. A lost seat's
-  // heads are removed, so a head count can no longer tell a starvation win from
-  // an elimination win, and the banner stops claiming to know. The wording of
-  // the caption is not pinned here — see
-  // docs/spec/losing-conditions/losing-conditions.md, *The victory banner must
-  // stop naming a mechanism*, and packages/web/test/victory-banner.test.ts.
+  // P36 repeals both mechanism-naming scenarios in this Rule. Locked banner:
+  // `{label} wins` — see docs/spec/losing-conditions/losing-conditions.md.
   it('Elimination names the winner, not a mechanism', () => {
-    const { state, a } = eliminationBoard();
+    const { state } = eliminationBoard();
     const fx = victoryFx(state, geometry);
-    expect(bannerOf(fx)).toContain(styleFor(a).label);
-    expect(bannerOf(fx)).toContain('Player A');
-    expect(String(bannerOf(fx)).toLowerCase()).not.toContain('last head');
+    expect('how' in fx).toBe(false);
+    expect(bannerOf(fx)).toBe('Player A wins');
   });
 
   it('A win with the victim still on the board names no mechanism either', () => {
     // This board is now unreachable from the engine — P36 removes the loser's
     // heads — but it is exactly the state the repealed `how` derivation keyed
     // off, so it is worth pinning that the banner does not branch on it.
-    const { state, a, b, gB } = starvationBoard();
+    const { state, b, gB } = starvationBoard();
     expect(state.groups.get(gB)?.owner).toBe(b);
     expect(state.groups.get(gB)?.heads).toBeGreaterThan(0);
     const fx = victoryFx(state, geometry);
-    expect(bannerOf(fx)).toContain(styleFor(a).label);
-    expect(String(bannerOf(fx)).toLowerCase()).not.toContain('starvation');
-    expect(String(bannerOf(fx)).toLowerCase()).not.toContain('last head');
+    expect('how' in fx).toBe(false);
+    expect(bannerOf(fx)).toBe('Player A wins');
   });
 
   it('In play the turn banner is unchanged', () => {

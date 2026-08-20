@@ -28,7 +28,8 @@
  * @see docs/spec/losing-conditions/losing-conditions.md
  */
 
-import type { GameState, GeometryPort, PlayerId } from '@conquarrow/contracts';
+import type { ArrowId, GameState, GeometryPort, PlayerId } from '@conquarrow/contracts';
+import { resetAccumulatorsOnCapture } from './economy';
 import { compareArrows, compareVertices } from './order';
 
 export const headsOf = (state: GameState, player: PlayerId): number => {
@@ -68,29 +69,105 @@ export const shareCountOf = (
  *
  * `territoryCount === 0 || (shares === 0 && heads === 0)`. Idempotent once the
  * seat's pieces are gone, which is why no flag joins `GameState`.
- *
- * SKELETON (P36 phase 2). It **throws** rather than returning a default: a
- * predicate that guessed `false` would turn every "is *not* lost" scenario green
- * before the rule existed, which is the one failure mode phase 2 is supposed to
- * make impossible.
  */
 export const isLost = (
-  _state: GameState,
-  _player: PlayerId,
-  _geometry: GeometryPort,
+  state: GameState,
+  player: PlayerId,
+  geometry: GeometryPort,
 ): boolean => {
-  throw new Error('isLost is not implemented (P36 phase 2 skeleton)');
+  if (territoryCountOf(state, player) === 0) return true;
+  return shareCountOf(state, player, geometry) === 0 && headsOf(state, player) === 0;
 };
+
+/** Territory, no share, at least one head — the starvation-clock row. */
+const onTheClock = (state: GameState, player: PlayerId, geometry: GeometryPort): boolean =>
+  territoryCountOf(state, player) > 0 &&
+  shareCountOf(state, player, geometry) === 0 &&
+  headsOf(state, player) > 0;
 
 /**
  * One full-round starvation tick — **per seat**, in `state.players` order.
  *
  * A seat owning territory, no share and at least one head advances; every other
  * seat's streak clears. No seat's clock cancels another's.
- *
- * SKELETON (P36 phase 2): returns its input.
  */
-export const tickStarvation = (state: GameState, _geometry: GeometryPort): GameState => state;
+export const tickStarvation = (state: GameState, geometry: GeometryPort): GameState => {
+  const next = new Map<PlayerId, number>();
+  for (const player of state.players) {
+    if (!onTheClock(state, player, geometry)) continue;
+    next.set(player, (state.starvationStreaks.get(player) ?? 0) + 1);
+  }
+  return { ...state, starvationStreaks: next };
+};
+
+const qualifiesToVanish = (
+  state: GameState,
+  player: PlayerId,
+  geometry: GeometryPort,
+): boolean =>
+  isLost(state, player, geometry) ||
+  (state.starvationStreaks.get(player) ?? 0) >= state.dominationN;
+
+const arrowsOwnedBy = (
+  territory: ReadonlyMap<ArrowId, PlayerId>,
+  player: PlayerId,
+): ReadonlySet<ArrowId> => {
+  const vacated = new Set<ArrowId>();
+  for (const [arrow, owner] of territory) {
+    if (owner === player) vacated.add(arrow);
+  }
+  return vacated;
+};
+
+const dropGroupsOf = (groups: GameState['groups'], player: PlayerId): GameState['groups'] =>
+  new Map([...groups].filter(([, group]) => group.owner !== player));
+
+const dropTrailOf = (trails: GameState['trails'], player: PlayerId): GameState['trails'] => {
+  if (!trails.has(player)) return trails;
+  const next = new Map(trails);
+  next.delete(player);
+  return next;
+};
+
+const dropArrows = (
+  territory: ReadonlyMap<ArrowId, PlayerId>,
+  vacated: ReadonlySet<ArrowId>,
+): ReadonlyMap<ArrowId, PlayerId> => {
+  if (vacated.size === 0) return territory;
+  const next = new Map(territory);
+  for (const arrow of [...vacated].toSorted(compareArrows)) next.delete(arrow);
+  return next;
+};
+
+const dropStreakOf = (
+  streaks: ReadonlyMap<PlayerId, number>,
+  player: PlayerId,
+): ReadonlyMap<PlayerId, number> => {
+  if (!streaks.has(player)) return streaks;
+  const next = new Map(streaks);
+  next.delete(player);
+  return next;
+};
+
+/** Clear the seat's pieces; leave vacated arrows unowned; do not rewrite `players`. */
+const vanishSeat = (state: GameState, player: PlayerId): GameState => {
+  const vacated = arrowsOwnedBy(state.territory, player);
+  return {
+    ...state,
+    groups: dropGroupsOf(state.groups, player),
+    trails: dropTrailOf(state.trails, player),
+    territory: dropArrows(state.territory, vacated),
+    accumulators: resetAccumulatorsOnCapture(state, vacated, state.territory, undefined),
+    starvationStreaks: dropStreakOf(state.starvationStreaks, player),
+  };
+};
+
+const withWinner = (state: GameState, geometry: GeometryPort): GameState => {
+  const remaining = state.players.filter((player) => !isLost(state, player, geometry));
+  const winner = remaining.length === 1 ? remaining[0] : undefined;
+  if (winner === state.winner) return state;
+  return { ...state, winner };
+};
 
 /**
  * Resolve the boundary's losses, in `state.players` order.
@@ -102,7 +179,12 @@ export const tickStarvation = (state: GameState, _geometry: GeometryPort): GameS
  * when exactly one seat is not lost **after** every removal — two or more
  * remaining leaves it unset, and zero remaining also leaves it unset
  * (SPEC §11 item 44, recorded as wrong).
- *
- * SKELETON (P36 phase 2): returns its input.
  */
-export const resolveLosses = (state: GameState, _geometry: GeometryPort): GameState => state;
+export const resolveLosses = (state: GameState, geometry: GeometryPort): GameState => {
+  let next = state;
+  for (const player of state.players) {
+    if (!qualifiesToVanish(state, player, geometry)) continue;
+    next = vanishSeat(next, player);
+  }
+  return withWinner(next, geometry);
+};

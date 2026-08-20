@@ -17,14 +17,14 @@ Feature: Win board celebration — banner, shine, pulse, quiet board
     Scenario: The banner names the winner and no mechanism
       Given A is the winner
       And only A has heads remaining
-      Then victoryFx how is elimination
+      Then victoryFx carries no how field
       And the banner is "Player A wins"
 
     # Superseded by P36: a lost seat vanishes, so no victim survives a win.
     Scenario: The banner is the same however the match was won
       Given A is the winner
       And B still has at least one head
-      Then how is starvation
+      Then victoryFx carries no how field
       And the banner is "Player A wins"
 
     Scenario: In play the turn banner is unchanged

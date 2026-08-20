@@ -106,10 +106,11 @@ The comeback vector §9 prizes is strengthened, not lost.
   the pieces are gone, so no flag joins the DTO — which matters, because
   `GameState` is read by 14 files across four packages. What *is* stored is the
   per-seat streak, because a streak is history.
-- **`nextPlayer` (`movement.ts:283`) does not skip anyone**; auto-pass is the
-  mechanism, not skipping. `firstAlive` is exported, unused, and its doc
-  claims the boundary is the first *living* player while `applyEndTurn`
-  compares against `players[0]`. Reconcile — do not leave two stories.
+- **`nextPlayer` does not skip anyone**; auto-pass is the mechanism, not
+  skipping. `firstAlive` is **gone** — it claimed the boundary was the first
+  *living* player while `applyEndTurn` compares against `players[0]` whether
+  or not that seat is still playing. There is one story: the array is never
+  rewritten, and `players[0]` is the round marker.
 
 ## Out of scope
 
@@ -120,10 +121,14 @@ The comeback vector §9 prizes is strengthened, not lost.
 
 ## Scenario inventory (for phase 1 to expand)
 
-- A seat whose last territory is carved away loses immediately, mid-turn, on
-  the enemy closure that took it.
-- Its heads and trail marks are gone from the next state; no other seat's
-  trail or territory changes.
+Timing below is the **round boundary** (BSSN above), not mid-turn. "Immediate"
+means no *N*-round clock, not a claim about sub-turn evaluation.
+
+- A seat whose last territory is carved away is lost when that round closes,
+  with no starvation clock — on the enemy closure that took it, they still
+  finish the round; they do not take a turn in the next one.
+- Its heads and trail marks are gone from the state after that boundary; no
+  other seat's trail or territory changes.
 - Two simultaneously destitute seats: both clocks advance independently;
   neither clears the other's.
 - A destitute seat regaining a share before *N* clears only its own clock.

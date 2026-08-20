@@ -7,7 +7,6 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { styleFor } from '../src/colors';
 import {
   MATCH_OVER_OVERLAY,
   hasSplash,
@@ -36,13 +35,12 @@ const helperSrc = (): string =>
 
 describe('Win board celebration — degenerate over, in-play leak, purity', () => {
   it('Elimination winner with no shares', () => {
-    const { state, a, g1 } = noShareBoard();
+    const { state, g1 } = noShareBoard();
     const fx = victoryFx(state, geometry);
     expect(shineOf(fx).size).toBe(0);
     expect(pulseOf(fx).has(g1)).toBe(true);
     // P36: the caption names the winner, not the mechanism.
-    expect(bannerOf(fx)).toContain(styleFor(a).label);
-    expect(String(bannerOf(fx)).toLowerCase()).not.toContain('last head');
+    expect(bannerOf(fx)).toBe('Player A wins');
   });
 
   it('Blockaded winner share still shines', () => {
@@ -61,12 +59,10 @@ describe('Win board celebration — degenerate over, in-play leak, purity', () =
   });
 
   it('Leftover starvation clock does not caption the win', () => {
-    const { state, a, b } = leftoverClockBoard();
+    const { state, b } = leftoverClockBoard();
     expect(state.starvationStreaks.get(b)).toBeGreaterThanOrEqual(state.dominationN);
     const fx = victoryFx(state, geometry);
-    expect(bannerOf(fx)).toContain(styleFor(a).label);
-    expect(String(bannerOf(fx)).toLowerCase()).not.toContain('starvation');
-    expect(String(bannerOf(fx)).toLowerCase()).not.toContain('last head');
+    expect(bannerOf(fx)).toBe('Player A wins');
   });
 
   it('Unset winner never dims', () => {

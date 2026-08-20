@@ -761,7 +761,7 @@ A drafted opening was designed and deliberately deferred — see Appendix A.
 | >0 | >0 | 0 | **alive**, passed over until a spawner yields a head |
 | >0 | >0 | >0 | normal play |
 
-A lost seat **vanishes**: its heads, trail marks and territory are removed, and vacated territory becomes unowned with its accumulators reset (§7). The match ends when one seat remains. Loss resolves once per full round, at the boundary where accrual and the starvation tick already happen — "immediate" above means *no grace period*, in contrast to starvation's *N* rounds, not a claim about sub-turn timing. See `docs/spec/losing-conditions/losing-conditions.md`.
+A lost seat **vanishes**: its heads, trail marks and territory are removed, and vacated territory becomes unowned with its accumulators reset (§7). The match ends when one seat remains. A boundary that removes every remaining seat leaves `winner` unset — terminal-but-unwon, recorded as wrong rather than represented as a draw (§11 item 44). Loss resolves once per full round, at the boundary where accrual and the starvation tick already happen — "immediate" above means *no grace period*, in contrast to starvation's *N* rounds, not a claim about sub-turn timing. Trail marks are **cleared**, not evaporated; evaporating a whole trail from a non-cut event would be a new §6.1 trigger (§11 item 45). See `docs/spec/losing-conditions/losing-conditions.md`.
 
 Heads remain what you risk and what conversion steals, and conversion by encirclement is still a literal step toward winning — but they are no longer *lives*. What §8 made mandatory at setup is what the first row makes permanent: territory is the licence to keep playing. Spawners are life support rather than score, and the loop tightens into:
 
@@ -771,7 +771,7 @@ It also hands the trailing player a real comeback vector: a desperate lasso arou
 
 **Starvation.** A living player who owns **no spawner share at all** for *N* consecutive full rounds loses. ~~— the other living seat wins.~~ **P36: the seat is removed, not the match.** Destitution is tracked **per seat**, so two broke players advance independent clocks and neither cancels the other; reaching *N* loses that seat and play continues among the rest. The old wording was two-player throughout, and the implementation followed it — advancing only when *exactly one* player was destitute, then ending the match and awarding it to the first surviving seat in array order (§11 item 32).
 
-The second condition exists because elimination alone is unreachable against a player who simply refuses to be reached (§11 item 32). It ends a match on the axis the game is actually contested on — production — rather than on physically cornering a last head.
+Starvation exists because a player who simply refuses to be reached cannot be ended by taking heads (§11 item 32). It ends a match on the axis the game is actually contested on — production — rather than on physically cornering a last head.
 
 ~~**Domination.** Hold every spawner share for *N* turns.~~ — **superseded by starvation.** Playtests showed the old clock started too late: once an opponent already had zero shares, the attacker still had to own *every* share on the board and then wait *N* more rounds of empty end-turns. Starvation starts the clock the moment someone is destitute, which is when the board is already decided.
 
@@ -858,7 +858,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 >
 > **Item 43 was opened and closed by P28:** walking from stack-grade / marked trail onto enemy territory used to convert the mover on that same `apply`. Playtest: nobody chooses that step if they can read it. **Resolved: the step is illegal.** Conversion stays a state predicate for opponent-caused encirclement. → §6.3, → §4, → P28.
 >
-> **§11 now carries no open rules question.** What remains is a **parked tuning table**, not a gap: item 11's *R*, the band radii, force per band, and item 32's *N* are numbers only playtesting can set, and P09 owns setting them. Item **39** parks a territory-combat idea without blocking. Nothing else is blocked, and none of the tuning items changes a rule.
+> **§11's remaining open rules questions are items 44 and 45** (P36: how to represent a match with no surviving seat, and whether a lost seat's trail evaporates). Beside those, what remains is a **parked tuning table**: item 11's *R*, the band radii, force per band, and item 32's *N* are numbers only playtesting can set, and P09 owns setting them. Item **39** parks a territory-combat idea without blocking. None of the tuning items changes a rule.
 >
 > **Item 34 was opened and closed by P05, and it was never a gap.** §7's closure clause granted "special tiles", which §7's *own next subsection* forbids — specials are vertices, owned in thirds by their bordering arrows, and a vertex is never enclosed. The answer was three subsections from the question, which is the failure mode a spec this cross-referential invites; the item stays as a reminder to look before opening one. → §7 (corrected), → P05b, → P08.
 >

@@ -576,7 +576,7 @@ describe('loss resolves at the boundary and nowhere else', () => {
     expect(holdingsOf(after, A).heads).toBe(2);
   });
 
-  it('accrues before the clocks and clocks before the losses', () => {
+  it('clears the clock when a share is captured before the boundary, and pays that share', () => {
     const ground = aBoard();
     // A is one round below the threshold and has just captured share 2, so the
     // clock clears at this boundary instead of firing.
