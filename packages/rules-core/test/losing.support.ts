@@ -145,6 +145,61 @@ export const aVertex = (ground: Ground, index = 0): VertexId => {
   return vertex;
 };
 
+/**
+ * A land bridge on the **tiling** that runs over a spawner-border arrow — the
+ * shape *"A captures a share before the round closes"* needs.
+ *
+ * A streak is cleared by *capturing* a share during a turn, and capture is
+ * closure (§7), not accrual — accrual pays only share owners and a destitute
+ * seat owns none. So this cannot be authored on a fixture: it needs a departure
+ * arrow, a run, and a landing back on the departing player's own ground.
+ *
+ * The spawner vertex is chosen so that neither the departure nor the landing
+ * borders it, or the player would already own a share before the closure.
+ */
+export const aShareToCapture = (
+  geometry: GeometryPort,
+): {
+  readonly home: ArrowId;
+  readonly run: readonly ArrowId[];
+  readonly landing: ArrowId;
+  readonly vertex: VertexId;
+  readonly target: ArrowId;
+  readonly otherShares: readonly ArrowId[];
+} => {
+  const home = geometry.inArrows(geometry.seedPoint())[0];
+  if (home === undefined) throw new Error('setup: the seed point has no in-arrow');
+  let cursor = home;
+  const run: ArrowId[] = [];
+  while (run.length < 3) {
+    const next = geometry
+      .outArrows(geometry.target(cursor))
+      .find((exit) => exit !== home && !run.includes(exit));
+    if (next === undefined) throw new Error('setup: could not extend the run');
+    run.push(next);
+    cursor = next;
+  }
+  const last = run[run.length - 1];
+  if (last === undefined) throw new Error('setup: empty run');
+  const landing = geometry.outArrows(geometry.target(last))[0];
+  if (landing === undefined) throw new Error('setup: the run has no landing');
+  for (const target of run) {
+    for (const vertex of geometry.flankVertices(target)) {
+      const borders = [...geometry.borderArrows(vertex)].toSorted(compareArrows);
+      if (borders.includes(home) || borders.includes(landing)) continue;
+      return {
+        home,
+        run,
+        landing,
+        vertex,
+        target,
+        otherShares: borders.filter((arrow) => arrow !== target),
+      };
+    }
+  }
+  throw new Error('setup: no spawner vertex on the run clear of home and landing');
+};
+
 // ── authoring a many-seat state ───────────────────────────────────────────────
 
 export interface Placement {

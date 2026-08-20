@@ -35,8 +35,8 @@ Testing Library.
 |---|---|
 | **over** | `state.winner` is set |
 | **playing** | `state.winner` is unset |
-| **elimination** | over, and exactly one player has heads > 0 |
-| **starvation** | over, and two or more players have heads > 0 |
+| ~~**elimination**~~ | ~~over, and exactly one player has heads > 0~~ — **retired by P36** |
+| ~~**starvation**~~ | ~~over, and two or more players have heads > 0~~ — **retired by P36.** A lost seat's heads are removed, so a winner always leaves exactly one seat with heads and this discriminant is constant. See `docs/spec/losing-conditions/losing-conditions.md`, *The victory banner must stop naming a mechanism* |
 | **share arrow** | an arrow in `geometry.borderArrows(vertex)` for some `state.spawners` vertex |
 | **victory shine** | winner-owned share arrows, full-strength winner-tinted yield clip |
 | **victory pulse** | arrows holding a winner group |
@@ -84,7 +84,7 @@ isMatchOverDimmed(over, arrow, state):
 ## Helper shape
 
 ```
-VictoryHow = elimination | starvation
+~~VictoryHow = elimination | starvation~~   # retired by P36
 
 VictoryFx =
   | { kind: playing }
@@ -96,8 +96,9 @@ isMatchOverDimmed(fx, arrow, state): boolean
 
 Locked strings:
 
-- banner elimination: `{label} wins — last head`
-- banner starvation: `{label} wins — starvation`
+- ~~banner elimination: `{label} wins — last head`~~ — **retired by P36**
+- ~~banner starvation: `{label} wins — starvation`~~ — **retired by P36**
+- banner (P36): `{label} wins`
 - hint: `Match over — pan to look around`
 
 `label` is `styleFor(winner).label` (`Player A` / `Player B`).
@@ -109,11 +110,8 @@ flowchart TD
   Apply["apply sets winner"] --> Read["victoryFx state + geometry"]
   Read --> Playing{"winner set?"}
   Playing -->|no| InPlay["yield-soon + selected-pulse unchanged"]
-  Playing -->|yes| How{"unique living player?"}
-  How -->|yes| Elim["banner last head"]
-  How -->|no| Starv["banner starvation"]
-  Elim --> Board["dim non-winner #59; shine winner shares #59; pulse winner stacks"]
-  Starv --> Board
+  Playing -->|yes| Won["banner label wins (P36 #59; no mechanism named)"]
+  Won --> Board["dim non-winner #59; shine winner shares #59; pulse winner stacks"]
   Board --> Hud["hint Match over #59; skip+endTurn disabled #59; pan live"]
 ```
 
@@ -124,10 +122,13 @@ flowchart TD
 - When `state.winner` is set, the system shall not paint yield-soon shine.
 - When `state.winner` is set, the system shall shine exactly the winner's
   share arrows and shall not shine a winner territory arrow that is not a share.
-- When `state.winner` is set and exactly one player has heads remaining, the
-  banner shall be `{label} wins — last head`.
-- When `state.winner` is set and two or more players have heads remaining, the
-  banner shall be `{label} wins — starvation`.
+- ~~When `state.winner` is set and exactly one player has heads remaining, the
+  banner shall be `{label} wins — last head`.~~
+- ~~When `state.winner` is set and two or more players have heads remaining, the
+  banner shall be `{label} wins — starvation`.~~ — **both superseded by P36:**
+  when `state.winner` is set the banner shall be `{label} wins`, and shall not
+  assert a losing mechanism. The head count no longer distinguishes the causes,
+  and the cause is not derivable once the losing seat and its clock are gone.
 - When `state.winner` is set, the system shall pulse every arrow that holds a
   winner group and shall not pulse a loser group.
 - When `state.winner` is set, the system shall dim every arrow that is not

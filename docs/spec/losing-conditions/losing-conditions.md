@@ -277,8 +277,17 @@ would mean storing it, and a field that exists only to caption a banner is the
 wrong trade. If the reason is wanted later it belongs in the match log
 (P32 telemetry), which is written while the loss happens.
 
-Invariant: **while `winner` is set, the banner shall not assert a losing
-mechanism.**
+Invariants: **while `winner` is set, the banner shall not assert a losing
+mechanism**, and the locked string is:
+
+- banner: `{label} wins`
+
+Locked, not left to the implementation, because P29 locked its two banner
+strings and the tests assert them literally — a replacement that is only
+described would be the one string in this family nobody can check. P29's spec is
+superseded in place: `docs/spec/win-board-celebration/win-board-celebration.md`
+carried `VictoryHow`, the `livingCount` discriminant, both old banner literals
+and two EARS invariants, all now struck through pointing here.
 
 ## Out of scope
 

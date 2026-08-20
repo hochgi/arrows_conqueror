@@ -6,7 +6,7 @@
 import { rational } from '@conquarrow/contracts';
 import type { ArrowId, GameState, PlayerId } from '@conquarrow/contracts';
 import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
-import type { VictoryHow, VictoryFx } from '../src/fx/victory';
+import type { VictoryFx } from '../src/fx/victory';
 
 export const geometry = makeTiling();
 
@@ -30,9 +30,6 @@ export const bannerOf = (fx: VictoryFx): string | undefined =>
 
 export const hintOf = (fx: VictoryFx): string | undefined =>
   fx.kind === 'over' ? fx.hint : undefined;
-
-export const howOf = (fx: VictoryFx): VictoryHow | undefined =>
-  fx.kind === 'over' ? fx.how : undefined;
 
 export const seatsOf = (state: GameState): { a: PlayerId; b: PlayerId } => {
   const a = state.players[0];

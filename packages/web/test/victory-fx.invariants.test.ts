@@ -30,7 +30,6 @@ import {
   dimBoard,
   eliminationBoard,
   geometry,
-  howOf,
   leftoverClockBoard,
   livingCount,
   noShareBoard,
@@ -115,35 +114,47 @@ describe('win-board-celebration invariants', () => {
     }
   });
 
-  it('When state.winner is set and exactly one player has heads remaining, the banner shall be {label} wins — last head', () => {
-    const boards = [eliminationBoard().state, leftoverClockBoard().state, noShareBoard().state];
-    for (const state of boards) {
-      expect(livingCount(state)).toBe(1);
-      const winner = state.winner;
-      expect(winner).toBeDefined();
-      if (winner === undefined) continue;
-      const fx = victoryFx(state, geometry);
-      expect(howOf(fx)).toBe('elimination');
-      expect(bannerOf(fx)).toBe(`${styleFor(winner).label} wins — last head`);
-    }
-  });
-
-  it('When state.winner is set and two or more players have heads remaining, the banner shall be {label} wins — starvation', () => {
-    const two = starvationBoard().state;
+  // P36 replaces the two head-count banner invariants below with one negative
+  // invariant: **while `winner` is set, the banner shall not assert a losing
+  // mechanism.** A lost seat's heads are removed, so `livingCount` is 1 whenever
+  // `winner` is set and the old discriminant is dead. See
+  // docs/spec/losing-conditions/losing-conditions.md.
+  it('While state.winner is set, the banner shall name the winner and shall not assert a losing mechanism', () => {
     const threeOpening = makeMatch({ ...DEFAULT_MATCH_CONFIG, playerCount: 3 });
     const threeWinner = threeOpening.players[0];
     expect(threeWinner).toBeDefined();
     if (threeWinner === undefined) return;
-    const boards = [two, { ...threeOpening, winner: threeWinner }];
+    const boards = [
+      eliminationBoard().state,
+      leftoverClockBoard().state,
+      noShareBoard().state,
+      starvationBoard().state,
+      { ...threeOpening, winner: threeWinner },
+    ];
     for (const state of boards) {
-      expect(livingCount(state)).toBeGreaterThanOrEqual(2);
       const winner = state.winner;
       expect(winner).toBeDefined();
       if (winner === undefined) continue;
-      const fx = victoryFx(state, geometry);
-      expect(howOf(fx)).toBe('starvation');
-      expect(bannerOf(fx)).toBe(`${styleFor(winner).label} wins — starvation`);
+      const banner = String(bannerOf(victoryFx(state, geometry)));
+      expect(banner).toContain(styleFor(winner).label);
+      for (const mechanism of ['last head', 'elimination', 'starvation', 'domination']) {
+        expect(banner.toLowerCase()).not.toContain(mechanism);
+      }
     }
+  });
+
+  it('While state.winner is set, the banner shall be the same however the loser went', () => {
+    // Head count can no longer discriminate, so a caption that branched on it
+    // would be asserting something the state does not know.
+    const oneLiving = eliminationBoard().state;
+    const twoLiving = starvationBoard().state;
+    expect(livingCount(oneLiving)).toBe(1);
+    expect(livingCount(twoLiving)).toBeGreaterThanOrEqual(2);
+    expect(oneLiving.winner).toBe(twoLiving.winner);
+
+    expect(bannerOf(victoryFx(twoLiving, geometry))).toBe(
+      bannerOf(victoryFx(oneLiving, geometry)),
+    );
   });
 
   it('When state.winner is set, the system shall pulse every arrow that holds a winner group and shall not pulse a loser group', () => {

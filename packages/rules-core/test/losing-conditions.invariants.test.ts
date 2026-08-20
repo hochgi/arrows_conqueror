@@ -318,10 +318,11 @@ describe('removal', () => {
     }
   });
 
-  it('never removes a seat that owned a spawner share', () => {
-    // A theorem of invariants 1, 2 and 7, and the reason two of the feature's
-    // *Removal cleans up* scenarios cannot be constructed as written: owning a
-    // share means `S > 0`, which is the *alive* half of the table in every row.
+  it('22. never records as lost a player who owns a spawner share', () => {
+    // The share theorem. `S > 0` puts a player in an *alive* row of every case,
+    // so no seat that qualifies to be lost owns a share. Two consequences the
+    // spec draws from it: accrual can neither save a seat nor clear a streak,
+    // and removal never vacates a spawner-border arrow.
     const ground = aBoard();
     for (const rows of ASSIGNMENTS) {
       const before = boardFor(ground, rows);
@@ -394,19 +395,18 @@ describe('when loss resolves', () => {
     expect(headsOn(converted, elsewhere)).toBe(2);
   });
 
-  it('13. accrues, then advances streaks, then resolves losses', () => {
+  it('13. advances streaks before resolving losses, so a seat goes on the round its streak reaches the threshold', () => {
     const ground = aBoard();
-    // Tick-before-resolve is what the order observably buys: the seat goes on the
-    // round its streak *reaches* N, not the round after.
     const state = closeRounds(ground.rules, boardFor(ground, [3, 5, 5], { n: 2 }), 1);
     expect(streakOf(state, A)).toBe(1);
     expect(isLost(state, A, ground.geometry)).toBe(false);
     const later = closeRound(ground.rules, state);
     expect(isLost(later, A, ground.geometry)).toBe(true);
 
-    // Accrue-before-resolve is a safety property rather than a switch: a seat
-    // that qualifies for loss never owns a share, so accrual and removal touch
-    // disjoint arrows and no seat can be removed on a boundary that paid it.
+    // Accrue-before-resolve is *vacuously* safe rather than load-bearing: by the
+    // share theorem (22) accrual and removal touch disjoint arrows, so their
+    // order cannot change an outcome. A headless share owner is paid and stays
+    // in; it was never a loss candidate.
     const feed = shareArrow(ground, 0);
     const phase = ground.shares.indexOf(feed);
     const paid = closeRound(
@@ -500,7 +500,7 @@ describe('the winner', () => {
 // ── 19-21: determinism ──────────────────────────────────────────────────────
 
 describe('determinism', () => {
-  it('19. resolves losses in state.players order', () => {
+  it('19. produces a result independent of every map insertion order, and reports lost seats in player order', () => {
     const ground = aBoard();
     const holdings: readonly (readonly [PlayerId, ArrowId])[] = [
       [A, bareArrow(ground, 0)],
@@ -522,7 +522,22 @@ describe('determinism', () => {
     const backward = closeRound(ground.rules, board([...holdings].reverse()));
 
     expect(lostSeats(forward, ground.geometry)).toEqual(['A', 'B', 'C']);
+    expect(lostSeats(backward, ground.geometry)).toEqual(['A', 'B', 'C']);
     expect(snapshot(forward)).toEqual(snapshot(backward));
+  });
+
+  it('23. resolves every qualifying seat before setting winner', () => {
+    // Quantified: whenever *every* seat qualifies, `winner` must stay unset. A
+    // win check inside the per-seat loop would crown the last seat standing in
+    // the instant before it too was removed, and it would do so for every one of
+    // these boards.
+    const ground = aBoard();
+    for (const rows of ASSIGNMENTS) {
+      if (!rows.every((row) => rowIsLost(row))) continue;
+      const after = closeRound(ground.rules, boardFor(ground, rows));
+      expect(after.winner, `rows ${rows.join('')}`).toBeUndefined();
+      expect(lostSeats(after, ground.geometry)).toEqual(['A', 'B', 'C']);
+    }
   });
 
   it('20. produces equal losses in equal order from equal states', () => {

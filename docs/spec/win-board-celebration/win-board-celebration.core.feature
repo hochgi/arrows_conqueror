@@ -13,17 +13,19 @@ Feature: Win board celebration — banner, shine, pulse, quiet board
 
   Rule: The banner names the win condition
 
-    Scenario: Elimination names last head
+    # Superseded by P36: the banner names no mechanism.
+    Scenario: The banner names the winner and no mechanism
       Given A is the winner
       And only A has heads remaining
       Then victoryFx how is elimination
-      And the banner is "Player A wins — last head"
+      And the banner is "Player A wins"
 
-    Scenario: Starvation keeps the victim alive
+    # Superseded by P36: a lost seat vanishes, so no victim survives a win.
+    Scenario: The banner is the same however the match was won
       Given A is the winner
       And B still has at least one head
       Then how is starvation
-      And the banner is "Player A wins — starvation"
+      And the banner is "Player A wins"
 
     Scenario: In play the turn banner is unchanged
       Given winner is unset

@@ -14,9 +14,9 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { rational } from '@conquarrow/contracts';
+import { rational, step } from '@conquarrow/contracts';
 import type { ArrowId, GameState, PlayerId } from '@conquarrow/contracts';
-import { isLost } from '../src/victory';
+import { isLost, shareCountOf } from '../src/victory';
 import { replay, replayIsDeterministic } from '../src/replay';
 import {
   A,
@@ -27,9 +27,11 @@ import {
   SIX,
   THREE,
   aBoard,
+  aShareToCapture,
   aVertex,
   bareArrow,
   closeRound,
+  closeRoundFrom,
   closeRounds,
   held,
   holdingsOf,
@@ -44,7 +46,7 @@ import {
   streakOf,
 } from './losing.support';
 import type { Ground, SeatBoard } from './losing.support';
-import { headsOn, snapshot } from './support';
+import { arrowAt, headsOn, onTiling, snapshot } from './support';
 
 // ── Rule: The predicate is exactly the decided table ──────────────────────────
 
@@ -274,11 +276,9 @@ describe('removal cleans up everything the seat owned', () => {
   });
 
   it('resets rather than carries an accumulator on vacated territory', () => {
-    // The feature says "a spawner-border arrow". A seat that owns one has
-    // `S > 0` and is therefore **never lost** (§9 rows 3-5), so the stated
-    // premise is unreachable; see the invariants suite, which pins that as a
-    // theorem. What is reachable, and is what invariant 9 actually asks for, is
-    // a part-filled accumulator on territory the seat *does* lose.
+    // Share-free territory, per the share theorem: a lost seat never owned a
+    // share. A part-filled accumulator is still reachable there, because an
+    // accumulator outlives the capture that zeroed the arrow's ownership.
     const ground = aBoard();
     const vacated = bareArrow(ground, 0);
     const before = seatState({
@@ -302,11 +302,9 @@ describe('removal cleans up everything the seat owned', () => {
     expect(after.accumulators.has(vacated)).toBe(false);
   });
 
-  it('keeps a spawner round-robin phase advancing exactly once for the round', () => {
-    // Same unreachable premise as above — "all three border arrows belonged to
-    // A" makes A a three-share owner, which is never lost. The behaviour the
-    // scenario guards is that the RR cursor is ownership-blind: it advances once
-    // per round whether the feed arrow is owned, unowned, or just vacated.
+  it('advances a spawner round-robin phase without reference to who owns its shares', () => {
+    // Every border arrow unowned — the board the share theorem leaves for this
+    // question. The cursor must move on regardless.
     const ground = aBoard();
     const vertex = aVertex(ground);
     const before = seatState({
@@ -320,18 +318,40 @@ describe('removal cleans up everything the seat owned', () => {
       spawners: [[vertex, { force: rational(1, 3), phase: 0 }]],
     });
     expect(phaseOf(before, vertex)).toBe(0);
+    for (const share of ground.shares) expect(before.territory.has(share)).toBe(false);
 
     const after = closeRound(ground.rules, before);
 
     expect(phaseOf(after, vertex)).toBe(1);
     for (const share of ground.shares) expect(after.accumulators.has(share)).toBe(false);
   });
+
+  it('never lets a lost seat have owned spawner-border territory', () => {
+    // The share theorem: `S > 0` puts a player in an alive row of every case, so
+    // no seat that qualifies to be lost owns a share. Quantified over every
+    // assignment of the table's rows in the invariants suite (invariant 22);
+    // here it is asserted on the boards this file actually authors.
+    const ground = aBoard();
+    const wide = aBoard(2);
+    const boards: readonly { state: GameState; ground: Ground }[] = [
+      ...ROWS.map((row) => ({ state: rowBoard(ground, row), ground })),
+      { state: aLostSeatBoard(ground), ground },
+      { state: sixSeatBoard(wide, [C, E]), ground: wide },
+    ];
+    for (const { state, ground: on } of boards) {
+      for (const seat of state.players) {
+        if (!isLost(state, seat, on.geometry)) continue;
+        expect(shareCountOf(state, seat, on.geometry)).toBe(0);
+      }
+    }
+  });
 });
 
 // ── Rule: The boundary order cannot remove a seat that was about to be paid ───
 
 describe('the boundary order cannot remove a seat that was about to be paid', () => {
-  it('pays a headless seat on the same boundary that judges it', () => {
+  it('pays a headless share owner and keeps it in the match', () => {
+    // Not a rescue from loss: A owns a share, so A was never a candidate.
     const ground = aBoard();
     const feed = shareArrow(ground, 0);
     const phase = ground.shares.indexOf(feed);
@@ -356,9 +376,45 @@ describe('the boundary order cannot remove a seat that was about to be paid', ()
     expect(isLost(after, A, ground.geometry)).toBe(false);
   });
 
-  it('clears rather than loses when a share arrives on the last streak round', () => {
+  it('clears the clock when a share is captured on the last streak round', () => {
+    // The capture is a **closure**, not accrual: accrual pays only share owners
+    // and a destitute seat owns none. So this runs on the tiling, where a trail
+    // can depart A's ground and land back on it, and the land bridge turns the
+    // path — including a spawner-border arrow — into A's territory.
+    const table = onTiling();
+    const bridge = aShareToCapture(table.geometry);
+    const last = arrowAt(bridge.run, bridge.run.length - 1);
+    const before = seatState({
+      players: [A, B],
+      activePlayer: A,
+      groups: [
+        { arrow: last, owner: A, heads: 1 },
+        { arrow: arrowAt(bridge.otherShares, 0), owner: B, heads: 1 },
+      ],
+      trails: [[A, bridge.run]],
+      territory: [
+        ...held([bridge.home, bridge.landing], A),
+        { arrow: arrowAt(bridge.otherShares, 0), owner: B },
+      ],
+      spawners: [[bridge.vertex, { force: rational(1, 12), phase: 0 }]],
+      starvationStreaks: [[A, 4]],
+      dominationN: 5,
+    });
+    expect(shareCountOf(before, A, table.geometry)).toBe(0);
+
+    const captured = table.rules.apply(before, step(last, bridge.landing, 1));
+    expect(shareCountOf(captured, A, table.geometry)).toBeGreaterThan(0);
+
+    const after = closeRoundFrom(table.rules, captured);
+
+    expect(streakOf(after, A)).toBe(0);
+    expect(isLost(after, A, table.geometry)).toBe(false);
+  });
+
+  it('loses a seat on the round its streak reaches the threshold', () => {
+    // Tick before resolve, and the only ordering inside the boundary that is
+    // observable: reverse the two and every starvation loss is a round late.
     const ground = aBoard();
-    const captured = shareArrow(ground, 2);
     const before = seatState({
       players: THREE,
       groups: [
@@ -367,19 +423,21 @@ describe('the boundary order cannot remove a seat that was about to be paid', ()
         { arrow: shareArrow(ground, 1), owner: C, heads: 1 },
       ],
       territory: [
-        ...held([bareArrow(ground, 0), captured], A),
+        ...held([bareArrow(ground, 0)], A),
         { arrow: shareArrow(ground, 0), owner: B },
         { arrow: shareArrow(ground, 1), owner: C },
       ],
-      spawners: [[aVertex(ground), { force: rational(1, 12), phase: 0 }]],
-      starvationStreaks: [[A, 4]],
-      dominationN: 5,
+      spawners: [[aVertex(ground), { force: rational(1, 12), phase: 2 }]],
+      dominationN: 3,
     });
 
-    const after = closeRound(ground.rules, before);
+    const afterTwo = closeRounds(ground.rules, before, 2);
+    expect(streakOf(afterTwo, A)).toBe(2);
+    expect(isLost(afterTwo, A, ground.geometry)).toBe(false);
 
-    expect(streakOf(after, A)).toBe(0);
-    expect(isLost(after, A, ground.geometry)).toBe(false);
+    const afterThree = closeRound(ground.rules, afterTwo);
+
+    expect(isLost(afterThree, A, ground.geometry)).toBe(true);
   });
 
   it('does not pay the owner of a blockaded share, and does not clock them either', () => {
@@ -598,49 +656,62 @@ describe('determinism', () => {
     expect(snapshot(afterLeft)).toEqual(snapshot(afterRight));
   });
 
-  it('resolves losses in player order', () => {
-    // Per-seat removals commute — a removal never gives anyone anything, so it
-    // cannot change another seat's readings. What `players` order therefore
-    // *observably* fixes is that the answer never depends on the order the
-    // state's own maps were built in, and that the seats come back in list
-    // order rather than map order.
+  it('checks the winner only after every seat is resolved', () => {
+    // All three seats qualify on one boundary. A win check *inside* the per-seat
+    // loop would crown C in the instant after A and B went and before C did —
+    // which is the only place resolution order is observable at all.
     const ground = aBoard();
-    const forward = closeRound(ground.rules, threeQualify('forward'));
-    const reversed = closeRound(ground.rules, threeQualify('reversed'));
+    const before = seatState({
+      players: THREE,
+      territory: [
+        ...held([bareArrow(ground, 0)], A),
+        ...held([bareArrow(ground, 1)], B),
+        ...held([bareArrow(ground, 2)], C),
+      ],
+      spawners: [[aVertex(ground), { force: rational(1, 12), phase: 0 }]],
+    });
 
-    expect(lostSeats(forward, ground.geometry)).toEqual(['A', 'B', 'C']);
-    expect(lostSeats(reversed, ground.geometry)).toEqual(['A', 'B', 'C']);
-    expect(snapshot(forward)).toEqual(snapshot(reversed));
+    const after = closeRound(ground.rules, before);
+
+    expect(lostSeats(after, ground.geometry)).toEqual(['A', 'B', 'C']);
+    expect(after.winner).toBeUndefined();
+    expect(after.winner).not.toBe(C);
+    expect(after.winner).not.toBe(B);
   });
 
-  it('reads streaks through the player list, not through the map', () => {
+  it('ignores every map insertion order, and reports lost seats in player order', () => {
     const ground = aBoard();
-    const board = (order: readonly PlayerId[]): GameState =>
-      seatState({
+    // Two states equal but for the order every map was built in: groups,
+    // territory, trails, accumulators and the streaks themselves.
+    const board = (order: readonly PlayerId[]): GameState => {
+      const stand = new Map<string, ArrowId>([
+        [String(A), bareArrow(ground, 0)],
+        [String(B), bareArrow(ground, 1)],
+        [String(C), bareArrow(ground, 2)],
+      ]);
+      const arrowFor = (seat: PlayerId): ArrowId => {
+        const arrow = stand.get(String(seat));
+        if (arrow === undefined) throw new Error('setup: no arrow for that seat');
+        return arrow;
+      };
+      return seatState({
         players: THREE,
-        groups: [
-          { arrow: bareArrow(ground, 0), owner: A, heads: 1 },
-          { arrow: bareArrow(ground, 1), owner: B, heads: 1 },
-          { arrow: shareArrow(ground, 0), owner: C, heads: 1 },
-        ],
-        territory: [
-          ...held([bareArrow(ground, 0)], A),
-          ...held([bareArrow(ground, 1)], B),
-          { arrow: shareArrow(ground, 0), owner: C },
-        ],
+        groups: order.map((seat) => ({ arrow: arrowFor(seat), owner: seat, heads: 1 })),
+        trails: order.map((seat) => [seat, [arrowFor(seat)]] as const),
+        territory: order.map((seat) => ({ arrow: arrowFor(seat), owner: seat })),
+        accumulators: order.map((seat) => [arrowFor(seat), rational(1, 6)] as const),
         spawners: [[aVertex(ground), { force: rational(1, 12), phase: 0 }]],
-        // Same streaks, inserted in an order that differs from `players`.
         starvationStreaks: order.map((seat) => [seat, 2] as const),
-        dominationN: 5,
+        dominationN: 3,
       });
+    };
 
-    const forward = closeRound(ground.rules, board([A, B]));
-    const reversed = closeRound(ground.rules, board([B, A]));
+    const forward = closeRound(ground.rules, board([A, B, C]));
+    const reversed = closeRound(ground.rules, board([C, B, A]));
 
     expect(snapshot(forward)).toEqual(snapshot(reversed));
-    expect([...forward.players].map(String)).toEqual(['A', 'B', 'C']);
-    expect(streakOf(forward, A)).toBe(3);
-    expect(streakOf(forward, B)).toBe(3);
+    expect(lostSeats(forward, ground.geometry)).toEqual(['A', 'B', 'C']);
+    expect(lostSeats(reversed, ground.geometry)).toEqual(['A', 'B', 'C']);
   });
 
   it('loses the same seats at the same boundaries on replay', () => {

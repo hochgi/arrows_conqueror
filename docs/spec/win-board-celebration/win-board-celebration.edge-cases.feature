@@ -20,7 +20,7 @@ Feature: Win board celebration — degenerate over, in-play leak, purity
       And A has a group on g1
       Then shine is empty
       And pulse includes g1
-      And the banner is "Player A wins — last head"
+      And the banner is "Player A wins"
 
     Scenario: Blockaded winner share still shines
       Given A is the winner
@@ -39,7 +39,7 @@ Feature: Win board celebration — degenerate over, in-play leak, purity
       Given A is the winner
       And only A has heads remaining
       And dominationHolder is B with dominationStreak at least dominationN
-      Then the banner is "Player A wins — last head"
+      Then the banner is "Player A wins"
 
   Rule: In-play must not leak victory FX
 

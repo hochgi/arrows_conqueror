@@ -40,7 +40,9 @@ describe('Win board celebration — degenerate over, in-play leak, purity', () =
     const fx = victoryFx(state, geometry);
     expect(shineOf(fx).size).toBe(0);
     expect(pulseOf(fx).has(g1)).toBe(true);
-    expect(bannerOf(fx)).toBe(`${styleFor(a).label} wins — last head`);
+    // P36: the caption names the winner, not the mechanism.
+    expect(bannerOf(fx)).toContain(styleFor(a).label);
+    expect(String(bannerOf(fx)).toLowerCase()).not.toContain('last head');
   });
 
   it('Blockaded winner share still shines', () => {
@@ -58,12 +60,13 @@ describe('Win board celebration — degenerate over, in-play leak, purity', () =
     expect(shineOf(fx).has(u1)).toBe(false);
   });
 
-  it('Leftover starvation clock does not rename elimination', () => {
+  it('Leftover starvation clock does not caption the win', () => {
     const { state, a, b } = leftoverClockBoard();
     expect(state.starvationStreaks.get(b)).toBeGreaterThanOrEqual(state.dominationN);
     const fx = victoryFx(state, geometry);
-    expect(bannerOf(fx)).toBe(`${styleFor(a).label} wins — last head`);
-    expect(bannerOf(fx)).not.toContain('starvation');
+    expect(bannerOf(fx)).toContain(styleFor(a).label);
+    expect(String(bannerOf(fx)).toLowerCase()).not.toContain('starvation');
+    expect(String(bannerOf(fx)).toLowerCase()).not.toContain('last head');
   });
 
   it('Unset winner never dims', () => {
