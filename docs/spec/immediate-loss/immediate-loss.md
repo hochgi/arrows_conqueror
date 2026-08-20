@@ -1,0 +1,134 @@
+# immediate-loss — a loss resolves on the move that causes it
+
+**Packet:** [P37 — A loss resolves when it happens, not at the next boundary](../../design/packets/P37-immediate-loss.md)
+**SPEC:** §9 (loss timing), §11 item 44 (**resolved by dissolution**).
+**Supersedes in place:** `docs/spec/losing-conditions/losing-conditions.md`, *When loss resolves — the round boundary*.
+**Layer:** `packages/rules-core` only. No DTO change, no adapter change.
+**Features:** [core](./immediate-loss.core.feature) · [edge cases](./immediate-loss.edge-cases.feature)
+
+## Purpose
+
+P36 made losing a per-seat event and resolved it at the full-round boundary.
+A playtest found what that costs: encircling the last enemy territory did not end
+the match. Replayed against `main` @ `253a359`, the winning move is 1242 and
+`winner` is first set at 1246 — four moves and three end-turns later, with the
+already-lost seat taking a turn at 1244.
+
+P36 predicted the symptom in its own spec (*"a seat that loses its last territory
+may still take the remaining turns of that round"*) and accepted it. That was
+wrong: the one moment a turn-based game must not be vague about is the moment it
+is decided.
+
+## The change
+
+**`resolveLosses` runs on every applied move**, not only inside the round
+boundary.
+
+`apply` dispatches to `applyStep`, `applySkip` and `applyEndTurn`. Resolution
+moves from inside `applyEndTurn` to the **tail of `apply`**, which preserves the
+boundary's required order for free:
+
+```
+apply(state, move):
+  next = dispatch(state, move)          # step | skip | endTurn
+  return resolveLosses(next)            # every move, not just the boundary
+
+applyEndTurn(state):
+  ...hand the seat on...
+  if not a full round: return handed
+  return tickStarvation(accrueRound(handed))   # resolve happens in apply's tail
+```
+
+Order at a boundary is still **accrue → tick streaks → resolve losses**, because
+`apply` resolves after `applyEndTurn` returns. Streaks still advance only at a
+boundary — a streak counts *rounds*, and only the resolution moved.
+
+### What this changes, all of it wanted
+
+- The match ends on the move that decides it. `winner` can now be set mid-turn;
+  the adapter already handles that, since `controlsLocked` reads `winner`.
+- A seat that can never claim again never takes another turn.
+- A step that costs another seat its last territory changes the board mid-turn.
+
+**Turn atomicity is given up deliberately.** P36 argued that removing pieces
+mid-turn means the acting player's later steps run on a board changed by their own
+earlier step. That is now read as the honest behaviour rather than a hazard: the
+board should show the consequence of the move that caused it. Nothing in §9 or §4
+required atomicity; it was a phase-1 preference.
+
+### Which seats are lost does not change — only when
+
+`resolveLosses` decides qualification against the state as it was at the start of
+the pass and applies removals to the accumulating state. That is sound at any
+frequency, because **removal gives nobody anything**: a vanishing seat's
+territory becomes unowned rather than someone else's, so removing seat X can
+never make seat Y qualify. Resolving more often therefore changes the *timing* of
+a loss and never its *outcome* — which is the property the replay tests pin.
+
+## §11 item 44 — resolved by dissolution
+
+Item 44 asked what represents a match ending with no surviving seat. **The state
+is unreachable**, so nothing represents it and nothing needs to.
+
+The chain, each link checked against the code:
+
+1. **Every seat opens owning 3 shares and 3 territory arrows** — the opening
+   3-stack loop *is* the home spawner's triangle. Measured at `playerCount`
+   2, 3 and 6.
+2. **`closure.ts` only ever does `territory.set(arrow, mover)`.** Territory
+   changes hands; it is never cleared there.
+3. **`vanishSeat` is the only path that removes territory entries**, and by
+   invariant 22 a vanishing seat never owned a share — so a vacated arrow is
+   never a share.
+4. Therefore some seat always owns a share, and `S > 0` places a player in an
+   **alive** row of the §9 table, so that seat is never lost.
+
+Hence at least one seat is always alive, and the zero-survivor board cannot be
+constructed by play.
+
+**The chain is pinned as invariants rather than merely argued.** Link 3 was
+introduced by P36. If a later packet makes territory revert to unowned somewhere
+else, or setup stops granting the home triangle, the state becomes reachable
+again — and its failure mode is the unbounded auto-pass spin item 44 already
+documents. An invariant makes that a red test instead of a hang.
+
+## Cost
+
+`resolveLosses` now runs per move instead of per round. It reads each player's
+territory, share and head counts, so the naive shape is six full territory scans
+per move. It shall read them in **one pass** over `territory` and `groups`
+instead of per-player scans, and the replay of the attached 1247-move log shall be
+measured before and after and reported.
+
+## Invariants (EARS)
+
+1. When a move causes a player to hold no territory, the system shall record that
+   player as lost in the state that move returns.
+2. When a move causes a player to hold territory, no share and no head, the
+   system shall record that player as lost in the state that move returns.
+3. When a move leaves exactly one player not lost, the system shall set `winner`
+   in the state that move returns.
+4. The system shall not offer a legal move to a player who is lost.
+5. The system shall resolve losses after a step, after a skip, and after an end
+   of turn.
+6. The system shall advance a starvation streak only at a full-round boundary.
+7. At a full-round boundary the system shall accrue, then advance streaks, then
+   resolve losses.
+8. Resolving losses more often shall not change which players are lost over a
+   whole match, only when each is lost.
+9. In every state reachable by play, some player shall own at least one spawner
+   share.
+10. In every state reachable by play, at least one player shall not be lost.
+11. The system shall never leave `winner` unset in a state where every player is
+    lost. *(Vacuous by 10, and asserted so that 10 failing cannot pass silently.)*
+12. Losses shall resolve in `state.players` order.
+13. Equal states shall produce equal losses.
+14. A replay of the same move list shall lose the same seats on the same moves.
+15. `victory.ts` shall reference neither a clock nor a random source.
+
+## Out of scope
+
+- §11 item 45 (flicker-then-fade when a seat vanishes) — adapter-only, its own
+  packet.
+- Retuning `dominationN`.
+- Any change to closure, cuts, conversion, accrual, or the four-case table.

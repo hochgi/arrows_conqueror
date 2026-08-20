@@ -71,7 +71,17 @@ is not derivable:
 The single holder/streak pair is exactly what cannot express two broke seats, so
 replacing it *is* the multi-player fix rather than a tidy-up alongside it.
 
-## When loss resolves — the round boundary
+## When loss resolves — ~~the round boundary~~ **superseded by P37**
+
+> **P37 corrected this section.** A loss now resolves on the move that causes
+> it; see `docs/spec/immediate-loss/immediate-loss.md`. The reasoning below is
+> kept because it records why the boundary was chosen and why playtest rejected
+> it — in particular, the third argument (fixture coupling) turned out to cut the
+> other way: §8 calls a player with no territory an unplayable position setup
+> must prevent, so the fixtures that author heads without territory were
+> authoring illegal states, and the coupling was evidence about the fixtures
+> rather than about the rule.
+
 
 **Loss is evaluated once per full round, at the boundary where accrual and the
 starvation tick already happen** (`applyEndTurn`, `movement.ts`). Not inside a
