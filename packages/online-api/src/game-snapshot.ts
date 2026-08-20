@@ -205,20 +205,44 @@ const hydrateSpawners = (raw: unknown): Map<VertexId, Spawner> | undefined => {
 };
 
 /**
+ * The clock a **pre-P36** snapshot carries, read off the retired
+ * `dominationHolder` / `dominationStreak` pair.
+ *
+ * Dropping it would be a match outcome changed by omission: a seat persisted at
+ * 4 of 5 would reload at 0 of 5 and get a free reprieve of up to `dominationN`
+ * rounds. A streak of zero seeds nothing, because that is what absence already
+ * means.
+ */
+const seedStreaksFromRetiredPair = (rec: Record<string, unknown>): Map<PlayerId, number> => {
+  const holder = rec['dominationHolder'];
+  const streak = rec['dominationStreak'];
+  if (typeof holder !== 'string' || typeof streak !== 'number' || streak <= 0) {
+    return new Map();
+  }
+  return new Map([[mintPlayerId(holder), streak]]);
+};
+
+/**
  * P36: `starvationStreaks` replaces the `dominationStreak` / `dominationHolder`
  * pair. **Absent is accepted as empty** — "absent means zero" is the field's own
- * semantics, so a snapshot written before P36 hydrates with every clock at zero
- * rather than failing to load.
+ * semantics, so a snapshot written without the field still loads — *unless* the
+ * retired pair is there with a live streak, in which case the clock is seeded
+ * from it ({@link seedStreaksFromRetiredPair}).
+ *
+ * The shape of the record is the only thing to read here: the envelope's
+ * `version` is the optimistic-concurrency revision (`game-handlers.ts`), not a
+ * schema version, so it cannot gate a migration.
  */
-const hydrateStreaks = (raw: unknown): Map<PlayerId, number> | undefined => {
-  if (raw === undefined) return new Map();
+const hydrateStreaks = (rec: Record<string, unknown>): Map<PlayerId, number> | undefined => {
+  const raw = rec['starvationStreaks'];
+  if (raw === undefined) return seedStreaksFromRetiredPair(rec);
   if (!Array.isArray(raw)) return undefined;
   const streaks = new Map<PlayerId, number>();
   for (const item of raw) {
-    const rec = asRecord(item);
-    if (rec === undefined) return undefined;
-    const player = rec['player'];
-    const streak = rec['streak'];
+    const entry = asRecord(item);
+    if (entry === undefined) return undefined;
+    const player = entry['player'];
+    const streak = entry['streak'];
     if (typeof player !== 'string' || typeof streak !== 'number') return undefined;
     streaks.set(mintPlayerId(player), streak);
   }
@@ -233,7 +257,7 @@ export const hydrateState = (value: unknown): GameState | undefined => {
   const dominationN = rec['dominationN'];
   if (playersRaw === undefined || typeof activePlayer !== 'string') return undefined;
   if (typeof dominationN !== 'number') return undefined;
-  const starvationStreaks = hydrateStreaks(rec['starvationStreaks']);
+  const starvationStreaks = hydrateStreaks(rec);
   const groups = hydrateGroups(rec['groups']);
   const trails = hydrateTrails(rec['trails']);
   const territory = hydrateTerritory(rec['territory']);

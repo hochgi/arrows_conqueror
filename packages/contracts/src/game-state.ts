@@ -84,8 +84,12 @@ export interface Group {
  */
 export interface GameState {
   /**
-   * Players in turn order (§4). Length ≥ 2; seat 0 is the full-round marker while
-   * alive (P08). Setup places them on a hexagon about the origin (§2 / §8).
+   * Players in turn order (§4). Length ≥ 2. `players[0]` is the full-round
+   * marker **whether or not that seat is still playing** (P08, P36): the array is
+   * never mutated or reordered, because moving the marker would move or destroy
+   * the boundary, and if the removed seat were `players[0]` accrual would stop
+   * forever. A seat that is out stays in the rotation and is passed. Setup places
+   * them on a hexagon about the origin (§2 / §8).
    */
   readonly players: readonly PlayerId[];
   /** Whose turn it is. Only this player's groups may step or skip (§4). */

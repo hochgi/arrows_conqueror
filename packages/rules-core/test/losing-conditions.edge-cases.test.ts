@@ -132,6 +132,34 @@ describe('the predicate is exactly the decided table', () => {
     }
   });
 
+  it('reads S as arrows owned, not as vertex visits', () => {
+    // `shareCountOf` is exported as a *count*, and two spawner vertices can flank
+    // the same arrow — so walking spawners and then borders reaches that arrow
+    // twice and a running total would report two shares for one piece of
+    // territory. No rule here would notice: every reading of *S* asks only
+    // whether it is zero. That is exactly why the count needs its own test.
+    const ground = aBoard();
+    const found = [...ground.shares, ...ground.bare]
+      .map((arrow) => ({
+        arrow,
+        vertices: ground.geometry
+          .flankVertices(arrow)
+          .filter((vertex) => ground.geometry.borderArrows(vertex).includes(arrow)),
+      }))
+      .find((candidate) => candidate.vertices.length >= 2);
+    if (found === undefined) throw new Error('setup: no arrow flanks two vertices');
+    const state = seatState({
+      players: [A, B],
+      territory: [{ arrow: found.arrow, owner: A }],
+      spawners: found.vertices
+        .slice(0, 2)
+        .map((vertex) => [vertex, { force: rational(1, 9), phase: 0 }] as const),
+    });
+
+    expect(state.spawners.size).toBe(2);
+    expect(readingsOf(state, A, ground.geometry)).toEqual({ territory: 1, shares: 1, heads: 0 });
+  });
+
   it('counts territory away from every spawner as territory', () => {
     const ground = aBoard();
     const away = bareArrow(ground, 0);
@@ -683,6 +711,14 @@ describe('determinism', () => {
     const ground = aBoard();
     // Two states equal but for the order every map was built in: groups,
     // territory, trails, accumulators and the streaks themselves.
+    //
+    // D is here to make the comparison say something. With only the three
+    // starving seats on the board every map is *empty* afterwards, and empty
+    // maps compare equal whatever the engine did — and `snapshot` sorts, so it
+    // could not see an order difference even if one survived. D holds the
+    // spawner's three shares, is never destitute, and its rows are **interleaved**
+    // between the varied ones, so the removals open gaps in different places in
+    // the two boards. What is left is then compared as **raw key order**.
     const board = (order: readonly PlayerId[]): GameState => {
       const stand = new Map<string, ArrowId>([
         [String(A), bareArrow(ground, 0)],
@@ -695,11 +731,23 @@ describe('determinism', () => {
         return arrow;
       };
       return seatState({
-        players: THREE,
-        groups: order.map((seat) => ({ arrow: arrowFor(seat), owner: seat, heads: 1 })),
-        trails: order.map((seat) => [seat, [arrowFor(seat)]] as const),
-        territory: order.map((seat) => ({ arrow: arrowFor(seat), owner: seat })),
-        accumulators: order.map((seat) => [arrowFor(seat), rational(1, 6)] as const),
+        players: [A, B, C, D],
+        groups: [
+          ...order.map((seat) => ({ arrow: arrowFor(seat), owner: seat, heads: 1 })),
+          { arrow: shareArrow(ground, 0), owner: D, heads: 1 },
+        ],
+        trails: [
+          ...order.map((seat) => [seat, [arrowFor(seat)]] as const),
+          [D, [shareArrow(ground, 1)]] as const,
+        ],
+        territory: order.flatMap((seat, i) => [
+          { arrow: arrowFor(seat), owner: seat },
+          { arrow: shareArrow(ground, i), owner: D },
+        ]),
+        accumulators: order.flatMap((seat, i) => [
+          [arrowFor(seat), rational(1, 6)] as const,
+          [shareArrow(ground, i), rational(1, 6)] as const,
+        ]),
         spawners: [[aVertex(ground), { force: rational(1, 12), phase: 0 }]],
         starvationStreaks: order.map((seat) => [seat, 2] as const),
         dominationN: 3,
@@ -709,9 +757,16 @@ describe('determinism', () => {
     const forward = closeRound(ground.rules, board([A, B, C]));
     const reversed = closeRound(ground.rules, board([C, B, A]));
 
+    const shares = [shareArrow(ground, 0), shareArrow(ground, 1), shareArrow(ground, 2)].map(
+      String,
+    );
+    expect([...forward.territory.keys()].map(String)).toEqual(shares);
+    expect([...forward.territory.keys()]).toEqual([...reversed.territory.keys()]);
+    expect([...forward.accumulators.keys()]).toEqual([...reversed.accumulators.keys()]);
     expect(snapshot(forward)).toEqual(snapshot(reversed));
     expect(lostSeats(forward, ground.geometry)).toEqual(['A', 'B', 'C']);
     expect(lostSeats(reversed, ground.geometry)).toEqual(['A', 'B', 'C']);
+    expect(forward.winner).toBe(D);
   });
 
   it('loses the same seats at the same boundaries on replay', () => {
