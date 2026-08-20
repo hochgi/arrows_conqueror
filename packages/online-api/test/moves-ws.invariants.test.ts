@@ -55,7 +55,7 @@ import {
   postStart,
   seedFinishedState,
   startBobAliceHeuristic,
-  authorStarvationWrapState,
+  authorWinningWrapState,
   seedOpeningState,
   snapshotState,
   startAliceBob,
@@ -208,7 +208,7 @@ describe('online-moves-ws invariants', () => {
     const { api, s3 } = makeHarness();
     await startBobAliceHeuristic(api);
     const groupHash = aliceBobGroupHash();
-    const authored = authorStarvationWrapState();
+    const authored = authorWinningWrapState();
     s3.set(gameStateKey(groupHash, GAME_ONE), persistEnvelope(0, authored.state));
     s3.set(gameLogKey(groupHash, GAME_ONE), '');
     expectStatus(await postMove(api, groupHash, GAME_ONE, ALICE.bearer, endTurn(), 0), 200);

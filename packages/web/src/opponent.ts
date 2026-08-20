@@ -178,12 +178,12 @@ export const evaluate = (
     if (player !== me) enemyShares += sharesOf(geometry, state, player);
   }
 
+  // P36: starvation is per seat. Every enemy clock is good for us, ours is bad.
+  // Read through `players`, never the map's own key order.
   let domination = 0;
-  if (state.dominationHolder !== undefined && state.dominationHolder !== me) {
-    // Opponent is on the zero-share clock — good for us.
-    domination = state.dominationStreak * 200;
-  } else if (state.dominationHolder === me) {
-    domination = -state.dominationStreak * 200;
+  for (const player of state.players) {
+    const streak = state.starvationStreaks.get(player) ?? 0;
+    domination += player === me ? -streak * 200 : streak * 200;
   }
 
   // Tip pressure: sum of distances for groups sitting on our open trail.

@@ -2,7 +2,7 @@
  * Match-over celebration — a reading of frozen GameState for Board / Hud.
  *
  * Discriminant is `state.winner` plus living-head count. Does not reimplement
- * elimination / starvation in the engine, and does not read dominationStreak
+ * elimination / starvation in the engine, and does not read `starvationStreaks`
  * for the banner.
  */
 

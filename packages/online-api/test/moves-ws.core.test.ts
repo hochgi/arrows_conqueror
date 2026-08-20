@@ -19,7 +19,7 @@ import {
   aliceBobGroupHash,
   aliceFayGroupHash,
   aliceHash,
-  authorStarvationWrapState,
+  authorWinningWrapState,
   connectionIdKey,
   connectionKey,
   countingPutStore,
@@ -157,7 +157,7 @@ describe('Heuristic burst', () => {
     const { api, s3, heuristicAsks } = makeHarness();
     await startBobAliceHeuristic(api);
     const groupHash = aliceBobGroupHash();
-    const authored = authorStarvationWrapState();
+    const authored = authorWinningWrapState();
     s3.set(gameStateKey(groupHash, GAME_ONE), persistEnvelope(0, authored.state));
     s3.set(gameLogKey(groupHash, GAME_ONE), '');
     const asksBefore = heuristicAsks.length;

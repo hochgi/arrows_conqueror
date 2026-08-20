@@ -232,12 +232,12 @@ describe('win-board-celebration invariants', () => {
 
   it('The rules engine shall be unchanged: no new win condition, no new field, no edit to packages/rules-core/src/victory.ts', async () => {
     const exported = Object.keys(await import('../src/fx/victory'));
-    expect(exported).not.toContain('applyElimination');
-    expect(exported).not.toContain('tickDomination');
+    expect(exported).not.toContain('resolveLosses');
+    expect(exported).not.toContain('tickStarvation');
     expect(victoryFx.length).toBe(2);
     const src = helperSrc();
     expect(src).not.toContain('@conquarrow/rules-core');
-    expect(src).not.toContain('applyElimination');
-    expect(src).not.toContain('tickDomination');
+    expect(src).not.toContain('resolveLosses');
+    expect(src).not.toContain('tickStarvation');
   });
 });

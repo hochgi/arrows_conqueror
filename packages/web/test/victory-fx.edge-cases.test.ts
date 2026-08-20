@@ -60,8 +60,7 @@ describe('Win board celebration — degenerate over, in-play leak, purity', () =
 
   it('Leftover starvation clock does not rename elimination', () => {
     const { state, a, b } = leftoverClockBoard();
-    expect(state.dominationHolder).toBe(b);
-    expect(state.dominationStreak).toBeGreaterThanOrEqual(state.dominationN);
+    expect(state.starvationStreaks.get(b)).toBeGreaterThanOrEqual(state.dominationN);
     const fx = victoryFx(state, geometry);
     expect(bannerOf(fx)).toBe(`${styleFor(a).label} wins — last head`);
     expect(bannerOf(fx)).not.toContain('starvation');
@@ -132,11 +131,11 @@ describe('Win board celebration — degenerate over, in-play leak, purity', () =
 
   it('Rules-core victory is not reimplemented', async () => {
     const exported = Object.keys(await import('../src/fx/victory'));
-    expect(exported).not.toContain('applyElimination');
-    expect(exported).not.toContain('tickDomination');
+    expect(exported).not.toContain('resolveLosses');
+    expect(exported).not.toContain('tickStarvation');
     const src = helperSrc();
     expect(src).not.toContain('@conquarrow/rules-core');
-    expect(src).not.toContain('applyElimination');
-    expect(src).not.toContain('tickDomination');
+    expect(src).not.toContain('resolveLosses');
+    expect(src).not.toContain('tickStarvation');
   });
 });

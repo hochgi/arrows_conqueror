@@ -247,8 +247,7 @@ export const leftoverClockBoard = (): { state: GameState; a: PlayerId; b: Player
     b,
     state: {
       ...state,
-      dominationHolder: b,
-      dominationStreak: state.dominationN,
+      starvationStreaks: new Map([[b, state.dominationN]]),
     },
   };
 };
@@ -304,8 +303,7 @@ export const snapshotState = (
   groups: string[];
   trails: string[];
   spawners: string[];
-  dominationStreak: number;
-  dominationHolder: string | undefined;
+  starvationStreaks: string[];
 } => ({
   winner: state.winner === undefined ? undefined : String(state.winner),
   territory: [...state.territory]
@@ -318,7 +316,7 @@ export const snapshotState = (
     .map(([player, arrows]) => `${String(player)}:${sortedIds(arrows).join(',')}`)
     .toSorted(),
   spawners: [...state.spawners.keys()].map(String).toSorted(),
-  dominationStreak: state.dominationStreak,
-  dominationHolder:
-    state.dominationHolder === undefined ? undefined : String(state.dominationHolder),
+  starvationStreaks: [...state.starvationStreaks]
+    .map(([player, streak]) => `${String(player)}:${String(streak)}`)
+    .toSorted(),
 });

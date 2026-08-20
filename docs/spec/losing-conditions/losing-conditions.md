@@ -146,10 +146,44 @@ stateDiagram-v2
   won --> [*]
 ```
 
-Order inside the boundary is fixed and load-bearing: **accrue, then advance the
-clocks, then resolve losses.** Accruing first means a destitute seat that a
-spawner is about to pay is judged on the board *after* it was paid, so a seat is
-never removed on the same boundary that would have saved it.
+Order inside the boundary is **accrue, then advance the clocks, then resolve
+losses.** Only one of those two orderings is load-bearing, and it is not the one
+an earlier draft of this document claimed.
+
+**A lost seat never owned a spawner share.** `S > 0` places a player in an
+*alive* row of every case in the table, so no seat that qualifies to be lost owns
+a share. That is worth stating as a theorem, because a great deal follows from it:
+
+- **Accrual cannot save a seat from loss, and cannot clear a starvation streak.**
+  `accrueRound` pays only the owner of a spawner-border arrow, and neither a
+  lost seat nor a destitute one owns one. So accrue-before-resolve is *vacuously*
+  safe: the two touch disjoint arrows and the order cannot change an outcome.
+  The claim that accruing first rescues a seat about to be paid was wrong — a
+  seat is rescued by *capturing* a share during a turn, which is closure, not
+  accrual.
+- **A lost seat's territory never includes a share**, so removal never vacates a
+  spawner-border arrow and never changes a spawner's ownership.
+
+**Tick before resolve is load-bearing**, and it is observable: a seat goes on the
+round its streak *reaches* `dominationN`, not the round after. Reverse those two
+and every starvation loss is one round late.
+
+The remaining order requirement is **resolve every seat, then check for a
+winner** — not a win check inside the per-seat loop, which would set `winner` to
+the second-to-last seat in the instant before removing it.
+
+## What the share theorem rules out
+
+Because a lost seat never owned a share, two situations that look like edge cases
+are **unconstructible**, and no scenario may assume them:
+
+- a lost seat vacating a spawner-border arrow, and
+- a spawner all three of whose border arrows belonged to a lost seat.
+
+Accumulator reset on removal is therefore always about **share-free** territory,
+and a spawner's round-robin cursor advances without reference to who owns
+anything. Both are still worth a scenario — the reset must happen, and the cursor
+must not care — but they must be written on a board that can exist.
 
 ## Determinism
 
@@ -183,8 +217,8 @@ never removed on the same boundary that would have saved it.
     heads, trails and territory unchanged.
 11. The system shall evaluate loss only at a full-round boundary.
 12. The system shall not evaluate loss during a step, a skip, or a convert.
-13. The system shall accrue before advancing streaks, and advance streaks before
-    resolving losses.
+13. The system shall advance streaks before resolving losses, so that a seat is
+    lost on the round its streak reaches `dominationN` and not the round after.
 14. The system shall never remove a player from `state.players`, nor reorder it.
 15. Where the active player has no legal move, the system shall pass that seat's
     turn without applying anything.
@@ -193,7 +227,13 @@ never removed on the same boundary that would have saved it.
 17. While two or more players are not lost, the system shall leave `winner` unset.
 18. The system shall never set `winner` to a player chosen by position in
     `state.players`.
-19. The system shall resolve losses in `state.players` order.
+19. The system shall produce a result independent of the insertion order of
+    every map it reads, and shall report lost seats in `state.players` order.
+    *(Per-seat removal gives nobody anything, so removals commute and
+    resolution order has no falsifying observation of its own — this is the
+    observable content of that requirement, not a weaker substitute.)*
+22. The system shall never record as lost a player who owns a spawner share.
+23. The system shall resolve every qualifying seat before setting `winner`.
 20. Equal states shall produce equal losses, in equal order.
 21. A replay of the same move list shall lose the same seats at the same
     boundaries.
@@ -217,11 +257,36 @@ Added to SPEC.md §11:
   whole trail from a non-cut event is a new trigger for §6.1 and inventing one is
   out of bounds.
 
+## The victory banner must stop naming a mechanism
+
+`packages/web/src/fx/victory.ts` derives *how* a match was won from a head
+count: `livingCount(state) === 1 ? 'elimination' : 'starvation'`, where
+`livingCount` counts seats with at least one head. That works **today** because
+starvation sets `winner` while the victim still holds heads, so the count is ≥ 2.
+
+P36 breaks it. A lost seat's heads are removed, so whenever `winner` is set
+exactly one seat has heads, `how` is *always* `'elimination'`, the `'starvation'`
+branch is dead, and the banner always reads **"… wins — last head"** even when
+the loser starved. That is a lie this packet introduces, so fixing it is in
+scope even though adapter presentation generally is not.
+
+The fix is to stop claiming a mechanism the state can no longer supply: the
+banner names the winner and nothing else. The reason is genuinely not derivable
+after the fact — the losing seat and its clock are both gone — so deriving it
+would mean storing it, and a field that exists only to caption a banner is the
+wrong trade. If the reason is wanted later it belongs in the match log
+(P32 telemetry), which is written while the loss happens.
+
+Invariant: **while `winner` is set, the banner shall not assert a losing
+mechanism.**
+
 ## Out of scope
 
 - Retuning `dominationN` (default 5) — tuning belongs with the spawner table
   (§7, §11 item 11).
 - Kingmaking under 3+ play; §8 accepts it for playtest.
 - Any change to how territory or shares are won or lost.
-- Adapter presentation of a vanished seat beyond not stalling on its turn and
-  not reading the removed DTO fields.
+- Adapter presentation of a vanished seat beyond not stalling on its turn, not
+  reading the removed DTO fields, and not captioning a mechanism it cannot
+  derive (above).
+- Recording *why* a seat was lost, in the match log or anywhere else. Follow-on.

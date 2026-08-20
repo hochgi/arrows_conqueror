@@ -57,8 +57,7 @@ const stateOf = (
   territory: new Map((ground.territory ?? []).map((t) => [t.arrow, t.owner] as const)),
   accumulators: new Map(),
   spawners: new Map(ground.spawners ?? []),
-  dominationStreak: 0,
-  dominationHolder: undefined,
+  starvationStreaks: new Map(),
   dominationN: 5,
   winner: undefined,
 });

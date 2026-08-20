@@ -425,7 +425,12 @@ export const App = (): ReactElement => {
     const { state: next, moves } = passIfExhausted(rules, state);
     if (Object.is(next, state) || moves.length === 0) return;
     if (!hasLegalStep(rules, next) && next.winner === undefined) {
-      const key = `${String(next.activePlayer)}:${String(next.groups.size)}:${String(next.dominationStreak)}`;
+      // P36: the single starvation streak became per seat. Read it through
+      // `players` so the key never depends on the map's own insertion order.
+      const streaks = next.players
+        .map((player) => String(next.starvationStreaks.get(player) ?? 0))
+        .join(',');
+      const key = `${String(next.activePlayer)}:${String(next.groups.size)}:${streaks}`;
       if (softLockKey.current === key) return;
       softLockKey.current = key;
     } else {

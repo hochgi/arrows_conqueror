@@ -141,20 +141,34 @@ export interface GameState {
    */
   readonly spawners: ReadonlyMap<VertexId, Spawner>;
   /**
-   * Consecutive full rounds the {@link dominationHolder} has held **zero**
-   * spawner shares (§9 starvation / P09). Zero when nobody is destitute alone.
+   * Consecutive full rounds each destitute seat has owned **zero** spawner
+   * shares (§9 starvation / P36). Absent means zero.
    *
-   * Names keep the P09 `domination*` spelling; the condition is starvation — a
-   * player with no income for *N* rounds loses.
+   * **Per seat**, because the single holder/streak pair P09 carried cannot
+   * express two broke players: it advanced only while *exactly one* seat was
+   * destitute, so two of them cancelled each other's clocks indefinitely
+   * (§11 item 32).
+   *
+   * A streak is *history* and history is not derivable, which is why this is the
+   * only field the losing rule stores. Whether a seat is **lost** is derived from
+   * the board — `territoryCount === 0 || (shares === 0 && heads === 0)` — and a
+   * flag would be a second copy of something the board already says.
+   *
+   * Iterate it through {@link players}, never through its own key order: it is a
+   * `Map` feeding an ordered decision, which is exactly where ADR 0001's
+   * determinism failure hides.
    */
-  readonly dominationStreak: number;
-  /** Living player currently on a zero-share streak, if exactly one. */
-  readonly dominationHolder: PlayerId | undefined;
+  readonly starvationStreaks: ReadonlyMap<PlayerId, number>;
   /** Starvation threshold *N* (full rounds). Setup data — default 5 (P09). */
   readonly dominationN: number;
   /**
-   * Match outcome. Absent / `playing` while the match runs; set by elimination
-   * or starvation (§9).
+   * Match outcome — the last seat **not lost** (§9, P36). Absent while two or
+   * more seats remain.
+   *
+   * Absent also covers the terminal-but-unwon board a boundary that removes
+   * every remaining seat leaves behind. That is **SPEC §11 item 44** and it is
+   * recorded as wrong rather than fixed here: `PlayerId | undefined` cannot say
+   * "over, nobody won", and picking a representation is a game decision.
    */
   readonly winner: PlayerId | undefined;
 }

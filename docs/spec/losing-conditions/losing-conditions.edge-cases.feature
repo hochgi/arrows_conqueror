@@ -72,33 +72,51 @@ Feature: Losing at the boundaries
       Then A has no heads there
       And B's trail mark remains
 
+    # A lost seat never owned a share, so the arrow here is share-free territory.
+    # A part-filled accumulator on non-share territory is still reachable, because
+    # accumulators outlive the capture that zeroed them.
     Scenario: Accumulators on vacated territory reset rather than carrying
-      Given A owns a spawner-border arrow with a part-filled accumulator
+      Given A owns share-free territory with a part-filled accumulator
       And A becomes lost
       When the round closes
       Then that arrow is unowned
       And its accumulator is zero
 
-    Scenario: A spawner whose shares are all vacated keeps its round-robin phase
-      Given all three border arrows of a spawner belonged to A
-      And A becomes lost
+    # Not "a spawner whose shares were all A's" — that board cannot exist. The
+    # point under test is that the cursor is ownership-blind.
+    Scenario: A spawner's round-robin phase ignores who owns its shares
+      Given a spawner whose border arrows are unowned
       When the round closes
-      Then the spawner's phase advanced exactly once for that round
+      Then the spawner's phase advanced exactly once
+
+    Scenario: No lost seat ever owned a spawner share
+      Given any state in which some seat is lost
+      Then that seat owned no spawner-border territory
 
   Rule: The boundary order cannot remove a seat that was about to be paid
 
-    Scenario: Accrual saves a headless seat on the same boundary
+    # Not a rescue from loss — A owns a share, so A was never a candidate. What
+    # this pins is that a headless share-owner is paid and stays in the match.
+    Scenario: A headless share owner is paid and stays in
       Given A owns a share, holds no heads, and its accumulator crosses a head this round
       When the round closes
       Then A holds a head
       And A is not lost
 
-    Scenario: Accrual on the last round of a streak clears rather than loses
+    # A streak is cleared by *capturing* a share during a turn — closure, not
+    # accrual. Accrual pays only share owners and a destitute seat owns none.
+    Scenario: Capturing a share on the last round of a streak clears it
       Given A is destitute with a streak one below the threshold
       And A captures a share before the round closes
       When the round closes
       Then A's starvation streak is 0
       And A is not lost
+
+    Scenario: A seat is lost on the round its streak reaches the threshold
+      Given the starvation threshold is 3
+      And A is destitute from the first round
+      Then A is not lost after two rounds
+      And A is lost after three rounds
 
     Scenario: An enemy blockade does not pay the owner
       Given A owns a share with an enemy head standing on it
@@ -164,14 +182,16 @@ Feature: Losing at the boundaries
       When the round closes on each
       Then the same seats are lost, in the same order
 
-    Scenario: Losses resolve in player order
-      Given seats B and A both qualify to be lost, with A earlier in the list
+    Scenario: The winner is checked only after every seat is resolved
+      Given the last three seats all qualify to be lost on one boundary
       When the round closes
-      Then A is resolved before B
+      Then no winner is set for the second-to-last seat resolved
 
-    Scenario: Streaks are read through the player list, not the map
-      Given starvation streaks inserted in an order that differs from the player list
-      Then the resolution order follows the player list
+    Scenario: The outcome ignores every map's insertion order
+      Given two states equal but for the insertion order of their maps
+      When the round closes on each
+      Then the resulting states are identical
+      And lost seats are reported in player list order
 
     Scenario: A replay loses the same seats at the same boundaries
       Given a match log that eliminates two seats

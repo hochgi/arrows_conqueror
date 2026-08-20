@@ -98,7 +98,7 @@ export const stubRules = (): { readonly rules: RulesPort; readonly applyCalls: A
   const rules = {
     apply(state: GameState, move: Move): GameState {
       applyCalls.push({ state, move });
-      return { ...state, dominationStreak: state.dominationStreak + 1 };
+      return { ...state, dominationN: state.dominationN + 1 };
     },
   } as RulesPort;
   return { rules, applyCalls };

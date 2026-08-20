@@ -119,15 +119,35 @@ const hydrateSpawners = (raw: unknown): Map<VertexId, Spawner> | undefined => {
   return spawners;
 };
 
+/**
+ * P36: `starvationStreaks` replaces the `dominationStreak` / `dominationHolder`
+ * pair. Absent hydrates to empty — "absent means zero" is the field's own
+ * semantics, so a pre-P36 snapshot still loads.
+ */
+const hydrateStreaks = (raw: unknown): Map<PlayerId, number> | undefined => {
+  if (raw === undefined) return new Map();
+  if (!Array.isArray(raw)) return undefined;
+  const streaks = new Map<PlayerId, number>();
+  for (const item of raw) {
+    const rec = asRecord(item);
+    if (rec === undefined) return undefined;
+    const player = rec['player'];
+    const streak = rec['streak'];
+    if (typeof player !== 'string' || typeof streak !== 'number') return undefined;
+    streaks.set(mintPlayerId(player), streak);
+  }
+  return streaks;
+};
+
 export const hydrateState = (value: unknown): GameState | undefined => {
   const rec = asRecord(value);
   if (rec === undefined) return undefined;
   const playersRaw = stringList(rec['players']);
   const activePlayer = rec['activePlayer'];
-  const dominationStreak = rec['dominationStreak'];
   const dominationN = rec['dominationN'];
   if (playersRaw === undefined || typeof activePlayer !== 'string') return undefined;
-  if (typeof dominationStreak !== 'number' || typeof dominationN !== 'number') return undefined;
+  if (typeof dominationN !== 'number') return undefined;
+  const starvationStreaks = hydrateStreaks(rec['starvationStreaks']);
   const groups = hydrateGroups(rec['groups']);
   const trails = hydrateTrails(rec['trails']);
   const territory = hydrateTerritory(rec['territory']);
@@ -138,11 +158,11 @@ export const hydrateState = (value: unknown): GameState | undefined => {
     trails === undefined ||
     territory === undefined ||
     accumulators === undefined ||
-    spawners === undefined
+    spawners === undefined ||
+    starvationStreaks === undefined
   ) {
     return undefined;
   }
-  const dominationHolderRaw = rec['dominationHolder'];
   const winnerRaw = rec['winner'];
   return {
     players: playersRaw.map(mintPlayerId),
@@ -152,10 +172,8 @@ export const hydrateState = (value: unknown): GameState | undefined => {
     territory,
     accumulators,
     spawners,
-    dominationStreak,
+    starvationStreaks,
     dominationN,
-    dominationHolder:
-      typeof dominationHolderRaw === 'string' ? mintPlayerId(dominationHolderRaw) : undefined,
     winner: typeof winnerRaw === 'string' ? mintPlayerId(winnerRaw) : undefined,
   };
 };

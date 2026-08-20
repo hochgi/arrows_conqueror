@@ -185,9 +185,10 @@ export const snapshotForPrompt = (
     players: state.players.map(String),
     activePlayer: String(state.activePlayer),
     winner: state.winner === undefined ? null : String(state.winner),
-    dominationStreak: state.dominationStreak,
-    dominationHolder:
-      state.dominationHolder === undefined ? null : String(state.dominationHolder),
+    starvationStreaks: state.players.map((player) => ({
+      player: String(player),
+      streak: state.starvationStreaks.get(player) ?? 0,
+    })),
     dominationN: state.dominationN,
     groups,
     trails,
