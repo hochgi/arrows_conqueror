@@ -232,11 +232,11 @@ must not care — but they must be written on a board that can exist.
     *(Per-seat removal gives nobody anything, so removals commute and
     resolution order has no falsifying observation of its own — this is the
     observable content of that requirement, not a weaker substitute.)*
-22. The system shall never record as lost a player who owns a spawner share.
-23. The system shall resolve every qualifying seat before setting `winner`.
 20. Equal states shall produce equal losses, in equal order.
 21. A replay of the same move list shall lose the same seats at the same
     boundaries.
+22. The system shall never record as lost a player who owns a spawner share.
+23. The system shall resolve every qualifying seat before setting `winner`.
 
 ## Open, and deliberately not decided here
 

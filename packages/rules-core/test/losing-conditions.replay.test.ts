@@ -5,10 +5,15 @@
  * core is pure, replaying it must reproduce the same losses at the same round
  * boundaries and the same final board, byte for byte (ADR 0001).
  *
- * This is the cheapest detector of the nondeterminism this packet is most
- * exposed to: `starvationStreaks` is a `Map` feeding an ordered decision, and a
- * resolution that iterated it instead of `state.players` would pass every
- * example above and drift here.
+ * What that pins is the boundary arithmetic — the same log loses the same seats
+ * at the same boundaries — and **not** map-iteration nondeterminism.
+ * `replayIsDeterministic` replays the one implementation twice in a single
+ * process, so both runs build every map in the same insertion order and see the
+ * same iteration order; a resolution that walked `starvationStreaks` instead of
+ * `state.players` would agree with itself here. Nor would it drift elsewhere:
+ * per-seat removal gives nobody anything, so removals commute and resolution
+ * order has no falsifying observation of its own (invariant 19). Insertion order
+ * is instead varied explicitly, in the edge-case and invariant suites.
  *
  * @see docs/spec/losing-conditions/losing-conditions.md
  * @see .claude/skills/rules-invariants/SKILL.md

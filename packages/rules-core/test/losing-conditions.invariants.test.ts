@@ -1,5 +1,5 @@
 /**
- * The 21 EARS invariants of docs/spec/losing-conditions/losing-conditions.md,
+ * The 23 EARS invariants of docs/spec/losing-conditions/losing-conditions.md,
  * as properties rather than examples.
  *
  * The generator is the whole point here. Every invariant below is quantified over
@@ -507,14 +507,20 @@ describe('determinism', () => {
       [B, bareArrow(ground, 1)],
       [C, bareArrow(ground, 2)],
     ];
+    // D holds the spawner's three shares, so it survives the boundary and there
+    // is something left to compare: three seats going leaves every map empty, and
+    // empty maps compare equal however the engine reached them. D's rows are
+    // **interleaved** with the varied ones so the removals open gaps in different
+    // places, and what survives is compared as **raw key order** rather than
+    // through `snapshot`, which sorts.
     const board = (rows: readonly (readonly [PlayerId, ArrowId])[]): GameState =>
       seatState({
         players: [A, B, C, D],
         groups: [{ arrow: shareArrow(ground, 0), owner: D, heads: 1 }],
-        territory: [
-          ...rows.map(([owner, arrow]) => ({ arrow, owner })),
-          { arrow: shareArrow(ground, 0), owner: D },
-        ],
+        territory: rows.flatMap(([owner, arrow], i) => [
+          { arrow, owner },
+          { arrow: shareArrow(ground, i), owner: D },
+        ]),
         spawners: [[aVertex(ground), { force: rational(1, 12), phase: 1 }]],
       });
 
@@ -523,6 +529,10 @@ describe('determinism', () => {
 
     expect(lostSeats(forward, ground.geometry)).toEqual(['A', 'B', 'C']);
     expect(lostSeats(backward, ground.geometry)).toEqual(['A', 'B', 'C']);
+    expect([...forward.territory.keys()].map(String)).toEqual(
+      [shareArrow(ground, 0), shareArrow(ground, 1), shareArrow(ground, 2)].map(String),
+    );
+    expect([...forward.territory.keys()]).toEqual([...backward.territory.keys()]);
     expect(snapshot(forward)).toEqual(snapshot(backward));
   });
 

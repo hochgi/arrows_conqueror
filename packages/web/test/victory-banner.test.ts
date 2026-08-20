@@ -14,9 +14,10 @@
  * shall not assert a losing mechanism.** The reason is genuinely not derivable
  * after the fact — the losing seat and its clock are both gone — so deriving it
  * would mean storing it, and recording *why* a seat was lost is an explicit
- * follow-on. These tests therefore pin the constraint and the winner's name,
- * **not** a caption wording: the spec says "names the winner and nothing else"
- * without giving a literal, and picking one is phase 3's to make.
+ * follow-on. These tests therefore pin the constraint and the winner's name.
+ * The wording is **not** this suite's to pick: the spec locks the literal
+ * (`{label} wins`) exactly as P29 locked the two strings it supersedes, and
+ * `victory-fx.core.test.ts` asserts it. Rewording it is a spec change.
  *
  * @see docs/spec/losing-conditions/losing-conditions.md — *The victory banner
  * must stop naming a mechanism*
