@@ -751,15 +751,25 @@ A drafted opening was designed and deliberately deferred — see Appendix A.
 
 ## 9. Victory
 
-**Elimination.** Lose your last head and you are out.
+~~**Elimination.** Lose your last head and you are out.~~ — **repealed by P36.** Losing your last head is survivable while you still own production: a spawner share pays its owner with no heads anywhere on the board, so the seat is passed over until a head arrives rather than removed. What ends a seat is being unable to ever claim again. **Losing is now four cases**, over territory *T*, spawner shares *S* and heads *H* — and because a share *is* territory on a spawner-border arrow (below), `S > 0 ⟹ T > 0` and they are exhaustive and disjoint:
 
-This makes heads the life force rather than merely units. Conversion by encirclement becomes a literal step toward winning, spawners become life support rather than score, and the loop tightens into:
+| *T* | *S* | *H* | Outcome |
+|---|---|---|---|
+| 0 | — | — | **lost.** §8: a player holding no territory can never claim anything, ever |
+| >0 | 0 | >0 | **starvation clock** — *N* full rounds, then lost |
+| >0 | 0 | 0 | **lost.** No production and no units: nothing can ever change |
+| >0 | >0 | 0 | **alive**, passed over until a spawner yields a head |
+| >0 | >0 | >0 | normal play |
+
+A lost seat **vanishes**: its heads, trail marks and territory are removed, and vacated territory becomes unowned with its accumulators reset (§7). The match ends when one seat remains. Loss resolves once per full round, at the boundary where accrual and the starvation tick already happen — "immediate" above means *no grace period*, in contrast to starvation's *N* rounds, not a claim about sub-turn timing. See `docs/spec/losing-conditions/losing-conditions.md`.
+
+Heads remain what you risk and what conversion steals, and conversion by encirclement is still a literal step toward winning — but they are no longer *lives*. What §8 made mandatory at setup is what the first row makes permanent: territory is the licence to keep playing. Spawners are life support rather than score, and the loop tightens into:
 
 > risk heads → take territory → hold specials → make heads
 
 It also hands the trailing player a real comeback vector: a desperate lasso around an enemy stack doesn't just deal damage, it *takes* those heads — a 2× swing on the exact axis that decides the game.
 
-**Starvation.** A living player who owns **no spawner share at all** for *N* consecutive full rounds loses — the other living seat wins.
+**Starvation.** A living player who owns **no spawner share at all** for *N* consecutive full rounds loses. ~~— the other living seat wins.~~ **P36: the seat is removed, not the match.** Destitution is tracked **per seat**, so two broke players advance independent clocks and neither cancels the other; reaching *N* loses that seat and play continues among the rest. The old wording was two-player throughout, and the implementation followed it — advancing only when *exactly one* player was destitute, then ending the match and awarding it to the first surviving seat in array order (§11 item 32).
 
 The second condition exists because elimination alone is unreachable against a player who simply refuses to be reached (§11 item 32). It ends a match on the axis the game is actually contested on — production — rather than on physically cornering a last head.
 
@@ -967,7 +977,7 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 
 **~~Nothing ends a match against an opponent who simply leaves~~ — resolved: a second win condition, on production rather than on pursuit**
 
-32. ~~What stops a losing player walking away forever?~~ — **re-resolved: starvation.** A living player who owns **no spawner share for *N* consecutive full rounds** loses; the other living seat wins (§9). ~~**resolved: domination** — hold every share for *N*.~~ Playtests showed domination started too late: once the opponent already had zero shares, the attacker still had to own the whole board and then wait *N* empty end-turns. Starvation starts the clock at destitution.
+32. ~~What stops a losing player walking away forever?~~ — **re-resolved: starvation**, then **corrected for 3+ seats by P36.** A living player who owns **no spawner share for *N* consecutive full rounds** loses; ~~the other living seat wins~~ **that seat is removed and play continues** (§9). The original wording was two-player throughout and the implementation matched it: the clock advanced only while *exactly one* player was destitute — so two broke seats cancelled each other indefinitely — and firing it ended the whole match, awarding it to the first surviving seat in `state.players` order while others were still contesting. Destitution is now per seat. → **§9**, → **P36**. ~~**resolved: domination** — hold every share for *N*.~~ Playtests showed domination started too late: once the opponent already had zero shares, the attacker still had to own the whole board and then wait *N* empty end-turns. Starvation starts the clock at destitution.
 
     **The answer is a win condition, not a chase mechanic**, and that is what makes it work: a runner past *R* holds no shares at all, so the clock starts the moment they leave and never depends on reaching them. Two things about its shape, neither a tuning choice:
 
@@ -1043,6 +1053,10 @@ The decoy play this enables: bait an attacker into committing to a cut, and coun
 **Self-convert steps — resolved by P28: illegal, not a suicide move**
 
 43. ~~May a player walk from stack-grade / marked trail onto enemy territory and convert themselves?~~ — **resolved: no, the step is illegal.** Conversion is not a suicide move the engine offers. A grain step onto another player's territory is legal only when the mover is already **territory-grade protected** from `from` (home tile, or own trail with `anchorGrade === 'territory'`). Otherwise `legalMoves` omits every count of that `(from, exit)` and `apply` throws; the stack does not move, fight, or convert. Opponent-caused encirclement is unchanged: closure claiming the tile under an unprotected group, or a cut that demotes a raider already inside, still converts intact (§6.3). Skip does not convert. → **§6.3**, → **§4**, → **P28**.
+
+44. **What represents a match that ends with no surviving seat?** `GameState.winner` is `PlayerId | undefined`, and `undefined` already means *still playing* — `victoryFx` reads it that way (`packages/web/src/fx/victory.ts`). P36 made losing a per-seat event resolved at a round boundary, and two seats can reach *T>0, S=0, H=0* on the same boundary, so a board with **no** seat left is constructible. P36 deliberately did not invent a draw: it removes every qualifying seat, leaves `winner` unset, and the state is terminal-but-unwon, which the adapter presents as still playing. That is wrong and is recorded as wrong. Deciding the representation — a third outcome value, a nominated survivor, or a rule that the last seat cannot be removed — is a game decision. → **§9**, → **P36**.
+
+45. **Should a lost seat's trail evaporate (§6.1) rather than simply clear?** Evaporation is the destruction a cut causes and it is what players are trained to read on the board (§6.1, and the P32 event legibility work). When a seat is removed for losing, P36 *clears* its trail marks silently, because evaporating a whole trail from a non-cut event would be a new trigger for §6.1 and inventing one is out of bounds. The choice is visible in play: a seat vanishing without a sound versus its trail coming apart the way a cut trail does. → **§6.1**, → **§9**, → **P36**.
 
 **Spawner accrual timing and spawn-merge — resolved by P08**
 
