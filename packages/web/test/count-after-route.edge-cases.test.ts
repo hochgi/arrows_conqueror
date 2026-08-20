@@ -576,12 +576,20 @@ describe('P35 edge — purity, determinism and cost', () => {
     expect(carriesOf(popped)).toEqual(countsThatWalk(rules, state, from, [first]));
   });
 
-  it('The offer costs two walks per step, not one per count', () => {
-    // The spec's cost note, asserted as a shape. `speed(8) = speed(15) = 4`, so
-    // the two boards have identical rays and identical refusals: an offer decided
-    // by walking at the tip's heads (and, where a step is refused, once more at
-    // one fewer) costs the *same* either way, while one that scanned 1..tipHeads
-    // would cost about twice as much at 15 heads as at 8.
+  it('The offer’s cost does not scale with the head count', () => {
+    // The spec's cost note, asserted as the shape it can actually prove.
+    // `speed(8) = speed(15) = 4`, so the two boards have identical rays and — on
+    // an open field — identical *acceptances*: exactly one whole-run walk per ray
+    // happens either way, and the count of `rules.apply` calls is the same. An
+    // offer that scanned 1..tipHeads instead would cost about twice as much at 15
+    // heads as at 8, which is what this kills.
+    //
+    // It does **not** prove "two walks, never a per-step retry" — no step is
+    // refused here, so the second walk never runs. That claim is enforced by
+    // *invariants* `4. An arrow shall be in the clickable set if and only if some
+    // count … walks the run that reaches it`, where an enemy two steps out is
+    // asserted unclickable: a per-step retry at one head fewer would accept that
+    // second step and offer an arrow no single count can reach.
     //
     // Measured on `clickableSet` rather than on the whole offer: `runCarries`
     // *is* allowed its one 1..ceiling scan, and `reach.ts`'s wash has always

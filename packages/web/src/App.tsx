@@ -1134,22 +1134,24 @@ export const App = (): ReactElement => {
       {/* The count control for the drafted run, **outside** the board — see
           `RouteDock`. Rendered here, as a sibling of the board's container, so no
           stage pixel can reach it and nothing it draws can cover the offer it is
-          asking about. */}
-      {dock === undefined ? null : (
-        <RouteDock
-          count={dock.count}
-          ceiling={dock.ceiling}
-          counts={dock.counts}
-          draftLength={dock.draftLength}
-          onCount={setCarry}
-          onSend={() => {
-            commitSnap(mode.send());
-          }}
-          onCancel={() => {
-            commitSnap(mode.cancel());
-          }}
-        />
-      )}
+          asking about.
+
+          Rendered *unconditionally*, with `control` undefined when there is
+          nothing to ask: the strip then paints nothing but keeps its row, so the
+          board does not shrink by the strip's height on the first click of every
+          route — which would slide every arrow under the player's finger
+          mid-gesture, on the one packet whose premise is that the model reads
+          badly on a phone. */}
+      <RouteDock
+        control={dock}
+        onCount={setCarry}
+        onSend={() => {
+          commitSnap(mode.send());
+        }}
+        onCancel={() => {
+          commitSnap(mode.cancel());
+        }}
+      />
     </div>
   );
 };

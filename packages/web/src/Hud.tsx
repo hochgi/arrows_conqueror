@@ -155,8 +155,12 @@ export const Hud = ({
         a straight leg and click again from the new tip · a faint mark off a ray =
         the one free turn at the end of that run · the brightest chords = the route
         drafted so far, click a walked arrow to go back · the palest wash = still
-        reachable but not a single run away · carry fewer heads at the tip to leave
-        a sentry (and to arm an attack) · nothing is applied until Send · refused
+        reachable but not a single run away · route first, count second: the strip
+        under the board says how many heads walk the run you just drafted, the rest
+        staying where it began as a sentry (an attack always leaves one behind, so
+        that click is armed for you) · nothing is applied until Send, except a click
+        with one legal count and nowhere further to go, which applies at once ·
+        refused
         (not-allowed) grain = would convert with no trail home · bold
         tile edge = occupied · trail chords stay visible under enemy stacks
         (overlap is legal until a cut) · solid fill = territory, thin fill = open

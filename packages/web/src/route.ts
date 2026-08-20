@@ -95,9 +95,22 @@ export interface RouteInputs {
   readonly tip: ArrowId;
   /** The draft so far, in order. Applied to nothing. */
   readonly draft: readonly Move[];
-  /** Heads travelling from the tip. The rest stay as a sentry (§5). */
+  /**
+   * Heads travelling from the tip. The rest stay as a sentry (§5).
+   *
+   * **Since P35 this steers no ray.** The offer — rays, turns, clickable set — is
+   * measured at {@link RouteInputs.tipHeads}, because the count is asked after the
+   * click and can no longer shrink what is on offer before one. What is left
+   * reading it is the reach wash, the faint tier that says "further than one run".
+   */
   readonly carry: number;
-  /** Heads standing on the tip in `state` — read off the state, not the carry. */
+  /**
+   * Heads standing on the tip in `state` — read off the state, not the carry.
+   *
+   * **The measurement the whole offer is taken at** (P35): a run is walked at this
+   * count and at one below it, and an arrow is clickable iff one of the two walks
+   * reaches it.
+   */
   readonly tipHeads: number;
   /**
    * Did the draft's **last** step merge, close or resolve combat?
@@ -135,10 +148,18 @@ export interface LastRun {
   readonly steps: readonly ArrowId[];
 }
 
-/** The whole offer from one tip, built once per selection / extend / pop / carry. */
+/**
+ * The whole offer from one tip, built once per selection / extend / pop / count.
+ *
+ * It carries **no `carry`**. P34's offer echoed the carry it was measured at, but
+ * P35 measures every offer at the tip's full head count, so the echo had no
+ * reader left — and on the snapshot after a terminal step it disagreed with
+ * `RoutePhase.carry` (the count the last run was *drafted* at) while wearing the
+ * same name. Two fields named `carry` meaning two things, one of them unread, is
+ * the shape of a future wrong answer.
+ */
 export interface RouteOffer {
   readonly tip: ArrowId;
-  readonly carry: number;
   /** Indexed by out-slot; always length 3. Truncated where the engine stops. */
   readonly rays: readonly (readonly ArrowId[])[];
   readonly clickable: ClickableSet;
@@ -367,12 +388,18 @@ const walkRay = (inputs: RouteInputs, slot: RaySlot, count: number): RayWalk => 
  * That same argument says the second walk can only ever add to the *first* step,
  * so `slice` covers the general union without a length test: where the armed walk
  * reached no further, the tail it contributes is empty.
+ *
+ * The two counts are read from **`tipHeads`**, not from `inputs.carry`: the rule
+ * is "some count *not exceeding the heads standing on the tip*" (invariant 4), and
+ * P35 measures every offer at full strength — a carry chosen in advance no longer
+ * shrinks what is offered. Reading the heads makes that true by construction
+ * rather than by the caller's convention of passing `carry === tipHeads`.
  */
 const rayHops = (inputs: RouteInputs, slot: RaySlot): readonly RayHop[] => {
   if (inputs.terminal === true) return [];
-  const full = walkRay(inputs, slot, inputs.carry);
+  const full = walkRay(inputs, slot, inputs.tipHeads);
   if (!full.refused) return full.hops;
-  const armed = walkRay(inputs, slot, inputs.carry - 1);
+  const armed = walkRay(inputs, slot, inputs.tipHeads - 1);
   return [...full.hops, ...armed.hops.slice(full.hops.length)];
 };
 
@@ -615,7 +642,6 @@ export const buildRouteOffer = (inputs: RouteInputs): RouteOffer => {
   for (const [arrow, item] of best) previews.set(arrow, clickableSet(nextInputs(inputs, item)));
   return {
     tip: inputs.tip,
-    carry: inputs.carry,
     rays: rays.map((hops) => hops.map((hop) => hop.arrow)),
     clickable,
     carries: runCarries(inputs),

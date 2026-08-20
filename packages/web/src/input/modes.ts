@@ -12,7 +12,7 @@
  * called without one.
  */
 
-import { endTurn, skip, step } from '@conquarrow/contracts';
+import { endTurn, skip } from '@conquarrow/contracts';
 import type { ArrowId, GameState, GeometryPort, Move, RulesPort } from '@conquarrow/contracts';
 import type { RefusalReason } from '../fx/present';
 import {
@@ -28,12 +28,17 @@ import {
 } from '../route';
 
 /**
- * Drafting a route (P34): the source, the run-by-run draft, and the tip it grows
- * from. `portion` is retired by this phase — a destination click no longer opens
- * a modal, because there is no destination to disambiguate.
+ * Drafting a route (P34, reordered by P35): the source, the run-by-run draft, and
+ * the tip it grows from. `portion` is retired by this phase — a destination click
+ * no longer opens a modal, because there is no destination to disambiguate.
+ *
+ * P35 moved the count *after* the click: a run is drafted at the largest count
+ * that walks it, and `setCarry` then rewrites that run. So nothing here is a
+ * forward-looking budget — `carry` is the count of the run already drawn, and
+ * `runLengths` says where the runs begin and end.
  *
  * Nothing here is applied to the board. `draft` is a list of `step` moves waiting
- * for Send.
+ * for Send — or applied straight away, where the click left nothing to decide.
  */
 export interface RoutePhase {
   readonly kind: 'route';
@@ -67,7 +72,7 @@ export interface RoutePhase {
    * surviving part becomes the last entry.
    */
   readonly runLengths: readonly number[];
-  /** Built once per selection, extend, pop and carry change — never per hover. */
+  /** Built once per selection, extend, pop and count change — never per hover. */
   readonly offer: RouteOffer;
 }
 
@@ -110,10 +115,18 @@ export interface InputMode {
   onArrowClick(arrow: ArrowId, state: GameState, rules: RulesPort): InputSnapshot;
   onBackgroundClick(): InputSnapshot;
   /**
-   * Set the carry at the tip, forward only (P34).
+   * Set the count on the **last drafted run** (P35), re-emitting exactly its
+   * moves.
    *
-   * Repaints the offer — fewer heads, shorter rays — and never rewrites a move
-   * already in the draft. Retroactive splitting would silently trim a drawn tail.
+   * This is the inversion P35 makes: the count addresses the run *behind* the
+   * tip, not the run ahead of it. P34 set the carry at the tip before the click,
+   * forward only — so the player budgeted heads for a trip they had not yet
+   * described, and the offer shrank to match the guess.
+   *
+   * Every earlier run stays byte-identical; a count the offer does not list is
+   * ignored. Lowering it leaves the difference standing where the run began, as
+   * a sentry (§5), and repaints the offer from the new tip — fewer heads arrived
+   * there, so less is reachable onward.
    */
   setCarry(count: number): InputSnapshot;
   /** Emit the draft as `pending`, in draft order, and return to idle. */
@@ -185,10 +198,6 @@ const walkDraft = (board: Board, draft: readonly Move[], boundary: number): Walk
   }
   return run === undefined ? { state, terminal } : { state, terminal, run };
 };
-
-/** The scratch state a whole draft leaves behind, with no run singled out. */
-const draftState = (board: Board, draft: readonly Move[]): GameState =>
-  walkDraft(board, draft, draft.length).state;
 
 /**
  * One entry per run, truncated to the first `keep` moves (P35).
@@ -421,35 +430,6 @@ abstract class BaseMode implements InputMode {
     return this.snap;
   }
 
-  /**
-   * Why a click on `arrow` did nothing.
-   *
-   * `needs-stay-behind` when an adjacent enemy arrow is unofferable *only* because
-   * the whole carry leaving would empty the tip (§6.2 / §11 item 38) — measured,
-   * by asking the engine for the same hop with one head left behind. Naming the
-   * fix beats "too far", which is what the reach test would say.
-   */
-  private refusalFor(phase: RoutePhase, arrow: ArrowId): RefusalReason {
-    const board = this.board;
-    if (board === undefined) return 'out-of-reach';
-    const state = draftState(board, phase.draft);
-    const holder = state.groups.get(arrow)?.owner;
-    const adjacent = this.geometry
-      .outArrows(this.geometry.target(phase.tip))
-      .includes(arrow);
-    if (!adjacent || holder === undefined || holder === state.activePlayer) {
-      return 'out-of-reach';
-    }
-    const sentry = phase.tipHeads - 1;
-    if (sentry < 1) return 'out-of-reach';
-    try {
-      board.rules.apply(state, step(phase.tip, arrow, sentry));
-    } catch {
-      return 'out-of-reach';
-    }
-    return 'needs-stay-behind';
-  }
-
   /** The clicks a route draft answers: extend, pop, deselect. */
   protected onRouteClick(
     phase: RoutePhase,
@@ -466,7 +446,11 @@ abstract class BaseMode implements InputMode {
     // merge the run may end on (§3), not another stack to pick up.
     if (option !== undefined) return this.extend(phase, option);
     if (isOwn(arrow, state)) return this.select(arrow, state, rules);
-    return this.refuse(arrow, this.refusalFor(phase, arrow));
+    // Nothing further to say than "too far". P34 sorted one case out of this —
+    // an adjacent enemy arrow refused only by §6.2's stay-behind, told to lower
+    // the carry first — and P35 retires it, because the offer arms that attack
+    // itself: if a count could take the arrow, the click would have extended.
+    return this.refuse(arrow, 'out-of-reach');
   }
 
   /** The snapshot to return for a click that did nothing, plus why. */

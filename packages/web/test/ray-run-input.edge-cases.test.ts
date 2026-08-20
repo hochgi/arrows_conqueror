@@ -9,8 +9,8 @@
  * - **The stay-behind bounds where a run can attack** (§6.2 / §11 item 38). A run
  *   moves the whole carry, so after its first hop `count = heads` at the tip. A
  *   ray therefore ends *before* an enemy-held arrow at distance ≥ 2, and an
- *   adjacent one is offered only while `carry ≤ tipHeads − 1` — the carry control
- *   is how an attack is armed, and `needs-stay-behind` is the refusal that says so.
+ *   adjacent one is walkable only at `count ≤ tipHeads − 1` — which is why, since
+ *   P35, the *offer* arms the attack by walking the run at one head fewer.
  * - **Terminal steps end the draft.** A merge, a closure or resolved combat
  *   changes the board the un-applied draft is drawn against, so the clickable set
  *   from that tip is empty: Send or pop, nothing else. Detected by diffing the
@@ -136,8 +136,10 @@ describe('P34 edge — a ray stops where the engine stops, and is never painted 
    * **Revised by P35.** P34 refused this click and named the stay-behind, because
    * the carry had to be lowered before clicking. P35 arms the attack from the
    * count *after* the click, so the click drafts a run at `heads - 1` and there
-   * is nothing to refuse. `needs-stay-behind` is left unreachable by this change
-   * — retiring the reason and its copy is a phase-3/4 question, not a rule.
+   * is nothing to refuse. The `needs-stay-behind` reason is retired with the
+   * gesture it described: the states it could still be reached from — a terminal
+   * tip, the depth cap — are ones where no count makes the arrow clickable, so it
+   * would have named a fix that does not exist. They answer `out-of-reach`.
    */
   it('An adjacent enemy click drafts the attack instead of refusing it', () => {
     const state = stateWith([

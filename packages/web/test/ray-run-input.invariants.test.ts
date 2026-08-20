@@ -23,9 +23,9 @@
  * rule.
  *
  * Four of the twenty came out of phase 2's kickback and need their guards most:
- * the stay-behind bound on where a run may attack, the withdrawal of an adjacent
- * enemy arrow once the carry empties the tip, the empty offer at a terminal tip,
- * and the `needs-stay-behind` refusal. A terminal tip's offer is *supposed* to be
+ * the stay-behind bound on where a run may attack, the handling of an adjacent
+ * enemy arrow the whole carry cannot take, the empty offer at a terminal tip, and
+ * the refusal a click on it earns. A terminal tip's offer is *supposed* to be
  * empty, so that property pops the draft back and insists the offer returns —
  * otherwise an unimplemented helper satisfies it by doing nothing.
  */
@@ -345,8 +345,8 @@ describe('P34 invariants', () => {
    * **Revised by P35.** The antecedent — *an adjacent enemy arrow unofferable
    * only because an attack would empty the tip* — is now unreachable: such an
    * arrow is offerable, and the click drafts the attack at `heads - 1`. So the
-   * P34 implication is vacuously true and `needs-stay-behind` is dead. What is
-   * asserted instead is the behaviour that replaced it, over the same bank: the
+   * P34 implication is vacuously true, and the reason it named is retired. What
+   * is asserted instead is the behaviour that replaced it, over the same bank: the
    * click drafts, refuses nothing, and applies nothing.
    */
   it('An adjacent enemy-held arrow shall be drafted at one head fewer rather than refused.', () => {

@@ -44,13 +44,14 @@ export type RefusalReason =
   | 'out-of-reach'
   | 'no-exit'
   | 'would-convert'
-  | 'cannot-skip'
-  /**
-   * An adjacent enemy arrow the carry cannot attack because the whole carry
-   * leaving would empty the tip (§6.2 / §11 item 38). Lowering the carry arms it,
-   * so the refusal names the fix rather than reading as "too far" (P34).
-   */
-  | 'needs-stay-behind';
+  | 'cannot-skip';
+// P34's `needs-stay-behind` is **retired by P35**. It told the player to lower the
+// carry before clicking, and that gesture is gone: the offer now arms the attack
+// itself, walking the run at the tip's heads and again at one fewer, so an
+// attackable adjacent arrow is simply clickable. Nothing left the reason could
+// truthfully describe — the states it still reached were a terminal tip and the
+// depth cap, where no count makes the arrow clickable and "an attack must leave a
+// head behind" would have been a lie. Those fall through to `out-of-reach`.
 
 export const REFUSAL_TEXT: Readonly<Record<RefusalReason, string>> = {
   'not-yours': 'Not your stack',
@@ -58,7 +59,6 @@ export const REFUSAL_TEXT: Readonly<Record<RefusalReason, string>> = {
   'no-exit': 'Nowhere to go from here',
   'would-convert': 'No trail home — those heads would flip',
   'cannot-skip': 'Nothing to skip',
-  'needs-stay-behind': 'An attack must leave a head behind',
 };
 
 /** One arrow inside an overlay, with its own delay from the overlay's origin. */

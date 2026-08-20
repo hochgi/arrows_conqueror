@@ -222,18 +222,36 @@ body,
 
    Compact on purpose — the count, the sentry it leaves standing, and the two ways
    out. No step numeral: the ray's painted length is the display (P34), so nothing
-   here can disagree with the rays. */
+   here can disagree with the rays.
+
+   **Its rows are explicit, and it is always mounted.** A grid *template* row is
+   laid out whether or not anything sits in it, so the strip is exactly as tall
+   empty as it is full — one line wide, two lines narrow — and `.app`'s second row
+   never changes height. That is not tidiness: a row that appeared on the first
+   click of a route would shrink the board by the strip's height at the moment the
+   player is aiming at it, sliding every arrow under their finger mid-gesture.
+   Explicit rows also mean the line count is a function of the width and not of how
+   many digits the count happens to have, so no wrap can surprise it. */
 .route-dock {
+  --dock-line: 2.75rem;
+  --dock-row-gap: 0.5rem;
   grid-column: 2;
-  display: flex;
+  display: grid;
+  grid-template-rows: var(--dock-line);
+  grid-auto-flow: column;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.9rem;
+  gap: var(--dock-row-gap) 0.9rem;
   padding: 0.5rem 0.75rem;
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--line);
   background: var(--panel);
+}
+
+/* Nothing to ask: the box stays, so the board keeps its size, and nothing is
+   painted, focusable or read out. */
+.route-dock-idle {
+  visibility: hidden;
 }
 
 .route-dock-count {
@@ -659,12 +677,28 @@ body,
 
   .stage {
     grid-column: 1;
-    /* Keep the board the primary surface on a phone. */
-    min-height: 55dvh;
+    /* Keep the board the primary surface on a phone — but as a floor low enough
+       that the HUD, the board and a two-row route strip still fit in one screen.
+       55dvh here plus a 28dvh HUD cap plus the strip overran 100dvh, and a grid
+       that overruns pushes the strip's second row past the fold rather than
+       compressing the board. `1fr` gives the board everything left over anyway,
+       which is more than this floor on every phone size. */
+    min-height: 45dvh;
   }
 
   .route-dock {
     grid-column: 1;
+    /* Two explicit rows on a phone: the count and its sentry, then Cancel and
+       Send under them. Explicit rather than wrapped, so the height is the same
+       whether the strip is holding a question or holding the board's size. */
+    grid-template-rows: var(--dock-line) var(--dock-line);
+    grid-template-columns: auto auto;
+    grid-auto-flow: row;
+  }
+
+  .route-dock-actions {
+    grid-column: 1 / -1;
+    justify-self: center;
   }
 }
 
