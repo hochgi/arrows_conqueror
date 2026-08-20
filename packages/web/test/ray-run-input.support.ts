@@ -77,20 +77,22 @@ export const blankState = (): GameState => ({
 });
 
 /** One stack of `heads` on an otherwise empty board — no truncation anywhere. */
-export const openField = (from: ArrowId, heads: number): GameState => ({
-  ...blankState(),
-  groups: new Map([[from, { owner: A, heads, spent: 0 }]]),
-});
+export const openField = (from: ArrowId, heads: number): GameState =>
+  legalSeats({
+    ...blankState(),
+    groups: new Map([[from, { owner: A, heads, spent: 0 }]]),
+  });
 
 /** A board with exactly these groups, plus whatever else a fixture needs. */
 export const stateWith = (
   groups: readonly (readonly [ArrowId, { readonly owner: PlayerId; readonly heads: number }])[],
   extra: Partial<GameState> = {},
-): GameState => ({
-  ...blankState(),
-  groups: new Map(groups.map(([arrow, group]) => [arrow, { ...group, spent: 0 }])),
-  ...extra,
-});
+): GameState =>
+  legalSeats({
+    ...blankState(),
+    groups: new Map(groups.map(([arrow, group]) => [arrow, { ...group, spent: 0 }])),
+    ...extra,
+  });
 
 /** The first out-arrow of the board's seed point. Named, not invented. */
 export const sourceArrow = (board: GeometryPort): ArrowId => {
@@ -375,12 +377,12 @@ export const refusedConvertFixture = (): {
 } => {
   const from = sourceArrow(geometry);
   const refused = exitOf(geometry, from, 0);
-  const state: GameState = {
+  const state: GameState = legalSeats({
     ...blankState(),
     groups: new Map([[from, { owner: A, heads: 8, spent: 0 }]]),
     trails: new Map([[A, new Set([from])]]),
     territory: new Map([[refused, B]]),
-  };
+  });
   if (rules.anchorGrade(state, from, A) !== 'stack') {
     throw new Error('setup: expected a stack-grade fragment');
   }
@@ -626,4 +628,108 @@ export const draftToTerminalTip = (
   let snap = selected.snap;
   for (const arrow of fixture.clicks) snap = clickArrow(selected, arrow);
   return { selected, snap };
+};
+
+// ---------------------------------------------------------------------------
+// Every authored seat has to be a legal seat (P37)
+// ---------------------------------------------------------------------------
+
+/**
+ * Give every seat in `state.players` the minimum holdings that keep it legal.
+ *
+ * Since P37 a loss resolves on the move that causes it, so `rules.apply` removes
+ * a landless seat's pieces on the **first** move of any state that authored one —
+ * and §8 has always called a seat holding no territory an unplayable position
+ * that setup must prevent. These fixtures are about route drafting and never
+ * cared who owned what, so they authored seats with heads and no ground; that was
+ * an illegal board all along and merely got away with it.
+ *
+ * The grant is the same minimum `rules-core`'s own fixtures use: **one** arrow of
+ * territory, and a spawner flanking it so the seat holds a share and is never on
+ * a starvation clock. Both are derived from the board the state's own arrows came
+ * from — never a hardcoded id, and never an arrow from the other board, which
+ * would make the spawner walk ask a fixture about a tiling vertex.
+ *
+ * The arrow is ranked to be as inert as the board allows: never an exit of an
+ * arrow the fixture named (a step onto enemy ground is a refused self-convert,
+ * so it would shorten a ray) and never a feeder of one's origin (which would lift
+ * a drafted trail to territory grade).
+ */
+export const legalSeats = (state: GameState): GameState => {
+  const named = [
+    ...state.groups.keys(),
+    ...state.territory.keys(),
+    ...[...state.trails.values()].flatMap((arrows) => [...arrows]),
+  ];
+  const first = named[0];
+  if (first === undefined) return state;
+  const board = boardOfArrow(first);
+  if (board === undefined) return state;
+  const landed = new Set([...state.territory.values()].map(String));
+  const taken = new Set(named.map(String));
+  const asExit = new Set<string>();
+  const asFeeder = new Set<string>();
+  for (const arrow of named) {
+    for (const exit of board.outArrows(board.target(arrow))) asExit.add(String(exit));
+    for (const feeder of board.inArrows(board.origin(arrow))) asFeeder.add(String(feeder));
+  }
+  const cost = (arrow: ArrowId): number =>
+    (asExit.has(String(arrow)) ? 2 : 0) + (asFeeder.has(String(arrow)) ? 1 : 0);
+  const territory = new Map(state.territory);
+  for (const player of state.players) {
+    if (landed.has(String(player))) continue;
+    const home = candidateHomes(board)
+      .filter((arrow) => !taken.has(String(arrow)))
+      .toSorted(
+        (left, right) => cost(left) - cost(right) || (String(left) < String(right) ? 1 : -1),
+      )[0];
+    if (home === undefined) throw new Error('setup: the board offered no free arrow for a home');
+    taken.add(String(home));
+    territory.set(home, player);
+  }
+  // A spawner flanking each seat's ground, so every seat holds a share. Without
+  // it a seat that owns the enemy land a scenario authored — and no heads — is
+  // the §9 *ground, no share, no head* row, and it would be removed on the first
+  // move, taking that authored land off the board with it.
+  const spawners = new Map(state.spawners);
+  if (state.spawners.size === 0) {
+    for (const player of state.players) {
+      const mine = [...territory.entries()].find(([, owner]) => owner === player);
+      if (mine === undefined) continue;
+      const vertex = [...board.flankVertices(mine[0])].toSorted((left, right) =>
+        String(left) < String(right) ? -1 : 1,
+      )[0];
+      if (vertex !== undefined) spawners.set(vertex, { force: { num: 1, den: 3 }, phase: 0 });
+    }
+  }
+  return { ...state, territory, spawners };
+};
+
+/**
+ * The arrows a home may be taken from.
+ *
+ * On a fixture that is the whole finite board. On the **unbounded** tiling it is
+ * a distant annulus — radius 5 to 8 from the seed — because there the board has
+ * room for a home that cannot touch anything a route test does, and an inert home
+ * is worth more than a near one.
+ */
+const candidateHomes = (board: GeometryPort): readonly ArrowId[] => {
+  const near = new Set(board.window(board.seedPoint(), 5).arrows.map(String));
+  const wide = board.window(board.seedPoint(), 8).arrows;
+  const far = wide.filter((arrow) => !near.has(String(arrow)));
+  return (far.length > 0 ? far : wide).toSorted((left, right) =>
+    String(left) < String(right) ? -1 : 1,
+  );
+};
+
+/** Which of the three boards an authored arrow id came from. */
+const boardOfArrow = (arrow: ArrowId): GeometryPort | undefined => {
+  const prefix = String(arrow).split(':').slice(0, 2).join(':');
+  for (const candidate of [geometry, makeFixture(MINIMAL), makeFixture(SPACIOUS)]) {
+    const sample = candidate.window(candidate.seedPoint(), 1).arrows[0];
+    if (sample !== undefined && String(sample).split(':').slice(0, 2).join(':') === prefix) {
+      return candidate;
+    }
+  }
+  return undefined;
 };

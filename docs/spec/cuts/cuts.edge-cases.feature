@@ -64,4 +64,4 @@ Feature: Cuts — firebreak sieges, headless trail, and seams
     Scenario: No vertex is enumerated
       Given any cut on a fixture board
       When it resolves
-      Then no vertex identifier was requested from GeometryPort
+      Then no vertex identifier is requested beyond what an idle move requests

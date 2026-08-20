@@ -109,7 +109,7 @@ failure mode, and the reason the bound is an invariant rather than a comment.
   and shall read no board extent. Ground that rings nothing shall not widen it.
 - The system shall derive every chord through `slotOf`, and shall infer no slot from
   an arrow identifier.
-- The system shall enumerate no vertex.
+- The system shall enumerate no vertex — **P37: measured as a delta.** Loss resolution sits on the tail of `apply` and reads the spawner lattice when a seat owns ground and holds no head, so this sentence can no longer be measured across a whole `apply`. The rule itself still reads no vertex: assert it as *no lattice read beyond an idle move on the same board*. See `docs/spec/immediate-loss/immediate-loss.md`.
 - The system shall return equal results for equal inputs, whatever order the claim was
   built in, and shall change no state.
 

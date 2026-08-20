@@ -13,9 +13,11 @@ Feature: A loss resolves on the move that causes it
 
   Rule: The deciding move ends the match
 
+    # Not "B and C are already lost" — a lost seat owns nothing, and if both were
+    # lost A has already won, which makes the step irrelevant.
     Scenario: A closure taking the last enemy territory wins on that step
-      Given B and C are already lost
-      And A is one step from closing a loop around B's last territory
+      Given B is already lost
+      And C's last territory lies inside a loop A can close in one step
       When A takes that step
       Then the winner is A
       And no further move is applied

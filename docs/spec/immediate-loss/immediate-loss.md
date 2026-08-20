@@ -94,11 +94,34 @@ documents. An invariant makes that a red test instead of a hang.
 
 ## Cost
 
-`resolveLosses` now runs per move instead of per round. It reads each player's
-territory, share and head counts, so the naive shape is six full territory scans
-per move. It shall read them in **one pass** over `territory` and `groups`
-instead of per-player scans, and the replay of the attached 1247-move log shall be
-measured before and after and reported.
+`resolveLosses` now runs per move instead of per round, so its shape matters.
+
+**Territory and head counts shall be read in one pass** over `territory` and
+`groups`, not once per player. Measured: the naive per-player shape costs +28 %
+on a fold of the attached 1247-move log (1.58 s → 2.03 s).
+
+**The share count shall be short-circuited away.** An earlier draft of this
+section said "one pass over `territory` and `groups`", which was wrong about
+where the cost lives: a share count needs the `spawners × borderArrows` walk,
+which is neither of those. It is also almost never needed. Evaluate
+
+```
+isLost(p)  =  T(p) === 0  ||  (S(p) === 0 && H(p) === 0)
+```
+
+in that order:
+
+- `T === 0` ⇒ lost, and no share walk happened.
+- otherwise `H > 0` ⇒ the second disjunct is already false, so **not** lost, and
+  again no share walk happened.
+- only `T > 0 && H === 0` needs `S` at all.
+
+So the vertex lattice is touched only for a seat that owns ground and holds no
+head — the `T>0, S>0, H=0` waiting-for-a-spawner case, which is rare. In an
+ordinary mid-game state where every living seat holds heads, **`apply` walks no
+vertex at all.** This is required, not an optimisation left to taste: five other
+packets state *the system shall enumerate no vertex*, and an unconditional share
+walk would break that on every move rather than in the one case that needs it.
 
 ## Invariants (EARS)
 
@@ -108,14 +131,18 @@ measured before and after and reported.
    system shall record that player as lost in the state that move returns.
 3. When a move leaves exactly one player not lost, the system shall set `winner`
    in the state that move returns.
-4. The system shall not offer a legal move to a player who is lost.
+4. The system shall offer a lost player nothing but the pass. *(`legalMoves` always offers `endTurn`: `players[0]` is the round-boundary marker and a seat is passed, never skipped — P36, *pass, never skip*. "No legal move" throughout this spec means no move that changes the board.)*
 5. The system shall resolve losses after a step, after a skip, and after an end
    of turn.
 6. The system shall advance a starvation streak only at a full-round boundary.
 7. At a full-round boundary the system shall accrue, then advance streaks, then
    resolve losses.
-8. Resolving losses more often shall not change which players are lost over a
-   whole match, only when each is lost.
+8. At the end of a record the set of lost players shall be exactly those the
+   §9 table qualifies, and one further move shall not change it. *(The stronger
+   claim — that resolving more often never changes the outcome — has no direct
+   test without keeping a copy of the pre-P37 engine. It follows from removal
+   giving nobody anything, argued above; what is asserted here is the
+   mechanism's observable consequence, not the claim itself.)*
 9. In every state reachable by play, some player shall own at least one spawner
    share.
 10. In every state reachable by play, at least one player shall not be lost.
@@ -125,6 +152,20 @@ measured before and after and reported.
 13. Equal states shall produce equal losses.
 14. A replay of the same move list shall lose the same seats on the same moves.
 15. `victory.ts` shall reference neither a clock nor a random source.
+
+## Consequence for the five "enumerate no vertex" invariants
+
+`closure`, `encirclement`, `fill`, `refuse-self-convert` and `cuts` each state
+*the system shall enumerate no vertex*. With loss resolution on the tail of
+`apply`, that sentence is measured across a whole `apply` and can no longer mean
+what it meant.
+
+The **intent survives and the measurement changes**: each of those rules still
+reads no vertex of its own. Assert it as a **delta over an idle move on the same
+board** — the closure, the cut, the fill adds no lattice read beyond whatever
+`apply` already does. Listing moves and refusing a self-convert keep a hard zero,
+because neither reaches resolution. Those five specs are superseded in place with
+a pointer here.
 
 ## Out of scope
 

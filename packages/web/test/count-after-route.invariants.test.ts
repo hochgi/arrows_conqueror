@@ -53,13 +53,14 @@ import {
   inputsFromPhase,
   largestCountThatWalks,
   lastRunMovesOf,
+  legalSeats,
   openField,
   optionFor,
   pendingOf,
   rayOf,
   raySlotWalk,
-  readSource,
   reachedBySomeCount,
+  readSource,
   routePhaseOf,
   rules,
   runLengthsOf,
@@ -80,10 +81,10 @@ const minimal = fixtureBoard(MINIMAL);
 const spaciousFrom = fixtureArrow(SPACIOUS, '0', '7');
 const minimalFrom = fixtureArrow(MINIMAL, '0', '1');
 
-const soloOn = (arrow: ArrowId, heads: number): GameState => ({
+const soloOn = (arrow: ArrowId, heads: number): GameState => (legalSeats({
   ...blankState(),
   groups: new Map([[arrow, { owner: A, heads, spent: 0 }]]),
-});
+}));
 
 /** One leg of a plan: take the ray arrow at `index` along `slot` from the tip. */
 interface Leg {

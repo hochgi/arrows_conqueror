@@ -127,7 +127,7 @@ player-facing string.
 - The system shall not mutate the input state, and shall return equal outputs
   for equal inputs. Equal illegal inputs shall throw equal `ContractViolation`
   messages.
-- The system shall enumerate no vertex.
+- The system shall enumerate no vertex — **P37: measured as a delta.** Loss resolution sits on the tail of `apply` and reads the spawner lattice when a seat owns ground and holds no head, so this sentence can no longer be measured across a whole `apply`. The rule itself still reads no vertex: assert it as *no lattice read beyond an idle move on the same board*. See `docs/spec/immediate-loss/immediate-loss.md`.
 - When a stack on `from` is selected, the system shall present each
   grain-adjacent self-convert `exit` as a refused target with cursor
   `not-allowed` and the locked convert tooltip, and shall not apply a click.

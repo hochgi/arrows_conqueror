@@ -56,11 +56,12 @@ import {
   headsOn,
   inputsAfter,
   inputsAt,
+  legalSeats,
   openField,
   pendingOf,
   raySlotWalk,
-  refusedConvertFixture,
   reachForCarry,
+  refusedConvertFixture,
   routePhaseOf,
   routeSource,
   rules,
@@ -84,10 +85,10 @@ const minimal = fixtureBoard(MINIMAL);
 const spaciousFrom = fixtureArrow(SPACIOUS, '0', '7');
 const minimalFrom = fixtureArrow(MINIMAL, '0', '1');
 
-const soloOn = (owner: typeof A, arrow: ArrowId, heads: number): GameState => ({
+const soloOn = (owner: typeof A, arrow: ArrowId, heads: number): GameState => (legalSeats({
   ...blankState(),
   groups: new Map([[arrow, { owner, heads, spent: 0 }]]),
-});
+}));
 
 interface Case {
   readonly label: string;
@@ -99,21 +100,21 @@ interface Case {
   readonly steps: readonly ArrowId[];
 }
 
-const mergeState = (): GameState => ({
+const mergeState = (): GameState => (legalSeats({
   ...blankState(),
   groups: new Map([
     [from, { owner: A, heads: 8, spent: 0 }],
     [arrowAlong(geometry, from, 0, 2), { owner: A, heads: 3, spent: 0 }],
   ]),
-});
+}));
 
-const enemyState = (): GameState => ({
+const enemyState = (): GameState => (legalSeats({
   ...blankState(),
   groups: new Map([
     [from, { owner: A, heads: 12, spent: 0 }],
     [arrowAlong(geometry, from, 1, 1), { owner: B, heads: 2, spent: 0 }],
   ]),
-});
+}));
 
 const enemyLandState = (): GameState => ({
   ...openField(from, 8),

@@ -1,0 +1,579 @@
+/**
+ * One test per scenario of docs/spec/immediate-loss/immediate-loss.edge-cases.feature.
+ *
+ * The edges P37 has to hold are all one shape: *only the moment of a loss moved,
+ * never its result*. So most of these compare a state to the state one move
+ * before it, rather than to a hand-written expectation — a removal that changed
+ * somebody else's holdings would be the defect, and an equality is the only
+ * assertion that catches it whatever the board was.
+ *
+ * @see docs/spec/immediate-loss/immediate-loss.md
+ */
+
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { endTurn, skip, step } from '@conquarrow/contracts';
+import type { ArrowId, GameState, GeometryPort, PlayerId } from '@conquarrow/contracts';
+import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
+import { makeRules } from '../src/index';
+import { isLost, resolveLosses, territoryCountOf } from '../src/victory';
+import {
+  aLandBridge,
+  crossing,
+  farArrow,
+  landOf,
+  lostAlong,
+  ownedSharesOf,
+  playtestLog,
+  shareArrowsOf,
+  someSeatIsAlive,
+  statesAlong,
+} from './immediate.support';
+import type { LandBridge } from './immediate.support';
+import {
+  A,
+  B,
+  C,
+  D,
+  THREE,
+  aBoard,
+  aVertex,
+  bareArrow,
+  closeRounds,
+  held,
+  holdingsOf,
+  isUnowned,
+  seatState,
+  shareArrow,
+  streakOf,
+} from './losing.support';
+import { anExitFrom, countingVertices, headsOn, snapshot, vertexReadsOf } from './support';
+
+const FORCE = { num: 1, den: 3 } as const;
+
+// ── Rule: Every way a seat can lose its last territory resolves at once ──────
+
+/**
+ * A land bridge whose claimed arrow is `victim`'s last territory, with the
+ * victim's trail laid across the arrow the mover is about to cross.
+ *
+ * The crossing is a **cut** as well as a closure: the mover lands by coincidence
+ * on an arrow the victim's trail also marks (§6.1), so the same step evaporates
+ * and claims. That is what *a cut that strands the last territory* asks for.
+ */
+const aCutAndClaim = (bridge: LandBridge): GameState =>
+  seatState({
+    players: [A, B, C],
+    activePlayer: A,
+    groups: [
+      { arrow: bridge.bridge, owner: A, heads: 2 },
+      { arrow: farArrow(bridge, 0), owner: C, heads: 1 },
+      { arrow: farArrow(bridge, 1), owner: B, heads: 1 },
+    ],
+    trails: [
+      [A, [bridge.bridge]],
+      [C, [bridge.landing, farArrow(bridge, 0)]],
+    ],
+    territory: [
+      ...held([bridge.home, bridge.landing], A),
+      { arrow: bridge.bridge, owner: C },
+      { arrow: farArrow(bridge, 1), owner: B },
+    ],
+  });
+
+describe('every way a seat can lose its last territory resolves at once', () => {
+  it('loses the seat when a closure following a cut takes its last arrow', () => {
+    const bridge = aLandBridge();
+    const before = aCutAndClaim(bridge);
+    expect(isLost(before, C, bridge.geometry)).toBe(false);
+    // The step really is a cut as well as a closure: it lands by coincidence on
+    // an arrow C's trail marks.
+    expect(
+      bridge.rules.crossesTrail(before, { from: bridge.bridge, exit: bridge.landing }, C),
+    ).toBe(true);
+
+    const after = bridge.rules.apply(before, crossing(bridge));
+
+    expect(territoryCountOf(after, C)).toBe(0);
+    expect(isLost(after, C, bridge.geometry)).toBe(true);
+    expect(holdingsOf(after, C)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+  });
+
+  it('loses the seat when its last heads are converted inside the claim', () => {
+    // C's head stands on the arrow the bridge claims, unanchored, so the claim
+    // converts it (§6.3) *and* takes C's only ground on the same step.
+    const bridge = aLandBridge();
+    const before = seatState({
+      players: [A, B, C],
+      activePlayer: A,
+      groups: [
+        { arrow: bridge.bridge, owner: A, heads: 2 },
+        { arrow: farArrow(bridge, 0), owner: C, heads: 1 },
+        { arrow: farArrow(bridge, 1), owner: B, heads: 1 },
+      ],
+      trails: [
+        [A, [bridge.bridge]],
+        [C, [farArrow(bridge, 0)]],
+      ],
+      territory: [
+        ...held([bridge.home, bridge.landing], A),
+        { arrow: bridge.bridge, owner: C },
+        { arrow: farArrow(bridge, 1), owner: B },
+      ],
+    });
+
+    const after = bridge.rules.apply(before, crossing(bridge));
+
+    expect(isLost(after, C, bridge.geometry)).toBe(true);
+    expect(holdingsOf(after, C).heads).toBe(0);
+  });
+
+  it('loses the seat when a land bridge claims its last arrow', () => {
+    const bridge = aLandBridge();
+    const before = seatState({
+      players: [A, B, C],
+      activePlayer: A,
+      groups: [
+        { arrow: bridge.bridge, owner: A, heads: 1 },
+        { arrow: farArrow(bridge, 0), owner: C, heads: 1 },
+        { arrow: farArrow(bridge, 1), owner: B, heads: 1 },
+      ],
+      trails: [[A, [bridge.bridge]]],
+      territory: [
+        ...held([bridge.home, bridge.landing], A),
+        { arrow: bridge.bridge, owner: C },
+        { arrow: farArrow(bridge, 1), owner: B },
+      ],
+    });
+    // Nothing is enclosed: the claim is the path alone, which is the land bridge.
+    const claim = bridge.rules.closureOf(before, crossing(bridge), A);
+    if (claim === undefined) throw new Error('setup: that step closes nothing');
+    expect(claim.enclosed).toEqual([]);
+
+    const after = bridge.rules.apply(before, crossing(bridge));
+
+    expect(after.territory.get(bridge.bridge)).toBe(A);
+    expect(isLost(after, C, bridge.geometry)).toBe(true);
+    // Not just the derived predicate: the removal has to be in *this* state.
+    expect(holdingsOf(after, C)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+  });
+
+  it('loses a landless seat on the move that empties its last stack in combat', () => {
+    // The feature's Given — *C owns no territory and holds one head* — is a state
+    // P37 makes unreachable: any earlier move would have resolved it. So this is
+    // an authored premise, and what it can honestly assert is only that the state
+    // the combat step returns has C lost and its pieces gone. It is a weaker test
+    // than its name suggests, and the weakness is in the scenario, not here.
+    const ground = aBoard();
+    const attacker = shareArrow(ground, 0);
+    const contested = anExitFrom(ground.geometry, attacker);
+    const before = seatState({
+      players: THREE,
+      activePlayer: A,
+      groups: [
+        { arrow: attacker, owner: A, heads: 3 },
+        { arrow: contested, owner: C, heads: 1 },
+        { arrow: bareArrow(ground, 0), owner: B, heads: 1 },
+      ],
+      territory: [
+        { arrow: attacker, owner: A },
+        ...held([bareArrow(ground, 0)], B),
+      ],
+      spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
+    });
+    expect(headsOn(before, contested)).toBe(1);
+
+    // Two of three attack, leaving one behind (§6.2 / item 38), so the lone
+    // defender is wiped rather than trading down.
+    const after = ground.rules.apply(before, step(attacker, contested, 2));
+
+    expect(after.groups.get(contested)?.owner).toBe(A);
+    expect(isLost(after, C, ground.geometry)).toBe(true);
+    expect(holdingsOf(after, C)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+  });
+});
+
+// ── Rule: Resolving sooner cannot change who loses ──────────────────────────
+
+/** Two seats each owning ground, no share and heads — neither qualifies. */
+const twoClockedSeats = (): { ground: ReturnType<typeof aBoard>; state: GameState } => {
+  const ground = aBoard();
+  const state = seatState({
+    players: THREE,
+    activePlayer: A,
+    groups: [
+      { arrow: shareArrow(ground, 0), owner: A, heads: 2 },
+      { arrow: bareArrow(ground, 0), owner: B, heads: 1 },
+      { arrow: bareArrow(ground, 1), owner: C, heads: 1 },
+    ],
+    territory: [
+      { arrow: shareArrow(ground, 0), owner: A },
+      ...held([bareArrow(ground, 0)], B),
+      ...held([bareArrow(ground, 1)], C),
+    ],
+    spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
+  });
+  return { ground, state };
+};
+
+describe('resolving sooner cannot change who loses', () => {
+  it('never qualifies one seat by removing another', () => {
+    const { ground, state } = twoClockedSeats();
+    // Remove B by hand — the same removal `vanishSeat` performs — and read C.
+    const removed: GameState = {
+      ...state,
+      groups: new Map([...state.groups].filter(([, group]) => group.owner !== B)),
+      territory: new Map([...state.territory].filter(([, owner]) => owner !== B)),
+    };
+
+    expect(holdingsOf(removed, C)).toEqual(holdingsOf(state, C));
+    expect(isLost(removed, C, ground.geometry)).toBe(isLost(state, C, ground.geometry));
+    expect(isLost(state, C, ground.geometry)).toBe(false);
+  });
+
+  it('leaves a vanished seat’s land belonging to nobody, not to the mover', () => {
+    const ground = aBoard();
+    const bare = bareArrow(ground, 1);
+    const before = seatState({
+      players: THREE,
+      activePlayer: A,
+      groups: [{ arrow: shareArrow(ground, 0), owner: A, heads: 2 }],
+      territory: [
+        { arrow: shareArrow(ground, 0), owner: A },
+        ...held([bareArrow(ground, 0)], B),
+        // C: ground, no share, no head — gone on the first move that resolves.
+        ...held([bare], C),
+      ],
+      spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
+    });
+
+    const after = ground.rules.apply(before, skip(shareArrow(ground, 0)));
+
+    expect(isLost(after, C, ground.geometry)).toBe(true);
+    expect(isUnowned(after, bare)).toBe(true);
+    expect(after.territory.get(bare)).toBeUndefined();
+  });
+
+  it('resolves two seats in player-list order', () => {
+    const ground = aBoard();
+    // B and C both hold ground with no share and no head, so both qualify at
+    // once. Order is observable as the order the vacated arrows are reported in.
+    const before = seatState({
+      players: THREE,
+      activePlayer: A,
+      groups: [{ arrow: shareArrow(ground, 0), owner: A, heads: 2 }],
+      territory: [
+        { arrow: shareArrow(ground, 0), owner: A },
+        ...held([bareArrow(ground, 0)], B),
+        ...held([bareArrow(ground, 1)], C),
+      ],
+      spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
+    });
+
+    const after = resolveLosses(before, ground.geometry);
+
+    expect(lostAlong(after, ground.geometry)).toEqual(['B', 'C']);
+    expect(lostAlong(after, ground.geometry)).toEqual(
+      before.players.filter((p) => isLost(after, p, ground.geometry)).map(String),
+    );
+  });
+
+  it('loses both seats that qualify on one step', () => {
+    const ground = aBoard();
+    const mover = shareArrow(ground, 0);
+    const before = seatState({
+      players: THREE,
+      activePlayer: A,
+      groups: [{ arrow: mover, owner: A, heads: 2 }],
+      territory: [
+        { arrow: mover, owner: A },
+        ...held([bareArrow(ground, 0)], B),
+        ...held([bareArrow(ground, 1)], C),
+      ],
+      spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
+    });
+
+    const after = ground.rules.apply(before, step(mover, anExitFrom(ground.geometry, mover), 1));
+
+    expect(holdingsOf(after, B)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+    expect(holdingsOf(after, C)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+  });
+});
+
+// ── Rule: The win check runs after every seat is resolved ────────────────────
+
+describe('the win check runs after every seat is resolved', () => {
+  it('crowns the seat that is left, never the second to last one removed', () => {
+    const ground = aBoard();
+    const mover = shareArrow(ground, 0);
+    const before = seatState({
+      players: THREE,
+      activePlayer: A,
+      groups: [{ arrow: mover, owner: A, heads: 2 }],
+      territory: [
+        { arrow: mover, owner: A },
+        ...held([bareArrow(ground, 0)], B),
+        ...held([bareArrow(ground, 1)], C),
+      ],
+      spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
+    });
+
+    const after = ground.rules.apply(before, skip(mover));
+
+    expect(after.winner).toBe(A);
+    expect(after.winner).not.toBe(B);
+    expect(after.winner).not.toBe(C);
+  });
+
+  it('leaves no winner while two seats remain', () => {
+    const ground = aBoard();
+    const mover = shareArrow(ground, 0);
+    const before = seatState({
+      players: THREE,
+      activePlayer: A,
+      groups: [
+        { arrow: mover, owner: A, heads: 2 },
+        { arrow: shareArrow(ground, 1), owner: B, heads: 1 },
+      ],
+      territory: [
+        { arrow: mover, owner: A },
+        { arrow: shareArrow(ground, 1), owner: B },
+        // C holds ground and nothing else, so only C goes.
+        ...held([bareArrow(ground, 0)], C),
+      ],
+      spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
+    });
+
+    const after = ground.rules.apply(before, skip(mover));
+
+    expect(isLost(after, C, ground.geometry)).toBe(true);
+    expect(holdingsOf(after, C)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+    expect(after.winner).toBeUndefined();
+  });
+});
+
+// ── Rule: A lost seat is inert ──────────────────────────────────────────────
+
+/** A settled board where C is lost and A and B are playing. */
+const aBoardWithCGone = (): { ground: ReturnType<typeof aBoard>; state: GameState } => {
+  const ground = aBoard();
+  const authored = seatState({
+    players: THREE,
+    activePlayer: A,
+    groups: [
+      { arrow: shareArrow(ground, 0), owner: A, heads: 2 },
+      { arrow: shareArrow(ground, 1), owner: B, heads: 1 },
+      { arrow: bareArrow(ground, 0), owner: C, heads: 1 },
+    ],
+    territory: [
+      { arrow: shareArrow(ground, 0), owner: A },
+      { arrow: shareArrow(ground, 1), owner: B },
+    ],
+    spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
+  });
+  return { ground, state: ground.rules.apply(authored, skip(shareArrow(ground, 0))) };
+};
+
+describe('a lost seat is inert', () => {
+  it('offers a lost seat no move but the pass', () => {
+    const { ground, state } = aBoardWithCGone();
+    expect(isLost(state, C, ground.geometry)).toBe(true);
+
+    const seated: GameState = { ...state, activePlayer: C };
+
+    expect(ground.rules.legalMoves(seated)).toEqual([endTurn()]);
+  });
+
+  it('never makes a lost seat the winner', () => {
+    const { ground, state } = aBoardWithCGone();
+    expect(holdingsOf(state, C)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+
+    const later = closeRounds(ground.rules, state, 3);
+
+    expect(isLost(later, C, ground.geometry)).toBe(true);
+    expect(later.winner).not.toBe(C);
+  });
+
+  it('keeps no starvation streak for a lost seat', () => {
+    const { ground, state } = aBoardWithCGone();
+    expect(holdingsOf(state, C)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+
+    const closed = closeRounds(ground.rules, state, 1);
+
+    expect(streakOf(closed, C)).toBe(0);
+    expect(closed.starvationStreaks.has(C)).toBe(false);
+  });
+
+  it('changes nothing about a lost seat over ten rounds', () => {
+    const { ground, state } = aBoardWithCGone();
+    expect(holdingsOf(state, C)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+
+    const later = closeRounds(ground.rules, state, 10);
+
+    expect(isLost(later, C, ground.geometry)).toBe(true);
+    expect(holdingsOf(later, C)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+    expect([...later.players].map(String)).toEqual([...state.players].map(String));
+  });
+});
+
+// ── Rule: Item 44's chain is pinned, not merely argued ───────────────────────
+
+describe('item 44’s chain is pinned, not merely argued', () => {
+  it('never takes a spawner-border arrow out of ownership along a replay', () => {
+    // Link 2 and link 3 together: a claim re-owns a share, and a vanish never
+    // vacates one. So an arrow that bordered a spawner and had an owner keeps
+    // having one, whoever that is, in every state a real record passes through.
+    const log = playtestLog();
+    const geometry: GeometryPort = makeTiling();
+    const initial = makeMatch(log.config);
+    const rules = makeRules(geometry);
+
+    const { stops } = statesAlong(rules, initial, log.moves);
+
+    let owned = ownedSharesOf(initial, geometry);
+    const dropped: string[] = [];
+    for (const stop of stops) {
+      const now = ownedSharesOf(stop.state, geometry);
+      for (const arrow of owned.keys()) {
+        if (!now.has(arrow)) dropped.push(`${arrow}@${String(stop.at)}`);
+      }
+      owned = now;
+    }
+    expect(dropped).toEqual([]);
+    expect(shareArrowsOf(initial, geometry).size).toBeGreaterThan(0);
+  });
+
+  it('never reaches a state with no seat left', () => {
+    const log = playtestLog();
+    const geometry: GeometryPort = makeTiling();
+    const initial = makeMatch(log.config);
+    const rules = makeRules(geometry);
+
+    const { stops } = statesAlong(rules, initial, log.moves);
+
+    expect(someSeatIsAlive(initial, geometry)).toBe(true);
+    expect(stops.filter((stop) => !someSeatIsAlive(stop.state, geometry)).map((s) => s.at)).toEqual(
+      [],
+    );
+  });
+
+  it('states the vacuous guard so that the live one cannot fail silently', () => {
+    // Invariant 11 — *never leave `winner` unset in a state where every player is
+    // lost* — is **vacuous by invariant 10**: no reachable state has every player
+    // lost, so the implication holds with nothing to check. It is asserted anyway,
+    // and only in this shape, so that if 10 ever breaks the pair reads as one
+    // failure and not as a silently-passing guard. Nothing here dresses it up as
+    // a live assertion: the antecedent is the thing being denied.
+    const log = playtestLog();
+    const geometry: GeometryPort = makeTiling();
+    const initial = makeMatch(log.config);
+    const rules = makeRules(geometry);
+
+    const { stops } = statesAlong(rules, initial, log.moves);
+
+    const allLost = [{ at: -1, state: initial }, ...stops].filter(
+      (stop) => !someSeatIsAlive(stop.state, geometry),
+    );
+    expect(allLost).toEqual([]);
+    // And the implication itself, over the states that do exist: it is satisfied
+    // because the antecedent never holds.
+    for (const stop of allLost) {
+      expect(stop.state.winner).toBeDefined();
+    }
+  });
+});
+
+// ── Rule: Determinism and cost ──────────────────────────────────────────────
+
+describe('determinism and cost', () => {
+  it('loses equal seats on equal moves from equal states', () => {
+    const { ground, state } = twoClockedSeats();
+    const mover = shareArrow(ground, 0);
+    const twin: GameState = {
+      ...state,
+      groups: new Map([...state.groups].toReversed()),
+      territory: new Map([...state.territory].toReversed()),
+    };
+
+    const left = ground.rules.apply(state, step(mover, anExitFrom(ground.geometry, mover), 1));
+    const right = ground.rules.apply(twin, step(mover, anExitFrom(ground.geometry, mover), 1));
+
+    expect(lostAlong(left, ground.geometry)).toEqual(lostAlong(right, ground.geometry));
+    for (const seat of THREE) {
+      expect(holdingsOf(left, seat)).toEqual(holdingsOf(right, seat));
+    }
+  });
+
+  it('ignores every map’s insertion order', () => {
+    const ground = aBoard();
+    const mover = shareArrow(ground, 0);
+    const holdings: readonly { readonly arrow: ArrowId; readonly owner: PlayerId }[] = [
+      { arrow: mover, owner: A },
+      ...held([bareArrow(ground, 0)], B),
+      ...held([bareArrow(ground, 1)], C),
+      ...held([bareArrow(ground, 2)], D),
+    ];
+    const build = (order: readonly { readonly arrow: ArrowId; readonly owner: PlayerId }[]):
+      GameState =>
+      seatState({
+        players: [A, B, C, D],
+        activePlayer: A,
+        groups: [{ arrow: mover, owner: A, heads: 2 }],
+        territory: order,
+        spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
+      });
+
+    const forward = ground.rules.apply(build(holdings), skip(mover));
+    const backward = ground.rules.apply(build([...holdings].toReversed()), skip(mover));
+
+    expect(snapshot(forward)).toEqual(snapshot(backward));
+    // Non-vacuous: three seats really were removed on that move, so the two runs
+    // agreed about *removals* and not merely about an untouched board.
+    expect(landOf(forward, A)).toEqual([String(mover)]);
+    for (const seat of [B, C, D]) expect(landOf(forward, seat)).toEqual([]);
+  });
+
+  it('reads each seat’s counts a bounded number of times, not once per player', () => {
+    // The cost claim of the spec, in the only currency a port test can measure:
+    // resolving a loss reads the spawner lattice, and it must not read it once per
+    // *seat*. Two boards differing only in seat count must cost the same.
+    const ground = aBoard();
+    const spy = countingVertices(ground.geometry);
+    const rules = makeRules(spy.geometry);
+    const mover = shareArrow(ground, 0);
+    const board = (players: readonly PlayerId[]): GameState =>
+      seatState({
+        players,
+        activePlayer: A,
+        groups: [{ arrow: mover, owner: A, heads: 2 }],
+        territory: [
+          { arrow: mover, owner: A },
+          ...players.slice(1).map((seat, index) => ({
+            arrow: bareArrow(ground, index),
+            owner: seat,
+          })),
+        ],
+        spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
+      });
+
+    const twoSeats = vertexReadsOf(spy.vertexReads, () => {
+      rules.apply(board([A, B]), skip(mover));
+    });
+    const fourSeats = vertexReadsOf(spy.vertexReads, () => {
+      rules.apply(board([A, B, C, D]), skip(mover));
+    });
+
+    expect(fourSeats).toBe(twoSeats);
+    // Non-vacuous: the resolution *does* read the lattice, it just does not read
+    // it once per seat. Zero reads would mean nothing resolved.
+    expect(twoSeats).toBeGreaterThan(0);
+  });
+
+  it('references neither a clock nor a random source in victory.ts', () => {
+    const src = readFileSync(new URL('../src/victory.ts', import.meta.url), 'utf8');
+    for (const banned of ['Date', 'Math.random', 'performance', 'crypto', 'process']) {
+      expect(src).not.toContain(banned);
+    }
+  });
+});
+

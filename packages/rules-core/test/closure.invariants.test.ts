@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { step } from '@conquarrow/contracts';
+import { skip, step } from '@conquarrow/contracts';
 import { makeRules } from '../src/index';
 import {
   A,
@@ -26,6 +26,7 @@ import {
   stateOf,
   territoryOf,
   trailOf,
+  vertexReadsOf,
 } from './support';
 
 describe('a step onto own territory while trailing is a closure', () => {
@@ -187,10 +188,17 @@ describe('commit writes territory and strips every trail on claimed arrows', () 
     });
     const before = trailOf(s0, A);
 
-    const s1 = rules.apply(s0, step(last, landing, 1));
+    const idle = vertexReadsOf(vertexReads, () => {
+      rules.apply(s0, skip(last));
+    });
+    let s1 = s0;
+    const closing = vertexReadsOf(vertexReads, () => {
+      s1 = rules.apply(s0, step(last, landing, 1));
+    });
 
     expect(trailOf(s0, A)).toEqual(before);
     expect(trailOf(s1, A)).toEqual([]);
-    expect(vertexReads()).toBe(0);
+    // P37: the closure adds no lattice read of its own over an idle move.
+    expect(closing).toBe(idle);
   });
 });

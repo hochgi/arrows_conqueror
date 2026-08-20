@@ -39,6 +39,7 @@ import {
   headsOn,
   inputsAfter,
   inputsAt,
+  legalSeats,
   makeMode,
   openField,
   pendingOf,
@@ -99,11 +100,11 @@ describe('P34 core — selecting a stack opens the route phase with an empty dra
     const stuck = arrowAlong(geometry, from, 1, 4);
     const territory = new Map<ArrowId, PlayerId>();
     for (const exit of geometry.outArrows(geometry.target(stuck))) territory.set(exit, B);
-    const state: GameState = {
+    const state: GameState = legalSeats({
       ...blankState(),
       groups: new Map([[stuck, { owner: A, heads: 4, spent: 0 }]]),
       territory,
-    };
+    });
     const snap = makeMode(board).onArrowClick(stuck, state, rules);
     expect(snap.phase.kind).toBe('blocked');
     expect(snap.refusal?.reason).toBe('no-exit');
@@ -112,13 +113,13 @@ describe('P34 core — selecting a stack opens the route phase with an empty dra
 
   it('Clicking an arrow that is not the active player’s refuses', () => {
     const theirs = arrowAlong(geometry, from, 2, 3);
-    const state: GameState = {
+    const state: GameState = legalSeats({
       ...blankState(),
       groups: new Map([
         [from, { owner: A, heads: HEADS, spent: 0 }],
         [theirs, { owner: B, heads: 3, spent: 0 }],
       ]),
-    };
+    });
     const snap = makeMode(board).onArrowClick(theirs, state, rules);
     expect(snap.refusal?.arrow).toBe(theirs);
     expect(snap.refusal?.reason).toBe('not-yours');

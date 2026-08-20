@@ -69,7 +69,7 @@ flowchart TD
   converted arrow under halt-at-first (P33 / item 40).
 - The system shall not mutate the input state, and shall return equal outputs for
   equal inputs.
-- The system shall enumerate no vertex.
+- The system shall enumerate no vertex — **P37: measured as a delta.** Loss resolution sits on the tail of `apply` and reads the spawner lattice when a seat owns ground and holds no head, so this sentence can no longer be measured across a whole `apply`. The rule itself still reads no vertex: assert it as *no lattice read beyond an idle move on the same board*. See `docs/spec/immediate-loss/immediate-loss.md`.
 
 ## What this file deliberately does not decide
 

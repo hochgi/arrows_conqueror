@@ -67,7 +67,7 @@ Feature: Fill — the leaks, the degeneracies and the determinism
     Scenario: No vertex is enumerated
       Given any fill on the generated tiling
       When it resolves
-      Then no vertex identifier was requested from GeometryPort
+      Then no vertex identifier is requested beyond what an idle move requests
       # §11 item 34: a special's ownership is a *reading* of its three bordering
       # arrows. A fill that touched a vertex would be a second copy of a fact it is
       # supposed to derive, and the two could drift.

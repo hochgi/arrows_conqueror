@@ -225,8 +225,8 @@ must not care — but they must be written on a board that can exist.
    unowned and reset their accumulators.
 10. When a player becomes lost, the system shall leave every other player's
     heads, trails and territory unchanged.
-11. The system shall evaluate loss only at a full-round boundary.
-12. The system shall not evaluate loss during a step, a skip, or a convert.
+11. ~~The system shall evaluate loss only at a full-round boundary.~~ — **repealed by P37:** a loss resolves on the move that causes it.
+12. ~~The system shall not evaluate loss during a step, a skip, or a convert.~~ — **repealed by P37.** See `docs/spec/immediate-loss/immediate-loss.md` invariants 1, 2 and 5.
 13. The system shall advance streaks before resolving losses, so that a seat is
     lost on the round its streak reaches `dominationN` and not the round after.
 14. The system shall never remove a player from `state.players`, nor reorder it.

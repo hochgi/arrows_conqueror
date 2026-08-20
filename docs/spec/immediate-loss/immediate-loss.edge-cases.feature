@@ -28,9 +28,12 @@ Feature: Immediate loss at the boundaries
       When A lands
       Then C is lost in the state it returns
 
-    Scenario: Combat that empties the last stack of a landless seat
-      Given C owns no territory and holds one head
-      When that head is destroyed in combat
+    # A landless seat is exactly what P37 makes unreachable by play, so this
+    # premise can only be authored. Kept as a totality guard on an authored
+    # state, not as a claim about combat: the assertion holds for any move.
+    Scenario: An authored landless seat is lost on the next move whatever it is
+      Given an authored state in which C owns no territory and holds one head
+      When any move is applied
       Then C is lost in the state it returns
 
   Rule: Resolving sooner cannot change who loses
@@ -69,10 +72,10 @@ Feature: Immediate loss at the boundaries
 
   Rule: A lost seat is inert
 
-    Scenario: A lost seat is offered no move
+    Scenario: A lost seat is offered nothing but the pass
       Given C is lost
       When legal moves are asked for on C's turn
-      Then none are offered
+      Then only an end of turn is offered
 
     Scenario: A lost seat cannot be the winner
       Given C is lost

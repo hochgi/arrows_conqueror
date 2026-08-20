@@ -480,6 +480,10 @@ describe('the boundary order cannot remove a seat that was about to be paid', ()
       ],
       territory: [
         { arrow: feed, owner: A },
+        // P37: the blockader has to be a *legal* seat, or it is removed on the
+        // first move and un-blockades the share by vanishing. One bare arrow is
+        // the minimum §8 asks for.
+        { arrow: bareArrow(ground, 0), owner: B },
         { arrow: shareArrow(ground, 1), owner: C },
       ],
       accumulators: [[feed, rational(1, 3)]],

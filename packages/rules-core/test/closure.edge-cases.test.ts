@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { step } from '@conquarrow/contracts';
+import { skip, step } from '@conquarrow/contracts';
 import { makeRules } from '../src/index';
 import {
   A,
@@ -21,6 +21,7 @@ import {
   claimKeys,
   countingVertices,
   isTrail,
+  landCountOf,
   onTiling,
   owned,
   pathFrom,
@@ -28,6 +29,7 @@ import {
   stateOf,
   territoryOf,
   trailOf,
+  vertexReadsOf,
 } from './support';
 import type { GameState } from './support';
 
@@ -120,7 +122,7 @@ describe('degenerate claims', () => {
     expect(territoryOf(after, a)).toBe(A);
     expect(territoryOf(after, b)).toBe(A);
     expect(territoryOf(after, c)).toBe(A);
-    expect([...after.territory.keys()].length).toBe(3);
+    expect(landCountOf(after, A)).toBe(3);
   });
 
   it('claims a single-arrow closure as just that arrow', () => {
@@ -302,8 +304,16 @@ describe('closure is pure and deterministic', () => {
       territory: owned([home, landing], A),
     });
 
-    rules.apply(state, step(last, landing, 1));
+    // P37: `apply` resolves losses on every move and reading a seat's shares
+    // reads the lattice, so the closure's own reads are the delta over a move
+    // that closes nothing.
+    const idle = vertexReadsOf(vertexReads, () => {
+      rules.apply(state, skip(last));
+    });
+    const closing = vertexReadsOf(vertexReads, () => {
+      rules.apply(state, step(last, landing, 1));
+    });
 
-    expect(vertexReads()).toBe(0);
+    expect(closing).toBe(idle);
   });
 });

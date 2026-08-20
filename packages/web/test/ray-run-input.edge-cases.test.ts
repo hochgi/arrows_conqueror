@@ -48,6 +48,7 @@ import {
   hopAccepted,
   inputsAfter,
   inputsAt,
+  legalSeats,
   openField,
   optionFor,
   pendingOf,
@@ -420,10 +421,10 @@ describe('P34 edge — the clickable set is exactly the unique-route set', () =>
     const both = fixtureArrow(SPACIOUS, '2', '3');
     expect(String(arrowAlong(fixture.geometry, source, 0, 2))).toBe(String(both));
     expect(String(alongSlots(fixture.geometry, source, [1, 1, 0]))).toBe(String(both));
-    const state: GameState = {
+    const state: GameState = legalSeats({
       ...blankState(),
       groups: new Map([[source, { owner: A, heads: 4, spent: 0 }]]),
-    };
+    });
     const offer = buildRouteOffer(inputsAt(fixture, state, source, 4));
     const option = offer.clickable.get(both);
     expect(option).toBeDefined();
@@ -435,10 +436,10 @@ describe('P34 edge — the clickable set is exactly the unique-route set', () =>
   it('A ray that would revisit one of its own arrows stops', () => {
     const fixture = fixtureBoard(SPACIOUS);
     const source = fixtureArrow(SPACIOUS, '0', '7');
-    const state: GameState = {
+    const state: GameState = legalSeats({
       ...blankState(),
       groups: new Map([[source, { owner: A, heads: 16, spent: 0 }]]),
-    };
+    });
     // Allowance is five steps, but the fifth hop re-enters the ray's first arrow.
     expect(fixture.rules.effectiveSpeed(state, source)).toBe(5);
     const offer = buildRouteOffer(inputsAt(fixture, state, source, 16));
@@ -452,10 +453,10 @@ describe('P34 edge — the clickable set is exactly the unique-route set', () =>
   it('A ray that would revisit a drafted arrow stops', () => {
     const fixture = fixtureBoard(SPACIOUS);
     const source = fixtureArrow(SPACIOUS, '0', '7');
-    const state: GameState = {
+    const state: GameState = legalSeats({
       ...blankState(),
       groups: new Map([[source, { owner: A, heads: 16, spent: 0 }]]),
-    };
+    });
     const walked = raySlotWalk(fixture.geometry, source, 0, 2);
     const offer = buildRouteOffer(inputsAfter(fixture, state, source, walked, 16));
     const ray = offer.rays[0] ?? [];

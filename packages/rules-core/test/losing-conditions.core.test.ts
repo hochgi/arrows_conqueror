@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { endTurn, rational, skip, step } from '@conquarrow/contracts';
+import { endTurn, rational, step } from '@conquarrow/contracts';
 import type { ArrowId, PlayerId } from '@conquarrow/contracts';
 import { isLost } from '../src/victory';
 import {
@@ -17,9 +17,7 @@ import {
   aBoard,
   aVertex,
   bareArrow,
-  bareAwayFrom,
   closeRound,
-  closeRoundFrom,
   closeRounds,
   held,
   holdingsOf,
@@ -43,7 +41,7 @@ import {
 // ── Rule: Owning no territory is a loss ──────────────────────────────────────
 
 describe('owning no territory is a loss', () => {
-  it('loses a player whose last territory is carved away, at the boundary', () => {
+  it('loses a player whose last territory is carved away, on the carving move', () => {
     // Fill needs the plane (§11 item 4), so this one scenario runs on the tiling.
     const table = onTiling();
     const ring = aRingWithAnInside(table.geometry);
@@ -66,17 +64,16 @@ describe('owning no territory is a loss', () => {
       territory: [...held([home, landing], B), { arrow: ring.inside, owner: A }],
     });
 
-    const carved = table.rules.apply(before, step(tip, landing, 1));
-    // The carve took A's last arrow; the round has to close before A goes.
-    expect(carved.territory.get(ring.inside)).toBe(B);
-    expect(headsOn(carved, ring.far)).toBe(2);
+    // P37: the carve takes A's last arrow, so A goes on this step, not at the
+    // next boundary — and with A gone B is the only seat left.
+    const after = table.rules.apply(before, step(tip, landing, 1));
 
-    const after = closeRoundFrom(table.rules, carved);
-
+    expect(after.territory.get(ring.inside)).toBe(B);
     expect(isLost(after, A, table.geometry)).toBe(true);
     expect(holdingsOf(after, A).heads).toBe(0);
     expect(holdingsOf(after, A).trail).toEqual([]);
     expect(holdingsOf(after, A).land).toEqual([]);
+    expect(after.winner).toBe(B);
   });
 
   it('loses a player with heads and no territory', () => {
@@ -509,72 +506,14 @@ describe('the match ends when one seat remains', () => {
 
 // ── Rule: Loss resolves at the boundary and nowhere else ──────────────────────
 
-describe('loss resolves at the boundary and nowhere else', () => {
-  it('does not evaluate loss on a step', () => {
-    const ground = aBoard();
-    const from = shareArrow(ground, 0);
-    const exit = anExitFrom(ground.geometry, from);
-    const parked = bareAwayFrom(ground, [from, exit]);
-    const before = seatState({
-      players: THREE,
-      activePlayer: B,
-      groups: [
-        { arrow: parked, owner: A, heads: 2 },
-        { arrow: from, owner: B, heads: 1 },
-      ],
-      territory: [{ arrow: from, owner: B }],
-    });
-
-    const after = ground.rules.apply(before, step(from, exit, 1));
-
-    expect(holdingsOf(after, A).heads).toBe(2);
-  });
-
-  it('does not evaluate loss on a convert', () => {
-    const ground = aBoard();
-    // B's lone head sits on A's ground with no anchor — the closure converts it.
-    const tip = pick(ground.geometry.inArrows(ground.geometry.seedPoint()), 0);
-    const mover = anExitFrom(ground.geometry, tip);
-    const exit = anExitFrom(ground.geometry, mover);
-    const elsewhere = bareAwayFrom(ground, [tip, mover, exit]);
-    const before = seatState({
-      players: THREE,
-      activePlayer: A,
-      groups: [
-        { arrow: tip, owner: B, heads: 1 },
-        { arrow: mover, owner: A, heads: 1 },
-        { arrow: elsewhere, owner: B, heads: 2 },
-      ],
-      territory: [
-        { arrow: tip, owner: A },
-        { arrow: mover, owner: A },
-      ],
-    });
-
-    const after = ground.rules.apply(before, step(mover, exit, 1));
-
-    expect(ownerOf(after, tip)).toBe(A);
-    expect(headsOn(after, elsewhere)).toBe(2);
-  });
-
-  it('does not evaluate loss on a skip', () => {
-    const ground = aBoard();
-    const from = shareArrow(ground, 0);
-    const parked = bareAwayFrom(ground, [from]);
-    const before = seatState({
-      players: THREE,
-      activePlayer: B,
-      groups: [
-        { arrow: parked, owner: A, heads: 2 },
-        { arrow: from, owner: B, heads: 1 },
-      ],
-      territory: [{ arrow: from, owner: B }],
-    });
-
-    const after = ground.rules.apply(before, skip(from));
-
-    expect(holdingsOf(after, A).heads).toBe(2);
-  });
+describe('loss resolves on the move that causes it', () => {
+  // P37 superseded the three cases that used to live here — *does not evaluate
+  // loss on a step / on a convert / on a skip*. Their inverses are the contract
+  // now, and they are asserted in `immediate-loss.core.test.ts` (the *Each move
+  // kind resolves losses* outline) rather than restated here.
+  //
+  // What stays is the one boundary case P37 did **not** move: a starvation streak
+  // still advances only at a full round, so a starvation loss still lands there.
 
   it('clears the clock when a share is captured before the boundary, and pays that share', () => {
     const ground = aBoard();

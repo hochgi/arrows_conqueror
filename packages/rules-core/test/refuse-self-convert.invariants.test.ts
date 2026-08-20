@@ -33,6 +33,7 @@ import {
   snapshot,
   stateOf,
   territoryOf,
+  vertexReadsOf,
 } from './support';
 import type { ArrowId, GameState } from './support';
 
@@ -324,12 +325,14 @@ describe('the system enumerates no vertex', () => {
       territory: [{ arrow: exit, owner: B }],
     });
 
-    rules.legalMoves(state);
-    try {
-      rules.apply(state, step(from, exit, 1));
-    } catch {
-      // Refusal is the expected path once the filter exists; either way, no vertex read.
-    }
+    const listingAndRefusing = vertexReadsOf(vertexReads, () => {
+      rules.legalMoves(state);
+      try {
+        rules.apply(state, step(from, exit, 1));
+      } catch {
+        // Refusal is the expected path; it happens before any loss resolves.
+      }
+    });
     const home = pick(geometry.inArrows(geometry.origin(from)), 0);
     const raid = stateOf([{ arrow: from, owner: A, heads: 1 }], A, {
       trail: { A: [from] },
@@ -338,9 +341,19 @@ describe('the system enumerates no vertex', () => {
         { arrow: exit, owner: B },
       ],
     });
-    rules.legalMoves(raid);
-    rules.apply(raid, step(from, exit, 1));
+    // P37 resolves losses at the tail of `apply`, which reads every seat's shares
+    // and so reads the lattice once per move. The permitted raid is measured as a
+    // delta over an idle move on the same board; listing and refusing never get
+    // that far, so they must still read nothing at all.
+    const idle = vertexReadsOf(vertexReads, () => {
+      rules.apply(raid, skip(from));
+    });
+    const raiding = vertexReadsOf(vertexReads, () => {
+      rules.legalMoves(raid);
+      rules.apply(raid, step(from, exit, 1));
+    });
 
-    expect(vertexReads()).toBe(0);
+    expect(listingAndRefusing).toBe(0);
+    expect(raiding).toBe(idle);
   });
 });
