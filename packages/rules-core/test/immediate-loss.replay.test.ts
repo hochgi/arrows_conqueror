@@ -8,20 +8,30 @@
  * `makeMatch`, folded through the same pure `apply` the adapter used. Replayed
  * against `main` @ `253a359` it sets `winner = D` at move **1246**; the deciding
  * move — D's step that takes E's last territory — is **1242**. P37 moves the win
- * onto 1242, and the four moves the log recorded after it stop being playable,
- * because move 1244 is E stepping a head E no longer has.
+ * onto 1242, and the four moves the log recorded after it stop being playable.
+ *
+ * **P38 moved where the fold stops.** Under P37 alone it ran to 1244 and stopped
+ * there because move 1244 is E stepping a head E no longer has — a *dead seat*
+ * refusal. P38 refuses every move once `winner` is set, so the fold now stops at
+ * **1243**, the `endTurn` immediately after the deciding step, and stops because
+ * *the match was over*. Both readings are kept below: the index is the P38 one, and
+ * the P37 claim it used to carry — that the dead seat's move at 1244 is never
+ * played — survives as the stronger statement that the fold never reaches it at
+ * all. The 1243 half of that pair is owned by `won-is-over.replay.test.ts`.
  *
  * The second pins invariant 8 as far as it can be pinned: at the end of a record
  * the lost set is the set the §9 table qualifies, and one further move leaves it
- * alone. It does **not** show that resolving more often never changes the outcome —
- * that needs the pre-P37 engine to compare against. See the note on that test.
+ * alone — which since P38 is the stronger statement that there is no further move,
+ * because losing three of four seats wins the match for the fourth. It does **not**
+ * show that resolving more often never changes the outcome — that needs the pre-P37
+ * engine to compare against. See the note on that test.
  *
  * @see docs/spec/immediate-loss/immediate-loss.md
  * @see .claude/skills/rules-invariants/SKILL.md
  */
 
 import { describe, expect, it } from 'vitest';
-import { endTurn } from '@conquarrow/contracts';
+import { ContractViolation, endTurn } from '@conquarrow/contracts';
 import type { GameState, Move } from '@conquarrow/contracts';
 import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
 import { makeRules } from '../src/index';
@@ -87,6 +97,15 @@ const theReportedTrace = (): ReturnType<typeof statesAlong> => {
 /** Zero-based indices measured against `main` @ `253a359`. */
 const DECIDING_MOVE = 1242;
 const OLD_WINNING_MOVE = 1246;
+/**
+ * Where the fold stops since P38: the `endTurn` right after the deciding step.
+ *
+ * Named for *why* it stops. Calling it a dead-seat move would be a lie about the
+ * refusal — 1243 is played by D, the seat that had just won, and it is refused
+ * because the match is over rather than because the mover is gone.
+ */
+const FIRST_MOVE_AFTER_THE_WIN = 1243;
+/** The move E makes with a head E no longer has — the P37 landmark, never reached. */
 const FIRST_MOVE_BY_A_DEAD_SEAT = 1244;
 
 describe('the reported playtest log ends on the deciding move', () => {
@@ -129,14 +148,18 @@ describe('the reported playtest log ends on the deciding move', () => {
     expect(landOf(deciding.state, e)).toEqual([]);
   });
 
-  it('stops offering moves to the seat the deciding move removed', () => {
-    // The log was recorded under the old timing, so it contains E's turn after
-    // E was already decided against. Under P37 that move is not on offer —
-    // *no seat takes a turn after the move that lost it* — so the record itself
-    // becomes unplayable exactly there.
-    const { refusedAt } = theReportedTrace();
+  it('never reaches the turn the seat the deciding move removed would have taken', () => {
+    // The log was recorded under the old timing, so it contains E's turn after E was
+    // already decided against. P37's claim is that the move is not on offer — *no
+    // seat takes a turn after the move that lost it* — and it still holds, in the
+    // stronger form that the fold never gets as far as 1244: since P38 the record is
+    // refused at 1243, the `endTurn` right after the deciding step, so E's move is
+    // unreachable rather than merely unoffered.
+    const { stops, refusedAt } = theReportedTrace();
 
-    expect(refusedAt).toBe(FIRST_MOVE_BY_A_DEAD_SEAT);
+    expect(refusedAt).toBe(FIRST_MOVE_AFTER_THE_WIN);
+    expect(refusedAt).toBeLessThan(FIRST_MOVE_BY_A_DEAD_SEAT);
+    expect(stops.filter((stop) => stop.at >= FIRST_MOVE_BY_A_DEAD_SEAT)).toEqual([]);
   });
 
   it('keeps some seat owning a share, and some seat alive, in every state along the way', () => {
@@ -154,7 +177,7 @@ describe('the reported playtest log ends on the deciding move', () => {
 
   it('replays to the same board twice', () => {
     const { initial, moves, rules } = theReportedMatch();
-    const playable = moves.slice(0, FIRST_MOVE_BY_A_DEAD_SEAT);
+    const playable = moves.slice(0, FIRST_MOVE_AFTER_THE_WIN);
 
     expect(replayIsDeterministic(rules, initial, playable, snapshot)).toBe(true);
   });
@@ -214,13 +237,20 @@ describe('a four-seat match that loses three seats', () => {
     // spec, and left as one. What is checked is the observable consequence: the
     // settled set is the qualified set, and a further chance to resolve moves it
     // nowhere.
+    //
+    // **Since P38 there is no further move to take.** Losing three of four seats
+    // wins the match for the fourth, and a won match refuses everything — so
+    // "one more resolution changes nothing" holds in the stronger form that no
+    // further resolution can be asked for at all. Asserted that way rather than
+    // dropped: the claim is still about what the settled set does next.
     const { ground, initial, moves } = aMatchLosingThree();
 
     const final = replay(ground.rules, initial, moves);
-    const settled = ground.rules.apply(final, endTurn());
 
     expect(lostAlong(final, ground.geometry)).toEqual(['A', 'B', 'C']);
-    expect(lostAlong(settled, ground.geometry)).toEqual(lostAlong(final, ground.geometry));
+    expect(String(final.winner)).toBe(String(D));
+    expect(() => ground.rules.apply(final, endTurn())).toThrow(ContractViolation);
+    expect(ground.rules.legalMoves(final)).toEqual([]);
   });
 
   it('reproduces an identical final state', () => {

@@ -1,7 +1,8 @@
 import type { GameState } from '@conquarrow/contracts';
 import type { ReactElement } from 'react';
 import { styleFor } from './colors';
-import { controlsLocked, type VictoryFx } from './fx/victory';
+import { matchLocked } from './fx/celebration';
+import type { VictoryFx } from './fx/victory';
 import type { InputPhase } from './input/modes';
 import { routeHint } from './route';
 
@@ -99,7 +100,12 @@ export const Hud = ({
   illegal,
 }: HudProps): ReactElement => {
   const active = styleFor(state.activePlayer);
-  const locked = controlsLocked(victory);
+  // Read off `winner`, never off the celebration (P38 invariant 12). While the
+  // deciding move's overlays play out, `victory` deliberately reads *playing* — so
+  // `controlsLocked(victory)` would unlock Skip and End turn for the length of the
+  // winning animation, on a board where `apply` refuses every move. `App.tsx`'s
+  // `inputLocked` has always read `winner`; this is the same source of truth.
+  const locked = matchLocked(state);
   return (
     <aside className="hud">
       <h1>Conquarrow</h1>

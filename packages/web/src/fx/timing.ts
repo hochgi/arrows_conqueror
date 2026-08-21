@@ -9,8 +9,18 @@
  * The upper bound is deliberate. The state transition has already happened by the
  * time any of this runs — an effect is drawn *around* a committed `apply`, never
  * in front of one — so a long effect never delays input. It would still be a lie
- * about how fast the game is, which is why the biggest sequence in the game
- * (enclosure → capture → production) fits inside {@link MAJOR_SEQUENCE_MS}.
+ * about how fast the game is, which is why {@link MAJOR_SEQUENCE_MS} is the budget
+ * for the chain the numbers are *tuned* against.
+ *
+ * **It is a budget and not a measurement, and the difference matters.** The claim
+ * that used to stand here — that the biggest sequence in the game
+ * (enclosure → capture → production) fits inside `MAJOR_SEQUENCE_MS` — is false, and
+ * P38 leaned on it before measuring: `captureFresh` alone is offset 500 with a
+ * duration of 700 and therefore settles at **1200**, against a stated 700. Nothing
+ * downstream may treat this constant as the settle time of a real queue. Anything
+ * that needs *when the effects of a move have finished* takes it from the queue —
+ * `queueSettleMs`, or `max(offset + lifetime)` over the items present — so it cannot
+ * go stale when one of the numbers below moves. Retuning them is a separate job.
  */
 
 /**
@@ -82,7 +92,13 @@ export const FX_STAGGER_MS = {
  */
 export const FX_STAGGER_CAP_MS = 260;
 
-/** Budget for the longest chain in the game (enclosure → capture → production). */
+/**
+ * Budget for the longest chain in the game (enclosure → capture → production).
+ *
+ * A tuning target, **not** a bound anything may wait on: the chain it names
+ * actually settles at 1200 ms, because `captureFresh` starts at 500 and runs 700.
+ * See the note at the top of this file.
+ */
 export const MAJOR_SEQUENCE_MS = 700;
 
 const TIERS: Readonly<Record<string, FxTier>> = {

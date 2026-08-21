@@ -335,9 +335,16 @@ describe('removal cleans up everything the seat owned', () => {
     // question. The cursor must move on regardless.
     const ground = aBoard();
     const vertex = aVertex(ground);
+    // A head each, so no seat is on a losing row and the round can close: since
+    // P38 a match decided halfway through a round refuses the rest of it, and the
+    // cursor would never move at all.
     const before = seatState({
       players: THREE,
-      groups: [{ arrow: bareArrow(ground, 1), owner: B, heads: 1 }],
+      groups: [
+        { arrow: bareArrow(ground, 0), owner: A, heads: 1 },
+        { arrow: bareArrow(ground, 1), owner: B, heads: 1 },
+        { arrow: bareArrow(ground, 2), owner: C, heads: 1 },
+      ],
       territory: [
         ...held([bareArrow(ground, 0)], A),
         ...held([bareArrow(ground, 1)], B),
@@ -345,6 +352,7 @@ describe('removal cleans up everything the seat owned', () => {
       ],
       spawners: [[vertex, { force: rational(1, 3), phase: 0 }]],
     });
+    expect(before.winner).toBeUndefined();
     expect(phaseOf(before, vertex)).toBe(0);
     for (const share of ground.shares) expect(before.territory.has(share)).toBe(false);
 

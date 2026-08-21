@@ -69,8 +69,14 @@ describe('double-fed arrows', () => {
     const p1 = b1.indexOf(seed);
     if (p0 < 0 || p1 < 0) throw new Error('setup: seed not on both borders');
 
+    const bLand = b0.find((arrow) => arrow !== seed);
+    if (bLand === undefined) throw new Error('setup: v0 borders one arrow only');
+
     const before = stateOf([], A, {
-      territory: owned([seed], A),
+      // B holds a share of v0, so the boundary does not vanish B and win the match
+      // for A — a won match refuses the rest of the round (P38). Both cursors point
+      // at `seed`, so B's share accrues nothing here.
+      territory: [...owned([seed], A), ...owned([bLand], B)],
       spawners: [
         [v0, { force: rational(1, 9), phase: p0 }],
         [v1, { force: rational(1, 12), phase: p1 }],

@@ -276,6 +276,15 @@ export const held = (arrows: readonly ArrowId[], owner: PlayerId): readonly Held
  * Every seat is handed the chair, lost or not — that is the *pass, never skip*
  * rule, and closing a round any other way would test a rotation the engine does
  * not have.
+ *
+ * **It stops at a win** (P38, §11 item 46). A round can be decided halfway
+ * through: the pass that removes the second-to-last seat crowns the last one, and
+ * from that state `apply` refuses everything, so there is no rest of the round to
+ * play. Returning the won state is the honest fixture reading — it is where a real
+ * match would stop — and it is not a rule swallowed, because a test that needed the
+ * boundary's accrual or starvation tick then fails on its own assertion rather than
+ * on a `ContractViolation` from three frames earlier. A test that means to quantify
+ * over undecided boards skips them by asking `winner`.
  */
 export const closeRound = (rules: RulesPort, state: GameState): GameState => {
   if (state.activePlayer !== state.players[0]) {
@@ -283,6 +292,7 @@ export const closeRound = (rules: RulesPort, state: GameState): GameState => {
   }
   let next = state;
   for (let i = 0; i < state.players.length; i += 1) {
+    if (next.winner !== undefined) return next;
     next = rules.apply(next, endTurn());
   }
   return next;
@@ -299,7 +309,7 @@ export const closeRound = (rules: RulesPort, state: GameState): GameState => {
 export const closeRoundFrom = (rules: RulesPort, state: GameState): GameState => {
   let next = rules.apply(state, endTurn());
   for (let i = 0; i < state.players.length; i += 1) {
-    if (next.activePlayer === next.players[0]) return next;
+    if (next.activePlayer === next.players[0] || next.winner !== undefined) return next;
     next = rules.apply(next, endTurn());
   }
   throw new Error('setup: the chair never came back to players[0]');
@@ -307,7 +317,11 @@ export const closeRoundFrom = (rules: RulesPort, state: GameState): GameState =>
 
 export const closeRounds = (rules: RulesPort, state: GameState, rounds: number): GameState => {
   let next = state;
-  for (let i = 0; i < rounds; i += 1) next = closeRound(rules, next);
+  for (let i = 0; i < rounds; i += 1) {
+    // Nothing follows a win, not even the rest of this round — see `closeRound`.
+    if (next.winner !== undefined) return next;
+    next = closeRound(rules, next);
+  }
   return next;
 };
 

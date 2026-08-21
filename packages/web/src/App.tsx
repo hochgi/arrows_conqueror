@@ -69,9 +69,9 @@ import {
   queueSettleMs,
   type FxItem,
 } from './fx/queue';
+import { celebrationWaitMs, victoryAt } from './fx/celebration';
 import { loadSoundEnabled, playOverlayCues, saveSoundEnabled } from './fx/sound';
 import { replaySteps } from './fx/steps';
-import { victoryFx } from './fx/victory';
 import { ConvertTip } from './ConvertTip';
 import { RouteDock } from './RouteDock';
 import { convertTooltip, refusedConvertExits } from './refusedConvert';
@@ -229,6 +229,17 @@ export const App = (): ReactElement => {
   const [byokStatus, setByokStatus] = useState<string | undefined>(undefined);
   /** Live gameplay effects. Additive over `state`, so losing one cannot mislead. */
   const [fx, setFx] = useState<readonly FxItem[]>(emptyQueue);
+  /**
+   * The deciding move's instant, and how far the celebration clock has been read
+   * since (P38).
+   *
+   * `at` is stamped once, the first frame `winner` is seen, on the same `Date.now()`
+   * clock the queue stamps overlays with — so the two are comparable. `now` only
+   * ever advances on an event (the stamp itself, then the timer that fires when the
+   * move's overlays are due to have finished), which keeps rendering a pure function
+   * of state rather than of the wall clock.
+   */
+  const [decided, setDecided] = useState<{ readonly at: number; readonly now: number }>();
   /** Monotonic id source for overlays — a counter, never a clock. */
   const fxSeq = useRef(0);
   const [soundOn, setSoundOn] = useState<boolean>(() => loadSoundEnabled());
@@ -607,9 +618,59 @@ export const App = (): ReactElement => {
       : routePaint({ phase: snap.phase, pointer: pointerKind, hoverArrow: hover });
   }, [snap.phase, pointerKind, hoverArrow?.arrow]);
 
+  /**
+   * Stamp the instant the match was decided, once, and clear it for a new one.
+   *
+   * The celebration needs to know *when* the win landed, and `GameState` cannot say:
+   * `winner` is a fact about the board, not about the frame. This is the only clock
+   * read in the celebration path, and it happens here rather than anywhere deeper —
+   * the same rule the fx queue keeps.
+   */
+  useEffect(() => {
+    if (state?.winner === undefined) {
+      if (decided !== undefined) setDecided(undefined);
+      return;
+    }
+    if (decided !== undefined) return;
+    const at = Date.now();
+    setDecided({ at, now: at });
+  }, [state, decided]);
+
+  // Wake once, when the deciding move's overlays are due to have finished, so the
+  // celebration paints then rather than on whatever render happens next. The wait
+  // comes from the queue itself (`celebrationWaitMs`), never from a constant: the
+  // headline winning move settles at 1200ms, and MAJOR_SEQUENCE_MS is 700.
+  useEffect(() => {
+    if (decided === undefined) return;
+    const wait = celebrationWaitMs({ decidedAt: decided.at, now: decided.now, queue: fx });
+    if (wait <= 0) return;
+    const handle = window.setTimeout(() => {
+      setDecided({ at: decided.at, now: Date.now() });
+    }, wait);
+    return () => {
+      window.clearTimeout(handle);
+    };
+  }, [decided, fx]);
+
+  /**
+   * The board's victory reading — *playing* until the winning move has finished
+   * playing out, and only then the dim-everything-but-the-winner treatment (P38).
+   *
+   * The winning move is the most spectacular in the game: a closure that fills
+   * ground, converts a stack and vanishes a seat. Painting the celebration on the
+   * frame it commits put that treatment *over* the thing that won the match.
+   *
+   * This never gates input — `inputLocked` reads `winner`, and so does the HUD's
+   * button lock (invariant 12), both of which are true from the deciding move on.
+   */
   const victory = useMemo(
-    () => (state === undefined ? ({ kind: 'playing' } as const) : victoryFx(state, geometry)),
-    [state],
+    () =>
+      victoryAt(state, geometry, {
+        decidedAt: decided?.at,
+        now: decided?.now ?? 0,
+        queue: fx,
+      }),
+    [state, decided, fx],
   );
 
   /**

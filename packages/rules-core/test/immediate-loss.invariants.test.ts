@@ -19,7 +19,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { endTurn, skip, step } from '@conquarrow/contracts';
+import { ContractViolation, endTurn, skip, step } from '@conquarrow/contracts';
 import type { ArrowId, GameState, Move, PlayerId } from '@conquarrow/contracts';
 import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
 import { makeRules } from '../src/index';
@@ -313,22 +313,35 @@ describe('the winner, and what a lost seat is offered', () => {
     // absence of a step: `legalMoves` always offers `endTurn`, because `players[0]`
     // is the round-boundary marker and a seat is passed, never skipped (P36). So
     // the offer on a lost seat's turn is exactly one move, and it is the pass.
+    //
+    // Boards that settle **won** are excluded, and that is P38 rather than a
+    // loophole: once `winner` is set the offer list is empty for every seat, lost
+    // or not, because a won match has no next turn for a pass to advance to (§11
+    // item 46). The two rules meet on a board where some seat is lost and some
+    // seat still plays, which is what the filter leaves — and
+    // `won-is-over.invariants.test.ts` holds the pair on one board so neither can
+    // drift.
     const ground = aBoard();
     const offered: string[] = [];
+    let checked = 0;
     for (const rows of ASSIGNMENTS) {
       // Settle the board first: an authored board can hold seats §8 calls
       // unplayable, and it is the *settled* board a seat is ever offered moves on.
       const settled = ground.rules.apply(boardFor(ground, rows), endTurn());
+      if (settled.winner !== undefined) continue;
       for (const seat of THREE) {
         if (!isLost(settled, seat, ground.geometry)) continue;
         const seated: GameState = { ...settled, activePlayer: seat };
         const moves = ground.rules.legalMoves(seated);
+        checked += 1;
         if (moves.length !== 1 || moves[0]?.kind !== 'endTurn') {
           offered.push(`${rows.join('')}/${String(seat)}: [${moves.map((m) => m.kind).join(',')}]`);
         }
       }
     }
     expect(offered).toEqual([]);
+    // Non-vacuous: the filter leaves plenty of lost seats in an undecided match.
+    expect(checked).toBeGreaterThan(0);
   });
 });
 
@@ -400,6 +413,11 @@ describe('the lost set at the end of a record is the one the table qualifies', (
     // reads: at the end of the record the set of lost seats is exactly the set the
     // §9 table qualifies, and one further move — one further chance to resolve —
     // leaves that set alone.
+    //
+    // Since P38 that record ends **won**, and a won match refuses every move (§11
+    // item 46), so "one further chance to resolve changes nothing" holds in the
+    // stronger form that no further chance can be asked for. Kept as an assertion
+    // about what the settled set does next rather than dropped.
     const { ground, initial, moves } = aMatchLosingThree();
 
     const { stops } = statesAlong(ground.rules, initial, moves);
@@ -407,8 +425,9 @@ describe('the lost set at the end of a record is the one the table qualifies', (
     if (last === undefined) throw new Error('setup: the record applied nothing');
 
     expect(lostAlong(last.state, ground.geometry)).toEqual(qualifying(last.state, ground));
-    const once = ground.rules.apply(last.state, endTurn());
-    expect(lostAlong(once, ground.geometry)).toEqual(lostAlong(last.state, ground.geometry));
+    expect(last.state.winner).toBeDefined();
+    expect(() => ground.rules.apply(last.state, endTurn())).toThrow(ContractViolation);
+    expect(ground.rules.legalMoves(last.state)).toEqual([]);
     // Non-vacuous: seats really were lost along the way.
     expect(lostAlong(last.state, ground.geometry).length).toBeGreaterThan(0);
   });
@@ -484,8 +503,9 @@ describe('the item-44 chain, over every state a replay passes through', () => {
     // failed to load — or a record refused on its first move — would collapse the
     // trace to the opening alone and satisfy all three vacuously. Until now the
     // only thing making them bite was an assertion in a *different* file
-    // (`immediate-loss.replay.test.ts`, `refusedAt === 1244`); this file has to
-    // stand on its own. A floor, not a pin: the record is 1247 moves long.
+    // (`immediate-loss.replay.test.ts`, `refusedAt === 1243` since P38 moved the
+    // stop there); this file has to stand on its own. A floor, not a pin: the record
+    // is 1247 moves long and the fold reaches 1243 of them.
     expect(states.length).toBeGreaterThan(1000);
     return [{ name: 'the reported playtest log', states, geometry }];
   };
