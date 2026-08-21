@@ -9,14 +9,18 @@ Feature: A seat that can never claim again is out, and it vanishes
 
   Background:
     Given a GameState with players A, B and C, and a GeometryPort and RulesPort
-    And loss is evaluated only when endTurn hands the seat back to the first player
+    # P37: "loss is evaluated only when endTurn hands the seat back to the first
+    # player" stood here and is repealed — a loss now resolves on the move that
+    # causes it. Every scenario below that said "when the round closes" is a
+    # boundary case only because its Given makes it one, not because resolution
+    # waits. See docs/spec/immediate-loss/immediate-loss.md.
 
   Rule: Owning no territory is a loss
 
-    Scenario: A player whose last territory is carved away is lost at the boundary
+    Scenario: A player whose last territory is carved away is lost on the carving move
       Given A owns one territory arrow and two heads
       And B closes a loop that claims A's last territory arrow
-      When the round closes
+      When B takes that step
       Then A is lost
       And A has no heads on the board
       And A has no trail marks
@@ -141,22 +145,20 @@ Feature: A seat that can never claim again is out, and it vanishes
       When that seat is lost
       Then the winner is unset unless exactly one seat remains
 
-  Rule: Loss resolves at the boundary and nowhere else
-
-    Scenario: A step does not evaluate loss
-      Given A owns no territory and holds heads
-      When another player takes a single step
-      Then A still has heads on the board
-
-    Scenario: A convert does not evaluate loss
-      Given a player owns no territory and holds heads
-      When a closure converts one of that player's stacks
-      Then that player's remaining heads are still on the board
-
-    Scenario: A skip does not evaluate loss
-      Given A owns no territory and holds heads
-      When a player skips a group
-      Then A still has heads on the board
+  # ~~Rule: Loss resolves at the boundary and nowhere else~~ — **repealed by P37.**
+  # This Rule and its three scenarios (*A step does not evaluate loss*, *A convert
+  # does not evaluate loss*, *A skip does not evaluate loss*) asserted the exact
+  # opposite of what the engine now does, and their tests were deleted rather than
+  # inverted. The replacements live in
+  # `docs/spec/immediate-loss/immediate-loss.core.feature` under *A loss resolves
+  # on the move that causes it*, and in invariants 1, 2 and 5 of
+  # `docs/spec/immediate-loss/immediate-loss.md`.
+  #
+  # Struck rather than deleted because the trail matters: this was a deliberate
+  # P36 decision, made for a stated reason (a boundary is the only place the
+  # four-case table is unambiguous), and a real playtest disproved it — the win
+  # arrived four moves and three end-turns after the deciding closure. Losing that
+  # history would make the reversal look like carelessness rather than evidence.
 
     Scenario: Capturing a share before the boundary clears the clock
       Given A has a starvation streak of one below the threshold

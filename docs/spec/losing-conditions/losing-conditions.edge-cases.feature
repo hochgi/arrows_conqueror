@@ -9,7 +9,11 @@ Feature: Losing at the boundaries
 
   Background:
     Given a GameState, a GeometryPort and a RulesPort
-    And every assertion reads the state after endTurn closed a full round
+    # P37: "every assertion reads the state after endTurn closed a full round"
+    # stood here and is no longer true of this suite — a loss resolves on the move
+    # that causes it, so each scenario below reads the state its own When returns.
+    # Where a scenario still says "when the round closes", that is because the
+    # thing it measures (a starvation streak) genuinely counts rounds.
 
   Rule: The predicate is exactly the decided table
 
@@ -146,9 +150,14 @@ Feature: Losing at the boundaries
 
   Rule: A match with no surviving seat is recorded, not invented
 
-    # SPEC §11 item 44. This packet does not invent a draw: the seats are removed,
-    # `winner` stays unset, and the state is terminal-but-unwon. The adapter will
-    # read that as still playing, which is wrong and is recorded as wrong.
+    # SPEC §11 item 44, **resolved by dissolution in P37**: play cannot reach a
+    # board with no surviving seat, because no path un-owns a spawner share and a
+    # share owner is never lost. The state below is therefore *authored*, not
+    # reachable — kept as a totality guard on the resolution pass rather than as a
+    # claim about a game anyone can play. It is still true that `winner` stays
+    # unset and that an adapter would read that as playing; nothing represents the
+    # state because nothing reaches it. See
+    # `docs/spec/immediate-loss/immediate-loss.md`.
     Scenario: Every remaining seat lost on one boundary leaves no winner
       Given the only two seats left both own territory, no share and no heads
       When the round closes

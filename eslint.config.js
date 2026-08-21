@@ -92,6 +92,36 @@ export default tseslint.config(
     },
   },
   {
+    // `no-restricted-globals` above only catches the *global* binding, so
+    // `import process from 'node:process'` walks straight past it — and that is
+    // exactly what a developer blocked by the global rule reaches for next. Found
+    // by probe during P37 review, where a regex on one file's text was the only
+    // thing standing in the way. A Node builtin has no business in a pure core in
+    // any spelling.
+    //
+    // `src` only, deliberately: the purity guard's own tests read source files off
+    // disk and load replay fixtures, which is what `node:fs` is for. Tests are
+    // adapters to the filesystem, not core.
+    files: [
+      'packages/contracts/src/**/*.ts',
+      'packages/rules-core/src/**/*.ts',
+      'packages/geometry-*/src/**/*.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['node:*'],
+              message: 'The core is pure (ADR 0001). No Node builtins, imported or global.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // Production-code complexity ratchet (P24). Warn-only. Tests are exempt —
     // Gherkin scenarios are allowed to be long. Do not flip to error until
     // boy-scouting has brought the core under budget. Coverage can hide high

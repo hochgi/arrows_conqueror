@@ -8,6 +8,7 @@
 import { createHash } from 'node:crypto';
 import { expect } from 'vitest';
 import type {
+  ArrowId,
   CreateInviteBody,
   GameState,
   MergeOverride,
@@ -890,19 +891,43 @@ export const seedFinishedState = (
 };
 
 /**
+ * Arrows on the tiling that border no spawner of a three-seat opening — ground a
+ * seat can hold without holding a share, which is what puts it on the clock.
+ */
+const shareFreeArrows = (howMany: number): readonly ArrowId[] => {
+  const geometry = makeTiling();
+  const opening = openingMatch(3);
+  const shares = new Set<string>();
+  for (const vertex of opening.spawners.keys()) {
+    for (const arrow of geometry.borderArrows(vertex)) shares.add(String(arrow));
+  }
+  const free = geometry
+    .window(geometry.seedPoint(), 3)
+    .arrows.filter((arrow) => !shares.has(String(arrow)) && !opening.territory.has(arrow))
+    .toSorted((left, right) => (String(left) < String(right) ? -1 : 1));
+  if (free.length < howMany) throw new Error('setup: not enough share-free arrows');
+  return free.slice(0, howMany);
+};
+
+/**
  * A 3-player position where Alice (seat 1) `endTurn` leaves the last seat
  * (heuristic) active, and that seat's `endTurn` wraps the round and ends the
  * match — real `makeRules(makeTiling()).apply`, not a fake RulesPort.
  *
  * Seat plan: Bob at 0, Alice at 1, heuristic at 2 (`startBobAliceHeuristic`).
  *
- * **P36 rewrote how this position ends.** It used to set `dominationStreak: 4`
- * on one victim and let the wrap fire the old two-player starvation shortcut,
- * which handed the match to the first surviving seat in array order. That
- * shortcut is gone: a boundary now removes each qualifying seat and sets
- * `winner` only when exactly **one** seat is left not lost. So the position
- * strips territory from *two* of the three seats — both are lost immediately by
- * `T = 0` (§9) — and Alice, who keeps hers, is the last seat standing.
+ * **P36 rewrote how this position ends, and P37 rewrote it again.** P36's
+ * version stripped territory from two of the three seats, so both were lost by
+ * `T = 0`. That worked while loss resolved only at the round boundary; since P37
+ * it resolves on the move that causes it, so the *human's* `endTurn` would end
+ * the match and there would be no burst left to persist a winner during.
+ *
+ * So the two victims are put on the **starvation clock** instead: each keeps one
+ * arrow of ordinary ground and its heads, owns no share, and carries a streak one
+ * round short of the threshold. A streak still advances only at a full round
+ * (P37 invariant 6), so Alice's `endTurn` resolves nothing and the heuristic
+ * seat's `endTurn` wraps the round, ticks both clocks to the threshold, and
+ * leaves Alice the last seat standing.
  */
 export const authorWinningWrapState = (): {
   readonly state: GameState;
@@ -917,16 +942,23 @@ export const authorWinningWrapState = (): {
   if (victim === undefined || alicePlayer === undefined || heuristicPlayer === undefined) {
     throw new Error('setup: expected 3 players');
   }
+  const destitute = [victim, heuristicPlayer];
   const territory = new Map(
-    [...opening.territory.entries()].filter(
-      ([, owner]) => owner !== victim && owner !== heuristicPlayer,
-    ),
+    [...opening.territory.entries()].filter(([, owner]) => !destitute.includes(owner)),
   );
+  // One share-free arrow each: ground, so the seat is not lost outright, and no
+  // spawner border, so it has no income and its clock runs.
+  const shareFree = shareFreeArrows(destitute.length);
+  destitute.forEach((seat, index) => {
+    const arrow = shareFree[index];
+    if (arrow === undefined) throw new Error('setup: no share-free arrow for a destitute seat');
+    territory.set(arrow, seat);
+  });
   const state: GameState = {
     ...opening,
     activePlayer: alicePlayer,
     territory,
-    starvationStreaks: new Map(),
+    starvationStreaks: new Map(destitute.map((seat) => [seat, opening.dominationN - 1] as const)),
     winner: undefined,
   };
   const rules = makeRules(makeTiling());
@@ -938,8 +970,8 @@ export const authorWinningWrapState = (): {
     throw new Error('setup: human endTurn did not hand the heuristic seat');
   }
   // The winner is *asserted*, not read back off the engine: reading it back
-  // would turn a missing P36 boundary into a setup error instead of a failed
-  // expectation. Alice is the only seat that still owns territory.
+  // would turn a missing boundary into a setup error instead of a failed
+  // expectation. Alice is the only seat that still owns a share.
   return {
     state,
     alicePlayer: String(alicePlayer),

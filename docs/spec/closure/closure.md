@@ -138,7 +138,7 @@ the claim being made: *nothing was added for it.*
 - When the departed arrow is not in the mover's trail, the system shall claim nothing.
 - When the destination belongs to another player, the system shall not treat the step
   as a closure.
-- The system shall enumerate no vertex.
+- The system shall enumerate no vertex — **P37: measured as a delta.** Loss resolution sits on the tail of `apply` and reads the spawner lattice when a seat owns ground and holds no head, so this sentence can no longer be measured across a whole `apply`. The rule itself still reads no vertex: assert it as *no lattice read beyond an idle move on the same board*. See `docs/spec/immediate-loss/immediate-loss.md`.
 - The system shall not mutate the input state, and shall return equal outputs for
   equal inputs.
 

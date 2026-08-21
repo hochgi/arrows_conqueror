@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { step } from '@conquarrow/contracts';
+import { skip, step } from '@conquarrow/contracts';
 import { makeRules } from '../src/index';
 import {
   A,
@@ -21,6 +21,7 @@ import {
   claimKeys,
   countingVertices,
   isTrail,
+  landCountOf,
   onTiling,
   owned,
   pathFrom,
@@ -28,6 +29,7 @@ import {
   stateOf,
   territoryOf,
   trailOf,
+  vertexReadsOf,
 } from './support';
 import type { GameState } from './support';
 
@@ -120,7 +122,7 @@ describe('degenerate claims', () => {
     expect(territoryOf(after, a)).toBe(A);
     expect(territoryOf(after, b)).toBe(A);
     expect(territoryOf(after, c)).toBe(A);
-    expect([...after.territory.keys()].length).toBe(3);
+    expect(landCountOf(after, A)).toBe(3);
   });
 
   it('claims a single-arrow closure as just that arrow', () => {
@@ -290,7 +292,7 @@ describe('closure is pure and deterministic', () => {
     expect(trailInsertion(right, A)).toEqual(trailInsertion(left, A));
   });
 
-  it('enumerates no vertex while resolving a closure', () => {
+  it('requests no vertex beyond what an idle move requests while resolving a closure', () => {
     const base = onTiling().geometry;
     const { geometry, vertexReads } = countingVertices(base);
     const rules = makeRules(geometry);
@@ -302,8 +304,18 @@ describe('closure is pure and deterministic', () => {
       territory: owned([home, landing], A),
     });
 
-    rules.apply(state, step(last, landing, 1));
+    // P37: the closure's own reads are the delta over a move that closes nothing.
+    // Not a hard zero any more, and not because closure changed: loss resolution
+    // sits on the tail of `apply` and counts the *shares* of a seat that owns
+    // ground and holds no head, which `stateOf`'s keepalive land makes true of
+    // every seat that authored none. See `immediate-loss.md`, *Cost*.
+    const idle = vertexReadsOf(vertexReads, () => {
+      rules.apply(state, skip(last));
+    });
+    const closing = vertexReadsOf(vertexReads, () => {
+      rules.apply(state, step(last, landing, 1));
+    });
 
-    expect(vertexReads()).toBe(0);
+    expect(closing).toBe(idle);
   });
 });

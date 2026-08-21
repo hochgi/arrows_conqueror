@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { makeRules } from '../src/index';
-import { step } from '@conquarrow/contracts';
+import { skip, step } from '@conquarrow/contracts';
 import {
   A,
   B,
@@ -24,6 +24,7 @@ import {
   stateOf,
   territoryOf,
   trailOf,
+  vertexReadsOf,
   via,
 } from './support';
 
@@ -227,7 +228,7 @@ describe('cut resolution is pure and deterministic', () => {
     );
   });
 
-  it('enumerates no vertex', () => {
+  it('requests no vertex beyond what an idle move requests', () => {
     const base = onBoard().geometry;
     const { geometry, vertexReads } = countingVertices(base);
     const rules = makeRules(geometry);
@@ -236,9 +237,20 @@ describe('cut resolution is pure and deterministic', () => {
       trail: { A: [ourIn], B: [trailIn, trailOut] },
     });
 
-    const after = rules.apply(before, step(ourIn, ourExit, 1));
+    const idle = vertexReadsOf(vertexReads, () => {
+      rules.apply(before, skip(ourIn));
+    });
+    let after = before;
+    const cutting = vertexReadsOf(vertexReads, () => {
+      after = rules.apply(before, step(ourIn, ourExit, 1));
+    });
 
     expect(trailOf(after, B).length).toBeLessThan(trailOf(before, B).length);
-    expect(vertexReads()).toBe(0);
+    // P37: the cut adds no lattice read of its own over an idle move on the same
+    // board. Not a hard zero any more, and not because the rule changed: loss
+    // resolution sits on the tail of `apply` and counts the *shares* of a seat that
+    // owns ground and holds no head, which `stateOf`'s keepalive land makes true of
+    // every seat that authored none. See `immediate-loss.md`, *Cost*.
+    expect(cutting).toBe(idle);
   });
 });

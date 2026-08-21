@@ -33,6 +33,7 @@ import {
   snapshot,
   stateOf,
   territoryOf,
+  vertexReadsOf,
 } from './support';
 import type { ArrowId, GameState } from './support';
 
@@ -324,12 +325,14 @@ describe('the system enumerates no vertex', () => {
       territory: [{ arrow: exit, owner: B }],
     });
 
-    rules.legalMoves(state);
-    try {
-      rules.apply(state, step(from, exit, 1));
-    } catch {
-      // Refusal is the expected path once the filter exists; either way, no vertex read.
-    }
+    const listingAndRefusing = vertexReadsOf(vertexReads, () => {
+      rules.legalMoves(state);
+      try {
+        rules.apply(state, step(from, exit, 1));
+      } catch {
+        // Refusal is the expected path; it happens before any loss resolves.
+      }
+    });
     const home = pick(geometry.inArrows(geometry.origin(from)), 0);
     const raid = stateOf([{ arrow: from, owner: A, heads: 1 }], A, {
       trail: { A: [from] },
@@ -338,9 +341,21 @@ describe('the system enumerates no vertex', () => {
         { arrow: exit, owner: B },
       ],
     });
-    rules.legalMoves(raid);
-    rules.apply(raid, step(from, exit, 1));
+    // P37 resolves losses at the tail of `apply`, and the last thing that needs for
+    // a seat which owns ground and holds no head is a *share* count, which walks the
+    // lattice — and `stateOf`'s keepalive land makes exactly that seat exist here. So
+    // the permitted raid is measured as a delta over an idle move on the same board.
+    // Listing moves and refusing a self-convert never reach resolution, so their zero
+    // stays hard. See `immediate-loss.md`, *Cost*.
+    const idle = vertexReadsOf(vertexReads, () => {
+      rules.apply(raid, skip(from));
+    });
+    const raiding = vertexReadsOf(vertexReads, () => {
+      rules.legalMoves(raid);
+      rules.apply(raid, step(from, exit, 1));
+    });
 
-    expect(vertexReads()).toBe(0);
+    expect(listingAndRefusing).toBe(0);
+    expect(raiding).toBe(idle);
   });
 });

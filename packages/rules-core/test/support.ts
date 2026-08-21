@@ -17,10 +17,10 @@
  * this packet (P02 measurement 2).
  */
 
-import { makeFixture, MINIMAL } from '@conquarrow/geometry-fixtures';
+import { makeFixture, MINIMAL, SPACIOUS } from '@conquarrow/geometry-fixtures';
 import { makeTiling } from '@conquarrow/geometry-tiling';
 import type { BoardDescription } from '@conquarrow/geometry-fixtures';
-import { chord, chordsCross, chordsInterleave, mintPlayerId } from '@conquarrow/contracts';
+import { chord, chordsCross, chordsInterleave, mintPlayerId, rational } from '@conquarrow/contracts';
 import type {
   ArrowId,
   Chord,
@@ -103,22 +103,238 @@ const trailsOf = (ground: Ground): GameState['trails'] =>
       .filter(([, arrows]) => arrows.size > 0),
   );
 
+// ── every authored seat must be a *legal* seat (P37) ──────────────────────────
+
+/**
+ * Since P37 a loss resolves on the move that causes it, so `apply` removes a
+ * landless seat's pieces on the **first** move of any state that authored one.
+ *
+ * §8 has always called a seat holding no territory an unplayable position that
+ * setup must prevent, so a fixture that gave a player heads and nothing else was
+ * authoring an illegal board; before P37 it merely got away with it. `stateOf`
+ * therefore grants every seat in {@link PLAYERS} the **minimum that keeps it
+ * legal**, and nothing more:
+ *
+ * - a seat owning no territory gets **one** arrow (not the three-arrow home
+ *   triangle setup grants — one is the minimum, and every extra arrow of
+ *   territory is another arrow whose neighbours change anchor grade);
+ * - every seat gets a **spawner** flanking a piece of its ground, so it holds a
+ *   share. That is what the opening actually gives a seat (item 44's chain, link
+ *   1), and it is what keeps a seat that loses its heads *during* a move — to a
+ *   conversion, or to combat — out of the §9 *ground, no share, no head* row on
+ *   the same move.
+ *
+ * The grant is *derived*, not hardcoded: the arrow is chosen from the arrows the
+ * board hands over, and it is chosen to be as inert as the board allows — never
+ * an exit of an arrow the scenario named (a step onto enemy territory is a
+ * refused self-convert, P28) and never feeding the origin of one (that would
+ * lift the scenario's trail to territory grade). On `minimal` (21 arrows, `K7`)
+ * a *fully* inert arrow often does not exist, which is why this is a ranking and
+ * not a filter — a scenario that needs a specific inert arrow authors its own
+ * territory and opts out.
+ *
+ * Authoring territory for a seat opts that seat out entirely: a test that says
+ * what a seat owns means it.
+ */
+interface BoardInfo {
+  readonly prefix: string;
+  readonly geometry: GeometryPort;
+  /** Candidate keepalive arrows, board order, sorted by id. */
+  readonly arrows: readonly ArrowId[];
+}
+
+/**
+ * A **total** comparator on arrow / vertex ids — returns 0 for equal ids.
+ *
+ * `a < b ? -1 : 1` is not total: it claims a strict order between two equal ids,
+ * which leaves `toSorted` formally free to do anything with them. AGENTS.md names
+ * this exact shape — "a `sort` whose ties break on identity" — as one of the two
+ * realistic ways nondeterminism enters this repo, the kind that "passes every unit
+ * test and surfaces only as replay drift". These are fixture builders, so a drift
+ * here is a flaky test rather than a wrong game, which is precisely why it would be
+ * expensive to diagnose. Found by Copilot on PR #21.
+ */
+export const byId = (left: unknown, right: unknown): number => {
+  const a = String(left);
+  const b = String(right);
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+};
+
+const sortById = <T,>(items: readonly T[]): readonly T[] => [...items].toSorted(byId);
+
+/** The board an authored arrow id came from — `fixtures:minimal`, `tiling:a`, … */
+const prefixOf = (arrow: ArrowId): string => String(arrow).split(':').slice(0, 2).join(':');
+
+let BOARDS: readonly BoardInfo[] | undefined;
+
+/**
+ * The three boards a `stateOf` state can be authored on, with the arrows a
+ * keepalive home may be taken from.
+ *
+ * On the fixtures that is the whole (finite) board. On the **unbounded** tiling
+ * it is a distant annulus — radius 5 to 8 from the seed point — because there
+ * the board has room for a home that cannot touch anything a scenario does, and
+ * an inert home is worth more than a near one.
+ */
+const boards = (): readonly BoardInfo[] => {
+  BOARDS ??= [
+    ...[MINIMAL, SPACIOUS].map((description) => {
+      const geometry = makeFixture(description);
+      const arrows = sortById(geometry.window(geometry.seedPoint(), 3).arrows);
+      return { prefix: prefixOf(arrowAt(arrows, 0)), geometry, arrows };
+    }),
+    (() => {
+      const geometry = makeTiling();
+      const near = new Set(
+        geometry.window(geometry.seedPoint(), 5).arrows.map(String),
+      );
+      const arrows = sortById(
+        geometry.window(geometry.seedPoint(), 8).arrows.filter((a) => !near.has(String(a))),
+      );
+      return { prefix: prefixOf(arrowAt(arrows, 0)), geometry, arrows };
+    })(),
+  ];
+  return BOARDS;
+};
+
+/**
+ * The board an authored arrow belongs to, or a **setup failure**.
+ *
+ * The identification is lexical — the id's first two segments — which no port
+ * promises (P01 D1 says ids are opaque). That is a known shortcut, and it is
+ * tolerable only while a miss is *loud*: this used to return `undefined` and
+ * both callers then silently granted nothing, so a state that needed a keepalive
+ * seat got none and the failure surfaced later, somewhere else, as a rule failure.
+ * Throwing here names the board instead.
+ */
+const boardOf = (arrow: ArrowId): BoardInfo => {
+  const found = boards().find((board) => board.prefix === prefixOf(arrow));
+  if (found === undefined) {
+    throw new Error(
+      `setup: no known board for arrow ${String(arrow)} — its prefix "${prefixOf(arrow)}" is neither fixture nor the tiling, so no seat can be placed on it`,
+    );
+  }
+  return found;
+};
+
+/** Every arrow the scenario itself named — occupancy, trail and territory. */
+const namedArrows = (placements: readonly Placement[], ground: Ground): readonly ArrowId[] => [
+  ...placements.map((p) => p.arrow),
+  ...(ground.territory ?? []).map((t) => t.arrow),
+  ...(ground.trail?.A ?? []),
+  ...(ground.trail?.B ?? []),
+];
+
+/**
+ * One arrow of territory for each seat that authored none, chosen to be as inert
+ * as the board allows.
+ *
+ * Two ways a grant can be felt, both measured against the arrows the scenario
+ * named, and both **per seat** because both rules read one player's own ground:
+ *
+ * - as the **exit of an occupied arrow**, where a step onto it would be a refused
+ *   self-convert (P28) rather than the step the scenario meant to take;
+ * - as a **feeder of the origin of that seat's own trail**, which is exactly the
+ *   test `anchorGrade` makes, so it would lift a stack-grade or dormant stretch to
+ *   territory grade (§6.1a).
+ *
+ * On `minimal` (21 arrows, `K7`) an arrow inert by both readings usually exists but
+ * is never the low-id arrow a scenario reaches for first, which is why this ranks
+ * rather than filters and why ties break on the **highest** id.
+ */
+const keepaliveLand = (
+  placements: readonly Placement[],
+  ground: Ground,
+): readonly { readonly arrow: ArrowId; readonly owner: PlayerId }[] => {
+  const named = namedArrows(placements, ground);
+  const first = named[0];
+  if (first === undefined) return [];
+  const board = boardOf(first);
+  const landed = new Set((ground.territory ?? []).map((t) => String(t.owner)));
+  const taken = new Set(named.map(String));
+  const geometry = board.geometry;
+  const asExit = new Set<string>();
+  for (const { arrow } of placements) {
+    for (const exit of geometry.outArrows(geometry.target(arrow))) asExit.add(String(exit));
+  }
+  const feedersOfTrail = (trail: readonly ArrowId[]): ReadonlySet<string> => {
+    const feeders = new Set<string>();
+    for (const arrow of trail) {
+      for (const feeder of geometry.inArrows(geometry.origin(arrow))) feeders.add(String(feeder));
+    }
+    return feeders;
+  };
+  const grants: { readonly arrow: ArrowId; readonly owner: PlayerId }[] = [];
+  for (const player of PLAYERS) {
+    if (landed.has(String(player))) continue;
+    const feeders = feedersOfTrail(ground.trail?.[String(player) as 'A' | 'B'] ?? []);
+    const cost = (arrow: ArrowId): number =>
+      (asExit.has(String(arrow)) ? 2 : 0) + (feeders.has(String(arrow)) ? 1 : 0);
+    const arrow = board.arrows
+      .filter((candidate) => !taken.has(String(candidate)))
+      .toSorted((left, right) => cost(left) - cost(right) || byId(right, left))[0];
+    if (arrow === undefined) throw new Error('setup: the board offered no free arrow for a home');
+    taken.add(String(arrow));
+    grants.push({ arrow, owner: player });
+  }
+  return grants;
+};
+
+/**
+ * A spawner flanking a piece of each seat's ground, so every seat holds a share.
+ *
+ * A share, not merely land, because a seat's heads can go *during* the move being
+ * tested — a conversion inside a claim, a stack emptied in combat — and without a
+ * share that seat would land in the §9 *ground, no share, no head* row and vanish
+ * as a side effect of the rule under test.
+ *
+ * Skipped entirely when the scenario authored spawners of its own: a test that
+ * says where the spawners are is testing the economy, and this must not add one.
+ */
+const keepaliveSpawners = (
+  ground: Ground,
+  territory: readonly { readonly arrow: ArrowId; readonly owner: PlayerId }[],
+): readonly (readonly [VertexId, Spawner])[] => {
+  if ((ground.spawners ?? []).length > 0) return [];
+  const first = territory[0];
+  if (first === undefined) return [];
+  const board = boardOf(first.arrow);
+  const grants: (readonly [VertexId, Spawner])[] = [];
+  for (const player of PLAYERS) {
+    const home = territory.find((t) => t.owner === player)?.arrow;
+    if (home === undefined) continue;
+    const vertex = sortById(board.geometry.flankVertices(home))[0];
+    if (vertex === undefined) {
+      throw new Error(
+        `setup: ${board.prefix} flanks ${String(home)} with no vertex, so ${String(player)} cannot be given a share`,
+      );
+    }
+    grants.push([vertex, { force: rational(1, 3), phase: 0 }] as const);
+  }
+  return grants;
+};
+
 export const stateOf = (
   placements: readonly Placement[],
   activePlayer: PlayerId = A,
   ground: Ground = {},
-): GameState => ({
-  players: PLAYERS,
-  activePlayer,
-  groups: new Map(placements.map((p) => [p.arrow, groupOf(p)] as const)),
-  trails: trailsOf(ground),
-  territory: new Map((ground.territory ?? []).map((t) => [t.arrow, t.owner] as const)),
-  accumulators: new Map(ground.accumulators ?? []),
-  spawners: new Map(ground.spawners ?? []),
-  starvationStreaks: new Map(ground.starvationStreaks ?? []),
-  dominationN: ground.dominationN ?? 5,
-  winner: ground.winner,
-});
+): GameState => {
+  const territory = [...(ground.territory ?? []), ...keepaliveLand(placements, ground)];
+  return {
+    players: PLAYERS,
+    activePlayer,
+    groups: new Map(placements.map((p) => [p.arrow, groupOf(p)] as const)),
+    trails: trailsOf(ground),
+    territory: new Map(territory.map((t) => [t.arrow, t.owner] as const)),
+    accumulators: new Map(ground.accumulators ?? []),
+    spawners: new Map([...(ground.spawners ?? []), ...keepaliveSpawners(ground, territory)]),
+    starvationStreaks: new Map(ground.starvationStreaks ?? []),
+    dominationN: ground.dominationN ?? 5,
+    winner: ground.winner,
+  };
+};
 
 // ── observing a state ─────────────────────────────────────────────────────────
 
@@ -161,6 +377,35 @@ export const isTrail = (state: GameState, player: PlayerId, arrow: ArrowId): boo
 /** Who holds this arrow as closed ground, or `undefined`. */
 export const territoryOf = (state: GameState, arrow: ArrowId): PlayerId | undefined =>
   state.territory.get(arrow);
+
+/**
+ * How many arrows one player holds as closed ground.
+ *
+ * Preferred over counting `state.territory` whole: since P37 every authored seat
+ * owns the minimum territory that keeps it legal, so the map always carries the
+ * other seat's home and a total is no longer a statement about this claim.
+ */
+export const landCountOf = (state: GameState, player: PlayerId): number =>
+  [...state.territory.values()].filter((owner) => owner === player).length;
+
+/**
+ * Vertex-lattice reads one call makes, as a **delta**.
+ *
+ * Since P37 `apply` resolves losses on its tail, and the last thing loss
+ * resolution needs for a seat that **owns ground and holds no head** is that
+ * seat's *share* count — which walks the spawner lattice. That walk is
+ * short-circuited away for every other seat (`immediate-loss.md`, *Cost*), so an
+ * ordinary board of seats holding heads costs nothing; but `stateOf` grants every
+ * seat that authored no land a keepalive arrow and **no head**, which is exactly
+ * the row that does need the walk. So a hard zero across a whole `apply` is no
+ * longer the measurement on these boards: a rule's own reads are the difference
+ * between two moves on the same board (see `countingVertices`).
+ */
+export const vertexReadsOf = (reads: () => number, run: () => void): number => {
+  const before = reads();
+  run();
+  return reads() - before;
+};
 
 /** A traversal in by `from`, out by `exit` — the geometric question, no player. */
 export const via = (from: ArrowId, exit: ArrowId): Traversal => ({ from, exit });

@@ -67,6 +67,27 @@ const asGroup = (
     : { owner, heads, spent, speedOverride: override };
 
 /**
+ * Next seat in turn order (§4). **Nobody is ever skipped** (§9 / P36): a lost
+ * seat, and a seat with a share but no heads, still receive the chair — they can
+ * only `endTurn`, and the hot-seat adapter auto-passes them. Skipping would move
+ * or destroy the `players[0]` boundary marker that accrual depends on.
+ *
+ * Module level rather than a closure: turn order is a function of the state's own
+ * seat list and asks the board nothing.
+ */
+const nextPlayer = (state: GameState): PlayerId => {
+  const start = state.players.indexOf(state.activePlayer);
+  if (start < 0) {
+    return reject(`${String(state.activePlayer)} is not one of this match's players`);
+  }
+  const next = state.players[(start + 1) % state.players.length];
+  if (next === undefined) {
+    return reject('match has no players');
+  }
+  return next;
+};
+
+/**
  * Build the movement rules over a board.
  *
  * The board arrives as a port and nothing else — the engine never learns which
@@ -281,22 +302,6 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     return state;
   };
 
-  /** Next seat in turn order (§4). **Nobody is ever skipped** (§9 / P36): a lost
-   * seat, and a seat with a share but no heads, still receive the chair — they
-   * can only `endTurn`, and the hot-seat adapter auto-passes them. Skipping would
-   * move or destroy the `players[0]` boundary marker that accrual depends on. */
-  const nextPlayer = (state: GameState): PlayerId => {
-    const start = state.players.indexOf(state.activePlayer);
-    if (start < 0) {
-      return reject(`${String(state.activePlayer)} is not one of this match's players`);
-    }
-    const next = state.players[(start + 1) % state.players.length];
-    if (next === undefined) {
-      return reject('match has no players');
-    }
-    return next;
-  };
-
   /**
    * The turn ends only here (D6). Nothing survives the boundary: every `spent`
    * counter is zeroed and every merge override is dropped (§3, §11 item 20).
@@ -305,10 +310,12 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
    * P08: when the next seat is `players[0]`, a full round has closed and every
    * spawner accrues one round-robin step (§7 / §11 item 41).
    *
-   * P36: that same boundary is where losing resolves, and the order is fixed —
-   * accrue, advance the starvation clocks, resolve losses. `players[0]` is the
-   * marker whether or not that seat is still playing; there is no *first living
-   * player* reading of the boundary (§9).
+   * P36: that same boundary is where the starvation clocks advance, and P37 left
+   * the order intact — accrue, advance the clocks, and then `apply`'s tail
+   * resolves the losses. A streak counts *rounds*, so the tick stays here even
+   * though the resolution no longer does. `players[0]` is the marker whether or
+   * not that seat is still playing; there is no *first living player* reading of
+   * the boundary (§9).
    */
   const applyEndTurn = (state: GameState): GameState => {
     const next = nextPlayer(state);
@@ -321,12 +328,13 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     };
     const roundStart = handed.players[0];
     if (roundStart === undefined || next !== roundStart) return handed;
-    // Full round (§9 / P36): accrue, then tick starvation, then resolve losses.
+    // Full round (§9 / P36): accrue, then tick starvation. Losses resolve on the
+    // tail of `apply` (P37), which is *after* this returns, so the boundary order
+    // accrue -> tick -> resolve is preserved without stating it twice.
     // Tick-before-resolve is load-bearing: a seat is lost on the round its streak
     // reaches dominationN, not the round after. Accrue-first cannot rescue a lost
     // or destitute seat — they own no share (share theorem).
-    const accrued = accrueRound(handed, geometry);
-    return resolveLosses(tickStarvation(accrued, geometry), geometry);
+    return tickStarvation(accrueRound(handed, geometry), geometry);
   };
 
   /**
@@ -374,7 +382,7 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     return moves;
   };
 
-  const apply = (state: GameState, move: Move): GameState => {
+  const dispatch = (state: GameState, move: Move): GameState => {
     switch (move.kind) {
       case 'step':
         return applyStep(state, move);
@@ -384,6 +392,23 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
         return applyEndTurn(state);
     }
   };
+
+  /**
+   * One move, then the losses it caused (P37).
+   *
+   * Resolution sits here rather than inside `applyEndTurn` so that the match ends
+   * on the move that decides it: encircling the last enemy territory used to leave
+   * the winner unset until the round closed, with the dead seat taking a turn in
+   * between. Turn atomicity is given up deliberately — a step that costs another
+   * seat its last territory changes the board mid-turn, which is the honest
+   * reading of what that step did.
+   *
+   * Cheap enough to run per move because `resolveLosses` takes one census pass and
+   * reads no vertex unless some seat owns ground and holds no head — see
+   * victory.ts.
+   */
+  const apply = (state: GameState, move: Move): GameState =>
+    resolveLosses(dispatch(state, move), geometry);
 
   return {
     legalMoves,

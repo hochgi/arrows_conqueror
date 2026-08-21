@@ -109,7 +109,7 @@ failure mode, and the reason the bound is an invariant rather than a comment.
   and shall read no board extent. Ground that rings nothing shall not widen it.
 - The system shall derive every chord through `slotOf`, and shall infer no slot from
   an arrow identifier.
-- The system shall enumerate no vertex.
+- The system shall enumerate no vertex — **unchanged by P37.** Fill is measured on `enclosedBy` directly, which never reaches loss resolution, so this zero stays hard. Contrast `closure` and `cuts`, where the same sentence is measured across a whole `apply` and became a delta. See `docs/spec/immediate-loss/immediate-loss.md`.
 - The system shall return equal results for equal inputs, whatever order the claim was
   built in, and shall change no state.
 

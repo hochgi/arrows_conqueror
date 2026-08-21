@@ -480,6 +480,10 @@ describe('the boundary order cannot remove a seat that was about to be paid', ()
       ],
       territory: [
         { arrow: feed, owner: A },
+        // P37: the blockader has to be a *legal* seat, or it is removed on the
+        // first move and un-blockades the share by vanishing. One bare arrow is
+        // the minimum §8 asks for.
+        { arrow: bareArrow(ground, 0), owner: B },
         { arrow: shareArrow(ground, 1), owner: C },
       ],
       accumulators: [[feed, rational(1, 3)]],
@@ -800,8 +804,26 @@ describe('determinism', () => {
 
   it('references neither a clock nor a random source', () => {
     const src = readFileSync(new URL('../src/victory.ts', import.meta.url), 'utf8');
-    for (const forbidden of ['Date', 'Math.random', 'performance', 'crypto', 'process']) {
-      expect(src).not.toContain(forbidden);
+    // Call-shaped, and scoped to what invariant 15 actually claims: a clock and a
+    // random source. `process` and `fetch` are deliberately absent — they are I/O,
+    // not a clock, and they belong to the ESLint purity guard, which bans them as
+    // globals across all of `packages/rules-core/**` at the AST level.
+    //
+    // That split is not tidiness. This test reads the file off disk, so under
+    // Stryker it reads the *instrumented* copy — and the namespace shim the
+    // instrumenter injects contains `process.env.__STRYKER_ACTIVE_MUTANT__`. A
+    // substring or even a call-shaped `process.env` check therefore fails the dry
+    // run on the harness rather than on the source, which is what has left
+    // `pnpm test:mutation` dead for all of rules-core since P36. The lint rule has
+    // no such problem: it reads the real source, and it is the stronger check.
+    for (const banned of [
+      /\bDate\s*\.\s*now\s*\(/,
+      /\bnew\s+Date\b/,
+      /\bMath\s*\.\s*random\s*\(/,
+      /\bperformance\s*\.\s*now\s*\(/,
+      /\bcrypto\s*\./,
+    ]) {
+      expect(src).not.toMatch(banned);
     }
   });
 });

@@ -15,7 +15,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { endTurn, rational, skip, step } from '@conquarrow/contracts';
+import { endTurn, rational } from '@conquarrow/contracts';
 import type { ArrowId, GameState, PlayerId } from '@conquarrow/contracts';
 import { replay, replayIsDeterministic } from '../src/replay';
 import { isLost, shareCountOf, territoryCountOf } from '../src/victory';
@@ -28,7 +28,6 @@ import {
   aBoard,
   aVertex,
   bareArrow,
-  bareAwayFrom,
   closeRound,
   closeRounds,
   held,
@@ -43,7 +42,7 @@ import {
   streakOf,
 } from './losing.support';
 import type { Ground } from './losing.support';
-import { anExitFrom, headsOn, pick, snapshot } from './support';
+import { headsOn, snapshot } from './support';
 
 // ── the generator ────────────────────────────────────────────────────────────
 
@@ -337,63 +336,13 @@ describe('removal', () => {
 // ── 11-13: when loss resolves ────────────────────────────────────────────────
 
 describe('when loss resolves', () => {
-  it('11. evaluates loss only at a full-round boundary', () => {
-    const ground = aBoard();
-    // A owns nothing; the boundary is three end-turns away, and nothing may be
-    // removed before it.
-    const before = boardFor(ground, [1, 5, 5]);
-    let state = before;
-    for (let seat = 0; seat < THREE.length - 1; seat += 1) {
-      state = ground.rules.apply(state, endTurn());
-      expect(holdingsOf(state, A).heads).toBe(2);
-    }
-
-    const after = ground.rules.apply(state, endTurn());
-
-    expect(holdingsOf(after, A).heads).toBe(0);
-  });
-
-  it('12. evaluates no loss during a step, a skip or a convert', () => {
-    const ground = aBoard();
-    const from = shareArrow(ground, 1);
-    const exit = anExitFrom(ground.geometry, from);
-    const parked = bareAwayFrom(ground, [from, exit]);
-    const base = seatState({
-      players: THREE,
-      activePlayer: B,
-      groups: [
-        { arrow: parked, owner: A, heads: 2 },
-        { arrow: from, owner: B, heads: 2 },
-      ],
-      territory: [{ arrow: from, owner: B }],
-    });
-
-    expect(holdingsOf(ground.rules.apply(base, step(from, exit, 1)), A).heads).toBe(2);
-    expect(holdingsOf(ground.rules.apply(base, skip(from)), A).heads).toBe(2);
-
-    // A convert: B's unanchored head standing on A-owned ground flips to A.
-    const tip = pick(ground.geometry.inArrows(ground.geometry.seedPoint()), 0);
-    const mover = anExitFrom(ground.geometry, tip);
-    const moverExit = anExitFrom(ground.geometry, mover);
-    const elsewhere = bareAwayFrom(ground, [tip, mover, moverExit]);
-    const converting = seatState({
-      players: THREE,
-      activePlayer: A,
-      groups: [
-        { arrow: tip, owner: B, heads: 1 },
-        { arrow: mover, owner: A, heads: 1 },
-        { arrow: elsewhere, owner: B, heads: 2 },
-      ],
-      territory: [
-        { arrow: tip, owner: A },
-        { arrow: mover, owner: A },
-      ],
-    });
-
-    const converted = ground.rules.apply(converting, step(mover, moverExit, 1));
-
-    expect(headsOn(converted, elsewhere)).toBe(2);
-  });
+  // Invariants 11 and 12 — *evaluate loss only at a full-round boundary* and
+  // *evaluate no loss during a step, a skip or a convert* — are **superseded by
+  // P37**, which resolves losses at the tail of every `apply`. Their replacements
+  // are `immediate-loss`'s invariants 1, 2 and 5, asserted in
+  // `immediate-loss.invariants.test.ts`. Nothing is asserted here in their place,
+  // because the two statements are now false and a weakened restatement of a
+  // repealed rule reads like a rule.
 
   it('13. advances streaks before resolving losses, so a seat goes on the round its streak reaches the threshold', () => {
     const ground = aBoard();
@@ -445,7 +394,10 @@ describe('the rotation', () => {
   it('15. passes the turn of a seat with no legal move, applying nothing', () => {
     const ground = aBoard();
     for (const rows of ASSIGNMENTS) {
-      const state = boardFor(ground, rows);
+      // P37: the generator authors boards holding seats §8 calls unplayable, and
+      // the first move now settles them. The pass is measured on the settled
+      // board — a *further* pass must still apply nothing.
+      const state = ground.rules.apply(boardFor(ground, rows), endTurn());
       for (const seat of THREE) {
         const seated: GameState = { ...state, activePlayer: seat };
         if (ground.rules.legalMoves(seated).some((move) => move.kind === 'step')) continue;
@@ -582,8 +534,26 @@ describe('determinism', () => {
 
     expect(snapshot(before)).toEqual(taken);
     const src = readFileSync(new URL('../src/victory.ts', import.meta.url), 'utf8');
-    for (const banned of ['Date', 'Math.random', 'performance', 'crypto', 'process']) {
-      expect(src).not.toContain(banned);
+    // Call-shaped, and scoped to what invariant 15 actually claims: a clock and a
+    // random source. `process` and `fetch` are deliberately absent — they are I/O,
+    // not a clock, and they belong to the ESLint purity guard, which bans them as
+    // globals across all of `packages/rules-core/**` at the AST level.
+    //
+    // That split is not tidiness. This test reads the file off disk, so under
+    // Stryker it reads the *instrumented* copy — and the namespace shim the
+    // instrumenter injects contains `process.env.__STRYKER_ACTIVE_MUTANT__`. A
+    // substring or even a call-shaped `process.env` check therefore fails the dry
+    // run on the harness rather than on the source, which is what has left
+    // `pnpm test:mutation` dead for all of rules-core since P36. The lint rule has
+    // no such problem: it reads the real source, and it is the stronger check.
+    for (const banned of [
+      /\bDate\s*\.\s*now\s*\(/,
+      /\bnew\s+Date\b/,
+      /\bMath\s*\.\s*random\s*\(/,
+      /\bperformance\s*\.\s*now\s*\(/,
+      /\bcrypto\s*\./,
+    ]) {
+      expect(src).not.toMatch(banned);
     }
   });
 });

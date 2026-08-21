@@ -23,6 +23,7 @@ import {
   arrowAt,
   exitsFrom,
   isTrail,
+  landCountOf,
   onTiling,
   owned,
   pathFrom,
@@ -68,7 +69,9 @@ describe('a closure is an ordinary step onto your own territory', () => {
 
     expect(trailOf(after, A)).toEqual([]);
     expect(territoryOf(after, t2)).toBe(A);
-    expect([...after.territory.keys()].length).toBe(2);
+    // A's own ground, not the whole map: since P37 every authored seat owns the
+    // minimum that keeps it legal, so B's home is on the board too.
+    expect(landCountOf(after, A)).toBe(2);
   });
 
   it('does not treat a landing on enemy territory as a closure', () => {

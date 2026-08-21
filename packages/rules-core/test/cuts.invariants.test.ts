@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { makeRules } from '../src/index';
-import { step } from '@conquarrow/contracts';
+import { skip, step } from '@conquarrow/contracts';
 import {
   A,
   B,
@@ -26,6 +26,7 @@ import {
   stateOf,
   territoryOf,
   trailOf,
+  vertexReadsOf,
   via,
 } from './support';
 
@@ -165,7 +166,7 @@ describe('surviving fragments demote to stack grade', () => {
   });
 });
 
-describe('cut resolution is pure and enumerates no vertex', () => {
+describe('cut resolution is pure and requests no vertex beyond an idle move', () => {
   it('does not mutate the input trail sets', () => {
     const table = onBoard();
     const { trailIn, trailOut, ourIn, ourExit } = anInterleaving(
@@ -183,7 +184,7 @@ describe('cut resolution is pure and enumerates no vertex', () => {
     expect(trailOf(s1, B).length).toBeLessThan(before.length);
   });
 
-  it('enumerates no vertex on either fixture board', () => {
+  it('requests no vertex beyond what an idle move requests, on either fixture board', () => {
     for (const { description, diameter } of BOARDS) {
       const base = onBoard(description).geometry;
       const { geometry, vertexReads } = countingVertices(base);
@@ -192,9 +193,20 @@ describe('cut resolution is pure and enumerates no vertex', () => {
       const before = stateOf([{ arrow: ourIn, owner: A, heads: 1 }], A, {
         trail: { A: [ourIn], B: [trailIn, trailOut] },
       });
-      const after = rules.apply(before, step(ourIn, ourExit, 1));
+      const idle = vertexReadsOf(vertexReads, () => {
+        rules.apply(before, skip(ourIn));
+      });
+      let after = before;
+      const cutting = vertexReadsOf(vertexReads, () => {
+        after = rules.apply(before, step(ourIn, ourExit, 1));
+      });
       expect(trailOf(after, B).length).toBeLessThan(trailOf(before, B).length);
-      expect(vertexReads()).toBe(0);
+      // P37: the cut adds no lattice read of its own over an idle move on the same
+      // board. Not a hard zero any more, and not because the cut changed: loss
+      // resolution sits on the tail of `apply` and counts the *shares* of a seat
+      // that owns ground and holds no head, which `stateOf`'s keepalive land makes
+      // true of every seat that authored none. See `immediate-loss.md`, *Cost*.
+      expect(cutting).toBe(idle);
     }
   });
 });
