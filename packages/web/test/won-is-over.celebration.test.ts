@@ -1,5 +1,5 @@
 /**
- * The Rule *the celebration waits for the effects that won the match* — five
+ * The Rule *the celebration waits for the effects that won the match* — six
  * scenarios from docs/spec/won-is-over/won-is-over.edge-cases.feature, plus
  * invariants 10–13.
  *
@@ -104,9 +104,7 @@ describe('the celebration waits for the effects that won the match', () => {
 
   it('begins the celebration once those overlays have finished', () => {
     // The feature's Given, at the instant the celebration is due: 1200 ms, when
-    // `captureFresh` has finished. Asserted alongside the fact that those overlays
-    // outlive `MAJOR_SEQUENCE_MS`, because that is what makes the assertion
-    // load-bearing — a fixed 700 ms ceiling would have fired here 500 ms ago.
+    // `captureFresh` has finished.
     const deciding = aDecidingMove();
 
     const fx = victoryAt(deciding.after, geometry, clockAt(deciding, dueAfter(deciding)));
@@ -116,16 +114,27 @@ describe('the celebration waits for the effects that won the match', () => {
       kind: fx.kind,
       dimmed: isMatchOverDimmed(fx, strangerArrow(), deciding.after),
       banner: bannerOf(fx),
-      dueAt: dueAfter(deciding),
-      outlivesMajorSequenceMs: deciding.settleMs > MAJOR_SEQUENCE_MS,
     }).toEqual({
       phase: 'over',
       kind: 'over',
       dimmed: true,
       banner: 'Player A wins',
-      dueAt: 1200,
-      outlivesMajorSequenceMs: true,
     });
+  });
+
+  it('the ceiling is never shorter than the move it waits for', () => {
+    // Measured. `captureFresh` is offset 500 with a duration of 700. A ceiling of
+    // MAJOR_SEQUENCE_MS — 700 — would fire on top of it, 500ms early, which is a
+    // smaller copy of the bug this packet exists to fix.
+    const deciding = aDecidingMove();
+    const wait = celebrationWaitMs({ decidedAt: T0, now: T0, queue: deciding.queue });
+
+    expect({
+      settle: deciding.settleMs,
+      wait,
+      majorSequenceMs: MAJOR_SEQUENCE_MS,
+    }).toEqual({ settle: 1200, wait: 1200, majorSequenceMs: 700 });
+    expect(wait).toBeGreaterThan(MAJOR_SEQUENCE_MS);
   });
 
   it('waits for the queue rather than the ceiling when the queue is the shorter of the two', () => {

@@ -138,7 +138,14 @@ walk would break that on every move rather than in the one case that needs it.
 7. At a full-round boundary the system shall accrue, then advance streaks, then
    resolve losses.
 8. At the end of a record the set of lost players shall be exactly those the
-   §9 table qualifies, and one further move shall not change it. *(The stronger
+   §9 table qualifies, and one further move shall not change it. *(**P38: on a
+   record that ends won there is no further move to take** — `apply` refuses
+   everything once `winner` is set — so on both records this invariant is tested
+   against, the trailing clause holds only in the degenerate sense that no further
+   move exists. Both tests now assert the refusal and the empty offer list instead,
+   which is the stronger statement about the same state; the clause as written is
+   still the claim for a record that ends undecided, and nothing asserts it there.
+   See `docs/spec/won-is-over/won-is-over.md`.)* *(The stronger
    claim — that resolving more often never changes the outcome — has no direct
    test without keeping a copy of the pre-P37 engine. It follows from removal
    giving nobody anything, argued above; what is asserted here is the

@@ -121,8 +121,22 @@ Two constraints on how that is implemented:
   the design, and it shall be a genuine **upper** bound: not less than the settle
   time of the queue as it stands when the deciding move commits. Take it from the
   queue itself — `max(offset + lifetime)` over the items present — rather than from
-  a constant, so it cannot go stale when a timing value changes. A fixed fallback
-  applies only when the queue is empty at that instant.
+  a constant, so it cannot go stale when a timing value changes.
+
+  ~~A fixed fallback applies only when the queue is empty at that instant.~~ —
+  **The fallback is zero: there is none.** An empty queue at the deciding instant
+  means the winning move queued no overlay, and then there is nothing to wait for —
+  a fixed pause there is a dead pause with nothing playing under it, which is the
+  opposite of what this section asks for. A positive floor is also not implementable
+  as written: the phase is recomputed from the **live** queue on every render and
+  nothing remembers what the queue held at `decidedAt`, so *"empty at that instant"*
+  can only read as *"empty now"* — and a floor read that way is not monotone. It
+  would flip the banner **on** at the settle, **off** again when `pruneQueue` empties
+  the queue below the floor (the prune timer fires at `settle + 40`, so any move
+  settling under ~660 ms), and **on** again at the floor. Invariant 13 — *exactly
+  once per match* — outranks a nominal ceiling with nothing under it. Invariant 11
+  is unaffected: with nothing queued the settle time is 0, and a ceiling of 0 is not
+  less than it.
 
   **`timing.ts` carries a false claim** and it is what this section leaned on:
   *"the biggest sequence in the game (enclosure → capture → production) fits inside

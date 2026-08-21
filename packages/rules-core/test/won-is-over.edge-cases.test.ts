@@ -4,8 +4,8 @@
  *
  * - *A record that runs past the win stops there* — three scenarios, all three
  *   about the reported playtest log, in `won-is-over.replay.test.ts`.
- * - *The celebration waits for the effects that won the match* — five scenarios,
- *   all five adapter-side, in `packages/web/test/won-is-over.celebration.test.ts`.
+ * - *The celebration waits for the effects that won the match* — six scenarios,
+ *   all six adapter-side, in `packages/web/test/won-is-over.celebration.test.ts`.
  *
  * What is left is the boundary of the refusal itself: that it says nothing about
  * the board, that it is the same refusal whatever it was handed, and that a **lost**
