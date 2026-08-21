@@ -66,7 +66,11 @@ This is a sequencing bug, not a taste call, and the human named it directly.
 - §11 item 45 (whether a vanishing seat's trail *evaporates* rather than clearing
   silently, and the flicker-then-fade the human asked for). Still open, still its
   own packet. P38 sequences whatever effects exist; it does not add one.
-- Retuning any `FX_MS` value or `MAJOR_SEQUENCE_MS`.
+- Retuning any `FX_MS` value or `MAJOR_SEQUENCE_MS`. Phase 2 measured that
+  `timing.ts`'s claim *"the biggest sequence in the game … fits inside
+  `MAJOR_SEQUENCE_MS`"* is false — `captureFresh` alone settles at 1200 ms against
+  a stated 700. The numbers stay; the comment is corrected, and the celebration's
+  ceiling is taken from the queue rather than from that constant.
 - The celebration's *content* — P29 owns dim / shine / pulse / banner. P38 owns
   only *when it starts*.
 - Whether a finished match can be replayed or restarted from the UI (P20+).

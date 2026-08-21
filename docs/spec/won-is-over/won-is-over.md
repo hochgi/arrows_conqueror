@@ -88,17 +88,63 @@ Two constraints on how that is implemented:
   input" and is "allowed to be lossy under pressure". Waiting on it here does not
   break that: input is already locked, because `inputLocked` reads
   `winner !== undefined`, which is true from the deciding move onward.
-- **It shall be bounded.** The queue is lossy by design — overlays are dropped past
-  `MAX_FX_ITEMS` and pruned on their own lifetimes — so *"wait until the queue is
-  empty"* alone could strand a match with no celebration at all if an overlay is
-  ever dropped mid-flight. A ceiling makes the failure mode "the celebration came
-  slightly early" instead of "the match never visibly ended". Derive it from the
-  existing timing vocabulary rather than inventing a number:
-  `MAJOR_SEQUENCE_MS` is already the stated bound on the biggest sequence in the
-  game (enclosure → capture → production).
+- **It shall be bounded — and the first draft of this section got the direction of
+  the risk backwards.** It said the queue being lossy meant *"wait until the queue
+  is empty"* could strand a match with no celebration, and picked
+  `MAJOR_SEQUENCE_MS` as the ceiling on that reasoning. Both halves were wrong.
+
+  Losing an overlay makes queue-empty fire **earlier**, not later, and `pruneQueue`
+  drops every item on its own lifetime, so nothing in the queue outlives itself. The
+  only way the queue stays non-empty is new overlays arriving — and after the
+  deciding move nothing can enqueue, because this packet's *own* rules half refuses
+  every subsequent move and `inputLocked` is already true. **Queue-empty is
+  therefore self-bounding**, and it is the trigger.
+
+  Worse, the ceiling as drafted was **shorter than the move it was meant to wait
+  for**. Measured through `presentSteps` on this feature's own Given — a closure
+  that fills ground and converts a stack — the queue settles at **1200 ms**:
+
+  | overlay | offset | duration | settles |
+  |---|---|---|---|
+  | `advance` | 0 | 220 | 220 |
+  | `loopPulse` | 40 | 300 | 340 |
+  | `captureFill` | 220 | 400 | 620 |
+  | `lossRetract` | 260 | 420 | 680 |
+  | `conversion` | 300 | 360 | 660 |
+  | **`captureFresh`** | **500** | **700** | **1200** |
+
+  `MAJOR_SEQUENCE_MS` is 700. A ceiling of 700 fires **500 ms early, on top of
+  `captureFresh`** — a smaller copy of the exact bug this packet was filed to fix,
+  and a direct contradiction of the requirement it is implementing.
+
+  The ceiling therefore stays, but as a guard against a **bug** rather than against
+  the design, and it shall be a genuine **upper** bound: not less than the settle
+  time of the queue as it stands when the deciding move commits. Take it from the
+  queue itself — `max(offset + lifetime)` over the items present — rather than from
+  a constant, so it cannot go stale when a timing value changes. A fixed fallback
+  applies only when the queue is empty at that instant.
+
+  **`timing.ts` carries a false claim** and it is what this section leaned on:
+  *"the biggest sequence in the game (enclosure → capture → production) fits inside
+  `MAJOR_SEQUENCE_MS`"*. `captureFresh` alone settles at 1200 against a stated 700.
+  Retuning any `FX_MS` value is out of scope for this packet, so the numbers stand;
+  the **comment** is corrected to say what they do.
 
 During the wait the board shall read as **playing**: no dim, no shine, no banner.
 The transition is what carries the meaning.
+
+## A cut can never be the deciding move
+
+Worth recording, because it looks like it should be able to and a test was written
+on the assumption that it could. Evaporation destroys **trail** and nothing else —
+`cuts.ts` opens with *"fronts destroy trail until they would enter an occupied
+arrow; that arrow and its stack survive. No kills."* Trail is none of *T*, *S* or
+*H*, so no cut can move any seat into a losing row of the §9 table.
+
+A deciding move is therefore a closure, a combat wipe, or the starvation tick at a
+round boundary. The wipe case still *starts* an evaporation — which is why
+evaporation belongs in the list of effects the deciding move must resolve — but the
+cut is never the thing that decides.
 
 ## Cost
 
@@ -113,7 +159,12 @@ P37 invariant 16 is unaffected.
 2. When `state.winner` is set, the system shall refuse every move with a
    `ContractViolation`, and shall not return a state.
 3. The system shall resolve every effect of the deciding move — closure, fill,
-   conversion, and evaporation — in the state that move returns.
+   and conversion — in the state that move returns. *(Evaporation is deliberately
+   not on that list: the seat whose trail a deciding front runs along is the seat
+   that move loses, and a lost seat vanishes trail and all, so the two removals are
+   indistinguishable in the returned state. A bystander whose trail burned instead
+   would be a second survivor, and then the move would not have decided anything.
+   Assert that the evaporation was reached through, not that its result is visible.)*
 4. The system shall never refuse a move on account of a winner set by that same
    move.
 5. A replay whose record continues past the deciding move shall refuse at the
@@ -126,10 +177,17 @@ P37 invariant 16 is unaffected.
    `legalMoves`.
 10. The adapter shall present the board as playing until the deciding move's
     overlays have finished, and as over thereafter.
-11. The adapter shall begin the celebration no later than `MAJOR_SEQUENCE_MS`
-    after the deciding move, whatever the queue contains.
-12. The adapter shall not gate input on the celebration, which is already locked
-    by `winner`.
+11. The adapter shall begin the celebration no earlier than the deciding move's
+    own overlays settle, and no later than a ceiling not less than that settle
+    time. *(Queue-empty is the trigger and is self-bounding, because nothing can
+    enqueue after the win. The ceiling guards a bug, not the design — see **When
+    the celebration begins**, which corrects a first draft that had this backwards
+    and picked a ceiling 500 ms shorter than the packet's headline move.)*
+12. The adapter shall lock input on `winner`, not on the celebration. *(`Hud.tsx`
+    computes `controlsLocked(victory)`, which is `fx.kind === 'over'`. So the moment
+    the celebration reads *playing* during the wait, the board **unlocks for the
+    length of the winning move's animation** — a bug this packet would introduce if
+    the lock is not rewired first.)*
 13. The adapter shall begin the celebration exactly once per match.
 
 ## Out of scope

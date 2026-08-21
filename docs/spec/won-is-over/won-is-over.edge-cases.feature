@@ -84,14 +84,25 @@ Feature: A won match is over — the boundaries
       Then the board is dimmed but for A
       And A's banner is shown
 
-    Scenario: A dropped overlay cannot strand the match unannounced
+    Scenario: A dropped overlay brings the celebration forward, it cannot strand it
       Given A wins on a move whose overlays are dropped under queue pressure
-      When MAJOR_SEQUENCE_MS has passed since that move
+      When the surviving overlays have finished
       Then the celebration has begun
-      # The queue is lossy by design — dropped past MAX_FX_ITEMS, pruned on
-      # lifetime. Waiting on emptiness alone would make a lost overlay into a match
-      # that never visibly ended. The ceiling makes the failure mode "slightly
-      # early" instead.
+      # The first draft of this scenario had the risk backwards. Losing an overlay
+      # makes queue-empty fire *earlier*, and `pruneQueue` drops every item on its
+      # own lifetime, so nothing outlives itself. The only way the queue stays
+      # non-empty is new overlays arriving, and after the win nothing can enqueue —
+      # this packet's own rules half refuses every move. Queue-empty is
+      # self-bounding.
+
+    Scenario: The ceiling is never shorter than the move it waits for
+      Given A wins on a closure that fills ground and converts a stack
+      Then the deciding move's overlays settle at 1200ms
+      And the ceiling is not less than that
+      # Measured. `captureFresh` is offset 500 with a duration of 700. A ceiling of
+      # MAJOR_SEQUENCE_MS — 700 — would fire on top of it, 500ms early, which is a
+      # smaller copy of the bug this packet exists to fix. `timing.ts` claims the
+      # biggest sequence fits inside MAJOR_SEQUENCE_MS; it does not.
 
     Scenario: The celebration begins once and does not restart
       Given A has won and the celebration has begun
@@ -101,6 +112,9 @@ Feature: A won match is over — the boundaries
     Scenario: The wait does not unlock input
       Given A wins and the deciding move's overlays are still playing
       Then input is locked
-      # `inputLocked` reads `winner !== undefined`, which is true from the deciding
-      # move onward. The fx queue's contract that it never gates input is intact:
-      # input was already locked by the rules, not by the queue.
+      And the lock is read from the winner, not from the celebration
+      # `Hud.tsx` computes `controlsLocked(victory)`, which is `fx.kind === 'over'`.
+      # So while the celebration reads *playing* during the wait, the board would
+      # unlock for the length of the winning move's animation. This packet has to
+      # rewire that lock to read `winner` before it can make the celebration wait at
+      # all — the two changes are one change.
