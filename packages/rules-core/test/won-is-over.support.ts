@@ -465,7 +465,7 @@ export const theReportedLog = (): ReportedLog => {
   return REPORTED;
 };
 
-/** The record up to and including `at` — the slice a won match can still fold. */
+/** The record up to but not including `at` — the first move a won match refuses. */
 export const slicedAt = (moves: readonly Move[], at: number): readonly Move[] =>
   moves.slice(0, at);
 
