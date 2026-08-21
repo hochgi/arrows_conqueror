@@ -534,18 +534,24 @@ describe('determinism', () => {
 
     expect(snapshot(before)).toEqual(taken);
     const src = readFileSync(new URL('../src/victory.ts', import.meta.url), 'utf8');
-    // Call-shaped, not bare substrings. A bare 'process' also matches the namespace
-    // shim Stryker's instrumenter injects into every mutated file, which killed the
-    // dry run and has left `pnpm test:mutation` dead for all of rules-core since P36
-    // — the purity guard was failing on the harness, not on the source.
+    // Call-shaped, and scoped to what invariant 15 actually claims: a clock and a
+    // random source. `process` and `fetch` are deliberately absent — they are I/O,
+    // not a clock, and they belong to the ESLint purity guard, which bans them as
+    // globals across all of `packages/rules-core/**` at the AST level.
+    //
+    // That split is not tidiness. This test reads the file off disk, so under
+    // Stryker it reads the *instrumented* copy — and the namespace shim the
+    // instrumenter injects contains `process.env.__STRYKER_ACTIVE_MUTANT__`. A
+    // substring or even a call-shaped `process.env` check therefore fails the dry
+    // run on the harness rather than on the source, which is what has left
+    // `pnpm test:mutation` dead for all of rules-core since P36. The lint rule has
+    // no such problem: it reads the real source, and it is the stronger check.
     for (const banned of [
       /\bDate\s*\.\s*now\s*\(/,
       /\bnew\s+Date\b/,
       /\bMath\s*\.\s*random\s*\(/,
       /\bperformance\s*\.\s*now\s*\(/,
       /\bcrypto\s*\./,
-      /\bprocess\s*\.\s*env\b/,
-      /\bfetch\s*\(/,
     ]) {
       expect(src).not.toMatch(banned);
     }

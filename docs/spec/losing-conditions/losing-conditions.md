@@ -243,8 +243,9 @@ must not care — but they must be written on a board that can exist.
     resolution order has no falsifying observation of its own — this is the
     observable content of that requirement, not a weaker substitute.)*
 20. Equal states shall produce equal losses, in equal order.
-21. A replay of the same move list shall lose the same seats at the same
-    boundaries.
+21. ~~A replay of the same move list shall lose the same seats at the same
+    boundaries.~~ — **superseded by P37:** the same seats on the same *moves*.
+    See `docs/spec/immediate-loss/immediate-loss.md` invariant 14.
 22. The system shall never record as lost a player who owns a spawner share.
 23. The system shall resolve every qualifying seat before setting `winner`.
 
@@ -252,7 +253,7 @@ must not care — but they must be written on a board that can exist.
 
 Added to SPEC.md §11:
 
-- **Item 44 — what represents a match that ends with no surviving seat?**
+- ~~**Item 44 — what represents a match that ends with no surviving seat?**
   `winner: PlayerId | undefined` cannot say "over, nobody won", and
   `victoryFx` reads `winner === undefined` as *playing*
   (`packages/web/src/fx/victory.ts:77`). Two seats can reach `T>0, S=0, H=0` on
@@ -260,7 +261,18 @@ Added to SPEC.md §11:
   draw.** It removes every qualifying seat, leaves `winner` unset, and the match
   is terminal-but-unwon — which the adapter will present as still playing. That
   is wrong, it is recorded as wrong, and picking a representation is a rule
-  decision for the human.
+  decision for the human.~~
+
+  **Resolved by dissolution in P37 — and the mistake above is worth naming.**
+  "Constructible" was the wrong test. The state can certainly be *authored*; what
+  matters is whether play reaches it, and it cannot. Seats open owning their home
+  spawner's triangle, `closure.ts` only ever reassigns a share arrow to the
+  claimant, and `vanishSeat` — the one path that clears territory — never vacates
+  a share-bordering arrow, because a seat holding `S > 0` sits in an *alive* row
+  of the table above and so never qualifies. Some seat therefore always owns a
+  share, that seat is never lost, and no move empties the table. Nothing needed
+  representing. See `docs/spec/immediate-loss/immediate-loss.md`, which pins the
+  chain as invariants 9, 10 and 11 rather than leaving it as prose.
 - **Item 45 — should a lost seat's trail *evaporate* (§6.1) rather than simply
   clear?** Evaporation is the destruction a cut causes and it is what players are
   taught to read. Clearing is silent. This packet clears, because evaporating a

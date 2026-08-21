@@ -20,7 +20,12 @@ Feature: A loss resolves on the move that causes it
       And C's last territory lies inside a loop A can close in one step
       When A takes that step
       Then the winner is A
-      And no further move is applied
+      And the resolution itself applies no move
+      # "And no further move is applied" stood here and was a stronger claim than
+      # the engine makes: `legalMoves` never consults `winner`, so a crowned seat
+      # keeps its remaining allowance and `apply` accepts the steps. No adapter
+      # reaches it — `App.tsx` locks input on `winner !== undefined` — but the core
+      # is not total on it. Opened as SPEC §11 item 46 rather than decided here.
 
     Scenario: The losing seat's pieces are gone in the state that step returns
       Given A is one step from taking C's last territory

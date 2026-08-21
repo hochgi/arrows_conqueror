@@ -127,7 +127,7 @@ player-facing string.
 - The system shall not mutate the input state, and shall return equal outputs
   for equal inputs. Equal illegal inputs shall throw equal `ContractViolation`
   messages.
-- The system shall enumerate no vertex — **unchanged by P37**, for the part this packet owns: listing moves and refusing a self-convert never reach loss resolution, so their zero stays hard. A *permitted* move on the same board does reach it, and is measured as a delta over an idle move — as in `closure`, `encirclement` and `fill`. See `docs/spec/immediate-loss/immediate-loss.md`.
+- The system shall enumerate no vertex — **unchanged by P37**, for the part this packet owns: listing moves and refusing a self-convert never reach loss resolution, so their zero stays hard. A *permitted* move on the same board does reach it, and is measured as a delta over an idle move — as in `closure` and `cuts`. (`fill` keeps a hard zero — it is measured on `enclosedBy`, which never reaches resolution.) See `docs/spec/immediate-loss/immediate-loss.md`.
 - When a stack on `from` is selected, the system shall present each
   grain-adjacent self-convert `exit` as a refused target with cursor
   `not-allowed` and the locked convert tooltip, and shall not apply a click.
