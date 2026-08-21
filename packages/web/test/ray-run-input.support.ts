@@ -679,9 +679,7 @@ export const legalSeats = (state: GameState): GameState => {
     if (landed.has(String(player))) continue;
     const home = candidateHomes(board)
       .filter((arrow) => !taken.has(String(arrow)))
-      .toSorted(
-        (left, right) => cost(left) - cost(right) || (String(left) < String(right) ? 1 : -1),
-      )[0];
+      .toSorted((left, right) => cost(left) - cost(right) || byId(right, left))[0];
     if (home === undefined) throw new Error('setup: the board offered no free arrow for a home');
     taken.add(String(home));
     territory.set(home, player);
@@ -695,9 +693,7 @@ export const legalSeats = (state: GameState): GameState => {
     for (const player of state.players) {
       const mine = [...territory.entries()].find(([, owner]) => owner === player);
       if (mine === undefined) continue;
-      const vertex = [...board.flankVertices(mine[0])].toSorted((left, right) =>
-        String(left) < String(right) ? -1 : 1,
-      )[0];
+      const vertex = [...board.flankVertices(mine[0])].toSorted(byId)[0];
       if (vertex === undefined) {
         throw new Error(
           `setup: that board flanks ${String(mine[0])} with no vertex, so ${String(player)} cannot be given a share`,
@@ -717,13 +713,32 @@ export const legalSeats = (state: GameState): GameState => {
  * room for a home that cannot touch anything a route test does, and an inert home
  * is worth more than a near one.
  */
+/**
+ * A **total** comparator on arrow / vertex ids — returns 0 for equal ids.
+ *
+ * `a < b ? -1 : 1` is not total: it asserts a strict order between two equal ids,
+ * leaving `toSorted` formally free to do anything with them. AGENTS.md names this
+ * exact shape — "a `sort` whose ties break on identity" — as one of the two
+ * realistic ways nondeterminism enters this repo, the kind that passes every unit
+ * test and surfaces only as replay drift. Found by Copilot on PR #21.
+ *
+ * Duplicated from `packages/rules-core/test/support.ts` rather than imported: a
+ * web test reaching into another package's test tree is a worse coupling than four
+ * lines of comparator. The duplication of `legalSeats` itself is the follow-up.
+ */
+const byId = (left: unknown, right: unknown): number => {
+  const a = String(left);
+  const b = String(right);
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+};
+
 const candidateHomes = (board: GeometryPort): readonly ArrowId[] => {
   const near = new Set(board.window(board.seedPoint(), 5).arrows.map(String));
   const wide = board.window(board.seedPoint(), 8).arrows;
   const far = wide.filter((arrow) => !near.has(String(arrow)));
-  return (far.length > 0 ? far : wide).toSorted((left, right) =>
-    String(left) < String(right) ? -1 : 1,
-  );
+  return (far.length > 0 ? far : wide).toSorted(byId);
 };
 
 /**

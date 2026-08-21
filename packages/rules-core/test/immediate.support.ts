@@ -36,7 +36,7 @@ import { makeRules } from '../src/index';
 import { isLost, shareCountOf } from '../src/victory';
 import { A, B, C, D, aBoard, aVertex, bareArrow, held, seatState, shareArrow } from './losing.support';
 import type { Ground } from './losing.support';
-import { aRingWithAnInside, arrowAt, exitsFrom } from './support';
+import { aRingWithAnInside, arrowAt, byId, exitsFrom } from './support';
 
 // ── the committed playtest log ────────────────────────────────────────────────
 
@@ -298,7 +298,8 @@ export const aLandBridge = (): LandBridge => {
   const far = geometry
     .window(geometry.seedPoint(), 6)
     .arrows.filter((arrow) => !used.has(String(arrow)))
-    .toSorted((left, right) => (String(left) < String(right) ? 1 : -1));
+    // Total comparator (see `byId` in ./support) — descending.
+    .toSorted((left, right) => byId(right, left));
   if (far.length < 4) throw new Error('setup: the board offered too few arrows clear of the bridge');
   return { geometry, rules: makeRules(geometry), home, bridge, landing, far };
 };

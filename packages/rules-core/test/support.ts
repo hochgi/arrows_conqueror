@@ -143,8 +143,26 @@ interface BoardInfo {
   readonly arrows: readonly ArrowId[];
 }
 
-const sortById = <T,>(items: readonly T[]): readonly T[] =>
-  [...items].toSorted((left, right) => (String(left) < String(right) ? -1 : 1));
+/**
+ * A **total** comparator on arrow / vertex ids — returns 0 for equal ids.
+ *
+ * `a < b ? -1 : 1` is not total: it claims a strict order between two equal ids,
+ * which leaves `toSorted` formally free to do anything with them. AGENTS.md names
+ * this exact shape — "a `sort` whose ties break on identity" — as one of the two
+ * realistic ways nondeterminism enters this repo, the kind that "passes every unit
+ * test and surfaces only as replay drift". These are fixture builders, so a drift
+ * here is a flaky test rather than a wrong game, which is precisely why it would be
+ * expensive to diagnose. Found by Copilot on PR #21.
+ */
+export const byId = (left: unknown, right: unknown): number => {
+  const a = String(left);
+  const b = String(right);
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+};
+
+const sortById = <T,>(items: readonly T[]): readonly T[] => [...items].toSorted(byId);
 
 /** The board an authored arrow id came from — `fixtures:minimal`, `tiling:a`, … */
 const prefixOf = (arrow: ArrowId): string => String(arrow).split(':').slice(0, 2).join(':');
@@ -256,9 +274,7 @@ const keepaliveLand = (
       (asExit.has(String(arrow)) ? 2 : 0) + (feeders.has(String(arrow)) ? 1 : 0);
     const arrow = board.arrows
       .filter((candidate) => !taken.has(String(candidate)))
-      .toSorted(
-        (left, right) => cost(left) - cost(right) || (String(left) < String(right) ? 1 : -1),
-      )[0];
+      .toSorted((left, right) => cost(left) - cost(right) || byId(right, left))[0];
     if (arrow === undefined) throw new Error('setup: the board offered no free arrow for a home');
     taken.add(String(arrow));
     grants.push({ arrow, owner: player });
