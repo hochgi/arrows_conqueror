@@ -46,6 +46,8 @@ export const FX_MS = {
   captureFresh: 700,
   lost: 420,
   cut: 420,
+  /** A seat leaving: flicker-then-fade of remnants, not a cut. */
+  vanish: 520,
   combat: 320,
   /** A fight that wiped a stack of three or more reads heavier than a 1:1 trade. */
   combatHeavy: 440,
@@ -74,6 +76,8 @@ export const FX_OFFSET_MS = {
   /** Losing ground reads as the other half of the winner's capture. */
   lost: 260,
   converted: 300,
+  /** After conversion; remnants held visible during the delay, then flicker. */
+  vanish: 360,
 } as const;
 
 /** Per-cell delay as an effect walks outward from its spatial origin (ms). */
@@ -114,6 +118,7 @@ const TIERS: Readonly<Record<string, FxTier>> = {
   sentry: 2,
   emergence: 2,
   conversion: 2,
+  seatVanish: 1,
   trailLaid: 3,
   advance: 3,
   refusal: 3,

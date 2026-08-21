@@ -52,7 +52,13 @@ gainers(before, after) =
 trailSize(state, player) = state.trails.get(player)?.size ?? 0
 
 cutVictims(before, after) =
-  { p | trailSize(after, p) < trailSize(before, p) and p not in gainers }
+  { p | trailSize(after, p) < trailSize(before, p)
+        and p not in gainers
+        and p still has a piece in after }
+```
+
+A **piece** is a group that player owns, a trail arrow, or a territory arrow.
+P39: a vanished seat's trail drop is not a cut. A living player's still is.
 
 foldMatchSummary(summary, moves, before, after, movesLoggedBefore):
   if moves is empty: return summary
@@ -141,8 +147,10 @@ flowchart TD
 - When a player's trail shrinks and that player's territory count
   increased in the same batch, the system shall not treat that shrink as a
   cut.
-- When a player's trail shrinks and that player's territory count did not
-  increase, the system shall increment `cuts`.
+- ~~When a player's trail shrinks and that player's territory count did not
+  increase, the system shall increment `cuts`.~~ — **superseded by P39:** only
+  while that player still holds a piece after the batch. A vanished seat's
+  trail drop is not a cut. See `docs/spec/seat-vanish-fx/seat-vanish-fx.md`.
 - When `firstCloseAt` is already set, a later close shall not change it.
 - When `victory.kind` is not `over`, `matchSummaryLine` shall be undefined.
 - When `victory.kind` is `over` and a summary exists, `matchSummaryLine`

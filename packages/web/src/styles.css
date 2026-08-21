@@ -808,19 +808,20 @@ body,
 }
 
 /* ═══ the gameplay effect layer ═══════════════════════════════════════════════
-   Ten metaphors, reused everywhere. A player who sees a spatial fill twice has
+   Eleven metaphors, reused everywhere. A player who sees a spatial fill twice has
    learned what capture looks like; that only works if nothing else fills.
 
-     completion    pulse travelling the loop           .fx-loop-*
-     spatial fill  outward from the closure            .fx-capture-*
-     retraction    inward, old owner's colour          .fx-loss-retract
-     severing      halves recoil from a new gap        .fx-cut-*
-     impact        one local clash                     .fx-combat-*
-     divergence    a run out, a rim that stays         .fx-diverge-*
-     convergence   a run in, a rim that settles        .fx-converge-*
-     emergence     rises out of the ground             .fx-emerge-*
-     transfer      one owner's ink wipes to another    .fx-convert-*
-     motion        a directional streak                .fx-advance
+     completion     pulse travelling the loop           .fx-loop-*
+     spatial fill   outward from the closure            .fx-capture-*
+     retraction     inward, old owner's colour          .fx-loss-retract
+     severing       halves recoil from a new gap        .fx-cut-*
+     impact         one local clash                     .fx-combat-*
+     divergence     a run out, a rim that stays         .fx-diverge-*
+     convergence    a run in, a rim that settles        .fx-converge-*
+     emergence      rises out of the ground             .fx-emerge-*
+     transfer       one owner's ink wipes to another    .fx-convert-*
+     motion         a directional streak                .fx-advance
+     disappearance  remnant ghost flickers then fades   .fx-seat-vanish-*
 
    Every rule uses `animation-fill-mode: both` and a *visible* base state. During
    an effect's causal delay the `from` frame holds, so nothing flashes early; and
@@ -1071,6 +1072,73 @@ body,
   stroke-opacity: 0.6;
   animation-name: fx-evaporate-chord;
   animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+/* ── disappearance: the seat left; remnants flicker together, then fade ──────
+   Not evaporate. A cut staggers from the break. Vanish holds every remnant
+   visible, dips twice in the first half, then fades. Base state is visible. */
+
+@keyframes fx-seat-vanish-fill {
+  0% {
+    fill-opacity: 0.7;
+    stroke-opacity: 0.9;
+  }
+  12% {
+    fill-opacity: 0.22;
+    stroke-opacity: 0.3;
+  }
+  24% {
+    fill-opacity: 0.7;
+    stroke-opacity: 0.9;
+  }
+  36% {
+    fill-opacity: 0.22;
+    stroke-opacity: 0.3;
+  }
+  48% {
+    fill-opacity: 0.5;
+    stroke-opacity: 0.65;
+  }
+  100% {
+    fill-opacity: 0;
+    stroke-opacity: 0;
+  }
+}
+
+.fx-seat-vanish-fill {
+  fill-opacity: 0.5;
+  stroke-opacity: 0.7;
+  animation-name: fx-seat-vanish-fill;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: both;
+}
+
+@keyframes fx-seat-vanish-chord {
+  0% {
+    stroke-opacity: 0.95;
+  }
+  12% {
+    stroke-opacity: 0.28;
+  }
+  24% {
+    stroke-opacity: 0.95;
+  }
+  36% {
+    stroke-opacity: 0.28;
+  }
+  48% {
+    stroke-opacity: 0.7;
+  }
+  100% {
+    stroke-opacity: 0;
+  }
+}
+
+.fx-seat-vanish-chord {
+  stroke-opacity: 0.7;
+  animation-name: fx-seat-vanish-chord;
+  animation-timing-function: ease-in-out;
   animation-fill-mode: both;
 }
 

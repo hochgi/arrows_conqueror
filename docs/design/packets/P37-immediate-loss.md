@@ -106,7 +106,8 @@ already documents. An invariant makes that a red test instead of a hang.
 
 ## Out of scope
 
-- SPEC §11 item 45 (flicker-then-fade on vanish) — adapter-only, its own packet.
+- SPEC §11 item 45 (flicker-then-fade on vanish) — **resolved by P39.**
+  Adapter-only; this packet does not present it.
 - Retuning `dominationN`.
 - Any change to closure, cuts, conversion or accrual.
 

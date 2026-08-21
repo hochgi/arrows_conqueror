@@ -37,14 +37,15 @@ behaviour is not here, it will not be built.**
 | [match-summary-telemetry](./match-summary-telemetry/match-summary-telemetry.md) | P32 | — (web) | 26 | — | 11 |
 | [encircled-path](./encircled-path/encircled-path.md) | P33 | §6.3, §6.1, item 40 | 11 | — | 9 |
 | [ray-run-input](./ray-run-input/ray-run-input.md) | P34 | §5 (one prose edit), §3/§4 (read) | 86 | — | 21 |
+| [seat-vanish-fx](./seat-vanish-fx/seat-vanish-fx.md) | P39 | §9, §6.1, §11 item 45 | 28 | — | 16 |
 
-572 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
+600 scenarios. **94 are in scope for P01**, 2 are tagged `@deferred-P08`,
 **58 belong to P03**, **18 to P02**, **30 to P04**, **58 to P05**, **49 to P05b**,
 **32 to P06**, **16 to P07**, **10 to P08**, **25 to P28**, **19 to P29**,
 **16 to P30**, **24 to P31** (22 of them now `@superseded-P34`), **26 to P32**,
-**11 to P33**, and **86 to P34**.
-582 concrete cases once `Examples` rows are expanded (combat Examples add more),
-279 invariants.
+**11 to P33**, **86 to P34**, and **28 to P39**.
+610 concrete cases once `Examples` rows are expanded (combat Examples add more),
+295 invariants.
 
 **This index is not complete.** The online packets (`online-*`), the planner
 directories (`findings-planner`, `intercept-findings`) and `trails-simple` have

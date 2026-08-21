@@ -1,5 +1,5 @@
 /**
- * Audio cues for the five events that decide matches.
+ * Audio cues for the events that decide matches, plus a seat leaving.
  *
  * There was no audio in this project and building one was explicitly not the job,
  * so this is the smallest thing that reinforces the visual language: a synthesised
@@ -28,8 +28,9 @@ export interface SoundCue {
 }
 
 /**
- * Five cues, in the brief's priority order. Everything else is silent — a sound on
- * every step would be the audio equivalent of a fireworks display.
+ * The five deciding cues, the loss counterpart, and a seat leaving. Everything
+ * else is silent — a sound on every step would be the audio equivalent of a
+ * fireworks display.
  */
 const CUES: Partial<Record<FxOverlayKind, SoundCue>> = {
   // Enclosure: two-note rise, the "it closed" note.
@@ -44,6 +45,8 @@ const CUES: Partial<Record<FxOverlayKind, SoundCue>> = {
   emergence: { fromHz: 880, toHz: 1175, ms: 90, gain: 0.035, wave: 'sine' },
   // Losing ground: the capture cue inverted, so the pair is unmistakable.
   lossRetract: { fromHz: 440, toHz: 233, ms: 240, gain: 0.05, wave: 'sine' },
+  // Seat left: falling sine, longer than cutSnap — disappearance, not a snap.
+  seatVanish: { fromHz: 392, toHz: 147, ms: 260, gain: 0.05, wave: 'sine' },
 };
 
 export const cueFor = (kind: FxOverlayKind): SoundCue | undefined => CUES[kind];

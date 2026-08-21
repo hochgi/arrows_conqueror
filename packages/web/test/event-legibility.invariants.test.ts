@@ -12,8 +12,9 @@
  *   - While a match is in progress, when a move is applied, the event layer shall
  *     attribute every territory change to the player who holds that arrow after the
  *     move.
- *   - While a match is in progress, when a trail shrinks without being claimed, the
- *     event layer shall attribute the cut to the player who moved.
+ *   - While a match is in progress, when a living player's trail shrinks without
+ *     being claimed, the event layer shall attribute the cut to the player who
+ *     moved. A vanished seat's trail drop is `seatVanished`, not a cut (P39).
  *   - When events are resolved, the event layer shall not modify either state.
  *   - When the same transition is resolved twice, the event layer shall produce
  *     identical events.
@@ -353,9 +354,17 @@ describe('presentation stays inside its budget', () => {
 });
 
 describe('sound reinforces, and stays quiet', () => {
-  it('only the five deciding events plus the loss counterpart are audible', () => {
+  it('only the five deciding events plus the loss counterpart and a seat vanish are audible', () => {
     expect([...AUDIBLE_KINDS].toSorted()).toEqual(
-      ['captureFill', 'combat', 'cutSnap', 'emergence', 'lossRetract', 'loopPulse'].toSorted(),
+      [
+        'captureFill',
+        'combat',
+        'cutSnap',
+        'emergence',
+        'lossRetract',
+        'loopPulse',
+        'seatVanish',
+      ].toSorted(),
     );
   });
 

@@ -1,7 +1,7 @@
 /**
  * Resolved events → timed, spatially anchored overlays.
  *
- * This is where the effect *vocabulary* lives. There are ten metaphors and every
+ * This is where the effect *vocabulary* lives. There are eleven metaphors and every
  * event maps onto one of them, which is the only reason a player can learn the
  * language without being told it:
  *
@@ -17,10 +17,10 @@
  *   | emergence     | `emergence`                    | heads were produced      |
  *   | transfer      | `conversion`                   | heads changed owner      |
  *   | motion        | `advance` / `trailLaid`         | a routine step           |
+ *   | disappearance | `seatVanish`                   | the seat left            |
  *
- * Nothing new gets its own bespoke flourish. A new event kind picks an existing
- * metaphor or it does not ship — that constraint is what keeps the board readable
- * instead of turning it into a fireworks display.
+ * A new event kind picks an existing metaphor or it does not ship — except
+ * disappearance. Reusing `evaporate` would teach a vanished seat as a cut.
  *
  * Pure. The clock arrives from the adapter when an overlay is queued, never here.
  */
@@ -156,6 +156,11 @@ export type FxOverlay =
       readonly from: PlayerId;
       readonly to: PlayerId;
       readonly heads: number;
+    })
+  | (FxBase & {
+      readonly kind: 'seatVanish';
+      readonly player: PlayerId;
+      readonly cells: readonly FxCell[];
     })
   | (FxBase & {
       readonly kind: 'trailLaid';
@@ -492,6 +497,25 @@ const presentArrivals = (event: GameEvent, counter: Counter): readonly FxOverlay
   }
 };
 
+/** Disappearance: remnants flicker together. Do not reuse evaporate. */
+const presentVanish = (event: GameEvent, counter: Counter): readonly FxOverlay[] => {
+  if (event.kind !== 'seatVanished' || event.arrows.length === 0) return [];
+  return [
+    {
+      ...base(
+        counter,
+        'seatVanish',
+        String(event.arrows[0] ?? event.player),
+        FX_OFFSET_MS.vanish,
+        FX_MS.vanish,
+      ),
+      kind: 'seatVanish',
+      player: event.player,
+      cells: flatCells(event.arrows),
+    },
+  ];
+};
+
 /** Map a resolved event list onto overlays. Order in, order out. */
 export const presentEvents = (
   events: readonly GameEvent[],
@@ -505,6 +529,7 @@ export const presentEvents = (
       ...presentGround(event, counter, options.geometry),
       ...presentDestruction(event, counter, options.geometry),
       ...presentArrivals(event, counter),
+      ...presentVanish(event, counter),
     );
   }
   return out;

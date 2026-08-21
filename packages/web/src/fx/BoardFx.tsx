@@ -304,6 +304,53 @@ const Evaporate = ({
 };
 
 /**
+ * A vanished seat's remnants: fill + chord in the seat's colour, flickering
+ * together then fading. Same shapes as evaporate, not evaporate's CSS — a cut
+ * staggers from the break; this does not.
+ */
+const SeatVanish = ({
+  ctx,
+  overlay,
+}: {
+  readonly ctx: Ctx;
+  readonly overlay: Extract<FxOverlay, { kind: 'seatVanish' }>;
+}): ReactElement => {
+  const style = styleFor(overlay.player);
+  const width = inkWidth(ctx.viewport, 0.07, 2);
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      {overlay.cells.map((cell: FxCell) => {
+        const seg = arrowChord(ctx.geometry, ctx.layout, ctx.viewport, cell.arrow);
+        const style2 = anim(overlay.offsetMs + cell.delayMs, overlay.durationMs);
+        return (
+          <g key={String(cell.arrow)}>
+            <polygon
+              className="fx-seat-vanish-fill"
+              points={pointsOf(ctx, cell.arrow)}
+              fill={style.fill}
+              stroke={style.stroke}
+              strokeWidth={1.4}
+              style={style2}
+            />
+            <line
+              className="fx-seat-vanish-chord"
+              x1={seg.x1}
+              y1={seg.y1}
+              x2={seg.x2}
+              y2={seg.y2}
+              stroke={style.stroke}
+              strokeWidth={width}
+              strokeLinecap="round"
+              style={style2}
+            />
+          </g>
+        );
+      })}
+    </g>
+  );
+};
+
+/**
  * The cut itself: two short strokes recoiling apart across the arrow.
  *
  * Deliberately not an explosion. The metaphor is a severed line — the halves pull
@@ -789,6 +836,8 @@ const renderOverlay = (ctx: Ctx, overlay: FxOverlay): ReactElement | null => {
       return <Emergence ctx={ctx} overlay={overlay} />;
     case 'conversion':
       return <Conversion ctx={ctx} overlay={overlay} />;
+    case 'seatVanish':
+      return <SeatVanish ctx={ctx} overlay={overlay} />;
     case 'advance':
       return <Advance ctx={ctx} overlay={overlay} />;
     case 'refusal':
@@ -815,6 +864,7 @@ const PAINT_ORDER: readonly FxOverlay['kind'][] = [
   'evaporate',
   'loopPulse',
   'conversion',
+  'seatVanish',
   'emergence',
   'combat',
   'cutSnap',

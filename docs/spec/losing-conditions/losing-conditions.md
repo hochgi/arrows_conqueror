@@ -279,6 +279,11 @@ Added to SPEC.md §11:
   whole trail from a non-cut event is a new trigger for §6.1 and inventing one is
   out of bounds.
 
+  **Resolved by P39: it still clears; the adapter presents flicker-then-fade.**
+  See `docs/spec/seat-vanish-fx/seat-vanish-fx.md`. The engine half of this
+  packet's answer stands. What P39 fixed is the adapter reading every trail drop
+  as a cut, so a seat leaving the match looked like someone crossed its trail.
+
 ## The victory banner must stop naming a mechanism
 
 `packages/web/src/fx/victory.ts` derives *how* a match was won from a head
@@ -319,5 +324,5 @@ and two EARS invariants, all now struck through pointing here.
 - Any change to how territory or shares are won or lost.
 - Adapter presentation of a vanished seat beyond not stalling on its turn, not
   reading the removed DTO fields, and not captioning a mechanism it cannot
-  derive (above).
+  derive (above). **P39 owns flicker-then-fade.**
 - Recording *why* a seat was lost, in the match log or anywhere else. Follow-on.

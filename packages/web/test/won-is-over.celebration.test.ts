@@ -23,7 +23,8 @@
  * - Because of that, on the headline move "wait for the overlays" and "wait 700 ms"
  *   give different answers, and 1200 is the right one. `aQuietDecidingMove` — whose
  *   overlays are over at 680 — pins the other side: the wait is shorter than 700
- *   there, so nothing has silently become a constant.
+ *   there, so nothing has silently become a constant. That after-state is not a
+ *   legal `vanishSeat` result (see the fixture); a real vanish settles at 880.
  *
  * @see docs/spec/won-is-over/won-is-over.md — *When the celebration begins*
  */
@@ -139,9 +140,9 @@ describe('the celebration waits for the effects that won the match', () => {
 
   it('waits for the queue rather than the ceiling when the queue is the shorter of the two', () => {
     // The move that distinguishes an implementation which consults the queue from
-    // one which always waits `MAJOR_SEQUENCE_MS`: A wins on a step that only
-    // advances a head and takes the last seat's land, so the overlays are over at
-    // 680 ms and the celebration is due then and not at 700.
+    // one which always waits `MAJOR_SEQUENCE_MS`. A legal vanish settles at 880,
+    // above the ceiling; this fixture is the unreachable retraction that finishes
+    // at 680 — see `aQuietDecidingMove`. The celebration is due then, not at 700.
     const quiet = aQuietDecidingMove();
     expect(quiet.settleMs).toBeLessThan(MAJOR_SEQUENCE_MS);
 
@@ -246,7 +247,7 @@ describe('the adapter invariants of a won match', () => {
     // instant's assertion cannot catch.
     const moves: readonly (readonly [string, DecidingMove])[] = [
       ['a closure that fills and converts', aDecidingMove()],
-      ['a step that takes the last land', aQuietDecidingMove()],
+      ['a retraction that finishes inside the ceiling', aQuietDecidingMove()],
     ];
 
     const table = moves.map(([name, deciding]) => ({

@@ -159,16 +159,28 @@ export const aDecidingMove = (): DecidingMove => {
  * answer, so neither test would notice an implementation that ignored the queue
  * entirely.
  *
- * This is the other side: A wins on a move that only advances a head and takes the
- * last seat's land — no fill, no conversion — so the overlays are over before the
- * ceiling and the queue is what decides.
+ * There is no legal quiet deciding move once vanish is in the vocabulary. A real
+ * `vanishSeat` queues `seatVanish` at offset 360 lasting 520, which settles at
+ * **880 ms** — above the 700 ms ceiling — so it cannot tell queue-wait from a
+ * constant. Capture of last land queues `captureFresh` at 1200.
+ *
+ * So this transition is **hand-authored and unreachable by play**: C still holds a
+ * head after the last land becomes unowned and `winner` is A. `vanishSeat` would
+ * have removed that head (T=0 ⇒ heads go with the seat). Leftover land therefore
+ * presents as `lossRetract` (680 ms), which is inside the ceiling. Do not read C's
+ * surviving head as a rules position — it exists only so P38 can still tell the
+ * queue from the constant.
  */
 export const aQuietDecidingMove = (): DecidingMove => {
   const home = at(0);
   const tip = at(1);
   const victimLand = at(6);
+  const survivor = at(8);
   const before = frame({
-    groups: [[tip, A, 1]],
+    groups: [
+      [tip, A, 1],
+      [survivor, C, 1],
+    ],
     trails: [[A, [tip]]],
     territory: [
       [home, A],
@@ -176,7 +188,10 @@ export const aQuietDecidingMove = (): DecidingMove => {
     ],
   });
   const after = frame({
-    groups: [[home, A, 1]],
+    groups: [
+      [home, A, 1],
+      [survivor, C, 1],
+    ],
     trails: [[A, [tip]]],
     territory: [[home, A]],
     winner: A,

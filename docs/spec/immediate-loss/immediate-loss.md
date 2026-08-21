@@ -205,8 +205,9 @@ instead, where the board can be authored for it.
 
 ## Out of scope
 
-- §11 item 45 (flicker-then-fade when a seat vanishes) — adapter-only, its own
-  packet.
+- §11 item 45 (flicker-then-fade when a seat vanishes) — **resolved by P39.**
+  Adapter-only; this packet's engine half (clear, do not evaporate) stands.
+  See `docs/spec/seat-vanish-fx/seat-vanish-fx.md`.
 - §11 item 46 (must `legalMoves` and `apply` refuse once `winner` is set?)
   — **opened by this packet, not answered by it.** `legalMoves` never consults
   `winner`, so a seat that wins mid-turn keeps its remaining allowance. Under P36

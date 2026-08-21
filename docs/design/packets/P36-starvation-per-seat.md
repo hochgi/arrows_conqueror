@@ -118,6 +118,7 @@ The comeback vector §9 prizes is strengthened, not lost.
 - Kingmaking under 3+ play. §8 accepts it for playtest.
 - Any change to how territory or shares are won or lost.
 - Adapter presentation of a vanished seat beyond not stalling on its turn.
+  **P39 owns flicker-then-fade.**
 
 ## Scenario inventory (for phase 1 to expand)
 
