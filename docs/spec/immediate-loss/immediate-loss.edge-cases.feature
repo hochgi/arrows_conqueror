@@ -130,7 +130,7 @@ Feature: Immediate loss at the boundaries
 
     Scenario: An ordinary move reads no vertex at all
       Given a state in which every player who is not lost holds at least one head
-      When any move is applied
+      When a move is applied that does not close a full round
       Then no vertex identifier is requested from GeometryPort
       # Invariant 16. `isLost` is `T === 0 || (S === 0 && H === 0)`, so a seat
       # holding a head has already falsified the second disjunct and its shares are
@@ -138,8 +138,11 @@ Feature: Immediate loss at the boundaries
 
     Scenario: A seat waiting on a spawner is the one case that reads the lattice
       Given a state in which some player owns territory and holds no head
-      When any move is applied
+      When a move is applied that does not close a full round
       Then a vertex identifier is requested from GeometryPort
+      # A full round is excluded from both scenarios: accrual reads the lattice by
+      # design, and the starvation clock's row differs from ordinary play in nothing
+      # but `S`, so the tick must ask for every seat with ground and a head.
 
     Scenario: No clock and no randomness
       Then victory.ts references neither a clock nor a random source

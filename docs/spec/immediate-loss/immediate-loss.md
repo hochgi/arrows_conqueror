@@ -152,11 +152,15 @@ walk would break that on every move rather than in the one case that needs it.
 13. Equal states shall produce equal losses.
 14. A replay of the same move list shall lose the same seats on the same moves.
 15. `victory.ts` shall reference neither a clock nor a random source.
-16. The system shall read the spawner lattice only for a player who owns
-    territory and holds no head. *(The short-circuit argued under **Cost**. In a
-    state where every living seat holds a head, `apply` shall read no vertex at
-    all. Stated as an invariant rather than left in the prose because five other
-    packets depend on it — see the section below.)*
+16. **Outside a full-round boundary**, the system shall read the spawner lattice
+    only for a player who owns territory and holds no head. *(The short-circuit
+    argued under **Cost**. In such a state, if every living seat holds a head,
+    `apply` shall read no vertex at all. Stated as an invariant rather than left
+    in the prose because five other packets depend on it — see the section below.
+    The boundary is excluded because accrual reads the lattice by design, and
+    because the starvation clock's own row differs from ordinary play in nothing
+    but `S` — so `tickStarvation` has to ask, for every seat with ground and a
+    head, and no short-circuit can spare it.)*
 
 ## Consequence for the five "enumerate no vertex" invariants
 

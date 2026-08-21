@@ -606,8 +606,20 @@ describe('determinism and cost', () => {
 
   it('references neither a clock nor a random source in victory.ts', () => {
     const src = readFileSync(new URL('../src/victory.ts', import.meta.url), 'utf8');
-    for (const banned of ['Date', 'Math.random', 'performance', 'crypto', 'process']) {
-      expect(src).not.toContain(banned);
+    // Call-shaped, not bare substrings. A bare 'process' also matches the namespace
+    // shim Stryker's instrumenter injects into every mutated file, which killed the
+    // dry run and has left `pnpm test:mutation` dead for all of rules-core since P36
+    // — the purity guard was failing on the harness, not on the source.
+    for (const banned of [
+      /\bDate\s*\.\s*now\s*\(/,
+      /\bnew\s+Date\b/,
+      /\bMath\s*\.\s*random\s*\(/,
+      /\bperformance\s*\.\s*now\s*\(/,
+      /\bcrypto\s*\./,
+      /\bprocess\s*\.\s*env\b/,
+      /\bfetch\s*\(/,
+    ]) {
+      expect(src).not.toMatch(banned);
     }
   });
 });
