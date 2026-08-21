@@ -123,6 +123,16 @@ export type GameEvent =
       readonly arrow: ArrowId;
       readonly amount: number;
     }
+  /**
+   * A seat that had pieces before this step and has none after (P39).
+   * `arrows` is the remnant set — empty when the last land was captured.
+   * Adapter-only; the engine still clears without a §6.1 trigger.
+   */
+  | {
+      readonly kind: 'seatVanished';
+      readonly player: PlayerId;
+      readonly arrows: readonly ArrowId[];
+    }
   | { readonly kind: 'turnPassed'; readonly from: PlayerId; readonly to: PlayerId }
   | { readonly kind: 'matchWon'; readonly player: PlayerId };
 
@@ -219,6 +229,61 @@ const trailAdded = (
   return sortedArrows(added);
 };
 
+/**
+ * A group this player owns, a trail arrow in their set, or a territory arrow
+ * they own. Diff-only — not a call into the §9 loss table.
+ */
+const hadPieces = (game: GameState, player: PlayerId): boolean => {
+  for (const group of game.groups.values()) if (group.owner === player) return true;
+  if ((game.trails.get(player)?.size ?? 0) > 0) return true;
+  for (const owner of game.territory.values()) if (owner === player) return true;
+  return false;
+};
+
+const vanishedPlayers = (before: GameState, after: GameState): readonly PlayerId[] =>
+  before.players.filter((player) => hadPieces(before, player) && !hadPieces(after, player));
+
+/** Same ceiling as `MAX_FX_CELLS` in present.ts — remnant is an event payload. */
+const REMNANT_CAP = 120;
+
+/**
+ * Dropped trail ∪ vacated (unowned) territory ∪ disappeared groups, minus any
+ * arrow `after` still holds as territory or as a group. Sorted by id, capped.
+ */
+const remnantArrows = (
+  before: GameState,
+  after: GameState,
+  player: PlayerId,
+): readonly ArrowId[] => {
+  const seen = new Set<string>();
+  const out: ArrowId[] = [];
+  const consider = (arrow: ArrowId): void => {
+    if (seen.has(String(arrow))) return;
+    if (after.territory.has(arrow)) return;
+    if (after.groups.has(arrow)) return;
+    seen.add(String(arrow));
+    out.push(arrow);
+  };
+  for (const arrow of before.trails.get(player) ?? []) {
+    if (after.trails.get(player)?.has(arrow) !== true) consider(arrow);
+  }
+  for (const [arrow, owner] of before.territory) {
+    if (owner === player && after.territory.get(arrow) === undefined) consider(arrow);
+  }
+  for (const [arrow, group] of before.groups) {
+    if (group.owner === player && after.groups.get(arrow) === undefined) consider(arrow);
+  }
+  return out.toSorted(byId).slice(0, REMNANT_CAP);
+};
+
+const seatVanishEvents = (before: GameState, after: GameState): readonly GameEvent[] => {
+  const out: GameEvent[] = [];
+  for (const player of vanishedPlayers(before, after)) {
+    out.push({ kind: 'seatVanished', player, arrows: remnantArrows(before, after, player) });
+  }
+  return out;
+};
+
 /** The arrow an effect should radiate from: where the move landed. */
 const anchorOf = (move: Move): ArrowId | undefined =>
   move.kind === 'step' ? move.exit : undefined;
@@ -281,18 +346,76 @@ const stackEvents = (step: AppliedStep): readonly GameEvent[] => {
 
 // ── what the move did to ground and trails ───────────────────────────────────
 
+const captureEventsFor = (
+  player: PlayerId,
+  gained: readonly ArrowId[],
+  dropped: readonly ArrowId[],
+  before: GameState,
+  anchor: ArrowId | undefined,
+): readonly GameEvent[] => {
+  if (gained.length === 0) return [];
+  const claimedSet = new Set(gained.map(String));
+  const boundary = dropped.filter((arrow) => claimedSet.has(String(arrow)));
+  const takers = new Set<PlayerId>();
+  for (const arrow of gained) {
+    const prev = before.territory.get(arrow);
+    if (prev !== undefined) takers.add(prev);
+  }
+  return [
+    {
+      kind: 'enclosureClosed',
+      player,
+      closingArrow: anchor,
+      boundary,
+      claimed: gained,
+    },
+    {
+      kind: 'territoryCaptured',
+      player,
+      arrows: gained,
+      fromArrow: anchor,
+      takenFrom: [...takers].toSorted(byPlayer),
+    },
+  ];
+};
+
+const lossEventsFor = (
+  player: PlayerId,
+  lost: { readonly arrows: readonly ArrowId[]; readonly to: PlayerId | undefined },
+  vanished: boolean,
+  after: GameState,
+  anchor: ArrowId | undefined,
+): readonly GameEvent[] => {
+  const arrows = vanished
+    ? lost.arrows.filter((arrow) => after.territory.has(arrow))
+    : lost.arrows;
+  if (arrows.length === 0) return [];
+  return [
+    {
+      kind: 'territoryLost',
+      player,
+      to: lost.to,
+      arrows,
+      atArrow: anchor,
+    },
+  ];
+};
+
 /**
  * Closure, capture, loss and cuts.
  *
  * The one judgement in this module: a trail arrow the mover lost *while gaining it
  * as territory* is the loop being promoted to ground, not a cut. Every other trail
- * arrow that vanished is destruction, and the mover is the one who caused it —
- * which is true whether the victim is an opponent or the mover themself.
+ * arrow a *living* player dropped is destruction, and the mover is the one who
+ * caused it — which is true whether the victim is an opponent or the mover themself.
+ *
+ * A seat that left this step is not a cut victim, and leftover land that became
+ * unowned is a remnant, not a retraction to nobody.
  */
 const groundEvents = (step: AppliedStep, mover: PlayerId): readonly GameEvent[] => {
   const { before, after, move } = step;
   const anchor = anchorOf(move);
-  const out: GameEvent[] = [];
+  const vanished = new Set(vanishedPlayers(before, after));
   const cuts: GameEvent[] = [];
   const captures: GameEvent[] = [];
   const losses: GameEvent[] = [];
@@ -302,31 +425,11 @@ const groundEvents = (step: AppliedStep, mover: PlayerId): readonly GameEvent[] 
     const dropped = trailDropped(before, after, player);
     const claimedSet = new Set(gained.map(String));
     const severed = dropped.filter((arrow) => !claimedSet.has(String(arrow)));
+    const left = vanished.has(player);
 
-    if (gained.length > 0) {
-      const boundary = dropped.filter((arrow) => claimedSet.has(String(arrow)));
-      const takers = new Set<PlayerId>();
-      for (const arrow of gained) {
-        const prev = before.territory.get(arrow);
-        if (prev !== undefined) takers.add(prev);
-      }
-      captures.push({
-        kind: 'enclosureClosed',
-        player,
-        closingArrow: anchor,
-        boundary,
-        claimed: gained,
-      });
-      captures.push({
-        kind: 'territoryCaptured',
-        player,
-        arrows: gained,
-        fromArrow: anchor,
-        takenFrom: [...takers].toSorted(byPlayer),
-      });
-    }
+    captures.push(...captureEventsFor(player, gained, dropped, before, anchor));
 
-    if (severed.length > 0) {
+    if (severed.length > 0 && !left) {
       cuts.push({
         kind: 'trailCut',
         victim: player,
@@ -336,21 +439,11 @@ const groundEvents = (step: AppliedStep, mover: PlayerId): readonly GameEvent[] 
       });
     }
 
-    const lost = territoryLost(before, after, player);
-    if (lost.arrows.length > 0) {
-      losses.push({
-        kind: 'territoryLost',
-        player,
-        to: lost.to,
-        arrows: lost.arrows,
-        atArrow: anchor,
-      });
-    }
+    losses.push(...lossEventsFor(player, territoryLost(before, after, player), left, after, anchor));
   }
 
   // Causal order: the impact, then what it destroyed, then what it claimed.
-  out.push(...cuts, ...captures, ...losses);
-  return out;
+  return [...cuts, ...captures, ...losses];
 };
 
 // ── what changed without any move naming it ──────────────────────────────────
@@ -421,6 +514,7 @@ export const resolveEvents = (step: AppliedStep): readonly GameEvent[] => {
 
   out.push(...groundEvents(step, mover));
   out.push(...offMoveEvents(step));
+  out.push(...seatVanishEvents(before, after));
 
   if (after.activePlayer !== before.activePlayer) {
     out.push({ kind: 'turnPassed', from: before.activePlayer, to: after.activePlayer });

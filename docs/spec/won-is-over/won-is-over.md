@@ -144,6 +144,14 @@ Two constraints on how that is implemented:
   Retuning any `FX_MS` value is out of scope for this packet, so the numbers stand;
   the **comment** is corrected to say what they do.
 
+  P39's vanish overlay settles at 880 ms (offset 360 + duration 520), still under
+  `captureFresh` at 1200, so the headline wait is unchanged. It is **above**
+  `MAJOR_SEQUENCE_MS` (700), so the suite's *quiet* deciding move — the one that
+  must settle inside the ceiling to tell queue-wait from a constant — cannot be a
+  legal `vanishSeat` result. That fixture keeps a head on the vacated seat so the
+  land reads as `lossRetract` (680 ms). The board is unreachable (T=0 ⇒ heads go
+  with the seat). It is a presentation discriminant, not a rules position.
+
 During the wait the board shall read as **playing**: no dim, no shine, no banner.
 The transition is what carries the meaning.
 
@@ -207,7 +215,9 @@ P37 invariant 16 is unaffected.
 ## Out of scope
 
 - §11 item 45 — whether a vanishing seat's trail evaporates rather than clearing,
-  and the flicker-then-fade requested for it. P38 sequences the effects that
-  exist; it adds none.
+  and the flicker-then-fade requested for it. **Resolved by P39:** it still
+  clears; the adapter presents flicker-then-fade. P38 sequences the effects that
+  exist; P39 adds the vanish overlay to that sequence. See
+  `docs/spec/seat-vanish-fx/seat-vanish-fx.md`.
 - The celebration's content (P29): dim, shine, pulse, banner.
 - Restart or rematch from a finished board (P20+).

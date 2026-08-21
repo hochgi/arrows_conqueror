@@ -64,8 +64,8 @@ This is a sequencing bug, not a taste call, and the human named it directly.
 ## Out of scope
 
 - §11 item 45 (whether a vanishing seat's trail *evaporates* rather than clearing
-  silently, and the flicker-then-fade the human asked for). Still open, still its
-  own packet. P38 sequences whatever effects exist; it does not add one.
+  silently, and the flicker-then-fade the human asked for). **Resolved by P39.**
+  P38 sequences whatever effects exist; P39 adds the vanish overlay.
 - Retuning any `FX_MS` value or `MAJOR_SEQUENCE_MS`. Phase 2 measured that
   `timing.ts`'s claim *"the biggest sequence in the game … fits inside
   `MAJOR_SEQUENCE_MS`"* is false — `captureFresh` alone settles at 1200 ms against

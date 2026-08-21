@@ -67,6 +67,7 @@ scheduled early in the first place.
 | P36 | Losing conditions per seat | rules | §9, §11 32/44/45 | P08, P09 | **[packet](./packets/P36-starvation-per-seat.md).** 6-player log: a seat with no territory kept taking turns. Repeals §9's "lose your last head and you are out"; four cases over (territory, shares, heads); a lost seat **vanishes** and its land reverts to unowned; destitution is **per seat** (the old single holder/streak pair ended the match by array order). Loss resolves at the round boundary |
 | P37 | Immediate loss | rules | §9, §11 44 | P36 | **[packet](./packets/P37-immediate-loss.md).** Playtest: encircling the last enemy territory did not end the match — deciding move 1242, `winner` set at 1246, and the dead seat took a turn at 1244. `resolveLosses` moves from `applyEndTurn` to the tail of `apply`. Repeals P36 invariants 11/12; resolves §11 item 44 **by dissolution** (no path un-owns a share). Share walk short-circuits (**invariant 16**) so five other packets' "enumerate no vertex" survives |
 | P38 | A won match is over | rules + adapter | §9, §11 46 | P37, P29, P32 | **[packet](./packets/P38-won-is-over.md).** P37 opened a window inside a turn: at the win the seat still had allowance and `legalMoves` never read `winner`. Resolves §11 item 46 — `legalMoves` offers **nothing** (not even the pass), `apply` throws; the gate is at the *top* of `apply` so the deciding move still resolves every effect. Adapter: the celebration waits for that move's overlays instead of painting over them |
+| P39 | Flicker-then-fade on vanish | adapter | §9, §11 45 | P36, P38 | **[packet](./packets/P39-seat-vanish-fx.md).** Resolves §11 item 45: a lost seat's trail still *clears* (no new §6.1 trigger). The adapter names `seatVanished` from the diff and presents flicker-then-fade, all remnant cells together — not `cutSnap` + `evaporate`. P32's cut proxy ignores a vanished seat's trail drop. |
 | P20+ | Deferred follow-ons | — | — | — | **[packet](./packets/P20-deferred-online-followons.md).** Viewers, fork, arena, replay button, Elo, online BYOK, under-18 GIS, admin panel |
 
 ## Dependency graph
@@ -182,9 +183,12 @@ One `/spec-to-ship` per packet.
 
 ## Open items this plan inherits
 
-Tracked in [`SPEC.md` §11](../../SPEC.md): **one structural question and two
-tuning knobs.** No geometric measurement remains — items 1, 5, 16 and 29 are all
-resolved, so P03 generates rather than extracts. Nothing blocks P01, P02 or P03.
+Tracked in [`SPEC.md` §11](../../SPEC.md): **two tuning knobs, no remaining
+structural rules question.** Item 45 (whether a lost seat's trail evaporates)
+was resolved by P39: it still *clears*, and the adapter presents flicker-then-fade
+rather than teaching a cut. No geometric measurement remains — items 1, 5, 16 and
+29 are all resolved, so P03 generates rather than extracts. Nothing blocks P01,
+P02 or P03.
 
 **Items 30 and 31 are closed, and they closed by having their cause deleted.**
 Both said the same thing — §7's fill and §8's setup were written for a plane while

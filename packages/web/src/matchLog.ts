@@ -32,8 +32,9 @@ export interface SeatDriverLog {
 
 /**
  * Lightweight playtest counters. Folded on each logged apply; never rules-core.
- * Close = some player's territory count grew. Cut = some player's trail shrank
- * and that same player did not gain territory in the batch.
+ * Close = some player's territory count grew. Cut = some living player's trail
+ * shrank and that same player did not gain territory in the batch. A vanished
+ * seat's trail drop is not a cut.
  */
 export interface MatchSummary {
   readonly steps: number;
@@ -81,7 +82,30 @@ const territoryGainers = (before: GameState, after: GameState): ReadonlySet<Play
 const trailSize = (state: GameState, player: PlayerId): number =>
   state.trails.get(player)?.size ?? 0;
 
-/** Trail shrank for someone who did not also gain territory. */
+const groupMap = (game: GameState): GameState['groups'] | undefined =>
+  (game as { readonly groups?: GameState['groups'] }).groups;
+
+/**
+ * Same formula as the event layer. A missing groups map (P32 territory/trail
+ * stubs) means that player owns no group here — and is *not* treated as vanished,
+ * because the stub cannot tell a living cut from a seat leaving.
+ */
+const hadPieces = (game: GameState, player: PlayerId): boolean => {
+  const groups = groupMap(game);
+  if (groups !== undefined) {
+    for (const group of groups.values()) if (group.owner === player) return true;
+  }
+  if ((game.trails.get(player)?.size ?? 0) > 0) return true;
+  for (const owner of game.territory.values()) if (owner === player) return true;
+  return false;
+};
+
+const vanishedOnStep = (before: GameState, after: GameState, player: PlayerId): boolean => {
+  if (groupMap(before) === undefined || groupMap(after) === undefined) return false;
+  return hadPieces(before, player) && !hadPieces(after, player);
+};
+
+/** Trail shrank for a living player who did not also gain territory. */
 const hasCutVictim = (
   before: GameState,
   after: GameState,
@@ -90,9 +114,10 @@ const hasCutVictim = (
   const players = new Set<PlayerId>(before.trails.keys());
   for (const player of after.trails.keys()) players.add(player);
   for (const player of players) {
-    if (trailSize(after, player) < trailSize(before, player) && !gainers.has(player)) {
-      return true;
-    }
+    if (trailSize(after, player) >= trailSize(before, player)) continue;
+    if (gainers.has(player)) continue;
+    if (vanishedOnStep(before, after, player)) continue;
+    return true;
   }
   return false;
 };
