@@ -1,0 +1,106 @@
+Feature: A won match is over — the boundaries
+
+  Background:
+    Given a GameState, a GeometryPort and a RulesPort
+
+  Rule: A record that runs past the win stops there
+
+    Scenario: The reported playtest log refuses at the move after the win
+      Given the reported playtest log of 1247 moves
+      When it is replayed
+      Then the winner is set on move 1242
+      And the replay refuses at move 1243
+      And the refused move is named
+      # 1243 is an end of turn. Today it is accepted, and the fold stops at 1244
+      # only because a seat that no longer exists happens to move there. Nothing
+      # was stopping 1243, and nothing would have stopped D taking more steps.
+
+    Scenario: The log folds cleanly when sliced at the win
+      Given the reported playtest log sliced at move 1243
+      When it is replayed
+      Then it folds without refusal
+      And the winner is D
+
+    Scenario: The record's own tail is not evidence of a rule
+      Given the reported playtest log
+      Then the four moves it records after 1242 are not treated as legal
+      # They were accepted by an engine that had not noticed the match was decided.
+      # Slicing the fixture records what the log contains; it does not work around
+      # the change.
+
+  Rule: Refusal is total and says nothing about the board
+
+    Scenario: A won state refuses a move that would be illegal anyway
+      Given a state in which A is the winner
+      And a step against the grain
+      When it is applied
+      Then it is refused for the match being over
+
+    Scenario: A won state refuses a move that would have been legal
+      Given a state in which A is the winner
+      And a step that every rule but this one permits
+      When it is applied
+      Then it is refused for the match being over
+
+    Scenario: Equal won states refuse equally
+      Given two equal states in which A is the winner
+      When the same move is applied to each
+      Then both are refused with equal messages
+
+    Scenario: A won state is cheaper to ask than a live one
+      Given a state in which A is the winner
+      When legal moves are asked for
+      Then no arrow and no vertex is read
+      # The gate is one `undefined` check on a field already in hand, before any
+      # board read. Consistent with P37 invariant 16, which this does not disturb.
+
+  Rule: A lost seat and a won match are different states
+
+    Scenario: A lost seat is still offered the pass
+      Given C is lost and no winner is set
+      When legal moves are asked for on C's turn
+      Then only an end of turn is offered
+      # P37 invariant 4, unchanged. The round must still advance through C's slot.
+
+    Scenario: The last loss and the win are the same move
+      Given only A and C are not lost, and it is A's turn
+      When A takes C's last territory
+      Then C is lost in the state that step returns
+      And the winner is A in that same state
+      And the next move is refused
+
+  Rule: The celebration waits for the effects that won the match
+
+    Scenario: The board reads as playing while the deciding move animates
+      Given A wins on a closure that fills ground and converts a stack
+      When that step is applied
+      Then the board is not dimmed
+      And no banner is shown
+
+    Scenario: The celebration begins once those overlays have finished
+      Given A wins on a closure that fills ground and converts a stack
+      When that step is applied
+      And its overlays have finished
+      Then the board is dimmed but for A
+      And A's banner is shown
+
+    Scenario: A dropped overlay cannot strand the match unannounced
+      Given A wins on a move whose overlays are dropped under queue pressure
+      When MAJOR_SEQUENCE_MS has passed since that move
+      Then the celebration has begun
+      # The queue is lossy by design — dropped past MAX_FX_ITEMS, pruned on
+      # lifetime. Waiting on emptiness alone would make a lost overlay into a match
+      # that never visibly ended. The ceiling makes the failure mode "slightly
+      # early" instead.
+
+    Scenario: The celebration begins once and does not restart
+      Given A has won and the celebration has begun
+      When the board re-renders
+      Then the celebration does not begin again
+
+    Scenario: The wait does not unlock input
+      Given A wins and the deciding move's overlays are still playing
+      Then input is locked
+      # `inputLocked` reads `winner !== undefined`, which is true from the deciding
+      # move onward. The fx queue's contract that it never gates input is intact:
+      # input was already locked by the rules, not by the queue.
