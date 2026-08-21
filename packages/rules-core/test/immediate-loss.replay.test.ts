@@ -21,15 +21,17 @@
  *
  * The second pins invariant 8 as far as it can be pinned: at the end of a record
  * the lost set is the set the §9 table qualifies, and one further move leaves it
- * alone. It does **not** show that resolving more often never changes the outcome —
- * that needs the pre-P37 engine to compare against. See the note on that test.
+ * alone — which since P38 is the stronger statement that there is no further move,
+ * because losing three of four seats wins the match for the fourth. It does **not**
+ * show that resolving more often never changes the outcome — that needs the pre-P37
+ * engine to compare against. See the note on that test.
  *
  * @see docs/spec/immediate-loss/immediate-loss.md
  * @see .claude/skills/rules-invariants/SKILL.md
  */
 
 import { describe, expect, it } from 'vitest';
-import { endTurn } from '@conquarrow/contracts';
+import { ContractViolation, endTurn } from '@conquarrow/contracts';
 import type { GameState, Move } from '@conquarrow/contracts';
 import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
 import { makeRules } from '../src/index';
@@ -235,13 +237,20 @@ describe('a four-seat match that loses three seats', () => {
     // spec, and left as one. What is checked is the observable consequence: the
     // settled set is the qualified set, and a further chance to resolve moves it
     // nowhere.
+    //
+    // **Since P38 there is no further move to take.** Losing three of four seats
+    // wins the match for the fourth, and a won match refuses everything — so
+    // "one more resolution changes nothing" holds in the stronger form that no
+    // further resolution can be asked for at all. Asserted that way rather than
+    // dropped: the claim is still about what the settled set does next.
     const { ground, initial, moves } = aMatchLosingThree();
 
     const final = replay(ground.rules, initial, moves);
-    const settled = ground.rules.apply(final, endTurn());
 
     expect(lostAlong(final, ground.geometry)).toEqual(['A', 'B', 'C']);
-    expect(lostAlong(settled, ground.geometry)).toEqual(lostAlong(final, ground.geometry));
+    expect(String(final.winner)).toBe(String(D));
+    expect(() => ground.rules.apply(final, endTurn())).toThrow(ContractViolation);
+    expect(ground.rules.legalMoves(final)).toEqual([]);
   });
 
   it('reproduces an identical final state', () => {

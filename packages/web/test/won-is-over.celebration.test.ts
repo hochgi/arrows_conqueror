@@ -14,21 +14,24 @@
  * Two things about the boundary these tests pin, both measured rather than assumed:
  *
  * - The feature's own Given — *a closure that fills ground and converts a stack* —
- *   queues overlays that run **1200 ms**, which is longer than
- *   `MAJOR_SEQUENCE_MS` (700). So on the packet's headline move the *ceiling* is
- *   what starts the celebration, with `captureFresh` still running. That follows
- *   from invariants 10 and 11 together and needs no new decision, but it is a real
- *   consequence and it is recorded here in numbers rather than left implicit.
- * - Because of that, "wait for the overlays" and "always wait 700 ms" are the same
- *   answer on that move. `aQuietDecidingMove` is the move that tells them apart.
+ *   queues overlays that run **1200 ms**, which is longer than `MAJOR_SEQUENCE_MS`
+ *   (700), because `captureFresh` is offset 500 with a duration of 700. So a fixed
+ *   700 ms ceiling would start the celebration *on top of* `captureFresh`, 500 ms
+ *   early — a smaller copy of the bug this packet exists to fix. The wait is taken
+ *   from the queue instead, and the numbers are asserted here rather than left
+ *   implicit.
+ * - Because of that, on the headline move "wait for the overlays" and "wait 700 ms"
+ *   give different answers, and 1200 is the right one. `aQuietDecidingMove` — whose
+ *   overlays are over at 680 — pins the other side: the wait is shorter than 700
+ *   there, so nothing has silently become a constant.
  *
  * @see docs/spec/won-is-over/won-is-over.md — *When the celebration begins*
  */
 
 import { describe, expect, it } from 'vitest';
-import { celebrationPhase, matchLocked, victoryAt } from '../src/fx/celebration';
+import { celebrationPhase, celebrationWaitMs, matchLocked, victoryAt } from '../src/fx/celebration';
 import type { CelebrationClock } from '../src/fx/celebration';
-import { emptyQueue, queueSettleMs } from '../src/fx/queue';
+import { emptyQueue, enqueue, queueSettleMs } from '../src/fx/queue';
 import { MAJOR_SEQUENCE_MS } from '../src/fx/timing';
 import { isMatchOverDimmed } from '../src/fx/victory';
 import type { VictoryFx } from '../src/fx/victory';
@@ -53,15 +56,15 @@ const clockAt = (deciding: DecidingMove, ms: number): CelebrationClock => ({
 });
 
 /**
- * When the celebration is due: the deciding move's overlays finishing, or the
- * ceiling, whichever comes first.
+ * When the celebration is due: the instant the deciding move's overlays settle.
  *
- * Invariant 10 gives the first term and invariant 11 caps it with the second — and
- * it is a `min` rather than a `max` because the ceiling exists precisely for the
- * case where waiting on the queue would wait forever.
+ * Invariant 10 gives it and invariant 11 bounds it *by the same number* — the
+ * ceiling is taken from the queue rather than from a constant, precisely so that it
+ * cannot be shorter than the move it waits for. Read off the fixture's own measured
+ * `settleMs`, not recomputed here, so this asserts the implementation rather than
+ * restating it.
  */
-const dueAfter = (deciding: DecidingMove): number =>
-  Math.min(deciding.settleMs, MAJOR_SEQUENCE_MS);
+const dueAfter = (deciding: DecidingMove): number => deciding.settleMs;
 
 // ── Rule: the celebration waits for the effects that won the match ───────────
 
@@ -100,9 +103,10 @@ describe('the celebration waits for the effects that won the match', () => {
   });
 
   it('begins the celebration once those overlays have finished', () => {
-    // The feature's Given, at the instant the celebration is due. On this move the
-    // ceiling is what fires — its overlays run past it — so the numbers are asserted
-    // alongside the phase rather than left to be inferred.
+    // The feature's Given, at the instant the celebration is due: 1200 ms, when
+    // `captureFresh` has finished. Asserted alongside the fact that those overlays
+    // outlive `MAJOR_SEQUENCE_MS`, because that is what makes the assertion
+    // load-bearing — a fixed 700 ms ceiling would have fired here 500 ms ago.
     const deciding = aDecidingMove();
 
     const fx = victoryAt(deciding.after, geometry, clockAt(deciding, dueAfter(deciding)));
@@ -112,13 +116,15 @@ describe('the celebration waits for the effects that won the match', () => {
       kind: fx.kind,
       dimmed: isMatchOverDimmed(fx, strangerArrow(), deciding.after),
       banner: bannerOf(fx),
-      overlaysOutliveTheCeiling: deciding.settleMs > MAJOR_SEQUENCE_MS,
+      dueAt: dueAfter(deciding),
+      outlivesMajorSequenceMs: deciding.settleMs > MAJOR_SEQUENCE_MS,
     }).toEqual({
       phase: 'over',
       kind: 'over',
       dimmed: true,
       banner: 'Player A wins',
-      overlaysOutliveTheCeiling: true,
+      dueAt: 1200,
+      outlivesMajorSequenceMs: true,
     });
   });
 
@@ -137,29 +143,34 @@ describe('the celebration waits for the effects that won the match', () => {
     }).toEqual({ justBefore: 'playing', atSettle: 'over', atCeiling: 'over' });
   });
 
-  it('does not let a dropped overlay strand the match unannounced', () => {
-    // The load-bearing one, and the whole reason the wait is bounded rather than
-    // "until the queue is empty". The queue is lossy by design: past `MAX_FX_ITEMS`
-    // the oldest items of the least important tier go, and on a frame where a burst
-    // of major effects lands the deciding move's own overlays are the oldest tier-1
-    // items present. Here they are gone and the queue that displaced them is still
-    // running at the ceiling — so an emptiness test would never fire, and the match
-    // would end with no visible ending at all.
+  it('lets a dropped overlay bring the celebration forward, never strand it', () => {
+    // The queue is lossy by design: past `MAX_FX_ITEMS` the oldest items of the
+    // least important tier go, and on a frame where a burst of major effects lands
+    // the deciding move's own overlays are the oldest tier-1 items present. Here
+    // they are gone entirely.
+    //
+    // Losing them cannot strand the match, and the direction is what the first draft
+    // of this scenario had backwards: `pruneQueue` drops every item on its own
+    // lifetime, so nothing outlives itself, and after the win nothing can enqueue —
+    // this packet's own rules half refuses every move. So the wait is over no later
+    // than it would have been with the overlays intact, and the celebration begins
+    // when the *survivors* finish.
     const { deciding, queue, droppedIds } = overlaysDroppedUnderPressure();
     const live = new Set(queue.map((item) => item.overlay.id));
-    const clock: CelebrationClock = { decidedAt: T0, now: T0 + MAJOR_SEQUENCE_MS, queue };
-
-    const phase = celebrationPhase(clock);
+    const surviving = queueSettleMs(queue, T0);
+    const clockAtSettle: CelebrationClock = { decidedAt: T0, now: T0 + surviving, queue };
 
     expect({
-      phase,
+      atSurvivorsSettle: celebrationPhase(clockAtSettle),
+      justBefore: celebrationPhase({ decidedAt: T0, now: T0 + surviving - 1, queue }),
       anyDecidingOverlayLeft: droppedIds.some((id) => live.has(id)),
-      queueStillBusy: queueSettleMs(queue, T0 + MAJOR_SEQUENCE_MS) > 0,
+      noLaterThanIntact: surviving <= deciding.settleMs,
       winner: String(deciding.after.winner),
     }).toEqual({
-      phase: 'over',
+      atSurvivorsSettle: 'over',
+      justBefore: 'playing',
       anyDecidingOverlayLeft: false,
-      queueStillBusy: true,
+      noLaterThanIntact: true,
       winner: 'A',
     });
   });
@@ -248,25 +259,56 @@ describe('the adapter invariants of a won match', () => {
     );
   });
 
-  it('11. begins the celebration no later than MAJOR_SEQUENCE_MS after the deciding move, whatever the queue contains', () => {
-    // *Whatever the queue contains* is the operative phrase, so the property is
-    // quantified over queues rather than asserted on one: the move's own overlays, a
-    // queue those were dropped from, and an empty queue.
+  it('11. begins no earlier than the overlays settle and no later than a ceiling not less than that', () => {
+    // Both halves of invariant 11, and the second is the one the spec had to
+    // correct: the ceiling is *not less than* the settle time, so it can never fire
+    // on top of the move it is waiting for. Quantified over queues rather than
+    // asserted on one — the move's own overlays, a queue those were dropped from, an
+    // empty queue, and a stray overlay that arrived *after* the win, which is the
+    // only way a live queue can outlast the deciding move and therefore the only
+    // thing a ceiling has left to guard.
     const deciding = aDecidingMove();
     const dropped = overlaysDroppedUnderPressure();
+    const strayAfterTheWin = [
+      ...deciding.queue,
+      ...enqueue(emptyQueue(), deciding.overlays, T0 + 10 * MAJOR_SEQUENCE_MS),
+    ];
     const queues: readonly (readonly [string, readonly (typeof deciding.queue)[number][]])[] = [
       ['the move’s own overlays', [...deciding.queue]],
       ['a queue they were dropped from', [...dropped.queue]],
       ['nothing at all', [...emptyQueue()]],
+      ['an overlay that arrived after the win', strayAfterTheWin],
     ];
 
-    const atCeiling = queues.map(([name, queue]) => ({
-      name,
-      phase: celebrationPhase({ decidedAt: T0, now: T0 + MAJOR_SEQUENCE_MS, queue }),
-    }));
+    const table = queues.map(([name, queue]) => {
+      const settle = queueSettleMs(
+        queue.filter((item) => item.startedAt <= T0),
+        T0,
+      );
+      return {
+        name,
+        // Never early: still playing one millisecond before those overlays settle.
+        early: settle === 0 ? 'nothing to wait for' : celebrationPhase({ decidedAt: T0, now: T0 + settle - 1, queue }),
+        // Never late: over by the instant they settle, whatever else is in the queue.
+        atSettle: celebrationPhase({ decidedAt: T0, now: T0 + settle, queue }),
+      };
+    });
 
-    expect(atCeiling).toEqual(queues.map(([name]) => ({ name, phase: 'over' })));
-    expect(MAJOR_SEQUENCE_MS).toBe(700);
+    expect(table).toEqual([
+      { name: 'the move’s own overlays', early: 'playing', atSettle: 'over' },
+      { name: 'a queue they were dropped from', early: 'playing', atSettle: 'over' },
+      { name: 'nothing at all', early: 'nothing to wait for', atSettle: 'over' },
+      { name: 'an overlay that arrived after the win', early: 'playing', atSettle: 'over' },
+    ]);
+    // And the wait the adapter arms its timer with *is* the queue's settle time —
+    // which is the whole correction: a fixed `MAJOR_SEQUENCE_MS` would have been
+    // 500ms short of the move it was waiting for.
+    expect({
+      wait: celebrationWaitMs({ decidedAt: T0, now: T0, queue: deciding.queue }),
+      ignoringTheStray: celebrationWaitMs({ decidedAt: T0, now: T0, queue: strayAfterTheWin }),
+      settle: deciding.settleMs,
+      ceiling: MAJOR_SEQUENCE_MS,
+    }).toEqual({ wait: 1200, ignoringTheStray: 1200, settle: 1200, ceiling: 700 });
   });
 
   it('12. does not gate input on the celebration, which is already locked by `winner`', () => {

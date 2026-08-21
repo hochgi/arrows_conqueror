@@ -67,6 +67,31 @@ const asGroup = (
     : { owner, heads, spent, speedOverride: override };
 
 /**
+ * The one refusal that says nothing about the board (P38, §11 item 46).
+ *
+ * A won match is terminal: `legalMoves` offers nothing and `apply` refuses
+ * everything. The message names the match and the winner and *never* the move,
+ * because the gate sits above `dispatch` and has not looked at it — a caller who
+ * mistook a finished match for a live one is told that, rather than handed a
+ * movement diagnostic about an arrow nobody read.
+ */
+const matchOver = (winner: PlayerId): string =>
+  `the match is over: ${String(winner)} has won`;
+
+/**
+ * The offer list of a won match: nothing, not even the pass.
+ *
+ * The one state where an empty list is the answer rather than a deadlock. A
+ * **lost** seat is offered exactly the pass (P37 invariant 4) because
+ * `players[0]` is the round-boundary marker and the round still has to advance
+ * through a dead seat's slot. A **won** match has no next turn to advance to, so
+ * there is nothing for a pass to mean.
+ *
+ * Shared and empty, so asking is O(1) and allocates nothing.
+ */
+const NO_MOVES: readonly Move[] = [];
+
+/**
  * Next seat in turn order (§4). **Nobody is ever skipped** (§9 / P36): a lost
  * seat, and a seat with a share but no heads, still receive the chair — they can
  * only `endTurn`, and the hot-seat adapter auto-passes them. Skipping would move
@@ -365,6 +390,10 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
    * no size-1 freeze.
    */
   const legalMoves = (state: GameState): readonly Move[] => {
+    // P38: a won match offers nothing. First, so a won state is *cheaper* to ask
+    // than a live one — one `undefined` check on a field already in hand, before
+    // any arrow, vertex or map of the state is read.
+    if (state.winner !== undefined) return NO_MOVES;
     const moves: Move[] = [];
     for (const [arrow, group] of movable(state)) {
       for (const exit of exitsFrom(arrow)) {
@@ -394,7 +423,20 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
   };
 
   /**
-   * One move, then the losses it caused (P37).
+   * One move, then the losses it caused (P37) — unless the match is already over
+   * (P38).
+   *
+   * The gate is at the **top**, above `dispatch`, and that placement is the whole
+   * of the packet's other half: the deciding move itself is never affected, so it
+   * resolves every effect it causes — the closure, the fill, the conversion, the
+   * evaporation, the loser vanishing — and only the move *after* it is refused.
+   * A gate anywhere near `resolveLosses` on the tail would refuse the move for the
+   * win that move caused.
+   *
+   * Refusing rather than returning the input unchanged is deliberate and its cost
+   * is accepted (a record that runs past the win now throws): a caller handed back
+   * an unchanged state cannot tell "the match is over" from "that move was a
+   * no-op", and the engine would be absorbing a caller bug in silence.
    *
    * Resolution sits here rather than inside `applyEndTurn` so that the match ends
    * on the move that decides it: encircling the last enemy territory used to leave
@@ -407,8 +449,10 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
    * reads no vertex unless some seat owns ground and holds no head — see
    * victory.ts.
    */
-  const apply = (state: GameState, move: Move): GameState =>
-    resolveLosses(dispatch(state, move), geometry);
+  const apply = (state: GameState, move: Move): GameState => {
+    if (state.winner !== undefined) reject(matchOver(state.winner));
+    return resolveLosses(dispatch(state, move), geometry);
+  };
 
   return {
     legalMoves,

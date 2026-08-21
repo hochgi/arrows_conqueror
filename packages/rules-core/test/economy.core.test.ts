@@ -59,8 +59,13 @@ describe('accrual ticks once per full round', () => {
     const { vertex, borders } = aSpawnerOn(table.geometry, seed);
     const feed = borders[0];
     if (feed === undefined) throw new Error("setup: empty borders");
+    const bLand = borders[1];
+    if (bLand === undefined) throw new Error('setup: the vertex borders one arrow only');
     const before = stateOf([], A, {
-      territory: owned([feed], A),
+      // B holds a share of the same spawner, so the round boundary does not vanish
+      // B and win the match for A — a won match refuses the rest of the round
+      // (P38). Phase 0 points at `feed`, so B's share accrues nothing here.
+      territory: [...owned([feed], A), ...owned([bLand], B)],
       spawners: [[vertex, { force: rational(1, 3), phase: 0 }]],
     });
 
@@ -79,9 +84,14 @@ describe('carry remainder and spawn', () => {
     const { vertex, borders } = aSpawnerOn(table.geometry, seed);
     const feed = borders[0];
     if (feed === undefined) throw new Error("setup: empty borders");
+    const bLand = borders[1];
+    if (bLand === undefined) throw new Error('setup: the vertex borders one arrow only');
     // 2/3 + 1/3 = 1 → birth 1, remainder 0.
     const before = stateOf([], A, {
-      territory: owned([feed], A),
+      // B holds a share of the same spawner, so the round boundary does not vanish
+      // B and win the match for A — a won match refuses the rest of the round
+      // (P38). Phase 0 points at `feed`, so B's share accrues nothing here.
+      territory: [...owned([feed], A), ...owned([bLand], B)],
       accumulators: [[feed, rational(2, 3)]],
       spawners: [[vertex, { force: rational(1, 3), phase: 0 }]],
     });
@@ -99,8 +109,13 @@ describe('carry remainder and spawn', () => {
     const { vertex, borders } = aSpawnerOn(table.geometry, seed);
     const feed = borders[0];
     if (feed === undefined) throw new Error("setup: empty borders");
+    const bLand = borders[1];
+    if (bLand === undefined) throw new Error('setup: the vertex borders one arrow only');
     const before = stateOf([{ arrow: feed, owner: A, heads: 2, spent: 0 }], A, {
-      territory: owned([feed], A),
+      // B holds a share of the same spawner, so the round boundary does not vanish
+      // B and win the match for A — a won match refuses the rest of the round
+      // (P38). Phase 0 points at `feed`, so B's share accrues nothing here.
+      territory: [...owned([feed], A), ...owned([bLand], B)],
       accumulators: [[feed, rational(2, 3)]],
       spawners: [[vertex, { force: rational(1, 3), phase: 0 }]],
     });

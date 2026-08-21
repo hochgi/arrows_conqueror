@@ -16,7 +16,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { endTurn, rational } from '@conquarrow/contracts';
-import type { ArrowId, GameState, PlayerId } from '@conquarrow/contracts';
+import type { ArrowId, GameState, Move, PlayerId } from '@conquarrow/contracts';
 import { replay, replayIsDeterministic } from '../src/replay';
 import { isLost, shareCountOf, territoryCountOf } from '../src/victory';
 import {
@@ -110,6 +110,28 @@ const everyAssignment = (): readonly (readonly Row[])[] => {
 
 const ASSIGNMENTS = everyAssignment();
 
+/**
+ * The prefix of a record the match admits — it stops at the win (P38).
+ *
+ * A won match refuses every move, so a record that runs past the deciding one is
+ * not replayable whole. Slicing it is a reading of the record rather than a way
+ * round the rule: the moves past the win were never legal.
+ */
+const playableTo = (
+  rules: Ground['rules'],
+  initial: GameState,
+  moves: readonly Move[],
+): readonly Move[] => {
+  let at = initial;
+  const kept: Move[] = [];
+  for (const move of moves) {
+    if (at.winner !== undefined) break;
+    at = rules.apply(at, move);
+    kept.push(move);
+  }
+  return kept;
+};
+
 /** Whether the row a seat was given qualifies it for immediate loss. */
 const rowIsLost = (row: Row): boolean => {
   const reading = readingFor(row);
@@ -168,28 +190,44 @@ describe('the derived predicate', () => {
 describe('the starvation clock', () => {
   it('4. advances a destitute seat at each full round', () => {
     const ground = aBoard();
+    let rounds = 0;
     for (const rows of ASSIGNMENTS) {
       let state = boardFor(ground, rows, { n: 99 });
       for (let round = 1; round <= 3; round += 1) {
+        // A board the first round *decides* has no second round to advance
+        // anything: a won match refuses every move (P38). The clock is a claim
+        // about rounds that happen.
+        if (state.winner !== undefined) break;
         state = closeRound(ground.rules, state);
+        if (state.winner !== undefined) break;
+        rounds += 1;
         THREE.forEach((seat, index) => {
           if (!rowIsDestitute(rows[index] ?? 0)) return;
           expect(streakOf(state, seat), `rows ${rows.join('')} seat ${String(index)}`).toBe(round);
         });
       }
     }
+    // Non-vacuous: plenty of these boards run three full rounds undecided.
+    expect(rounds).toBeGreaterThan(ASSIGNMENTS.length);
   });
 
   it('5. advances every destitute seat regardless of how many others are destitute', () => {
     const ground = aBoard();
     // The defect this replaces: the clock only ran while *exactly one* seat was
     // destitute, so two broke seats cancelled each other indefinitely.
+    let checked = 0;
     for (const rows of ASSIGNMENTS) {
       const destitute = THREE.filter((_, index) => rowIsDestitute(rows[index] ?? 0));
       if (destitute.length === 0) continue;
       const after = closeRound(ground.rules, boardFor(ground, rows, { n: 99 }));
+      // Decided halfway through, so the boundary never arrived — a won match
+      // refuses the rest of the round (P38), and the clock never ticked.
+      if (after.winner !== undefined) continue;
+      checked += 1;
       for (const seat of destitute) expect(streakOf(after, seat)).toBe(1);
     }
+    // Non-vacuous: destitute seats on undecided boards are the common case.
+    expect(checked).toBeGreaterThan(0);
   });
 
   it('6. clears only the seat that owns a share again', () => {
@@ -385,6 +423,11 @@ describe('the rotation', () => {
       let state = boardFor(ground, rows, { n: 2 });
       const original = [...state.players].map(String);
       for (let round = 0; round < 4; round += 1) {
+        // `closeRound` stops at a win and leaves the chair mid-rotation, because a
+        // won match refuses the rest of the round (P38). The seat list is asserted
+        // on that state too — nothing is removed by winning either.
+        expect([...state.players].map(String), `rows ${rows.join('')}`).toEqual(original);
+        if (state.winner !== undefined) break;
         state = closeRound(ground.rules, state);
         expect([...state.players].map(String), `rows ${rows.join('')}`).toEqual(original);
       }
@@ -393,11 +436,17 @@ describe('the rotation', () => {
 
   it('15. passes the turn of a seat with no legal move, applying nothing', () => {
     const ground = aBoard();
+    let passes = 0;
     for (const rows of ASSIGNMENTS) {
       // P37: the generator authors boards holding seats §8 calls unplayable, and
       // the first move now settles them. The pass is measured on the settled
       // board — a *further* pass must still apply nothing.
       const state = ground.rules.apply(boardFor(ground, rows), endTurn());
+      // A won match is offered nothing at all, not even the pass, because there is
+      // no next turn to advance to (P38, and `won-is-over.invariants.test.ts` holds
+      // that rule beside this one on a single board).
+      if (state.winner !== undefined) continue;
+      passes += 1;
       for (const seat of THREE) {
         const seated: GameState = { ...state, activePlayer: seat };
         if (ground.rules.legalMoves(seated).some((move) => move.kind === 'step')) continue;
@@ -409,6 +458,8 @@ describe('the rotation', () => {
         }
       }
     }
+    // Non-vacuous: most of these boards settle undecided.
+    expect(passes).toBeGreaterThan(0);
   });
 });
 
@@ -515,11 +566,15 @@ describe('determinism', () => {
   it('21. loses the same seats at the same boundaries on replay', () => {
     const ground = aBoard();
     const initial = boardFor(ground, [3, 3, 5], { n: 3 });
-    const log = [0, 1, 2, 3].flatMap(() => roundMoves(initial.players));
+    // Sliced at the win, the way the reported log is: losing A and B leaves C, and
+    // a won match refuses every move after that (P38). What the record contains
+    // past that point is not evidence of a rule.
+    const log = playableTo(ground.rules, initial, [0, 1, 2, 3].flatMap(() => roundMoves(initial.players)));
 
     const first = replay(ground.rules, initial, log);
     const second = replay(ground.rules, initial, log);
 
+    expect(log.length).toBeGreaterThan(0);
     expect(lostSeats(first, ground.geometry)).toEqual(['A', 'B']);
     expect(snapshot(first)).toEqual(snapshot(second));
     expect(replayIsDeterministic(ground.rules, initial, log, snapshot)).toBe(true);

@@ -24,8 +24,13 @@ describe('economy invariants', () => {
     const { vertex, borders } = aSpawnerOn(table.geometry, seed);
     const feed = borders[0];
     if (feed === undefined) throw new Error("setup: empty borders");
+    const bLand = borders[1];
+    if (bLand === undefined) throw new Error('setup: the vertex borders one arrow only');
     const s0 = stateOf([], A, {
-      territory: owned([feed], A),
+      // B holds a share of the same spawner, so the boundary does not vanish B and
+      // win the match for A — a won match refuses the rest of the round (P38).
+      // Phase 0 points at `feed`, so B's share accrues nothing here.
+      territory: [...owned([feed], A), ...owned([bLand], B)],
       spawners: [[vertex, { force: rational(1, 12), phase: 0 }]],
     });
 
