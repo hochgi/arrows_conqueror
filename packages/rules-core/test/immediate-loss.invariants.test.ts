@@ -48,7 +48,7 @@ import {
   streakOf,
 } from './losing.support';
 import type { Ground } from './losing.support';
-import { anExitFrom, snapshot } from './support';
+import { anExitFrom, countingVertices, snapshot, vertexReadsOf } from './support';
 import { replayIsDeterministic } from '../src/replay';
 
 const FORCE = { num: 1, den: 3 } as const;
@@ -222,7 +222,11 @@ describe('the winner, and what a lost seat is offered', () => {
     expect(wrong).toEqual([]);
   });
 
-  it('4. offers a lost player no move but the pass', () => {
+  it('4. offers a lost player nothing but the pass', () => {
+    // *Nothing but the pass*, asserted as the whole offer list and not as the
+    // absence of a step: `legalMoves` always offers `endTurn`, because `players[0]`
+    // is the round-boundary marker and a seat is passed, never skipped (P36). So
+    // the offer on a lost seat's turn is exactly one move, and it is the pass.
     const ground = aBoard();
     const offered: string[] = [];
     for (const rows of ASSIGNMENTS) {
@@ -233,8 +237,8 @@ describe('the winner, and what a lost seat is offered', () => {
         if (!isLost(settled, seat, ground.geometry)) continue;
         const seated: GameState = { ...settled, activePlayer: seat };
         const moves = ground.rules.legalMoves(seated);
-        if (moves.some((move) => move.kind !== 'endTurn')) {
-          offered.push(`${rows.join('')}/${String(seat)}: ${String(moves.length)}`);
+        if (moves.length !== 1 || moves[0]?.kind !== 'endTurn') {
+          offered.push(`${rows.join('')}/${String(seat)}: [${moves.map((m) => m.kind).join(',')}]`);
         }
       }
     }
@@ -296,18 +300,20 @@ describe('what P37 did not move', () => {
   });
 });
 
-// ── 8: the same seats, only sooner ───────────────────────────────────────────
+// ── 8: the set of lost seats at the end of a record ──────────────────────────
 
-describe('resolving more often changes only when', () => {
-  it('8. loses the seats the table qualifies, and no others, over a whole record', () => {
-    // The safety property. It cannot be written as a comparison against the
-    // pre-P37 engine, because no copy of that engine is kept here and keeping one
-    // would be a second implementation to maintain and to be wrong in. What is
-    // asserted instead is the mechanism the spec argues from: at the end of the
-    // record the seats that are lost are exactly the seats the four-case table
-    // says are lost, and applying one more move — a further chance to resolve —
-    // changes that set not at all. Removal gives nobody anything, so a resolution
-    // that ran sooner cannot have created or spared a loss.
+describe('the lost set at the end of a record is the one the table qualifies', () => {
+  it('8. loses exactly the seats the table qualifies, and one more move changes it not at all', () => {
+    // **This does not prove that resolving more often never changes the outcome.**
+    // The spec says so in as many words: the stronger claim has no direct test
+    // without keeping a copy of the pre-P37 engine, and a second implementation to
+    // maintain and be wrong in is not worth a green tick. It follows from removal
+    // giving nobody anything, which is an argument and stays one.
+    //
+    // What is asserted is the observable consequence, exactly as invariant 8 now
+    // reads: at the end of the record the set of lost seats is exactly the set the
+    // §9 table qualifies, and one further move — one further chance to resolve —
+    // leaves that set alone.
     const { ground, initial, moves } = aMatchLosingThree();
 
     const { stops } = statesAlong(ground.rules, initial, moves);
@@ -319,6 +325,57 @@ describe('resolving more often changes only when', () => {
     expect(lostAlong(once, ground.geometry)).toEqual(lostAlong(last.state, ground.geometry));
     // Non-vacuous: seats really were lost along the way.
     expect(lostAlong(last.state, ground.geometry).length).toBeGreaterThan(0);
+  });
+});
+
+// ── the *Cost* section: the share walk is short-circuited away ───────────────
+
+describe('the share walk happens only for a seat that owns ground and holds no head', () => {
+  it('walks no vertex at all unless some seat owns ground and holds no head', () => {
+    // The spec's *Cost* section, as a property. `isLost(p)` is
+    // `T === 0 || (S === 0 && H === 0)`, and evaluated in that order — with `H`
+    // read before `S` — the `spawners × borderArrows` walk is reached only when a
+    // seat owns ground and holds no head:
+    //
+    //   T === 0  ⇒ lost, no walk.   H > 0 ⇒ not lost, no walk.
+    //   only T > 0 && H === 0 needs S.
+    //
+    // So on an ordinary board where every living seat holds heads, `apply` walks no
+    // vertex *at all*. The spec makes that required rather than a taste: five other
+    // packets say *the system shall enumerate no vertex*, and an unconditional walk
+    // would break them on every move instead of in the one case that needs it.
+    //
+    // Quantified over all 216 assignments, and measured on a **non-boundary
+    // end-turn**: the chair starts at `players[0]` of three, so one end-turn hands
+    // the seat on without closing a round. That matters twice — accrual reads the
+    // lattice by design (§7) and would swamp the measurement, and a step or a skip
+    // could change a seat's own readings between the authored board and the board
+    // resolution sees, which would make the predicate below the wrong predicate.
+    const ground = aBoard();
+    const spy = countingVertices(ground.geometry);
+    const rules = makeRules(spy.geometry);
+    const wrong: string[] = [];
+    let sawZero = 0;
+    let sawSome = 0;
+    for (const rows of ASSIGNMENTS) {
+      const before = boardFor(ground, rows);
+      // Rows 2 and 4 are the two T>0, H=0 rows — the only ones that need S.
+      const needsWalk = rows.some((row) => row === 2 || row === 4);
+      const reads = vertexReadsOf(spy.vertexReads, () => {
+        rules.apply(before, endTurn());
+      });
+      if (needsWalk) sawSome += 1;
+      else sawZero += 1;
+      if (needsWalk ? reads === 0 : reads !== 0) {
+        wrong.push(`${rows.join('')}: ${String(reads)} read(s), needsWalk=${String(needsWalk)}`);
+      }
+    }
+
+    expect(wrong).toEqual([]);
+    // Non-vacuous in both directions: the generator really does produce boards of
+    // each kind, so neither half of the iff is an empty quantifier.
+    expect(sawZero).toBeGreaterThan(0);
+    expect(sawSome).toBeGreaterThan(0);
   });
 });
 

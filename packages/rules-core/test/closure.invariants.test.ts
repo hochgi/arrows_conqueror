@@ -198,7 +198,11 @@ describe('commit writes territory and strips every trail on claimed arrows', () 
 
     expect(trailOf(s0, A)).toEqual(before);
     expect(trailOf(s1, A)).toEqual([]);
-    // P37: the closure adds no lattice read of its own over an idle move.
+    // P37: the closure adds no lattice read of its own over an idle move on the same
+    // board. Not a hard zero any more, and not because the rule changed: loss
+    // resolution sits on the tail of `apply` and counts the *shares* of a seat that
+    // owns ground and holds no head, which `stateOf`'s keepalive land makes true of
+    // every seat that authored none. See `immediate-loss.md`, *Cost*.
     expect(closing).toBe(idle);
   });
 });

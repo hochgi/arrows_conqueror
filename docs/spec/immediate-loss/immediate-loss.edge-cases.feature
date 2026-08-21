@@ -119,8 +119,27 @@ Feature: Immediate loss at the boundaries
       Then the resulting states are identical
 
     Scenario: Counts are read in one pass, not once per player
-      Given a state with several players and a large territory
-      Then resolving losses reads territory and groups a bounded number of times
+      Given two states differing only in how many seats are at the table
+      And no seat lost in either
+      Then resolving losses traverses territory and groups the same number of times on both
+      # "Bounded" was the wrong word: the bound is not a constant anyone can name
+      # from outside, it is *independence from the seat count*. Measured on
+      # `resolveLosses` rather than through `apply`, because that is the unit the
+      # claim is about. No seat is lost in either state on purpose — `vanishSeat`
+      # traverses once per removed seat, which would confound the comparison.
+
+    Scenario: An ordinary move reads no vertex at all
+      Given a state in which every player who is not lost holds at least one head
+      When any move is applied
+      Then no vertex identifier is requested from GeometryPort
+      # Invariant 16. `isLost` is `T === 0 || (S === 0 && H === 0)`, so a seat
+      # holding a head has already falsified the second disjunct and its shares are
+      # never counted. This is what keeps `closure` and `cuts` honest.
+
+    Scenario: A seat waiting on a spawner is the one case that reads the lattice
+      Given a state in which some player owns territory and holds no head
+      When any move is applied
+      Then a vertex identifier is requested from GeometryPort
 
     Scenario: No clock and no randomness
       Then victory.ts references neither a clock nor a random source

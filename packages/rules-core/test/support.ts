@@ -356,9 +356,15 @@ export const landCountOf = (state: GameState, player: PlayerId): number =>
 /**
  * Vertex-lattice reads one call makes, as a **delta**.
  *
- * Since P37 `apply` resolves losses on every move, and reading a seat's shares
- * means reading the spawner lattice — so a rule's own reads are only visible as
- * the difference between two moves on the same board (see `countingVertices`).
+ * Since P37 `apply` resolves losses on its tail, and the last thing loss
+ * resolution needs for a seat that **owns ground and holds no head** is that
+ * seat's *share* count — which walks the spawner lattice. That walk is
+ * short-circuited away for every other seat (`immediate-loss.md`, *Cost*), so an
+ * ordinary board of seats holding heads costs nothing; but `stateOf` grants every
+ * seat that authored no land a keepalive arrow and **no head**, which is exactly
+ * the row that does need the walk. So a hard zero across a whole `apply` is no
+ * longer the measurement on these boards: a rule's own reads are the difference
+ * between two moves on the same board (see `countingVertices`).
  */
 export const vertexReadsOf = (reads: () => number, run: () => void): number => {
   const before = reads();

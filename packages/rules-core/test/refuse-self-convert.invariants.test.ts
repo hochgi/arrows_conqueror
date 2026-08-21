@@ -341,10 +341,12 @@ describe('the system enumerates no vertex', () => {
         { arrow: exit, owner: B },
       ],
     });
-    // P37 resolves losses at the tail of `apply`, which reads every seat's shares
-    // and so reads the lattice once per move. The permitted raid is measured as a
-    // delta over an idle move on the same board; listing and refusing never get
-    // that far, so they must still read nothing at all.
+    // P37 resolves losses at the tail of `apply`, and the last thing that needs for
+    // a seat which owns ground and holds no head is a *share* count, which walks the
+    // lattice — and `stateOf`'s keepalive land makes exactly that seat exist here. So
+    // the permitted raid is measured as a delta over an idle move on the same board.
+    // Listing moves and refusing a self-convert never reach resolution, so their zero
+    // stays hard. See `immediate-loss.md`, *Cost*.
     const idle = vertexReadsOf(vertexReads, () => {
       rules.apply(raid, skip(from));
     });

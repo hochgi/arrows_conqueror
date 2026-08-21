@@ -304,9 +304,11 @@ describe('closure is pure and deterministic', () => {
       territory: owned([home, landing], A),
     });
 
-    // P37: `apply` resolves losses on every move and reading a seat's shares
-    // reads the lattice, so the closure's own reads are the delta over a move
-    // that closes nothing.
+    // P37: the closure's own reads are the delta over a move that closes nothing.
+    // Not a hard zero any more, and not because closure changed: loss resolution
+    // sits on the tail of `apply` and counts the *shares* of a seat that owns
+    // ground and holds no head, which `stateOf`'s keepalive land makes true of
+    // every seat that authored none. See `immediate-loss.md`, *Cost*.
     const idle = vertexReadsOf(vertexReads, () => {
       rules.apply(state, skip(last));
     });

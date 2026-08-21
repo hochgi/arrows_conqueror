@@ -16,9 +16,10 @@ import { endTurn, skip, step } from '@conquarrow/contracts';
 import type { ArrowId, GameState, GeometryPort, PlayerId } from '@conquarrow/contracts';
 import { makeMatch, makeTiling } from '@conquarrow/geometry-tiling';
 import { makeRules } from '../src/index';
-import { isLost, resolveLosses, territoryCountOf } from '../src/victory';
+import { headsOf, isLost, resolveLosses, territoryCountOf } from '../src/victory';
 import {
   aLandBridge,
+  countingMap,
   crossing,
   farArrow,
   landOf,
@@ -28,6 +29,7 @@ import {
   shareArrowsOf,
   someSeatIsAlive,
   statesAlong,
+  traversalsOf,
 } from './immediate.support';
 import type { LandBridge } from './immediate.support';
 import {
@@ -35,6 +37,7 @@ import {
   B,
   C,
   D,
+  SIX,
   THREE,
   aBoard,
   aVertex,
@@ -47,7 +50,7 @@ import {
   shareArrow,
   streakOf,
 } from './losing.support';
-import { anExitFrom, countingVertices, headsOn, snapshot, vertexReadsOf } from './support';
+import { anExitFrom, snapshot } from './support';
 
 const FORCE = { num: 1, den: 3 } as const;
 
@@ -158,38 +161,54 @@ describe('every way a seat can lose its last territory resolves at once', () => 
     expect(holdingsOf(after, C)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
   });
 
-  it('loses a landless seat on the move that empties its last stack in combat', () => {
-    // The feature's Given — *C owns no territory and holds one head* — is a state
-    // P37 makes unreachable: any earlier move would have resolved it. So this is
-    // an authored premise, and what it can honestly assert is only that the state
-    // the combat step returns has C lost and its pieces gone. It is a weaker test
-    // than its name suggests, and the weakness is in the scenario, not here.
+  it('loses an authored landless seat on the next move, whatever that move is', () => {
+    // *An authored state in which C owns no territory and holds one head*, and
+    // *when any move is applied*. A landless seat is what P37 makes unreachable by
+    // play, so the premise can only be authored — and what the scenario asks for is
+    // therefore **totality**, not a claim about one kind of move. So it quantifies
+    // over every move the engine offers on that board rather than picking one, and
+    // the eight of them include the step into C's stack, the step away from it, the
+    // skip and the pass alike.
     const ground = aBoard();
-    const attacker = shareArrow(ground, 0);
-    const contested = anExitFrom(ground.geometry, attacker);
+    const mover = shareArrow(ground, 0);
     const before = seatState({
       players: THREE,
       activePlayer: A,
       groups: [
-        { arrow: attacker, owner: A, heads: 3 },
-        { arrow: contested, owner: C, heads: 1 },
+        { arrow: mover, owner: A, heads: 3 },
         { arrow: bareArrow(ground, 0), owner: B, heads: 1 },
+        { arrow: bareArrow(ground, 1), owner: C, heads: 1 },
       ],
       territory: [
-        { arrow: attacker, owner: A },
+        { arrow: mover, owner: A },
         ...held([bareArrow(ground, 0)], B),
       ],
       spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
     });
-    expect(headsOn(before, contested)).toBe(1);
+    expect(territoryCountOf(before, C)).toBe(0);
+    expect(headsOf(before, C)).toBe(1);
 
-    // Two of three attack, leaving one behind (§6.2 / item 38), so the lone
-    // defender is wiped rather than trading down.
-    const after = ground.rules.apply(before, step(attacker, contested, 2));
+    const offered = ground.rules.legalMoves(before);
 
-    expect(after.groups.get(contested)?.owner).toBe(A);
-    expect(isLost(after, C, ground.geometry)).toBe(true);
-    expect(holdingsOf(after, C)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+    // Non-vacuous, and *totality*: every kind is on offer, so "whatever it is"
+    // really ranges over all three.
+    expect([...new Set(offered.map((move) => move.kind))].toSorted()).toEqual([
+      'endTurn',
+      'skip',
+      'step',
+    ]);
+    const survived: string[] = [];
+    for (const move of offered) {
+      const after = ground.rules.apply(before, move);
+      if (
+        !isLost(after, C, ground.geometry) ||
+        holdingsOf(after, C).heads !== 0 ||
+        holdingsOf(after, C).land.length !== 0
+      ) {
+        survived.push(`${move.kind}:${String(move.kind === 'endTurn' ? '' : move.from)}`);
+      }
+    }
+    expect(survived).toEqual([]);
   });
 });
 
@@ -375,7 +394,7 @@ const aBoardWithCGone = (): { ground: ReturnType<typeof aBoard>; state: GameStat
 };
 
 describe('a lost seat is inert', () => {
-  it('offers a lost seat no move but the pass', () => {
+  it('offers a lost seat nothing but the pass', () => {
     const { ground, state } = aBoardWithCGone();
     expect(isLost(state, C, ground.geometry)).toBe(true);
 
@@ -533,39 +552,55 @@ describe('determinism and cost', () => {
     for (const seat of [B, C, D]) expect(landOf(forward, seat)).toEqual([]);
   });
 
-  it('reads each seat’s counts a bounded number of times, not once per player', () => {
-    // The cost claim of the spec, in the only currency a port test can measure:
-    // resolving a loss reads the spawner lattice, and it must not read it once per
-    // *seat*. Two boards differing only in seat count must cost the same.
+  it('reads territory and groups in one pass, not once per player', () => {
+    // The currency is **traversals**, which is the only one a test has for a claim
+    // about two plain `Map`s: `countingMap` charges one for each `entries`, `keys`,
+    // `values`, `forEach` or spread and nothing at all for a `get`. A resolution
+    // that scans `territory` and `groups` once per seat therefore costs a traversal
+    // per seat, and its count *grows with the seat list*; one pass costs the same
+    // on a two-seat board as on a six-seat one. That difference is the assertion —
+    // not an absolute number, which would pin a shape phase 3 is free to choose.
+    //
+    // Every seat here is alive and nothing is removed, on purpose: `vanishSeat`
+    // legitimately traverses once per *removed* seat, and letting removals vary
+    // with the seat count would confound the two.
+    //
+    // What no test here measures is wall-clock cost. The spec measures that on the
+    // 1247-move fold and records the number; a timing assertion is not a test.
     const ground = aBoard();
-    const spy = countingVertices(ground.geometry);
-    const rules = makeRules(spy.geometry);
-    const mover = shareArrow(ground, 0);
-    const board = (players: readonly PlayerId[]): GameState =>
+    const alive = (players: readonly PlayerId[]): GameState =>
       seatState({
         players,
         activePlayer: A,
-        groups: [{ arrow: mover, owner: A, heads: 2 }],
-        territory: [
-          { arrow: mover, owner: A },
-          ...players.slice(1).map((seat, index) => ({
-            arrow: bareArrow(ground, index),
-            owner: seat,
-          })),
-        ],
+        // Ground and a head for each seat, so no seat qualifies and no seat needs
+        // its shares counted — the §9 starvation-clock row.
+        groups: players.map((seat, index) => ({
+          arrow: bareArrow(ground, players.length + index),
+          owner: seat,
+          heads: 1,
+        })),
+        territory: players.map((seat, index) => ({ arrow: bareArrow(ground, index), owner: seat })),
         spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
       });
+    const walks = (players: readonly PlayerId[]): number => {
+      const authored = alive(players);
+      const territory = countingMap(authored.territory);
+      const groups = countingMap(authored.groups);
+      const state: GameState = { ...authored, territory: territory.map, groups: groups.map };
+      return traversalsOf([territory, groups], () => {
+        const settled = resolveLosses(state, ground.geometry);
+        if (settled.territory.size !== authored.territory.size) {
+          throw new Error('setup: that board was meant to lose nobody');
+        }
+      });
+    };
 
-    const twoSeats = vertexReadsOf(spy.vertexReads, () => {
-      rules.apply(board([A, B]), skip(mover));
-    });
-    const fourSeats = vertexReadsOf(spy.vertexReads, () => {
-      rules.apply(board([A, B, C, D]), skip(mover));
-    });
+    const twoSeats = walks([A, B]);
+    const sixSeats = walks(SIX);
 
-    expect(fourSeats).toBe(twoSeats);
-    // Non-vacuous: the resolution *does* read the lattice, it just does not read
-    // it once per seat. Zero reads would mean nothing resolved.
+    expect(sixSeats).toBe(twoSeats);
+    // Non-vacuous: the resolution really does read them. Zero would mean it decided
+    // who is lost without looking at the board.
     expect(twoSeats).toBeGreaterThan(0);
   });
 

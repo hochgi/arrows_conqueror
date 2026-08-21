@@ -11,9 +11,10 @@
  * onto 1242, and the four moves the log recorded after it stop being playable,
  * because move 1244 is E stepping a head E no longer has.
  *
- * The second pins the safety property (invariant 8): resolving more often changes
- * *when* a seat is lost and never *which* seats are lost. See the note on that
- * test for what can and cannot be honestly asserted there.
+ * The second pins invariant 8 as far as it can be pinned: at the end of a record
+ * the lost set is the set the §9 table qualifies, and one further move leaves it
+ * alone. It does **not** show that resolving more often never changes the outcome —
+ * that needs the pre-P37 engine to compare against. See the note on that test.
  *
  * @see docs/spec/immediate-loss/immediate-loss.md
  * @see .claude/skills/rules-invariants/SKILL.md
@@ -201,18 +202,18 @@ describe('a four-seat match that loses three seats', () => {
     expect(final.winner).toBe(D);
   });
 
-  it('loses exactly the same three seats a boundary-only resolution would', () => {
-    // Invariant 8 — *resolving losses more often shall not change which players
-    // are lost over a whole match, only when each is lost.*
+  it('loses exactly the seats the table qualifies, and one further move changes nothing', () => {
+    // Invariant 8, in the form it now has: *at the end of a record the set of lost
+    // players shall be exactly those the §9 table qualifies, and one further move
+    // shall not change it.*
     //
-    // The honest encoding, and its limit: nothing here keeps a copy of the
-    // pre-P37 engine, so this cannot compare the two implementations directly,
-    // and it does not pretend to. What it asserts is the *mechanism* the spec
-    // argues from — removal gives nobody anything — measured on the settled
-    // board: the set of seats lost at the end of the record is exactly the set
-    // the four-case table calls lost, so no removal along the way created or
-    // spared a loss. A seat lost earlier than a boundary is still lost at the
-    // boundary, because `isLost` is idempotent once the pieces are gone.
+    // **Not** the stronger claim it used to carry. Nothing here keeps a copy of the
+    // pre-P37 engine, so nothing here can compare boundary-only resolution against
+    // per-move resolution, and the name no longer suggests otherwise. That the two
+    // agree follows from removal giving nobody anything — an argument, made in the
+    // spec, and left as one. What is checked is the observable consequence: the
+    // settled set is the qualified set, and a further chance to resolve moves it
+    // nowhere.
     const { ground, initial, moves } = aMatchLosingThree();
 
     const final = replay(ground.rules, initial, moves);

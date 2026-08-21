@@ -29,6 +29,8 @@ import { makeRules } from '../src/index';
 import { isLost, shareCountOf, territoryCountOf } from '../src/victory';
 import {
   aLandBridge,
+  anEncirclingLoop,
+  closingStep,
   crossing,
   farArrow,
   landOf,
@@ -108,17 +110,31 @@ const victimHeadArrow = (bridge: LandBridge): ReturnType<typeof farArrow> =>
 
 describe('the deciding move ends the match', () => {
   it('crowns the mover on the step whose closure takes the last enemy territory', () => {
-    // The feature's Given reads "B and C are already lost … around B's last
-    // territory", which cannot both hold — a lost seat owns nothing. Read the
-    // only way it is not vacuous: B is already lost, and A's closure takes C's
-    // last territory, which leaves A alone.
-    const bridge = aLandBridge();
-    const before = aDecidedPosition(bridge, THREE, { victim: C });
-    expect(isLost(before, B, bridge.geometry)).toBe(true);
-    expect(isLost(before, C, bridge.geometry)).toBe(false);
+    // The Given, exactly: *B is already lost*, and *C's last territory lies inside
+    // a loop A can close in one step*. Inside, not on the path — so this is the
+    // encircling shape and not the land bridge every other scenario here uses, and
+    // the claim has to be a real fill for the premise to be the stated one.
+    const loop = anEncirclingLoop();
+    const before = seatState({
+      players: THREE,
+      activePlayer: A,
+      groups: [
+        { arrow: loop.tip, owner: A, heads: 1 },
+        { arrow: loop.far, owner: C, heads: 1 },
+      ],
+      trails: [[A, loop.trail]],
+      territory: [...held([loop.home], A), { arrow: loop.inside, owner: C }],
+    });
+    expect(isLost(before, B, loop.geometry)).toBe(true);
+    expect(isLost(before, C, loop.geometry)).toBe(false);
+    expect(territoryCountOf(before, C)).toBe(1);
     expect(before.winner).toBeUndefined();
+    const claim = loop.rules.closureOf(before, closingStep(loop), A);
+    if (claim === undefined) throw new Error('setup: that step closes nothing');
+    expect(claim.enclosed).toContain(loop.inside);
+    expect(claim.path).not.toContain(loop.inside);
 
-    const after = bridge.rules.apply(before, crossing(bridge));
+    const after = loop.rules.apply(before, closingStep(loop));
 
     expect(after.winner).toBe(A);
   });

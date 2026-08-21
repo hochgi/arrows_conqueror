@@ -36,7 +36,7 @@ import { makeRules } from '../src/index';
 import { isLost, shareCountOf } from '../src/victory';
 import { A, B, C, D, aBoard, aVertex, bareArrow, held, seatState, shareArrow } from './losing.support';
 import type { Ground } from './losing.support';
-import { exitsFrom } from './support';
+import { aRingWithAnInside, arrowAt, exitsFrom } from './support';
 
 // ── the committed playtest log ────────────────────────────────────────────────
 
@@ -197,7 +197,7 @@ export const landOf = (state: GameState, player: PlayerId): readonly string[] =>
 // ── a hand-authored record that loses three seats ────────────────────────────
 
 /** An exit from `arrow` that nobody owns — a step that cannot convert itself. */
-const clearExit = (ground: Ground, state: GameState, arrow: ArrowId): ArrowId => {
+export const clearExit = (ground: Ground, state: GameState, arrow: ArrowId): ArrowId => {
   const found = exitsFrom(ground.geometry, arrow).find(
     (exit) => !state.territory.has(exit) && !state.groups.has(exit),
   );
@@ -312,3 +312,107 @@ export const farArrow = (bridge: LandBridge, index: number): ArrowId => {
 
 /** The step that walks the bridge and claims it. */
 export const crossing = (bridge: LandBridge): Move => step(bridge.bridge, bridge.landing, 1);
+
+// ── a loop with an enemy arrow inside it ─────────────────────────────────────
+
+/**
+ * A directed 6-cycle on the tiling that A can close in **one step**, with an
+ * arrow genuinely *inside* it.
+ *
+ * The land bridge above claims the path and encloses nothing; this is the other
+ * shape, and the one the core feature's *closure taking the last enemy territory*
+ * scenario now asks for — the victim's last arrow **lies inside** the loop rather
+ * than being the arrow the mover walks. So the claim has to be a real fill: an
+ * arrow from which no walk escapes, which no finite fixture board can host (§11
+ * item 4), hence the tiling.
+ *
+ * The loop is closed by a single step from {@link tip} onto {@link home}, which is
+ * the mover's own territory — departing your ground and landing back on it (§7).
+ */
+export interface EncirclingLoop {
+  readonly geometry: GeometryPort;
+  readonly rules: RulesPort;
+  /** The mover's territory the loop departs from and lands back on. */
+  readonly home: ArrowId;
+  /** The trail arrow the closing step is taken from. */
+  readonly tip: ArrowId;
+  /** The mover's trail before the closing step — the loop bar `home`. */
+  readonly trail: readonly ArrowId[];
+  /** An arrow the closed loop rings — author it as the victim's last territory. */
+  readonly inside: ArrowId;
+  /** An arrow well outside the loop, for holdings the closure must not touch. */
+  readonly far: ArrowId;
+}
+
+export const anEncirclingLoop = (): EncirclingLoop => {
+  const geometry = makeTiling();
+  const ring = aRingWithAnInside(geometry);
+  return {
+    geometry,
+    rules: makeRules(geometry),
+    home: arrowAt(ring.wall, 0),
+    tip: arrowAt(ring.wall, ring.wall.length - 1),
+    trail: ring.wall.slice(1),
+    inside: ring.inside,
+    far: ring.far,
+  };
+};
+
+/** The one step that closes the loop and claims what it rings. */
+export const closingStep = (loop: EncirclingLoop): Move => step(loop.tip, loop.home, 1);
+
+// ── counting how often a state's maps are walked ─────────────────────────────
+
+export interface CountedMap<K, V> {
+  /** A `ReadonlyMap` indistinguishable from the original bar the counter. */
+  readonly map: ReadonlyMap<K, V>;
+  /** How many times something has started iterating it. */
+  readonly traversals: () => number;
+}
+
+/**
+ * A `ReadonlyMap` that counts **traversals** — not element reads.
+ *
+ * The currency the *counts are read in one pass, not once per player* scenario
+ * needs. `get` and `has` are free; `entries`, `keys`, `values`, `forEach` and
+ * spreading each cost one. An implementation that scans `territory` once per seat
+ * therefore costs one traversal per seat and its count grows with the seat list,
+ * while a single pass costs the same on a two-seat board and a six-seat one — and
+ * *that difference* is what a test can assert without pinning a shape phase 3 is
+ * free to choose.
+ */
+export const countingMap = <K, V>(source: ReadonlyMap<K, V>): CountedMap<K, V> => {
+  const inner = new Map(source);
+  let traversals = 0;
+  const walked = <T>(iterator: IterableIterator<T>): IterableIterator<T> => {
+    traversals += 1;
+    return iterator;
+  };
+  const map: ReadonlyMap<K, V> = {
+    get size() {
+      return inner.size;
+    },
+    get: (key) => inner.get(key),
+    has: (key) => inner.has(key),
+    entries: () => walked(inner.entries()),
+    keys: () => walked(inner.keys()),
+    values: () => walked(inner.values()),
+    forEach: (callback, thisArg) => {
+      traversals += 1;
+      inner.forEach(callback, thisArg);
+    },
+    [Symbol.iterator]: () => walked(inner[Symbol.iterator]()),
+  };
+  return { map, traversals: () => traversals };
+};
+
+/** Traversals one call makes, as a delta — the same shape as `vertexReadsOf`. */
+export const traversalsOf = (
+  counted: readonly { readonly traversals: () => number }[],
+  run: () => void,
+): number => {
+  const total = (): number => counted.reduce((sum, one) => sum + one.traversals(), 0);
+  const before = total();
+  run();
+  return total() - before;
+};

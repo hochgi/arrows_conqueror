@@ -152,6 +152,11 @@ walk would break that on every move rather than in the one case that needs it.
 13. Equal states shall produce equal losses.
 14. A replay of the same move list shall lose the same seats on the same moves.
 15. `victory.ts` shall reference neither a clock nor a random source.
+16. The system shall read the spawner lattice only for a player who owns
+    territory and holds no head. *(The short-circuit argued under **Cost**. In a
+    state where every living seat holds a head, `apply` shall read no vertex at
+    all. Stated as an invariant rather than left in the prose because five other
+    packets depend on it — see the section below.)*
 
 ## Consequence for the five "enumerate no vertex" invariants
 
@@ -160,12 +165,32 @@ walk would break that on every move rather than in the one case that needs it.
 `apply`, that sentence is measured across a whole `apply` and can no longer mean
 what it meant.
 
-The **intent survives and the measurement changes**: each of those rules still
-reads no vertex of its own. Assert it as a **delta over an idle move on the same
-board** — the closure, the cut, the fill adds no lattice read beyond whatever
-`apply` already does. Listing moves and refusing a self-convert keep a hard zero,
-because neither reaches resolution. Those five specs are superseded in place with
-a pointer here.
+The **intent survives, and for some of them the measurement changes**: each of
+those rules still reads no vertex of its own. Which form applies depends on
+whether the assertion runs through `apply` — and only three of the five do.
+
+| spec | form after P37 | why |
+|---|---|---|
+| `closure` | delta over an idle move | asserted through `apply` |
+| `cuts` | delta over an idle move | asserted through `apply` |
+| `encirclement` | delta, when asserted | conversion runs inside `apply`; currently unasserted |
+| `fill` | **hard zero** | asserted on `enclosedBy`, which never reaches resolution |
+| `refuse-self-convert` | **hard zero** for listing and refusing | a refusal throws before resolution; a permitted move on the same board is a delta |
+
+Two of them were weakened in the first pass of this correction and should not
+have been. Fill is measured on `enclosedBy` directly and a refusal throws before
+`apply` gets to the tail, so neither can reach loss resolution and neither zero
+moves. All five specs are superseded in place with a pointer here, each carrying
+the form that is actually true of it.
+
+A delta is a weaker statement than a zero, so prefer the zero wherever the board
+qualifies. On a board where every living seat holds a head, invariant 16 makes
+the delta *equal* zero — but `stateOf`'s keepalive land grants bystander seats an
+arrow and no head, which is exactly the row that legitimately reads the lattice.
+Giving those seats heads to recover the zero would put a stray enemy head next to
+the rule under test, which is a cut or a conversion, not a cleaner measurement.
+The hard-zero requirement is asserted directly in the immediate-loss suite
+instead, where the board can be authored for it.
 
 ## Out of scope
 
