@@ -664,7 +664,6 @@ export const legalSeats = (state: GameState): GameState => {
   const first = named[0];
   if (first === undefined) return state;
   const board = boardOfArrow(first);
-  if (board === undefined) return state;
   const landed = new Set([...state.territory.values()].map(String));
   const taken = new Set(named.map(String));
   const asExit = new Set<string>();
@@ -699,7 +698,12 @@ export const legalSeats = (state: GameState): GameState => {
       const vertex = [...board.flankVertices(mine[0])].toSorted((left, right) =>
         String(left) < String(right) ? -1 : 1,
       )[0];
-      if (vertex !== undefined) spawners.set(vertex, { force: { num: 1, den: 3 }, phase: 0 });
+      if (vertex === undefined) {
+        throw new Error(
+          `setup: that board flanks ${String(mine[0])} with no vertex, so ${String(player)} cannot be given a share`,
+        );
+      }
+      spawners.set(vertex, { force: { num: 1, den: 3 }, phase: 0 });
     }
   }
   return { ...state, territory, spawners };
@@ -722,8 +726,18 @@ const candidateHomes = (board: GeometryPort): readonly ArrowId[] => {
   );
 };
 
-/** Which of the three boards an authored arrow id came from. */
-const boardOfArrow = (arrow: ArrowId): GeometryPort | undefined => {
+/**
+ * Which of the three boards an authored arrow id came from, or a **setup
+ * failure**.
+ *
+ * The identification is lexical — the id's first two segments — which no port
+ * promises (ids are opaque, P01 D1). That shortcut is tolerable only while a miss
+ * is *loud*: this used to return `undefined`, and `legalSeats` then handed the
+ * state back untouched, so a fixture that needed a legal seat silently got none
+ * and the failure surfaced later, elsewhere, as a rule failure. Throwing names
+ * the board it could not place a seat on instead.
+ */
+const boardOfArrow = (arrow: ArrowId): GeometryPort => {
   const prefix = String(arrow).split(':').slice(0, 2).join(':');
   for (const candidate of [geometry, makeFixture(MINIMAL), makeFixture(SPACIOUS)]) {
     const sample = candidate.window(candidate.seedPoint(), 1).arrows[0];
@@ -731,5 +745,7 @@ const boardOfArrow = (arrow: ArrowId): GeometryPort | undefined => {
       return candidate;
     }
   }
-  return undefined;
+  throw new Error(
+    `setup: no known board for arrow ${String(arrow)} — its prefix "${prefix}" is neither fixture nor the tiling, so no seat can be placed on it`,
+  );
 };

@@ -181,8 +181,25 @@ const boards = (): readonly BoardInfo[] => {
   return BOARDS;
 };
 
-const boardOf = (arrow: ArrowId): BoardInfo | undefined =>
-  boards().find((board) => board.prefix === prefixOf(arrow));
+/**
+ * The board an authored arrow belongs to, or a **setup failure**.
+ *
+ * The identification is lexical — the id's first two segments — which no port
+ * promises (P01 D1 says ids are opaque). That is a known shortcut, and it is
+ * tolerable only while a miss is *loud*: this used to return `undefined` and
+ * both callers then silently granted nothing, so a state that needed a keepalive
+ * seat got none and the failure surfaced later, somewhere else, as a rule failure.
+ * Throwing here names the board instead.
+ */
+const boardOf = (arrow: ArrowId): BoardInfo => {
+  const found = boards().find((board) => board.prefix === prefixOf(arrow));
+  if (found === undefined) {
+    throw new Error(
+      `setup: no known board for arrow ${String(arrow)} — its prefix "${prefixOf(arrow)}" is neither fixture nor the tiling, so no seat can be placed on it`,
+    );
+  }
+  return found;
+};
 
 /** Every arrow the scenario itself named — occupancy, trail and territory. */
 const namedArrows = (placements: readonly Placement[], ground: Ground): readonly ArrowId[] => [
@@ -217,7 +234,6 @@ const keepaliveLand = (
   const first = named[0];
   if (first === undefined) return [];
   const board = boardOf(first);
-  if (board === undefined) return [];
   const landed = new Set((ground.territory ?? []).map((t) => String(t.owner)));
   const taken = new Set(named.map(String));
   const geometry = board.geometry;
@@ -269,13 +285,16 @@ const keepaliveSpawners = (
   const first = territory[0];
   if (first === undefined) return [];
   const board = boardOf(first.arrow);
-  if (board === undefined) return [];
   const grants: (readonly [VertexId, Spawner])[] = [];
   for (const player of PLAYERS) {
     const home = territory.find((t) => t.owner === player)?.arrow;
     if (home === undefined) continue;
     const vertex = sortById(board.geometry.flankVertices(home))[0];
-    if (vertex === undefined) continue;
+    if (vertex === undefined) {
+      throw new Error(
+        `setup: ${board.prefix} flanks ${String(home)} with no vertex, so ${String(player)} cannot be given a share`,
+      );
+    }
     grants.push([vertex, { force: rational(1, 3), phase: 0 }] as const);
   }
   return grants;

@@ -166,7 +166,7 @@ describe('surviving fragments demote to stack grade', () => {
   });
 });
 
-describe('cut resolution is pure and enumerates no vertex', () => {
+describe('cut resolution is pure and requests no vertex beyond an idle move', () => {
   it('does not mutate the input trail sets', () => {
     const table = onBoard();
     const { trailIn, trailOut, ourIn, ourExit } = anInterleaving(
@@ -184,7 +184,7 @@ describe('cut resolution is pure and enumerates no vertex', () => {
     expect(trailOf(s1, B).length).toBeLessThan(before.length);
   });
 
-  it('enumerates no vertex on either fixture board', () => {
+  it('requests no vertex beyond what an idle move requests, on either fixture board', () => {
     for (const { description, diameter } of BOARDS) {
       const base = onBoard(description).geometry;
       const { geometry, vertexReads } = countingVertices(base);

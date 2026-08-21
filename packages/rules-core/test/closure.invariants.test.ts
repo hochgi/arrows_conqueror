@@ -175,7 +175,7 @@ describe('commit writes territory and strips every trail on claimed arrows', () 
     expect(after.groups.get(occupied)?.heads).toBe(2);
   });
 
-  it('enumerates no vertex and does not mutate its input', () => {
+  it('requests no vertex beyond what an idle move requests, and does not mutate its input', () => {
     const base = onTiling().geometry;
     const { geometry, vertexReads } = countingVertices(base);
     const rules = makeRules(geometry);

@@ -1,5 +1,5 @@
 /**
- * The 15 EARS invariants of docs/spec/immediate-loss/immediate-loss.md, as
+ * The 16 EARS invariants of docs/spec/immediate-loss/immediate-loss.md, as
  * properties rather than examples.
  *
  * The generator is the point, as it was for P36: every timing invariant below is
@@ -42,13 +42,15 @@ import {
   aVertex,
   bareArrow,
   closeRound,
+  held,
   holdingsOf,
+  readingsOf,
   seatState,
   shareArrow,
   streakOf,
 } from './losing.support';
 import type { Ground } from './losing.support';
-import { anExitFrom, countingVertices, snapshot, vertexReadsOf } from './support';
+import { anExitFrom, countingVertices, exitsFrom, snapshot, vertexReadsOf } from './support';
 import { replayIsDeterministic } from '../src/replay';
 
 const FORCE = { num: 1, den: 3 } as const;
@@ -173,6 +175,90 @@ describe('a move records the losses it causes', () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  /**
+   * A seat with land, no share and **one head**, and the attack that kills it.
+   *
+   * The one path that *causes* invariant 2's row rather than authoring it. The
+   * generator above selects `destitute` from the state *before* the move, so it
+   * only ever checks that an already-destitute seat is settled; nothing there
+   * makes a move produce `T>0, S=0, H=0`. Combat does: it is a deterministic 1:1
+   * exchange (§6.2), so a lone defender is wiped, and the seat that owned it still
+   * owns ground and still owns no share.
+   *
+   * Authored with `seatState`, which grants no keepalive. `stateOf`'s keepalive
+   * hands every seat a share **specifically so this row cannot fire**, so no suite
+   * built on it can reach here — which is exactly why the case had no test.
+   */
+  const aSeatAboutToLoseItsLastHead = (): {
+    readonly ground: Ground;
+    readonly before: GameState;
+    readonly attack: Move;
+    readonly victimHead: ArrowId;
+    readonly victimLand: ArrowId;
+  } => {
+    const ground = aBoard();
+    const attacker = shareArrow(ground, 0);
+    const exits = exitsFrom(ground.geometry, attacker);
+    const victimHead = exits[0];
+    if (victimHead === undefined) throw new Error('setup: that share arrow has no exit');
+    // B's ground is a share so B is plainly playing, and it must not be a
+    // destination of the attack — a step onto enemy territory is a refused
+    // self-convert (P28), not the attack this scenario is about.
+    const bystanderLand = ground.shares.find(
+      (arrow) => arrow !== attacker && !exits.includes(arrow),
+    );
+    if (bystanderLand === undefined) {
+      throw new Error('setup: every other share arrow is an exit of the attacker');
+    }
+    const victimLand = ground.bare.find(
+      (arrow) => arrow !== victimHead && !exits.includes(arrow),
+    );
+    if (victimLand === undefined) throw new Error('setup: no bare arrow clear of the attack');
+    const before = seatState({
+      players: THREE,
+      activePlayer: A,
+      groups: [
+        { arrow: attacker, owner: A, heads: 3 },
+        { arrow: bystanderLand, owner: B, heads: 1 },
+        // C: ground, no share, and exactly one head — the seat this step decides.
+        { arrow: victimHead, owner: C, heads: 1 },
+      ],
+      territory: [
+        { arrow: attacker, owner: A },
+        { arrow: bystanderLand, owner: B },
+        ...held([victimLand], C),
+      ],
+      spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
+    });
+    // §6.2 stay-behind: an attack may not empty `from`, so two of the three go.
+    return { ground, before, attack: step(attacker, victimHead, 2), victimHead, victimLand };
+  };
+
+  it('2. records a seat whose last head combat kills as lost in that same state', () => {
+    const { ground, before, attack, victimHead, victimLand } = aSeatAboutToLoseItsLastHead();
+    // Before the move C is on the starvation clock, not lost: ground, no share,
+    // one head. So the move is what *causes* the row.
+    expect(readingsOf(before, C, ground.geometry)).toEqual({
+      territory: 1,
+      shares: 0,
+      heads: 1,
+    });
+    expect(isLost(before, C, ground.geometry)).toBe(false);
+
+    const after = ground.rules.apply(before, attack);
+
+    // Combat took the head — A stands where C stood — and C is settled in the
+    // state this one move returned, not at some later boundary.
+    expect(after.groups.get(victimHead)?.owner).toBe(A);
+    expect(headsOf(after, C)).toBe(0);
+    expect(isLost(after, C, ground.geometry)).toBe(true);
+    expect(landOf(after, C)).toEqual([]);
+    expect(after.territory.get(victimLand)).toBeUndefined();
+    // And nothing else was decided by it.
+    expect(isLost(after, A, ground.geometry)).toBe(false);
+    expect(isLost(after, B, ground.geometry)).toBe(false);
   });
 
   it('5. resolves losses after a step, after a skip and after an end of turn alike', () => {
@@ -392,13 +478,16 @@ describe('the item-44 chain, over every state a replay passes through', () => {
     const opening = makeMatch(log.config);
     const rules = makeRules(geometry);
     const reported = statesAlong(rules, opening, log.moves);
-    return [
-      {
-        name: 'the reported playtest log',
-        states: [opening, ...reported.stops.map((stop) => stop.state)],
-        geometry,
-      },
-    ];
+    const states = [opening, ...reported.stops.map((stop) => stop.state)];
+    // The floor belongs here, not in each caller. Invariants 9, 10 and 11 all
+    // quantify over these states with no length of their own, so a fixture that
+    // failed to load — or a record refused on its first move — would collapse the
+    // trace to the opening alone and satisfy all three vacuously. Until now the
+    // only thing making them bite was an assertion in a *different* file
+    // (`immediate-loss.replay.test.ts`, `refusedAt === 1244`); this file has to
+    // stand on its own. A floor, not a pin: the record is 1247 moves long.
+    expect(states.length).toBeGreaterThan(1000);
+    return [{ name: 'the reported playtest log', states, geometry }];
   };
 
   it('9. keeps some player owning at least one spawner share in every state', () => {
@@ -435,24 +524,45 @@ describe('the item-44 chain, over every state a replay passes through', () => {
 describe('order, determinism and purity', () => {
   it('12. resolves losses in state.players order', () => {
     // What this can and cannot show. Per-seat removal gives nobody anything, so
-    // removals commute and the *order* of the resolution loop has no falsifying
-    // observation of its own (P36 invariant 19 says this in full). So the
-    // observable content of "in `state.players` order" is: the seats a state
-    // reports as lost come back in that array's order and never in a map's, and
-    // the answer does not depend on how the maps were filled. The second half is
-    // invariant 13's test; this is the first.
+    // removals commute and the loop's *order* has no falsifying observation at all
+    // — no state carries it, and the predicate is derived by filtering
+    // `state.players`, so any answer read back is in that order by construction.
+    // Comparing the reported order against `players.filter(isLost)` is therefore
+    // comparing `lostAlong` to its own body: it cannot fail. (It did, until this
+    // was rewritten.)
+    //
+    // What is real, and what a "resolve in order" loop actually gets wrong, is
+    // *completeness*: a loop that removes the first qualifying seat and then reads
+    // a stale state, or breaks, leaves later seats standing. So this asserts the
+    // pass acted on **every** seat it calls lost — not just the earliest — and left
+    // `state.players` itself alone (P36 invariant 14). The map-insertion-order half
+    // is invariant 13's test.
     const ground = aBoard();
-    const outOfOrder: string[] = [];
+    const unfinished: string[] = [];
     for (const rows of ASSIGNMENTS) {
       const before = boardFor(ground, rows);
       const after = ground.rules.apply(before, endTurn());
-      const reported = lostAlong(after, ground.geometry);
-      const inOrder = after.players
-        .filter((seat) => isLost(after, seat, ground.geometry))
-        .map(String);
-      if (reported.join(',') !== inOrder.join(',')) outOfOrder.push(rows.join(''));
+      const lost = lostAlong(after, ground.geometry);
+      const seatOrderKept =
+        after.players.map(String).join(',') === before.players.map(String).join(',');
+      const allCleared = after.players
+        .filter((seat) => lost.includes(String(seat)))
+        .every(
+          (seat) =>
+            landOf(after, seat).length === 0 &&
+            headsOf(after, seat) === 0 &&
+            !after.starvationStreaks.has(seat),
+        );
+      if (!seatOrderKept || !allCleared) unfinished.push(rows.join(''));
     }
-    expect(outOfOrder).toEqual([]);
+    expect(unfinished).toEqual([]);
+    // Non-vacuous: some assignment must actually lose more than one seat, or
+    // "every seat, not just the earliest" is a claim about an empty set.
+    const multi = ASSIGNMENTS.filter((rows) => {
+      const after = ground.rules.apply(boardFor(ground, rows), endTurn());
+      return lostAlong(after, ground.geometry).length > 1;
+    });
+    expect(multi.length).toBeGreaterThan(0);
   });
 
   it('13. produces equal losses from equal states', () => {
@@ -491,18 +601,24 @@ describe('order, determinism and purity', () => {
 
   it('15. references neither a clock nor a random source in victory.ts', () => {
     const src = readFileSync(new URL('../src/victory.ts', import.meta.url), 'utf8');
-    // Call-shaped, not bare substrings. A bare 'process' also matches the namespace
-    // shim Stryker's instrumenter injects into every mutated file, which killed the
-    // dry run and has left `pnpm test:mutation` dead for all of rules-core since P36
-    // — the purity guard was failing on the harness, not on the source.
+    // Call-shaped, and scoped to what invariant 15 actually claims: a clock and a
+    // random source. `process` and `fetch` are deliberately absent — they are I/O,
+    // not a clock, and they belong to the ESLint purity guard, which bans them as
+    // globals across all of `packages/rules-core/**` at the AST level.
+    //
+    // That split is not tidiness. This test reads the file off disk, so under
+    // Stryker it reads the *instrumented* copy — and the namespace shim the
+    // instrumenter injects contains `process.env.__STRYKER_ACTIVE_MUTANT__`. A
+    // substring or even a call-shaped `process.env` check therefore fails the dry
+    // run on the harness rather than on the source, which is what has left
+    // `pnpm test:mutation` dead for all of rules-core since P36. The lint rule has
+    // no such problem: it reads the real source, and it is the stronger check.
     for (const banned of [
       /\bDate\s*\.\s*now\s*\(/,
       /\bnew\s+Date\b/,
       /\bMath\s*\.\s*random\s*\(/,
       /\bperformance\s*\.\s*now\s*\(/,
       /\bcrypto\s*\./,
-      /\bprocess\s*\.\s*env\b/,
-      /\bfetch\s*\(/,
     ]) {
       expect(src).not.toMatch(banned);
     }

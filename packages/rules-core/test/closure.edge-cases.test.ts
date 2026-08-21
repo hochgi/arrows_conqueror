@@ -292,7 +292,7 @@ describe('closure is pure and deterministic', () => {
     expect(trailInsertion(right, A)).toEqual(trailInsertion(left, A));
   });
 
-  it('enumerates no vertex while resolving a closure', () => {
+  it('requests no vertex beyond what an idle move requests while resolving a closure', () => {
     const base = onTiling().geometry;
     const { geometry, vertexReads } = countingVertices(base);
     const rules = makeRules(geometry);

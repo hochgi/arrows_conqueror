@@ -26,7 +26,6 @@ import {
   lostAlong,
   ownedSharesOf,
   playtestLog,
-  shareArrowsOf,
   someSeatIsAlive,
   statesAlong,
   traversalsOf,
@@ -46,6 +45,7 @@ import {
   held,
   holdingsOf,
   isUnowned,
+  readingsOf,
   seatState,
   shareArrow,
   streakOf,
@@ -214,7 +214,16 @@ describe('every way a seat can lose its last territory resolves at once', () => 
 
 // ── Rule: Resolving sooner cannot change who loses ──────────────────────────
 
-/** Two seats each owning ground, no share and heads — neither qualifies. */
+/**
+ * Two seats each owning ground, no share and heads — the starvation-clock row, so
+ * neither is *lost*; but B's clock has already run out, so B is the seat the
+ * engine removes.
+ *
+ * B's streak is what makes this the engine's own removal rather than a hand-built
+ * map: the scenario says *when one of them is removed*, and the only way a seat in
+ * that row leaves is the clock (§9). Filtering B out of the maps by hand would
+ * make the reading of C a statement about `Array.prototype.filter`.
+ */
 const twoClockedSeats = (): { ground: ReturnType<typeof aBoard>; state: GameState } => {
   const ground = aBoard();
   const state = seatState({
@@ -231,6 +240,8 @@ const twoClockedSeats = (): { ground: ReturnType<typeof aBoard>; state: GameStat
       ...held([bareArrow(ground, 1)], C),
     ],
     spawners: [[aVertex(ground), { force: FORCE, phase: 0 }]],
+    starvationStreaks: [[B, 2]],
+    dominationN: 2,
   });
   return { ground, state };
 };
@@ -238,16 +249,21 @@ const twoClockedSeats = (): { ground: ReturnType<typeof aBoard>; state: GameStat
 describe('resolving sooner cannot change who loses', () => {
   it('never qualifies one seat by removing another', () => {
     const { ground, state } = twoClockedSeats();
-    // Remove B by hand — the same removal `vanishSeat` performs — and read C.
-    const removed: GameState = {
-      ...state,
-      groups: new Map([...state.groups].filter(([, group]) => group.owner !== B)),
-      territory: new Map([...state.territory].filter(([, owner]) => owner !== B)),
-    };
-
-    expect(holdingsOf(removed, C)).toEqual(holdingsOf(state, C));
-    expect(isLost(removed, C, ground.geometry)).toBe(isLost(state, C, ground.geometry));
+    expect(readingsOf(state, C, ground.geometry)).toEqual({ territory: 1, shares: 0, heads: 1 });
     expect(isLost(state, C, ground.geometry)).toBe(false);
+
+    // The engine's own removal, through `vanishSeat` — B's clock has run out.
+    const removed = resolveLosses(state, ground.geometry);
+
+    expect(holdingsOf(removed, B)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+    // What the scenario claims: C's territory, shares and heads are untouched by
+    // it, and C is still not lost. Both are real reads now — a `vanishSeat` that
+    // handed B's ground to a survivor, or cleared one arrow too many, moves them.
+    expect(readingsOf(removed, C, ground.geometry)).toEqual(
+      readingsOf(state, C, ground.geometry),
+    );
+    expect(holdingsOf(removed, C)).toEqual(holdingsOf(state, C));
+    expect(isLost(removed, C, ground.geometry)).toBe(false);
   });
 
   it('leaves a vanished seat’s land belonging to nobody, not to the mover', () => {
@@ -292,9 +308,17 @@ describe('resolving sooner cannot change who loses', () => {
     const after = resolveLosses(before, ground.geometry);
 
     expect(lostAlong(after, ground.geometry)).toEqual(['B', 'C']);
-    expect(lostAlong(after, ground.geometry)).toEqual(
-      before.players.filter((p) => isLost(after, p, ground.geometry)).map(String),
-    );
+    // And each entry of that list stands for a removal that happened. Restating
+    // `lostAlong` over the same state would only re-run its own definition — it
+    // filters `state.players`, so it cannot report any other order and cannot
+    // disagree with itself. Removals commute (P36 invariant 19), so what a single
+    // pass *can* be held to is its content: both seats gone, their ground left
+    // unowned, and the survivor untouched.
+    expect(holdingsOf(after, B)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+    expect(holdingsOf(after, C)).toEqual({ heads: 0, stacks: [], trail: [], land: [] });
+    expect(isUnowned(after, bareArrow(ground, 0))).toBe(true);
+    expect(isUnowned(after, bareArrow(ground, 1))).toBe(true);
+    expect(holdingsOf(after, A)).toEqual(holdingsOf(before, A));
   });
 
   it('loses both seats that qualify on one step', () => {
@@ -459,7 +483,13 @@ describe('item 44’s chain is pinned, not merely argued', () => {
       owned = now;
     }
     expect(dropped).toEqual([]);
-    expect(shareArrowsOf(initial, geometry).size).toBeGreaterThan(0);
+    // The guard has to be on the set the loop walks — *owned* shares — and on the
+    // trace itself. `shareArrowsOf` counts every spawner-border arrow whoever owns
+    // it, so it is positive on any board carrying a spawner and would let an
+    // opening that owned none, or a trace that stopped at zero moves, pass with
+    // `dropped` empty and nothing compared.
+    expect(ownedSharesOf(initial, geometry).size).toBeGreaterThan(0);
+    expect(stops.length).toBeGreaterThan(1000);
   });
 
   it('never reaches a state with no seat left', () => {
@@ -606,18 +636,24 @@ describe('determinism and cost', () => {
 
   it('references neither a clock nor a random source in victory.ts', () => {
     const src = readFileSync(new URL('../src/victory.ts', import.meta.url), 'utf8');
-    // Call-shaped, not bare substrings. A bare 'process' also matches the namespace
-    // shim Stryker's instrumenter injects into every mutated file, which killed the
-    // dry run and has left `pnpm test:mutation` dead for all of rules-core since P36
-    // — the purity guard was failing on the harness, not on the source.
+    // Call-shaped, and scoped to what invariant 15 actually claims: a clock and a
+    // random source. `process` and `fetch` are deliberately absent — they are I/O,
+    // not a clock, and they belong to the ESLint purity guard, which bans them as
+    // globals across all of `packages/rules-core/**` at the AST level.
+    //
+    // That split is not tidiness. This test reads the file off disk, so under
+    // Stryker it reads the *instrumented* copy — and the namespace shim the
+    // instrumenter injects contains `process.env.__STRYKER_ACTIVE_MUTANT__`. A
+    // substring or even a call-shaped `process.env` check therefore fails the dry
+    // run on the harness rather than on the source, which is what has left
+    // `pnpm test:mutation` dead for all of rules-core since P36. The lint rule has
+    // no such problem: it reads the real source, and it is the stronger check.
     for (const banned of [
       /\bDate\s*\.\s*now\s*\(/,
       /\bnew\s+Date\b/,
       /\bMath\s*\.\s*random\s*\(/,
       /\bperformance\s*\.\s*now\s*\(/,
       /\bcrypto\s*\./,
-      /\bprocess\s*\.\s*env\b/,
-      /\bfetch\s*\(/,
     ]) {
       expect(src).not.toMatch(banned);
     }

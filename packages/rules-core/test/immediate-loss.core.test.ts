@@ -35,6 +35,7 @@ import {
   farArrow,
   landOf,
   lostAlong,
+  ownedSharesOf,
   someSeatOwnsAShare,
 } from './immediate.support';
 import type { LandBridge } from './immediate.support';
@@ -397,14 +398,18 @@ describe('some seat is always alive', () => {
       ],
       spawners: [[aVertex(ground), { force: { num: 1, den: 3 }, phase: 0 }]],
     });
-    const held0 = landOf(before, C);
+    const ownedBefore = ownedSharesOf(before, ground.geometry);
 
     const after = ground.rules.apply(before, skip(shareArrow(ground, 0)));
 
     expect(landOf(after, C)).toEqual([]);
-    for (const arrow of held0) {
-      expect(ground.shares.map(String)).not.toContain(arrow);
-    }
+    // Read off the *state*, not off the fixture's own split of shares and bare
+    // ground: asserting that `bareArrow(0)` is not a share only restates how
+    // `bareArrow` chose it. What the invariant claims is that no spawner-border
+    // arrow which had an owner lost it across the move.
+    const ownedAfter = ownedSharesOf(after, ground.geometry);
+    expect([...ownedBefore.keys()].filter((arrow) => !ownedAfter.has(arrow))).toEqual([]);
+    expect(ownedBefore.size).toBeGreaterThan(0);
   });
 
   it('gives every arrow a claim takes an owner, rather than clearing it', () => {
@@ -414,12 +419,20 @@ describe('some seat is always alive', () => {
       alsoPlaying: [B, D],
     });
 
+    const ownedArrows = (state: GameState): readonly string[] =>
+      [...state.territory.keys()].map(String).toSorted();
+    const before0 = ownedArrows(before);
+
     const after = bridge.rules.apply(before, crossing(bridge));
 
     expect(after.territory.get(bridge.bridge)).toBe(A);
-    for (const [, owner] of after.territory) {
-      expect(owner).toBeDefined();
-    }
+    // The live claim. C's last arrow *is* the arrow the bridge claims, and C
+    // vanishes on this same step — so if the vanish cleared what the claim had
+    // just re-owned, that arrow would leave the map. Every arrow that had an owner
+    // before still has one. (Walking `after.territory` for a defined value cannot
+    // fail: a `Map<ArrowId, PlayerId>` has no undefined values to find.)
+    expect(isLost(after, C, bridge.geometry)).toBe(true);
+    expect(ownedArrows(after)).toEqual(before0);
   });
 
   it('keeps some seat owning a share at the opening of a generated match', () => {

@@ -228,7 +228,7 @@ describe('cut resolution is pure and deterministic', () => {
     );
   });
 
-  it('enumerates no vertex', () => {
+  it('requests no vertex beyond what an idle move requests', () => {
     const base = onBoard().geometry;
     const { geometry, vertexReads } = countingVertices(base);
     const rules = makeRules(geometry);
