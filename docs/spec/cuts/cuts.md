@@ -48,5 +48,6 @@ flowchart TD
 - When a backward front reaches the victim's territory, the system shall stop.
 - When a step marks the last clean territory feeder into a trail root `P0`, the system shall cut the owner's trail at `P0`.
 - When a stack is wiped to 0, the system shall evaporate that owner's trail from that arrow.
+- When a spawner birth lands on another player's trail arrow, the system shall evaporate that trail from the birth arrow (P40).
 - The system shall not leave a dormant (unanchored) trail component standing.
 - The system shall not mutate the input state.

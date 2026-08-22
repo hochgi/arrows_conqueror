@@ -1,14 +1,18 @@
 /**
  * Spawner accrual — exact rationals, full-round tick, blockade, reset-on-capture.
  *
- * SPEC §7, §11 items 13–15, 18, **41**. P08.
+ * SPEC §7, §11 items 13–15, 18, **41**, **47**. P08, P40.
  *
  * Accrual runs once per **full round**: when `endTurn` returns the active seat to
  * `players[0]`. Each spawner advances one round-robin step; enemy occupation
  * halts that share's *f*; friendly occupation accrues and merges with no §3
  * merge override (birth is not a spent move).
  *
+ * P40: a birth onto another player's open trail is a cut at the birth arrow
+ * (`evaporateFromArrow`). Bare marks do not halt; a garrison still does.
+ *
  * @see docs/spec/economy/economy.md
+ * @see docs/spec/birth-cut/birth-cut.md
  */
 
 import {
@@ -39,6 +43,18 @@ export const orderedBorders = (
   geometry: GeometryPort,
   vertex: VertexId,
 ): readonly ArrowId[] => [...geometry.borderArrows(vertex)].toSorted(compareArrows);
+
+export type EvaporateFromArrow = (
+  state: GameState,
+  victim: PlayerId,
+  emptied: ArrowId,
+) => GameState;
+
+const comparePlayers = (left: PlayerId, right: PlayerId): number => {
+  if (String(left) < String(right)) return -1;
+  if (String(left) > String(right)) return 1;
+  return 0;
+};
 
 /**
  * Reset accumulators on arrows whose territory owner just changed (capture, or
@@ -85,15 +101,83 @@ const birth = (
   );
 };
 
+const storeAccumulator = (
+  accumulators: Map<ArrowId, Rational>,
+  arrow: ArrowId,
+  value: Rational,
+): void => {
+  if (value.num === 0) accumulators.delete(arrow);
+  else accumulators.set(arrow, value);
+};
+
+interface AccrualDraft {
+  readonly groups: Map<ArrowId, Group>;
+  readonly accumulators: Map<ArrowId, Rational>;
+  readonly bornOn: ArrowId[];
+}
+
+const feedArrow = (
+  state: GameState,
+  draft: AccrualDraft,
+  arrow: ArrowId,
+  force: Rational,
+): void => {
+  const owner = state.territory.get(arrow);
+  if (owner === undefined) return;
+  const standing = draft.groups.get(arrow);
+  if (standing !== undefined && standing.owner !== owner) return;
+  const after = add(draft.accumulators.get(arrow) ?? ZERO, force);
+  const born = wholeSteps(after);
+  if (born > 0) {
+    birth(draft.groups, arrow, owner, born);
+    draft.bornOn.push(arrow);
+    storeAccumulator(draft.accumulators, arrow, fractionalPart(after));
+    return;
+  }
+  storeAccumulator(draft.accumulators, arrow, after);
+};
+
+/**
+ * After births, cut every other player's trail that still contains a birth arrow.
+ *
+ * Births complete first. Then arrow-id order, then player-id order (P40).
+ */
+export const cutBirthsOnOpenTrail = (
+  state: GameState,
+  bornOn: readonly ArrowId[],
+  evaporateFromArrow: EvaporateFromArrow,
+): GameState => {
+  if (bornOn.length === 0) return state;
+  let next = state;
+  for (const arrow of [...new Set(bornOn)].toSorted(compareArrows)) {
+    const standing = next.groups.get(arrow);
+    if (standing === undefined) continue;
+    const victims = [...next.trails]
+      .filter(([player, trail]) => player !== standing.owner && trail.has(arrow))
+      .map(([player]) => player)
+      .toSorted(comparePlayers);
+    for (const victim of victims) {
+      next = evaporateFromArrow(next, victim, arrow);
+    }
+  }
+  return next;
+};
+
 /**
  * One full-round accrual tick: every spawner feeds one border arrow and advances phase.
+ * Births onto foreign open trail then cut (P40).
  */
-export const accrueRound = (state: GameState, geometry: GeometryPort): GameState => {
+export const accrueRound = (
+  state: GameState,
+  geometry: GeometryPort,
+  evaporateFromArrow: EvaporateFromArrow,
+): GameState => {
   if (state.spawners.size === 0) return state;
 
   const groups = new Map(state.groups);
   const accumulators = new Map(state.accumulators);
   const spawners = new Map<VertexId, Spawner>();
+  const draft: AccrualDraft = { groups, accumulators, bornOn: [] };
   let touched = false;
 
   for (const [vertex, spawner] of [...state.spawners].toSorted(([a], [b]) =>
@@ -101,8 +185,6 @@ export const accrueRound = (state: GameState, geometry: GeometryPort): GameState
   )) {
     const borders = orderedBorders(geometry, vertex);
     if (borders.length !== 3) {
-      // Conformant boards always have 3; refuse quietly by skipping rather than
-      // inventing a feed target.
       spawners.set(vertex, spawner);
       continue;
     }
@@ -112,34 +194,12 @@ export const accrueRound = (state: GameState, geometry: GeometryPort): GameState
       spawners.set(vertex, spawner);
       continue;
     }
-    const nextPhase = (phase + 1) % 3;
-    spawners.set(vertex, { force: spawner.force, phase: nextPhase });
+    spawners.set(vertex, { force: spawner.force, phase: (phase + 1) % 3 });
     touched = true;
-
-    const owner = state.territory.get(arrow);
-    if (owner === undefined) continue;
-
-    const standing = groups.get(arrow);
-    if (standing !== undefined && standing.owner !== owner) {
-      // Enemy blockade: RR advanced, *f* lost, accumulator held.
-      continue;
-    }
-
-    const before = accumulators.get(arrow) ?? ZERO;
-    const after = add(before, spawner.force);
-    const born = wholeSteps(after);
-    if (born > 0) {
-      birth(groups, arrow, owner, born);
-      const rem = fractionalPart(after);
-      if (rem.num === 0) accumulators.delete(arrow);
-      else accumulators.set(arrow, rem);
-    } else if (after.num === 0) {
-      accumulators.delete(arrow);
-    } else {
-      accumulators.set(arrow, after);
-    }
+    feedArrow(state, draft, arrow, spawner.force);
   }
 
   if (!touched) return state;
-  return { ...state, groups, accumulators, spawners };
+  const accrued: GameState = { ...state, groups, accumulators, spawners };
+  return cutBirthsOnOpenTrail(accrued, draft.bornOn, evaporateFromArrow);
 };
