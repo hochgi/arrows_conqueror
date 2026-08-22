@@ -31,7 +31,7 @@ import type {
   Spawner,
   VertexId,
 } from '@conquarrow/contracts';
-import { compareArrows, compareVertices } from './order';
+import { compareArrows, comparePlayers, compareVertices } from './order';
 
 const asGroup = (owner: PlayerId, heads: number, spent: number, override?: 0 | 1): Group =>
   override === undefined
@@ -49,12 +49,6 @@ export type EvaporateFromArrow = (
   victim: PlayerId,
   emptied: ArrowId,
 ) => GameState;
-
-const comparePlayers = (left: PlayerId, right: PlayerId): number => {
-  if (String(left) < String(right)) return -1;
-  if (String(left) > String(right)) return 1;
-  return 0;
-};
 
 /**
  * Reset accumulators on arrows whose territory owner just changed (capture, or

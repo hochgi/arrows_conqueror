@@ -45,8 +45,8 @@ behaviour is not here, it will not be built.**
 **32 to P06**, **16 to P07**, **10 to P08**, **25 to P28**, **19 to P29**,
 **16 to P30**, **24 to P31** (22 of them now `@superseded-P34`), **26 to P32**,
 **11 to P33**, **86 to P34**, **28 to P39**, and **11 to P40**.
-610 concrete cases once `Examples` rows are expanded (combat Examples add more),
-295 invariants.
+621 concrete cases once `Examples` rows are expanded (combat Examples add more),
+304 invariants.
 
 **This index is not complete.** The online packets (`online-*`), the planner
 directories (`findings-planner`, `intercept-findings`) and `trails-simple` have

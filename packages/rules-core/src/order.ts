@@ -12,10 +12,17 @@
  * parse them.
  */
 
-import type { ArrowId, VertexId } from '@conquarrow/contracts';
+import type { ArrowId, PlayerId, VertexId } from '@conquarrow/contracts';
 
 /** A total order on arrows, so an ordered answer never rests on map or set order. */
 export const compareArrows = (left: ArrowId, right: ArrowId): number => {
+  if (String(left) < String(right)) return -1;
+  if (String(left) > String(right)) return 1;
+  return 0;
+};
+
+/** Same total order for seats (P40 birth-cut victim order). */
+export const comparePlayers = (left: PlayerId, right: PlayerId): number => {
   if (String(left) < String(right)) return -1;
   if (String(left) > String(right)) return 1;
   return 0;
