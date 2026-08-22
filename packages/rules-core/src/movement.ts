@@ -333,7 +333,8 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
    * Ending with allowance unspent is ordinary play, so no exhaustion is required.
    *
    * P08: when the next seat is `players[0]`, a full round has closed and every
-   * spawner accrues one round-robin step (§7 / §11 item 41).
+   * spawner accrues one round-robin step (§7 / §11 item 41). P40: a birth onto
+   * another player's open trail cuts that trail from the birth arrow.
    *
    * P36: that same boundary is where the starvation clocks advance, and P37 left
    * the order intact — accrue, advance the clocks, and then `apply`'s tail
@@ -359,7 +360,7 @@ export const makeRules = (geometry: GeometryPort): RulesPort => {
     // Tick-before-resolve is load-bearing: a seat is lost on the round its streak
     // reaches dominationN, not the round after. Accrue-first cannot rescue a lost
     // or destitute seat — they own no share (share theorem).
-    return tickStarvation(accrueRound(handed, geometry), geometry);
+    return tickStarvation(accrueRound(handed, geometry, cuts.evaporateFromArrow), geometry);
   };
 
   /**

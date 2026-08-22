@@ -14,7 +14,9 @@ accumulators once per **full round**.
 In: RR tick on full round, carry remainder, reset on capture, enemy blockade,
 friendly merge without merge override, double-fed arrows.
 
-Out: placement table / *R* / *N* (P09), victory (P09).
+Out: placement table / *R* / *N* (P09), victory (P09). Birth onto a *foreign*
+open trail is a cut — [birth-cut](../birth-cut/birth-cut.md) (P40), not this
+packet.
 
 ## Terms
 
